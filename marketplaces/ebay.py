@@ -4,6 +4,7 @@ from typing import Any
 
 import requests
 
+from app.models import Product
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
 
@@ -17,18 +18,7 @@ def search_items(
     marketplace_id: str = DEFAULT_MARKETPLACE_ID,
 ) -> list[dict[str, Any]]:
     """
-    eBay Browse API에서 상품을 검색한다.
-
-    Args:
-        query:
-            검색할 상품명 또는 키워드.
-        limit:
-            가져올 상품 개수.
-        marketplace_id:
-            검색할 eBay 마켓플레이스 ID.
-
-    Returns:
-        eBay 상품 정보 딕셔너리 목록.
+    eBay Browse API에서 원본 상품 데이터를 검색한다.
     """
     cleaned_query = query.strip()
 
@@ -77,3 +67,55 @@ def search_items(
         )
 
     return item_summaries
+
+
+def ebay_item_to_product(
+    item: dict[str, Any],
+) -> Product:
+    """
+    eBay 원본 상품 데이터를 공통 Product 객체로 변환한다.
+    """
+    price_data = item.get("price", {})
+
+    if not isinstance(price_data, dict):
+        price_data = {}
+
+    raw_price = price_data.get("value", 0)
+    currency = str(price_data.get("currency", "")).strip()
+
+    try:
+        price = float(raw_price)
+    except (TypeError, ValueError):
+        price = 0.0
+
+    return Product(
+        marketplace="ebay",
+        item_id=str(item.get("itemId", "")).strip(),
+        title=str(item.get("title", "제목 없음")).strip(),
+        price=price,
+        currency=currency,
+        condition=str(
+            item.get("condition", "상태 정보 없음")
+        ).strip(),
+        url=str(item.get("itemWebUrl", "")).strip(),
+    )
+
+
+def search_products(
+    query: str,
+    limit: int = 10,
+    marketplace_id: str = DEFAULT_MARKETPLACE_ID,
+) -> list[Product]:
+    """
+    eBay 상품을 검색하고 공통 Product 객체 목록으로 반환한다.
+    """
+    raw_items = search_items(
+        query=query,
+        limit=limit,
+        marketplace_id=marketplace_id,
+    )
+
+    return [
+        ebay_item_to_product(item)
+        for item in raw_items
+    ]
