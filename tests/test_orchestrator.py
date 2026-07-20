@@ -1,0 +1,120 @@
+from app.models import Product
+from engine.orchestrator import (
+    find_best_opportunities,
+    group_similar_products,
+)
+
+
+def make_product(
+    item_id: str,
+    title: str,
+    price: float,
+) -> Product:
+    return Product(
+        marketplace="ebay",
+        item_id=item_id,
+        title=title,
+        price=price,
+        currency="USD",
+        condition="New",
+        url=f"https://example.com/{item_id}",
+    )
+
+
+def test_group_similar_products() -> None:
+    products = [
+        make_product(
+            "1",
+            "Apple iPhone 17 128GB Black",
+            800.0,
+        ),
+        make_product(
+            "2",
+            "Apple iPhone17 Black 128 GB",
+            750.0,
+        ),
+        make_product(
+            "3",
+            "Samsung Galaxy Buds Pro White",
+            120.0,
+        ),
+    ]
+
+    groups = group_similar_products(products)
+
+    assert len(groups) == 2
+
+    iphone_group = next(
+        group
+        for group in groups
+        if "iphone" in group.representative.title.lower()
+    )
+
+    assert len(iphone_group.products) == 2
+    assert iphone_group.representative.item_id == "2"
+    assert iphone_group.representative.price == 750.0
+
+
+def test_find_best_opportunities(
+    monkeypatch,
+) -> None:
+    products = [
+        make_product(
+            "1",
+            "Apple iPhone 17 128GB Black",
+            800.0,
+        ),
+        make_product(
+            "2",
+            "Apple iPhone17 Black 128 GB",
+            750.0,
+        ),
+        make_product(
+            "3",
+            "Samsung Galaxy Buds Pro White",
+            120.0,
+        ),
+    ]
+
+    def fake_search_products(
+        query: str,
+        limit: int,
+    ) -> list[Product]:
+        assert query == "electronics"
+        assert limit == 10
+        return products
+
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        fake_search_products,
+    )
+
+    results = find_best_opportunities(
+        query="electronics",
+        limit=10,
+    )
+
+    assert len(results) == 2
+
+    iphone_result = next(
+        result
+        for result in results
+        if "iphone" in result.product.title.lower()
+    )
+
+    assert iphone_result.product.item_id == "2"
+    assert iphone_result.matched_product_count == 2
+    assert iphone_result.analysis[
+        "opportunity_score"
+    ] >= 0
+
+
+def test_empty_query_is_rejected() -> None:
+    try:
+        find_best_opportunities("   ")
+    except ValueError as error:
+        assert str(error) == "검색어를 입력해야 합니다."
+    else:
+        raise AssertionError(
+            "빈 검색어는 ValueError를 발생시켜야 합니다."
+        )
