@@ -4,9 +4,39 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.models import Product
-from engine.opportunity import calculate_product_opportunity
+from engine.confidence import (
+    ConfidenceResult,
+    calculate_price_confidence,
+)
+from engine.opportunity import (
+    calculate_product_opportunity,
+)
+from engine.price_intelligence import (
+    PriceIntelligence,
+    analyze_product_prices,
+)
+from engine.price_trend import (
+    PriceTrend,
+    analyze_price_trend,
+)
 from engine.product_matching import compare_products
-from marketplaces.ebay import search_products
+from engine.recommendation import (
+    RecommendationResult,
+    generate_recommendation,
+)
+from engine.trend_scoring import (
+    TrendScoreResult,
+    calculate_trend_score,
+)
+from marketplaces.amazon import (
+    search_products as search_amazon_products,
+)
+from marketplaces.ebay import (
+    search_products as search_ebay_products,
+)
+from storage.price_history import (
+    PriceHistoryRepository,
+)
 
 
 @dataclass(slots=True)
@@ -19,9 +49,6 @@ class ProductGroup:
 
     @property
     def representative(self) -> Product:
-        """
-        그룹에서 가격이 가장 낮은 상품을 대표 상품으로 사용한다.
-        """
         return min(
             self.products,
             key=lambda product: product.price,
@@ -37,6 +64,40 @@ class OpportunityResult:
     product: Product
     analysis: dict[str, Any]
     matched_product_count: int
+    price_intelligence: PriceIntelligence
+
+    confidence: ConfidenceResult | None = None
+    adjusted_opportunity_score: float = 0.0
+
+    price_trend: PriceTrend | None = None
+    trend_score: TrendScoreResult | None = None
+    trend_score_adjustment: float = 0.0
+
+    final_opportunity_score: float = 0.0
+
+    ai_recommendation: (
+        RecommendationResult | None
+    ) = None
+
+
+def search_products(
+    query: str,
+    limit: int = 10,
+) -> list[Product]:
+    """
+    eBay와 Amazon 상품을 하나의 목록으로 합친다.
+    """
+    ebay_products = search_ebay_products(
+        query=query,
+        limit=limit,
+    )
+
+    amazon_products = search_amazon_products(
+        query=query,
+        limit=limit,
+    )
+
+    return ebay_products + amazon_products
 
 
 def group_similar_products(
@@ -48,7 +109,8 @@ def group_similar_products(
     """
     if not 0 <= match_threshold <= 100:
         raise ValueError(
-            "match_threshold는 0 이상 100 이하여야 합니다."
+            "match_threshold는 0 이상 "
+            "100 이하여야 합니다."
         )
 
     groups: list[ProductGroup] = []
@@ -69,12 +131,36 @@ def group_similar_products(
 
         if matched_group is None:
             groups.append(
-                ProductGroup(products=[product])
+                ProductGroup(
+                    products=[product],
+                )
             )
         else:
             matched_group.products.append(product)
 
     return groups
+
+
+def _load_price_trend(
+    *,
+    repository: PriceHistoryRepository | None,
+    product: Product,
+) -> PriceTrend | None:
+    """
+    데이터베이스에 저장된 가격 이력을 분석한다.
+    """
+    if repository is None:
+        return None
+
+    records = repository.get_product_history(
+        marketplace=product.marketplace,
+        item_id=product.item_id,
+    )
+
+    if not records:
+        return None
+
+    return analyze_price_trend(records)
 
 
 def find_best_opportunities(
@@ -88,18 +174,24 @@ def find_best_opportunities(
     risk_level: str = "medium",
     limit: int = 10,
     match_threshold: float = 75.0,
+    price_history_repository: (
+        PriceHistoryRepository | None
+    ) = None,
 ) -> list[OpportunityResult]:
     """
-    상품 검색부터 그룹화, 기회 분석, 정렬까지 실행한다.
+    상품 검색부터 최종 추천 생성까지 실행한다.
     """
     cleaned_query = query.strip()
 
     if not cleaned_query:
-        raise ValueError("검색어를 입력해야 합니다.")
+        raise ValueError(
+            "검색어를 입력해야 합니다."
+        )
 
     if selling_price_multiplier <= 0:
         raise ValueError(
-            "selling_price_multiplier는 0보다 커야 합니다."
+            "selling_price_multiplier는 "
+            "0보다 커야 합니다."
         )
 
     products = search_products(
@@ -117,20 +209,131 @@ def find_best_opportunities(
     for group in product_groups:
         representative = group.representative
 
-        selling_price = round(
-            representative.price
-            * selling_price_multiplier,
-            2,
+        price_info = analyze_product_prices(
+            group.products,
+            fallback_multiplier=(
+                selling_price_multiplier
+            ),
+        )
+
+        used_fallback_price = (
+            price_info.sample_size == 1
+        )
+
+        confidence = calculate_price_confidence(
+            price_info.sample_size,
+            used_fallback_price=(
+                used_fallback_price
+            ),
+        )
+
+        selling_price = (
+            price_info.recommended_selling_price
         )
 
         analysis = calculate_product_opportunity(
             product=representative,
             selling_price=selling_price,
             shipping_cost=shipping_cost,
-            marketplace_fee_rate=marketplace_fee_rate,
-            estimated_monthly_sales=estimated_monthly_sales,
+            marketplace_fee_rate=(
+                marketplace_fee_rate
+            ),
+            estimated_monthly_sales=(
+                estimated_monthly_sales
+            ),
             competitor_count=competitor_count,
             risk_level=risk_level,
+        )
+
+        raw_opportunity_score = float(
+            analysis["opportunity_score"]
+        )
+
+        adjusted_opportunity_score = round(
+            raw_opportunity_score
+            * confidence.confidence_multiplier,
+            2,
+        )
+
+        price_trend = _load_price_trend(
+            repository=price_history_repository,
+            product=representative,
+        )
+
+        trend_score = calculate_trend_score(
+            price_trend
+        )
+
+        trend_score_adjustment = (
+            trend_score.adjustment
+        )
+
+        final_opportunity_score = round(
+            adjusted_opportunity_score
+            + trend_score_adjustment,
+            2,
+        )
+
+        ai_recommendation = generate_recommendation(
+            final_opportunity_score=(
+                final_opportunity_score
+            ),
+            roi=float(analysis["roi"]),
+            net_profit=float(
+                analysis["net_profit"]
+            ),
+            competitor_count=int(
+                analysis["competitor_count"]
+            ),
+            risk_level=str(
+                analysis["risk_level"]
+            ),
+            confidence=confidence,
+            price_trend=price_trend,
+        )
+
+        analysis["raw_opportunity_score"] = (
+            raw_opportunity_score
+        )
+
+        analysis["confidence_score"] = (
+            confidence.confidence_score
+        )
+
+        analysis["confidence_level"] = (
+            confidence.confidence_level
+        )
+
+        analysis["used_fallback_price"] = (
+            confidence.used_fallback_price
+        )
+
+        analysis["adjusted_opportunity_score"] = (
+            adjusted_opportunity_score
+        )
+
+        analysis["trend_score_adjustment"] = (
+            trend_score_adjustment
+        )
+
+        analysis["final_opportunity_score"] = (
+            final_opportunity_score
+        )
+
+        analysis["recommendation_score"] = (
+            ai_recommendation.score
+        )
+
+        analysis["recommendation_grade"] = (
+            ai_recommendation.grade
+        )
+
+        analysis["recommendation_action"] = (
+            ai_recommendation.action
+        )
+
+        analysis["success_probability"] = (
+            ai_recommendation.success_probability
         )
 
         results.append(
@@ -140,12 +343,34 @@ def find_best_opportunities(
                 matched_product_count=len(
                     group.products
                 ),
+                price_intelligence=price_info,
+                confidence=confidence,
+                adjusted_opportunity_score=(
+                    adjusted_opportunity_score
+                ),
+                price_trend=price_trend,
+                trend_score=trend_score,
+                trend_score_adjustment=(
+                    trend_score_adjustment
+                ),
+                final_opportunity_score=(
+                    final_opportunity_score
+                ),
+                ai_recommendation=(
+                    ai_recommendation
+                ),
             )
         )
 
     results.sort(
         key=lambda result: (
-            result.analysis["opportunity_score"],
+            (
+                result.ai_recommendation.score
+                if result.ai_recommendation
+                is not None
+                else 0
+            ),
+            result.final_opportunity_score,
             result.analysis["net_profit"],
         ),
         reverse=True,
