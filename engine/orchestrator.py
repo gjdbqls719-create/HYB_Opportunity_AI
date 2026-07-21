@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
 
 from app.models import Product
@@ -80,24 +81,54 @@ class OpportunityResult:
     ) = None
 
 
+SearchErrorHandler = Callable[[str, Exception], None]
+
+
 def search_products(
     query: str,
     limit: int = 10,
+    *,
+    error_handler: SearchErrorHandler | None = None,
 ) -> list[Product]:
     """
-    eBay와 Amazon 상품을 하나의 목록으로 합친다.
+    여러 마켓을 독립적으로 검색해 하나의 목록으로 합친다.
+
+    한 마켓의 연결이 실패해도 다른 마켓 검색은 계속한다.
+    모든 마켓이 실패했을 때만 RuntimeError를 발생시킨다.
     """
-    ebay_products = search_ebay_products(
-        query=query,
-        limit=limit,
+    marketplace_searches = (
+        ("ebay", search_ebay_products),
+        ("amazon", search_amazon_products),
     )
 
-    amazon_products = search_amazon_products(
-        query=query,
-        limit=limit,
-    )
+    products: list[Product] = []
+    failures: list[tuple[str, Exception]] = []
 
-    return ebay_products + amazon_products
+    for marketplace, search in marketplace_searches:
+        try:
+            products.extend(
+                search(
+                    query=query,
+                    limit=limit,
+                )
+            )
+        except (RuntimeError, ValueError) as error:
+            failures.append((marketplace, error))
+
+            if error_handler is not None:
+                error_handler(marketplace, error)
+
+    if len(failures) == len(marketplace_searches):
+        details = "; ".join(
+            f"{marketplace}: {error}"
+            for marketplace, error in failures
+        )
+        raise RuntimeError(
+            "모든 마켓 검색에 실패했습니다. "
+            f"{details}"
+        )
+
+    return products
 
 
 def group_similar_products(
@@ -177,6 +208,9 @@ def find_best_opportunities(
     price_history_repository: (
         PriceHistoryRepository | None
     ) = None,
+    search_error_handler: (
+        SearchErrorHandler | None
+    ) = None,
 ) -> list[OpportunityResult]:
     """
     상품 검색부터 최종 추천 생성까지 실행한다.
@@ -194,10 +228,17 @@ def find_best_opportunities(
             "0보다 커야 합니다."
         )
 
-    products = search_products(
-        query=cleaned_query,
-        limit=limit,
-    )
+    if search_error_handler is None:
+        products = search_products(
+            query=cleaned_query,
+            limit=limit,
+        )
+    else:
+        products = search_products(
+            query=cleaned_query,
+            limit=limit,
+            error_handler=search_error_handler,
+        )
 
     product_groups = group_similar_products(
         products,

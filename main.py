@@ -1,4 +1,5 @@
-from app.cli import run_demo
+from app.cli import run_cli
+
 
 if __name__ == "__main__":
-    run_demo()
+    raise SystemExit(run_cli())
