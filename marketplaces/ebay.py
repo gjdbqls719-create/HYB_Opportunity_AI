@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 import requests
 
 from app.models import Product
+from collectors.base import parse_price
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
 
 
 DEFAULT_MARKETPLACE_ID = "EBAY_US"
+DEFAULT_PRICE = Decimal("0.00")
 
 
 def search_items(
@@ -20,6 +23,7 @@ def search_items(
     """
     eBay Browse API에서 원본 상품 데이터를 검색한다.
     """
+
     cleaned_query = query.strip()
 
     if not cleaned_query:
@@ -74,30 +78,43 @@ def ebay_item_to_product(
 ) -> Product:
     """
     eBay 원본 상품 데이터를 공통 Product 객체로 변환한다.
+
+    가격은 공통 parse_price 함수를 통해 Decimal로 변환한다.
+    가격 데이터가 없거나 올바르지 않으면 기존 동작과의
+    호환성을 위해 0.00으로 처리한다.
     """
+
     price_data = item.get("price", {})
 
     if not isinstance(price_data, dict):
         price_data = {}
 
-    raw_price = price_data.get("value", 0)
-    currency = str(price_data.get("currency", "")).strip()
+    raw_price = price_data.get("value", DEFAULT_PRICE)
+    currency = str(
+        price_data.get("currency", "")
+    ).strip()
 
     try:
-        price = float(raw_price)
+        price = parse_price(raw_price)
     except (TypeError, ValueError):
-        price = 0.0
+        price = DEFAULT_PRICE
 
     return Product(
         marketplace="ebay",
-        item_id=str(item.get("itemId", "")).strip(),
-        title=str(item.get("title", "제목 없음")).strip(),
+        item_id=str(
+            item.get("itemId", "")
+        ).strip(),
+        title=str(
+            item.get("title", "제목 없음")
+        ).strip(),
         price=price,
         currency=currency,
         condition=str(
             item.get("condition", "상태 정보 없음")
         ).strip(),
-        url=str(item.get("itemWebUrl", "")).strip(),
+        url=str(
+            item.get("itemWebUrl", "")
+        ).strip(),
     )
 
 
@@ -109,6 +126,7 @@ def search_products(
     """
     eBay 상품을 검색하고 공통 Product 객체 목록으로 반환한다.
     """
+
     raw_items = search_items(
         query=query,
         limit=limit,
