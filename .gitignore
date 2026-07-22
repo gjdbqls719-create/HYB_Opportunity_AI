@@ -1,9 +1,33 @@
+# Python cache / build artifacts
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
 .venv/
+venv/
+env/
+
+# Local environment and secrets
 .env
+.env.*
+!.env.example
+
+# Local databases and generated exports
 *.db
+*.sqlite
+*.sqlite3
 exports/*
 !exports/.gitkeep
+
+# Editors / operating system
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
