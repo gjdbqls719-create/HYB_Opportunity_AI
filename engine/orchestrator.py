@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from app.models import Product
 from engine.confidence import (
     ConfidenceResult,
     calculate_price_confidence,
+)
+from engine.decision_report import (
+    DecisionReport,
+    build_decision_report,
 )
 from engine.opportunity import (
     calculate_product_opportunity,
@@ -80,6 +84,8 @@ class OpportunityResult:
         RecommendationResult | None
     ) = None
 
+    decision_report: DecisionReport | None = None
+
 
 SearchErrorHandler = Callable[[str, Exception], None]
 
@@ -123,6 +129,7 @@ def search_products(
             f"{marketplace}: {error}"
             for marketplace, error in failures
         )
+
         raise RuntimeError(
             "모든 마켓 검색에 실패했습니다. "
             f"{details}"
@@ -213,7 +220,8 @@ def find_best_opportunities(
     ) = None,
 ) -> list[OpportunityResult]:
     """
-    상품 검색부터 최종 추천 생성까지 실행한다.
+    상품 검색부터 최종 추천 및
+    Decision Report 생성까지 실행한다.
     """
     cleaned_query = query.strip()
 
@@ -333,6 +341,12 @@ def find_best_opportunities(
             price_trend=price_trend,
         )
 
+        decision_report = build_decision_report(
+            recommendation=ai_recommendation,
+            confidence=confidence,
+            price_trend=price_trend,
+        )
+
         analysis["raw_opportunity_score"] = (
             raw_opportunity_score
         )
@@ -377,6 +391,46 @@ def find_best_opportunities(
             ai_recommendation.success_probability
         )
 
+        analysis["recommendation_stars"] = (
+            ai_recommendation.stars
+        )
+
+        analysis["recommendation_star_display"] = (
+            ai_recommendation.star_display
+        )
+
+        analysis["recommendation_reasons"] = (
+            ai_recommendation.reasons
+        )
+
+        analysis["recommendation_warnings"] = (
+            ai_recommendation.warnings
+        )
+
+        analysis["recommendation_summary"] = (
+            ai_recommendation.summary
+        )
+
+        analysis["decision_report_strengths"] = (
+            decision_report.strengths
+        )
+
+        analysis["decision_report_weaknesses"] = (
+            decision_report.weaknesses
+        )
+
+        analysis["decision_report_market_summary"] = (
+            decision_report.market_summary
+        )
+
+        analysis["decision_report_buy_timing"] = (
+            decision_report.buy_timing
+        )
+
+        analysis["decision_report_ai_comment"] = (
+            decision_report.ai_comment
+        )
+
         results.append(
             OpportunityResult(
                 product=representative,
@@ -400,6 +454,7 @@ def find_best_opportunities(
                 ai_recommendation=(
                     ai_recommendation
                 ),
+                decision_report=decision_report,
             )
         )
 
