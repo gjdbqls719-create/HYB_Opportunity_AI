@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_HALF_UP
 from statistics import mean, median
 
 from app.models import Product
+
+
+TWOPLACES = Decimal("0.01")
 
 
 @dataclass(slots=True, frozen=True)
@@ -13,18 +17,34 @@ class PriceIntelligence:
     """
 
     currency: str
-    lowest_price: float
-    average_price: float
-    median_price: float
-    highest_price: float
-    recommended_selling_price: float
+    lowest_price: Decimal
+    average_price: Decimal
+    median_price: Decimal
+    highest_price: Decimal
+    recommended_selling_price: Decimal
     sample_size: int
+
+
+def _to_decimal(
+    value: Decimal | int | float | str,
+) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+
+    return Decimal(str(value))
+
+
+def _round_money(value: Decimal) -> Decimal:
+    return value.quantize(
+        TWOPLACES,
+        rounding=ROUND_HALF_UP,
+    )
 
 
 def analyze_product_prices(
     products: list[Product],
     *,
-    fallback_multiplier: float = 1.5,
+    fallback_multiplier: Decimal | int | float = Decimal("1.5"),
 ) -> PriceIntelligence:
     """
     같은 상품으로 판단된 Product 목록의 가격을 분석한다.
@@ -33,12 +53,15 @@ def analyze_product_prices(
     상품이 1개뿐이면 가격 정보가 부족하므로
     기존 방식인 매입가 × fallback_multiplier를 사용한다.
     """
+
     if not products:
         raise ValueError(
             "가격을 분석할 상품이 하나 이상 필요합니다."
         )
 
-    if fallback_multiplier <= 0:
+    multiplier = _to_decimal(fallback_multiplier)
+
+    if multiplier <= 0:
         raise ValueError(
             "fallback_multiplier는 0보다 커야 합니다."
         )
@@ -54,7 +77,7 @@ def analyze_product_prices(
         )
 
     prices = [
-        float(product.price)
+        _to_decimal(product.price)
         for product in products
     ]
 
@@ -64,26 +87,29 @@ def analyze_product_prices(
         )
 
     lowest_price = min(prices)
-    average_price = mean(prices)
-    median_price = median(prices)
+    average_price = Decimal(
+        str(mean(prices))
+    )
+    median_price = Decimal(
+        str(median(prices))
+    )
     highest_price = max(prices)
 
     if len(prices) == 1:
         recommended_selling_price = (
-            lowest_price * fallback_multiplier
+            lowest_price * multiplier
         )
     else:
         recommended_selling_price = median_price
 
     return PriceIntelligence(
         currency=next(iter(currencies)),
-        lowest_price=round(lowest_price, 2),
-        average_price=round(average_price, 2),
-        median_price=round(median_price, 2),
-        highest_price=round(highest_price, 2),
-        recommended_selling_price=round(
-            recommended_selling_price,
-            2,
+        lowest_price=_round_money(lowest_price),
+        average_price=_round_money(average_price),
+        median_price=_round_money(median_price),
+        highest_price=_round_money(highest_price),
+        recommended_selling_price=_round_money(
+            recommended_selling_price
         ),
         sample_size=len(prices),
     )
