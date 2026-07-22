@@ -17,6 +17,53 @@ class ConfidenceResult:
     reason: str
 
 
+def _base_confidence(
+    sample_size: int,
+) -> tuple[int, str, str]:
+    """
+    표본 수를 기준으로 기본 신뢰도를 계산한다.
+    """
+
+    if sample_size == 1:
+        return (
+            35,
+            "낮음",
+            (
+                "가격 표본이 1개뿐이어서 "
+                "시장 가격 신뢰도가 낮습니다."
+            ),
+        )
+
+    if sample_size == 2:
+        return (
+            60,
+            "보통",
+            (
+                "가격 표본이 2개이므로 "
+                "추가 시장 데이터가 필요합니다."
+            ),
+        )
+
+    if sample_size <= 5:
+        return (
+            80,
+            "높음",
+            (
+                "가격 표본이 3개 이상이어서 "
+                "시장 가격을 비교할 수 있습니다."
+            ),
+        )
+
+    return (
+        100,
+        "매우 높음",
+        (
+            "충분한 가격 표본이 확보되어 "
+            "시장 가격 신뢰도가 높습니다."
+        ),
+    )
+
+
 def calculate_price_confidence(
     sample_size: int,
     *,
@@ -24,55 +71,18 @@ def calculate_price_confidence(
 ) -> ConfidenceResult:
     """
     가격 표본 수를 기준으로 분석 신뢰도를 계산한다.
-
-    표본 1개:
-        신뢰도 35점
-
-    표본 2개:
-        신뢰도 60점
-
-    표본 3~5개:
-        신뢰도 80점
-
-    표본 6개 이상:
-        신뢰도 100점
     """
+
     if sample_size < 1:
         raise ValueError(
             "sample_size는 1 이상이어야 합니다."
         )
 
-    if sample_size == 1:
-        confidence_score = 35
-        confidence_level = "낮음"
-        reason = (
-            "가격 표본이 1개뿐이어서 "
-            "시장 가격 신뢰도가 낮습니다."
-        )
-
-    elif sample_size == 2:
-        confidence_score = 60
-        confidence_level = "보통"
-        reason = (
-            "가격 표본이 2개이므로 "
-            "추가 시장 데이터가 필요합니다."
-        )
-
-    elif sample_size <= 5:
-        confidence_score = 80
-        confidence_level = "높음"
-        reason = (
-            "가격 표본이 3개 이상이어서 "
-            "시장 가격을 비교할 수 있습니다."
-        )
-
-    else:
-        confidence_score = 100
-        confidence_level = "매우 높음"
-        reason = (
-            "충분한 가격 표본이 확보되어 "
-            "시장 가격 신뢰도가 높습니다."
-        )
+    (
+        confidence_score,
+        confidence_level,
+        reason,
+    ) = _base_confidence(sample_size)
 
     if used_fallback_price:
         reason += (

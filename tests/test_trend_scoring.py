@@ -47,7 +47,7 @@ def test_lowest_and_falling_price_gets_bonus() -> None:
 
     result = calculate_trend_score(trend)
 
-    assert result.adjustment == 13.0
+    assert result.adjustment == 15.0
     assert len(result.reasons) == 2
 
 
@@ -60,7 +60,7 @@ def test_cheaper_than_average_gets_bonus() -> None:
 
     result = calculate_trend_score(trend)
 
-    assert result.adjustment == 7.0
+    assert result.adjustment == 8.0
 
 
 def test_highest_and_rising_price_gets_penalty() -> None:
@@ -72,7 +72,7 @@ def test_highest_and_rising_price_gets_penalty() -> None:
 
     result = calculate_trend_score(trend)
 
-    assert result.adjustment == -15.0
+    assert result.adjustment == -18.0
     assert len(result.reasons) == 2
 
 

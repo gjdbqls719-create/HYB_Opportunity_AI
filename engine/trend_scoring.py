@@ -26,19 +26,19 @@ def calculate_trend_score(
             0점
 
         기간 최저가:
-            +10점
+            +12점
 
         평균보다 저렴:
-            +7점
+            +8점
 
         하락 추세:
             +3점
 
         기간 최고가:
-            -10점
+            -12점
 
         상승 추세:
-            -5점
+            -6점
 
     저장 기간 동안 가격이 모두 같으면
     추세 점수를 보정하지 않는다.
@@ -78,17 +78,17 @@ def calculate_trend_score(
     reasons: list[str] = []
 
     if trend.price_position == "기간 최저가":
-        adjustment += 10.0
+        adjustment += 12.0
         reasons.append(
             "현재 가격이 저장 기간의 최저가여서 "
-            "10점을 가산했습니다."
+            "12점을 가산했습니다."
         )
 
     elif trend.price_position == "평균보다 저렴":
-        adjustment += 7.0
+        adjustment += 8.0
         reasons.append(
             "현재 가격이 기간 평균보다 저렴하여 "
-            "7점을 가산했습니다."
+            "8점을 가산했습니다."
         )
 
     if trend.trend_direction == "하락":
@@ -99,17 +99,17 @@ def calculate_trend_score(
         )
 
     if trend.price_position == "기간 최고가":
-        adjustment -= 10.0
+        adjustment -= 12.0
         reasons.append(
             "현재 가격이 저장 기간의 최고가여서 "
-            "10점을 감점했습니다."
+            "12점을 감점했습니다."
         )
 
     if trend.trend_direction == "상승":
-        adjustment -= 5.0
+        adjustment -= 6.0
         reasons.append(
             "가격이 상승 추세여서 "
-            "5점을 감점했습니다."
+            "6점을 감점했습니다."
         )
 
     if not reasons:

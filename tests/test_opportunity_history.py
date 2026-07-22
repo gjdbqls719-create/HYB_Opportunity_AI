@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from app.models import Product
@@ -21,11 +22,14 @@ def make_result() -> OpportunityResult:
     )
     price_info = PriceIntelligence(
         currency="USD",
-        lowest_price=20,
-        average_price=30,
-        median_price=30,
-        highest_price=40,
-        recommended_selling_price=35,
+        lowest_price=Decimal("20.00"),
+        average_price=Decimal("30.00"),
+        median_price=Decimal("30.00"),
+        highest_price=Decimal("40.00"),
+        price_range=Decimal("20.00"),
+        price_variation_rate=Decimal("66.67"),
+        price_stability_level="very_low",
+        recommended_selling_price=Decimal("35.00"),
         sample_size=2,
     )
     confidence = ConfidenceResult(
@@ -49,7 +53,10 @@ def make_result() -> OpportunityResult:
     )
     return OpportunityResult(
         product=product,
-        analysis={"net_profit": 10, "roi": 50},
+        analysis={
+            "net_profit": 10,
+            "roi": 50,
+        },
         matched_product_count=2,
         price_intelligence=price_info,
         confidence=confidence,
@@ -58,14 +65,24 @@ def make_result() -> OpportunityResult:
     )
 
 
-def test_save_and_read_opportunity_results(tmp_path: Path) -> None:
-    repository = OpportunityHistoryRepository(tmp_path / "history.db")
+def test_save_and_read_opportunity_results(
+    tmp_path: Path,
+) -> None:
+    repository = OpportunityHistoryRepository(
+        tmp_path / "history.db"
+    )
     saved = repository.save_results(
         "gaming mouse",
         [make_result()],
-        created_at=datetime(2026, 7, 21, tzinfo=timezone.utc),
+        created_at=datetime(
+            2026,
+            7,
+            21,
+            tzinfo=timezone.utc,
+        ),
     )
     records = repository.get_recent(limit=10)
+
     assert saved == 1
     assert repository.count_records() == 1
     assert records[0].query == "gaming mouse"

@@ -41,6 +41,9 @@ def test_analyze_multiple_product_prices() -> None:
     assert result.average_price == Decimal("91.67")
     assert result.median_price == Decimal("95.00")
     assert result.highest_price == Decimal("100.00")
+    assert result.price_range == Decimal("20.00")
+    assert result.price_variation_rate == Decimal("21.82")
+    assert result.price_stability_level == "medium"
     assert (
         result.recommended_selling_price
         == Decimal("95.00")
@@ -50,6 +53,11 @@ def test_analyze_multiple_product_prices() -> None:
     assert isinstance(result.average_price, Decimal)
     assert isinstance(result.median_price, Decimal)
     assert isinstance(result.highest_price, Decimal)
+    assert isinstance(result.price_range, Decimal)
+    assert isinstance(
+        result.price_variation_rate,
+        Decimal,
+    )
     assert isinstance(
         result.recommended_selling_price,
         Decimal,
@@ -69,15 +77,71 @@ def test_single_product_uses_fallback_multiplier() -> None:
     )
 
     assert result.lowest_price == Decimal("100.00")
+    assert result.price_range == Decimal("0.00")
+    assert result.price_variation_rate == Decimal("0.00")
+    assert result.price_stability_level == "unknown"
     assert (
         result.recommended_selling_price
         == Decimal("150.00")
+    )
+    assert isinstance(result.price_range, Decimal)
+    assert isinstance(
+        result.price_variation_rate,
+        Decimal,
     )
     assert isinstance(
         result.recommended_selling_price,
         Decimal,
     )
     assert result.sample_size == 1
+
+
+def test_calculates_decimal_price_range() -> None:
+    products = [
+        make_product("1", Decimal("19.99")),
+        make_product("2", Decimal("24.50")),
+        make_product("3", Decimal("31.25")),
+    ]
+
+    result = analyze_product_prices(products)
+
+    assert result.lowest_price == Decimal("19.99")
+    assert result.highest_price == Decimal("31.25")
+    assert result.price_range == Decimal("11.26")
+
+
+def test_classifies_stable_prices_as_very_high() -> None:
+    products = [
+        make_product("1", Decimal("19.00")),
+        make_product("2", Decimal("20.00")),
+        make_product("3", Decimal("20.00")),
+        make_product("4", Decimal("21.00")),
+        make_product("5", Decimal("20.00")),
+    ]
+
+    result = analyze_product_prices(products)
+
+    assert result.average_price == Decimal("20.00")
+    assert result.price_range == Decimal("2.00")
+    assert result.price_variation_rate == Decimal("10.00")
+    assert result.price_stability_level == "very_high"
+
+
+def test_classifies_volatile_prices_as_very_low() -> None:
+    products = [
+        make_product("1", Decimal("5.00")),
+        make_product("2", Decimal("18.00")),
+        make_product("3", Decimal("50.00")),
+        make_product("4", Decimal("120.00")),
+        make_product("5", Decimal("8.00")),
+    ]
+
+    result = analyze_product_prices(products)
+
+    assert result.average_price == Decimal("40.20")
+    assert result.price_range == Decimal("115.00")
+    assert result.price_variation_rate == Decimal("286.07")
+    assert result.price_stability_level == "very_low"
 
 
 def test_accepts_float_fallback_multiplier_safely() -> None:
@@ -144,5 +208,3 @@ def test_rejects_invalid_fallback_multiplier(
             products,
             fallback_multiplier=fallback_multiplier,
         )
-
-
