@@ -47,6 +47,12 @@ class DashboardMetrics:
     final_opportunity_score: float
     matched_product_count: int
 
+    landed_cost: float = 0.0
+    selling_cost: float = 0.0
+    total_cost: float = 0.0
+    margin_rate: float = 0.0
+    landed_cost_roi: float = 0.0
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 

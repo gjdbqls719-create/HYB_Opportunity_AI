@@ -79,6 +79,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--payment-fee-rate",
+        type=float,
+        default=0.0,
+        help="결제 수수료율 (기본값: 0)",
+    )
+
+    parser.add_argument(
+        "--tax-rate",
+        type=float,
+        default=0.0,
+        help="예상 세율 (기본값: 0)",
+    )
+
+    parser.add_argument(
+        "--other-cost",
+        type=float,
+        default=0.0,
+        help="포장비 등 기타 비용 (기본값: 0)",
+    )
+
+    parser.add_argument(
+        "--minimum-net-profit",
+        type=float,
+        default=0.0,
+        help="최소 순이익 필터 (기본값: 0)",
+    )
+
+    parser.add_argument(
+        "--minimum-roi",
+        type=float,
+        default=0.0,
+        help="최소 ROI 필터, 퍼센트 단위 (기본값: 0)",
+    )
+
+    parser.add_argument(
         "--monthly-sales",
         type=int,
         default=100,
@@ -157,8 +192,13 @@ def _validate_arguments(
     limit: int,
     top: int,
     fee_rate: float,
+    payment_fee_rate: float,
+    tax_rate: float,
     selling_multiplier: float,
     shipping_cost: float,
+    other_cost: float,
+    minimum_net_profit: float,
+    minimum_roi: float,
     monthly_sales: int,
     competitors: int,
 ) -> None:
@@ -175,20 +215,31 @@ def _validate_arguments(
             "top은 1 이상이어야 합니다."
         )
 
-    if not 0 <= fee_rate < 1:
-        raise ValueError(
-            "fee-rate는 0 이상 1 미만이어야 합니다."
-        )
+    for value, name in (
+        (fee_rate, "fee-rate"),
+        (payment_fee_rate, "payment-fee-rate"),
+        (tax_rate, "tax-rate"),
+    ):
+        if not 0 <= value <= 1:
+            raise ValueError(
+                f"{name}는 0 이상 1 이하여야 합니다."
+            )
 
     if selling_multiplier <= 0:
         raise ValueError(
             "selling-multiplier는 0보다 커야 합니다."
         )
 
-    if shipping_cost < 0:
-        raise ValueError(
-            "shipping-cost는 0 이상이어야 합니다."
-        )
+    for value, name in (
+        (shipping_cost, "shipping-cost"),
+        (other_cost, "other-cost"),
+        (minimum_net_profit, "minimum-net-profit"),
+        (minimum_roi, "minimum-roi"),
+    ):
+        if value < 0:
+            raise ValueError(
+                f"{name}는 0 이상이어야 합니다."
+            )
 
     if monthly_sales < 0:
         raise ValueError(
@@ -433,10 +484,15 @@ def run_cli(
             limit=args.limit,
             top=args.top,
             fee_rate=args.fee_rate,
+            payment_fee_rate=args.payment_fee_rate,
+            tax_rate=args.tax_rate,
             selling_multiplier=(
                 args.selling_multiplier
             ),
             shipping_cost=args.shipping_cost,
+            other_cost=args.other_cost,
+            minimum_net_profit=args.minimum_net_profit,
+            minimum_roi=args.minimum_roi,
             monthly_sales=args.monthly_sales,
             competitors=args.competitors,
         )
@@ -465,6 +521,11 @@ def run_cli(
             marketplace_fee_rate=(
                 args.fee_rate
             ),
+            payment_fee_rate=args.payment_fee_rate,
+            tax_rate=args.tax_rate,
+            other_cost=args.other_cost,
+            minimum_net_profit=args.minimum_net_profit,
+            minimum_roi=args.minimum_roi,
             estimated_monthly_sales=(
                 args.monthly_sales
             ),

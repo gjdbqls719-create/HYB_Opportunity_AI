@@ -183,3 +183,40 @@ def test_cli_history_mode_does_not_search(
         "저장된 분석 결과가 없습니다."
         in rendered
     )
+
+def test_cli_passes_sprint3_cost_options(
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_find_best_opportunities(
+        **kwargs,
+    ):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(
+        "app.cli.find_best_opportunities",
+        fake_find_best_opportunities,
+    )
+
+    exit_code = run_cli(
+        [
+            "gaming mouse",
+            "--payment-fee-rate", "0.03",
+            "--tax-rate", "0.05",
+            "--other-cost", "4",
+            "--minimum-net-profit", "10",
+            "--minimum-roi", "20",
+            "--no-save",
+        ],
+        output=StringIO(),
+        error_output=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert captured["payment_fee_rate"] == 0.03
+    assert captured["tax_rate"] == 0.05
+    assert captured["other_cost"] == 4.0
+    assert captured["minimum_net_profit"] == 10.0
+    assert captured["minimum_roi"] == 20.0

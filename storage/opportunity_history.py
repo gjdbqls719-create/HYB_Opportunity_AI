@@ -39,6 +39,17 @@ class SavedOpportunity:
     ai_partner_recommendation: str = ""
     ai_partner_next_action: str = ""
 
+    landed_cost: float = 0.0
+    selling_cost: float = 0.0
+    total_cost: float = 0.0
+    margin_rate: float = 0.0
+    landed_cost_roi: float = 0.0
+    marketplace_fee: float = 0.0
+    payment_fee: float = 0.0
+    tax_cost: float = 0.0
+    other_cost: float = 0.0
+    passes_profitability_filter: bool = True
+
 
 class OpportunityHistoryRepository:
     """
@@ -93,12 +104,22 @@ class OpportunityHistoryRepository:
                     ai_partner_title TEXT NOT NULL DEFAULT '',
                     ai_partner_summary TEXT NOT NULL DEFAULT '',
                     ai_partner_recommendation TEXT NOT NULL DEFAULT '',
-                    ai_partner_next_action TEXT NOT NULL DEFAULT ''
+                    ai_partner_next_action TEXT NOT NULL DEFAULT '',
+                    landed_cost REAL NOT NULL DEFAULT 0,
+                    selling_cost REAL NOT NULL DEFAULT 0,
+                    total_cost REAL NOT NULL DEFAULT 0,
+                    margin_rate REAL NOT NULL DEFAULT 0,
+                    landed_cost_roi REAL NOT NULL DEFAULT 0,
+                    marketplace_fee REAL NOT NULL DEFAULT 0,
+                    payment_fee REAL NOT NULL DEFAULT 0,
+                    tax_cost REAL NOT NULL DEFAULT 0,
+                    other_cost REAL NOT NULL DEFAULT 0,
+                    passes_profitability_filter INTEGER NOT NULL DEFAULT 1
                 )
                 """
             )
 
-            self._ensure_ai_partner_columns(
+            self._ensure_history_columns(
                 connection
             )
 
@@ -124,12 +145,12 @@ class OpportunityHistoryRepository:
             connection.commit()
 
     @staticmethod
-    def _ensure_ai_partner_columns(
+    def _ensure_history_columns(
         connection: sqlite3.Connection,
     ) -> None:
         """
         과거 버전의 데이터베이스에
-        AI Partner 저장 컬럼을 추가한다.
+        AI Partner와 Opportunity 비용 저장 컬럼을 추가한다.
         """
         rows = connection.execute(
             """
@@ -154,6 +175,18 @@ class OpportunityHistoryRepository:
             ),
             "ai_partner_next_action": (
                 "TEXT NOT NULL DEFAULT ''"
+            ),
+            "landed_cost": "REAL NOT NULL DEFAULT 0",
+            "selling_cost": "REAL NOT NULL DEFAULT 0",
+            "total_cost": "REAL NOT NULL DEFAULT 0",
+            "margin_rate": "REAL NOT NULL DEFAULT 0",
+            "landed_cost_roi": "REAL NOT NULL DEFAULT 0",
+            "marketplace_fee": "REAL NOT NULL DEFAULT 0",
+            "payment_fee": "REAL NOT NULL DEFAULT 0",
+            "tax_cost": "REAL NOT NULL DEFAULT 0",
+            "other_cost": "REAL NOT NULL DEFAULT 0",
+            "passes_profitability_filter": (
+                "INTEGER NOT NULL DEFAULT 1"
             ),
         }
 
@@ -282,6 +315,19 @@ class OpportunityHistoryRepository:
                         if ai_partner_report
                         else ""
                     ),
+                    float(analysis.get("landed_cost", 0.0)),
+                    float(analysis.get("selling_cost", 0.0)),
+                    float(analysis.get("total_cost", 0.0)),
+                    float(analysis.get("margin_rate", 0.0)),
+                    float(analysis.get("landed_cost_roi", 0.0)),
+                    float(analysis.get("marketplace_fee", 0.0)),
+                    float(analysis.get("payment_fee", 0.0)),
+                    float(analysis.get("tax_cost", 0.0)),
+                    float(analysis.get("other_cost", 0.0)),
+                    int(bool(analysis.get(
+                        "passes_profitability_filter",
+                        True,
+                    ))),
                 )
             )
 
@@ -307,9 +353,20 @@ class OpportunityHistoryRepository:
                     ai_partner_title,
                     ai_partner_summary,
                     ai_partner_recommendation,
-                    ai_partner_next_action
+                    ai_partner_next_action,
+                    landed_cost,
+                    selling_cost,
+                    total_cost,
+                    margin_rate,
+                    landed_cost_roi,
+                    marketplace_fee,
+                    payment_fee,
+                    tax_cost,
+                    other_cost,
+                    passes_profitability_filter
                 )
                 VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
@@ -463,5 +520,17 @@ class OpportunityHistoryRepository:
                 row[
                     "ai_partner_next_action"
                 ]
+            ),
+            landed_cost=float(row["landed_cost"]),
+            selling_cost=float(row["selling_cost"]),
+            total_cost=float(row["total_cost"]),
+            margin_rate=float(row["margin_rate"]),
+            landed_cost_roi=float(row["landed_cost_roi"]),
+            marketplace_fee=float(row["marketplace_fee"]),
+            payment_fee=float(row["payment_fee"]),
+            tax_cost=float(row["tax_cost"]),
+            other_cost=float(row["other_cost"]),
+            passes_profitability_filter=bool(
+                row["passes_profitability_filter"]
             ),
         )

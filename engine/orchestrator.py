@@ -48,6 +48,11 @@ from marketplaces.amazon import (
 from marketplaces.ebay import (
     search_products as search_ebay_products,
 )
+from services.currency import (
+    CurrencyConverter,
+    normalize_currency_code,
+    normalize_products_currency,
+)
 from storage.price_history import (
     PriceHistoryRepository,
 )
@@ -232,6 +237,11 @@ def find_best_opportunities(
     selling_price_multiplier: float = 1.5,
     shipping_cost: float = 0,
     marketplace_fee_rate: float = 0.15,
+    payment_fee_rate: float = 0,
+    tax_rate: float = 0,
+    other_cost: float = 0,
+    minimum_net_profit: float = 0,
+    minimum_roi: float = 0,
     estimated_monthly_sales: int = 100,
     competitor_count: int = 20,
     risk_level: str = "medium",
@@ -247,13 +257,10 @@ def find_best_opportunities(
         OpportunityHistoryLoader | None
     ) = None,
     ai_memory_history: list[HistoricalOpportunity] | None = None,
+    currency_converter: CurrencyConverter | None = None,
+    target_currency: str | None = None,
 ) -> list[OpportunityResult]:
-    """cleaned_query = query.strip()
-
-if not cleaned_query:
-    상품 검색부터 최종 추천, Decision Report,
-    AI Partner Report 생성까지 실행한다.
-    """
+    """상품 검색부터 최종 AI Partner 보고서까지 생성한다."""
     cleaned_query = query.strip()
 
     if not cleaned_query:
@@ -266,6 +273,21 @@ if not cleaned_query:
             "selling_price_multiplier는 "
             "0보다 커야 합니다."
         )
+
+    resolved_target_currency: str | None = None
+
+    if target_currency is not None:
+        resolved_target_currency = normalize_currency_code(
+            target_currency,
+            "대상 통화",
+        )
+
+        if currency_converter is None:
+            raise ValueError(
+                "target_currency를 사용하려면 "
+                "currency_converter가 필요합니다."
+            )
+
     resolved_ai_memory_history = (
         ai_memory_history
     )
@@ -276,8 +298,8 @@ if not cleaned_query:
         is not None
     ):
         resolved_ai_memory_history = (
-         opportunity_history_repository
-          .load_ai_memory_history()
+            opportunity_history_repository
+            .load_ai_memory_history()
         )
 
     if search_error_handler is None:
@@ -291,6 +313,21 @@ if not cleaned_query:
             limit=limit,
             error_handler=search_error_handler,
         )
+    currency_normalized = False
+
+    if resolved_target_currency is not None:
+        if currency_converter is None:
+            raise RuntimeError(
+                "통화 변환기가 설정되지 않았습니다."
+            )
+
+        products = normalize_products_currency(
+            products,
+            converter=currency_converter,
+            target_currency=resolved_target_currency,
+        )
+
+        currency_normalized = True
 
     product_groups = group_similar_products(
         products,
@@ -331,6 +368,11 @@ if not cleaned_query:
             marketplace_fee_rate=(
                 marketplace_fee_rate
             ),
+            payment_fee_rate=payment_fee_rate,
+            tax_rate=tax_rate,
+            other_cost=other_cost,
+            minimum_net_profit=minimum_net_profit,
+            minimum_roi=minimum_roi,
             estimated_monthly_sales=(
                 estimated_monthly_sales
             ),
@@ -394,19 +436,26 @@ if not cleaned_query:
             current_opportunity_score=final_opportunity_score,
             current_roi=float(analysis["roi"]),
             current_net_profit=float(
-          analysis["net_profit"]
-         ),
-         current_success_probability=float(
-         ai_recommendation.success_probability
-         ),
-         history=resolved_ai_memory_history or [],
+                analysis["net_profit"]
+            ),
+            current_success_probability=float(
+                ai_recommendation.success_probability
+            ),
+            history=resolved_ai_memory_history or [],
         )
         ai_partner_report = build_ai_partner_report(
             recommendation=ai_recommendation,
             decision_report=decision_report,
             memory_insight=memory_insight,
         )
+        analysis["analysis_currency"] = (
+            price_info.currency
+        )
 
+        analysis["currency_normalized"] = (
+            currency_normalized
+        )
+        
         analysis["raw_opportunity_score"] = (
             raw_opportunity_score
         )
@@ -507,15 +556,15 @@ if not cleaned_query:
             ai_partner_report.next_action
         )
         analysis["ai_memory_summary"] = (
-         memory_insight.summary
+            memory_insight.summary
         )
 
         analysis["ai_memory_rank"] = (
-         memory_insight.rank_label
+            memory_insight.rank_label
         )
 
         analysis["ai_memory_percentile"] = (
-          memory_insight.overall_percentile
+            memory_insight.overall_percentile
         )
         results.append(
             OpportunityResult(

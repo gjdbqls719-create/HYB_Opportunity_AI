@@ -67,13 +67,36 @@ def format_dashboard_card(
             currency,
         ),
         _format_money_row(
+            "Landed Cost",
+            card.metrics.landed_cost,
+            currency,
+        ),
+        _format_money_row(
+            "Selling Cost",
+            card.metrics.selling_cost,
+            currency,
+        ),
+        _format_money_row(
+            "Total Cost",
+            card.metrics.total_cost,
+            currency,
+        ),
+        _format_money_row(
             "Net Profit",
             card.metrics.net_profit,
             currency,
         ),
         _format_percentage_row(
+            "Margin",
+            card.metrics.margin_rate,
+        ),
+        _format_percentage_row(
             "ROI",
             card.metrics.roi,
+        ),
+        _format_percentage_row(
+            "Landed ROI",
+            card.metrics.landed_cost_roi,
         ),
         _format_number_row(
             "Base Score",

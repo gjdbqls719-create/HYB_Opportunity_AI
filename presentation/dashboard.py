@@ -107,17 +107,37 @@ def _build_metrics(
             "selling_price",
             "target_price",
         ),
+        landed_cost=_analysis_float(
+            analysis,
+            "landed_cost",
+        ),
+        selling_cost=_analysis_float(
+            analysis,
+            "selling_cost",
+        ),
+        total_cost=_analysis_float(
+            analysis,
+            "total_cost",
+        ),
         net_profit=_analysis_float(
             analysis,
             "net_profit",
             "expected_profit",
             "profit",
         ),
+        margin_rate=_analysis_float(
+            analysis,
+            "margin_rate",
+        ),
         roi=_analysis_float(
             analysis,
             "roi",
             "roi_percent",
             "return_on_investment",
+        ),
+        landed_cost_roi=_analysis_float(
+            analysis,
+            "landed_cost_roi",
         ),
         opportunity_score=_analysis_float(
             analysis,

@@ -69,8 +69,13 @@ def _make_opportunity_result() -> OpportunityResult:
         product=product,
         analysis={
             "expected_selling_price": 750.0,
+            "landed_cost": 520.0,
+            "selling_cost": 100.0,
+            "total_cost": 620.0,
             "net_profit": 130.0,
+            "margin_rate": 17.3,
             "roi": 25.0,
+            "landed_cost_roi": 25.0,
             "opportunity_score": 70.0,
         },
         matched_product_count=4,
@@ -103,8 +108,13 @@ def test_build_dashboard_card() -> None:
         card.metrics.expected_selling_price
         == 750.0
     )
+    assert card.metrics.landed_cost == 520.0
+    assert card.metrics.selling_cost == 100.0
+    assert card.metrics.total_cost == 620.0
     assert card.metrics.net_profit == 130.0
+    assert card.metrics.margin_rate == 17.3
     assert card.metrics.roi == 25.0
+    assert card.metrics.landed_cost_roi == 25.0
     assert (
         card.metrics.opportunity_score
         == 70.0
