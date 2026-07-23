@@ -41,8 +41,15 @@ def build_decision_report(
         recommendation.warnings
     )
 
+    decision_label = getattr(
+        recommendation,
+        "decision_label",
+        recommendation.grade,
+    )
+
     market_summary = _build_market_summary(
         recommendation=recommendation,
+        decision_label=decision_label,
         price_trend=price_trend,
     )
 
@@ -70,16 +77,19 @@ def build_decision_report(
 def _build_market_summary(
     *,
     recommendation: RecommendationResult,
+    decision_label: str,
     price_trend: PriceTrend | None,
 ) -> str:
     if price_trend is None:
         return (
+            f"[{decision_label}] "
             "시장 가격 이력이 충분하지 않아 "
             "현재 시장 흐름을 명확하게 판단하기 어렵습니다."
         )
 
     if not price_trend.has_sufficient_history:
         return (
+            f"[{decision_label}] "
             "가격 이력이 부족하여 "
             "시장 분석의 정확도가 제한됩니다."
         )
@@ -89,6 +99,7 @@ def _build_market_summary(
         == price_trend.highest_price
     ):
         return (
+            f"[{decision_label}] "
             "가격이 안정적으로 유지되고 있는 "
             "시장입니다."
         )
@@ -98,6 +109,7 @@ def _build_market_summary(
         == "기간 최저가"
     ):
         return (
+            f"[{decision_label}] "
             "현재 가격은 최근 저장 기간 중 "
             "가장 낮은 수준입니다."
         )
@@ -107,11 +119,13 @@ def _build_market_summary(
         == "기간 최고가"
     ):
         return (
+            f"[{decision_label}] "
             "현재 가격은 최근 저장 기간 중 "
             "가장 높은 수준입니다."
         )
 
     return (
+        f"[{decision_label}] "
         "현재 가격은 평균적인 시장 가격 "
         "범위에 위치하고 있습니다."
     )

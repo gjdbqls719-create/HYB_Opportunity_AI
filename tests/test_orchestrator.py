@@ -1,4 +1,5 @@
 from app.models import Product
+from engine.ai_memory import HistoricalOpportunity
 from engine.orchestrator import (
     find_best_opportunities,
     group_similar_products,
@@ -109,6 +110,168 @@ def test_find_best_opportunities(
     ] >= 0
 
 
+def test_find_best_opportunities_uses_ai_memory(
+    monkeypatch,
+) -> None:
+    products = [
+        make_product(
+            "memory-1",
+            "Apple iPhone 17 128GB Black",
+            500.0,
+        ),
+    ]
+
+    history = [
+        HistoricalOpportunity(
+            opportunity_score=10.0,
+            roi=5.0,
+            net_profit=20.0,
+            success_probability=30.0,
+        ),
+        HistoricalOpportunity(
+            opportunity_score=20.0,
+            roi=10.0,
+            net_profit=40.0,
+            success_probability=40.0,
+        ),
+        HistoricalOpportunity(
+            opportunity_score=30.0,
+            roi=15.0,
+            net_profit=60.0,
+            success_probability=50.0,
+        ),
+    ]
+
+    def fake_search_products(
+        query: str,
+        limit: int,
+    ) -> list[Product]:
+        assert query == "iphone"
+        assert limit == 10
+        return products
+
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        fake_search_products,
+    )
+
+    results = find_best_opportunities(
+        query="iphone",
+        limit=10,
+        ai_memory_history=history,
+    )
+
+    assert len(results) == 1
+
+    result = results[0]
+
+    assert result.memory_insight is not None
+    assert result.memory_insight.sample_size == 3
+
+    assert result.ai_partner_report is not None
+    assert (
+        result.ai_partner_report.memory_summary
+        == result.memory_insight.summary
+    )
+    assert (
+        result.ai_partner_report.memory_summary
+        != ""
+    )
+
+    assert (
+        result.analysis["ai_memory_summary"]
+        == result.memory_insight.summary
+    )
+    assert (
+        result.analysis["ai_memory_rank"]
+        == result.memory_insight.rank_label
+    )
+    assert (
+        result.analysis["ai_memory_percentile"]
+        == result.memory_insight.overall_percentile
+    )
+
+
+def test_find_best_opportunities_loads_ai_memory_from_repository(
+    monkeypatch,
+) -> None:
+    products = [
+        make_product(
+            "repository-memory-1",
+            "Apple iPhone 17 128GB Black",
+            500.0,
+        ),
+    ]
+
+    repository_history = [
+        HistoricalOpportunity(
+            opportunity_score=15.0,
+            roi=8.0,
+            net_profit=30.0,
+            success_probability=35.0,
+        ),
+        HistoricalOpportunity(
+            opportunity_score=25.0,
+            roi=12.0,
+            net_profit=50.0,
+            success_probability=45.0,
+        ),
+    ]
+
+    class FakeOpportunityHistoryRepository:
+        def __init__(self) -> None:
+            self.load_call_count = 0
+
+        def load_ai_memory_history(
+            self,
+            *,
+            limit: int = 500,
+        ) -> list[HistoricalOpportunity]:
+            assert limit == 500
+            self.load_call_count += 1
+            return repository_history
+
+    repository = FakeOpportunityHistoryRepository()
+
+    def fake_search_products(
+        query: str,
+        limit: int,
+    ) -> list[Product]:
+        assert query == "iphone"
+        assert limit == 10
+        return products
+
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        fake_search_products,
+    )
+
+    results = find_best_opportunities(
+        query="iphone",
+        limit=10,
+        opportunity_history_repository=repository,
+    )
+
+    assert repository.load_call_count == 1
+    assert len(results) == 1
+
+    result = results[0]
+
+    assert result.memory_insight is not None
+    assert result.memory_insight.sample_size == 2
+
+    assert result.ai_partner_report is not None
+    assert (
+        result.ai_partner_report.memory_summary
+        == result.memory_insight.summary
+    )
+
+    assert (
+        result.analysis["ai_memory_summary"]
+        == result.memory_insight.summary
+    )
+
+
 def test_empty_query_is_rejected() -> None:
     try:
         find_best_opportunities("   ")
@@ -118,6 +281,7 @@ def test_empty_query_is_rejected() -> None:
         raise AssertionError(
             "빈 검색어는 ValueError를 발생시켜야 합니다."
         )
+
 
 def test_search_products_continues_when_ebay_fails(
     monkeypatch,
@@ -130,7 +294,9 @@ def test_search_products_continues_when_ebay_fails(
     warnings: list[tuple[str, str]] = []
 
     def failing_ebay_search(**kwargs):
-        raise RuntimeError("missing eBay credentials")
+        raise RuntimeError(
+            "missing eBay credentials"
+        )
 
     def successful_amazon_search(**kwargs):
         return [amazon_product]
@@ -149,13 +315,19 @@ def test_search_products_continues_when_ebay_fails(
     products = search_products(
         "mouse",
         error_handler=lambda marketplace, error: warnings.append(
-            (marketplace, str(error))
+            (
+                marketplace,
+                str(error),
+            )
         ),
     )
 
     assert products == [amazon_product]
     assert warnings == [
-        ("ebay", "missing eBay credentials")
+        (
+            "ebay",
+            "missing eBay credentials",
+        )
     ]
 
 
@@ -180,10 +352,15 @@ def test_search_products_raises_when_all_marketplaces_fail(
         search_products("mouse")
     except RuntimeError as error:
         message = str(error)
-        assert "모든 마켓 검색에 실패했습니다." in message
+
+        assert (
+            "모든 마켓 검색에 실패했습니다."
+            in message
+        )
         assert "ebay" in message
         assert "amazon" in message
     else:
         raise AssertionError(
-            "모든 마켓 실패 시 RuntimeError가 필요합니다."
+            "모든 마켓 실패 시 "
+            "RuntimeError가 필요합니다."
         )

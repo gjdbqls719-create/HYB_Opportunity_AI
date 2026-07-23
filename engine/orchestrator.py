@@ -2,9 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from app.models import Product
+from engine.ai_partner import (
+    AIPartnerReport,
+    build_ai_partner_report,
+)
+from engine.ai_memory import (
+    AIMemoryInsight,
+    HistoricalOpportunity,
+    analyze_ai_memory,
+)
 from engine.confidence import (
     ConfidenceResult,
     calculate_price_confidence,
@@ -85,6 +94,22 @@ class OpportunityResult:
     ) = None
 
     decision_report: DecisionReport | None = None
+
+    ai_partner_report: AIPartnerReport | None = None
+
+    memory_insight: AIMemoryInsight | None = None
+
+class OpportunityHistoryLoader(Protocol):
+    """
+    AI Memory용 과거 기회 기록을 제공하는 저장소 규약.
+    """
+
+    def load_ai_memory_history(
+        self,
+        *,
+        limit: int = 500,
+    ) -> list[HistoricalOpportunity]:
+        ...
 
 
 SearchErrorHandler = Callable[[str, Exception], None]
@@ -218,10 +243,16 @@ def find_best_opportunities(
     search_error_handler: (
         SearchErrorHandler | None
     ) = None,
+    opportunity_history_repository: (
+        OpportunityHistoryLoader | None
+    ) = None,
+    ai_memory_history: list[HistoricalOpportunity] | None = None,
 ) -> list[OpportunityResult]:
-    """
-    상품 검색부터 최종 추천 및
-    Decision Report 생성까지 실행한다.
+    """cleaned_query = query.strip()
+
+if not cleaned_query:
+    상품 검색부터 최종 추천, Decision Report,
+    AI Partner Report 생성까지 실행한다.
     """
     cleaned_query = query.strip()
 
@@ -234,6 +265,19 @@ def find_best_opportunities(
         raise ValueError(
             "selling_price_multiplier는 "
             "0보다 커야 합니다."
+        )
+    resolved_ai_memory_history = (
+        ai_memory_history
+    )
+
+    if (
+        resolved_ai_memory_history is None
+        and opportunity_history_repository
+        is not None
+    ):
+        resolved_ai_memory_history = (
+         opportunity_history_repository
+          .load_ai_memory_history()
         )
 
     if search_error_handler is None:
@@ -346,6 +390,22 @@ def find_best_opportunities(
             confidence=confidence,
             price_trend=price_trend,
         )
+        memory_insight = analyze_ai_memory(
+            current_opportunity_score=final_opportunity_score,
+            current_roi=float(analysis["roi"]),
+            current_net_profit=float(
+          analysis["net_profit"]
+         ),
+         current_success_probability=float(
+         ai_recommendation.success_probability
+         ),
+         history=resolved_ai_memory_history or [],
+        )
+        ai_partner_report = build_ai_partner_report(
+            recommendation=ai_recommendation,
+            decision_report=decision_report,
+            memory_insight=memory_insight,
+        )
 
         analysis["raw_opportunity_score"] = (
             raw_opportunity_score
@@ -431,6 +491,32 @@ def find_best_opportunities(
             decision_report.ai_comment
         )
 
+        analysis["ai_partner_title"] = (
+            ai_partner_report.title
+        )
+
+        analysis["ai_partner_summary"] = (
+            ai_partner_report.summary
+        )
+
+        analysis["ai_partner_recommendation"] = (
+            ai_partner_report.recommendation
+        )
+
+        analysis["ai_partner_next_action"] = (
+            ai_partner_report.next_action
+        )
+        analysis["ai_memory_summary"] = (
+         memory_insight.summary
+        )
+
+        analysis["ai_memory_rank"] = (
+         memory_insight.rank_label
+        )
+
+        analysis["ai_memory_percentile"] = (
+          memory_insight.overall_percentile
+        )
         results.append(
             OpportunityResult(
                 product=representative,
@@ -455,6 +541,10 @@ def find_best_opportunities(
                     ai_recommendation
                 ),
                 decision_report=decision_report,
+                ai_partner_report=(
+                    ai_partner_report
+                ),
+                memory_insight=memory_insight,
             )
         )
 
