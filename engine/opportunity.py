@@ -5,6 +5,7 @@ from typing import Any
 
 from app.models import Product
 from services.fees import calculate_marketplace_fee
+from services.marketplace_rules import resolve_marketplace_rule
 from services.shipping import resolve_shipping_cost
 
 
@@ -138,6 +139,33 @@ def calculate_opportunity(
         )
     )
 
+    category_value = product.get(
+        "category"
+    )
+    category = (
+        str(category_value).strip().lower()
+        if category_value is not None
+        and str(category_value).strip()
+        else None
+    )
+
+    country_code_value = product.get(
+        "country_code"
+    )
+    country_code = (
+        str(country_code_value).strip().upper()
+        if country_code_value is not None
+        and str(country_code_value).strip()
+        else None
+    )
+
+    use_marketplace_rules = bool(
+        product.get(
+            "use_marketplace_rules",
+            False,
+        )
+    )
+
     for value, name in (
         (purchase_price, "구매가"),
         (selling_price, "판매가"),
@@ -176,19 +204,68 @@ def calculate_opportunity(
             "하나여야 합니다."
         )
 
+    resolved_rule = None
+    rule_overrides: dict[str, Decimal] = {}
+
+    if use_marketplace_rules:
+        resolved_rule = resolve_marketplace_rule(
+            marketplace=marketplace,
+            category=category,
+            country_code=country_code,
+        )
+        rule_overrides = (
+            resolved_rule.to_fee_overrides()
+        )
+
     if use_fee_profile:
+        marketplace_fee_rate_override = (
+            product.get(
+                "marketplace_fee_rate"
+            )
+        )
+        payment_fee_rate_override = (
+            product.get(
+                "payment_fee_rate"
+            )
+        )
+        fixed_fee_override = product.get(
+            "fixed_fee"
+        )
+
+        if (
+            marketplace_fee_rate_override
+            is None
+        ):
+            marketplace_fee_rate_override = (
+                rule_overrides.get(
+                    "marketplace_fee_rate"
+                )
+            )
+
+        if payment_fee_rate_override is None:
+            payment_fee_rate_override = (
+                rule_overrides.get(
+                    "payment_fee_rate"
+                )
+            )
+
+        if fixed_fee_override is None:
+            fixed_fee_override = (
+                rule_overrides.get(
+                    "fixed_fee"
+                )
+            )
+
         fee_breakdown = calculate_marketplace_fee(
             marketplace=marketplace,
             selling_price=selling_price,
-            marketplace_fee_rate=product.get(
-                "marketplace_fee_rate"
+            marketplace_fee_rate=(
+                marketplace_fee_rate_override
             ),
-            payment_fee_rate=product.get(
-                "payment_fee_rate"
+            payment_fee_rate=(
+                payment_fee_rate_override
             ),
-            fixed_fee=product.get(
-                "fixed_fee"
-            ),
+            fixed_fee=fixed_fee_override,
         )
     else:
         marketplace_fee_rate = _decimal(
@@ -493,6 +570,28 @@ def calculate_opportunity(
             "use_fee_profile": (
                 use_fee_profile
             ),
+            "category": category,
+            "country_code": country_code,
+            "use_marketplace_rules": (
+                use_marketplace_rules
+            ),
+            "marketplace_rule_source": (
+                resolved_rule.source
+                if resolved_rule is not None
+                else "disabled"
+            ),
+            "marketplace_rule_description": (
+                resolved_rule.rule.description
+                if resolved_rule is not None
+                and resolved_rule.rule is not None
+                else None
+            ),
+            "marketplace_rule_priority": (
+                resolved_rule.rule.priority
+                if resolved_rule is not None
+                and resolved_rule.rule is not None
+                else None
+            ),
             "tax_cost": _money(
                 tax_cost
             ),
@@ -556,6 +655,9 @@ def calculate_product_opportunity(
     competitor_count: int = 0,
     risk_level: str = "medium",
     use_fee_profile: bool = False,
+    category: str | None = None,
+    country_code: str | None = None,
+    use_marketplace_rules: bool = False,
 ) -> dict[str, Any]:
     """
     공통 Product 모델을 Opportunity Engine 입력으로
@@ -603,6 +705,11 @@ def calculate_product_opportunity(
         "risk_level": risk_level,
         "use_fee_profile": (
             use_fee_profile
+        ),
+        "category": category,
+        "country_code": country_code,
+        "use_marketplace_rules": (
+            use_marketplace_rules
         ),
     }
 
