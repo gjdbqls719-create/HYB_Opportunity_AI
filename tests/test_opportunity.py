@@ -116,3 +116,48 @@ def test_invalid_payment_fee_rate_is_rejected() -> None:
         assert "결제 수수료율" in str(error)
     else:
         raise AssertionError("ValueError가 발생해야 합니다.")
+
+
+def test_product_opportunity_uses_marketplace_shipping_by_default() -> None:
+    product = Product(
+        marketplace="ebay",
+        item_id="shipping-1",
+        title="Shipping Product",
+        price=20.0,
+        currency="USD",
+        shipping_cost=6.5,
+    )
+
+    result = calculate_product_opportunity(
+        product=product,
+        selling_price=50.0,
+        marketplace_fee_rate=0.0,
+    )
+
+    assert result["shipping_cost"] == 6.5
+    assert result["shipping_cost_source"] == "marketplace"
+    assert result["is_free_shipping"] is False
+    assert result["net_profit"] == 23.5
+
+
+def test_product_opportunity_can_override_shipping_as_free() -> None:
+    product = Product(
+        marketplace="ebay",
+        item_id="shipping-2",
+        title="Override Shipping Product",
+        price=20.0,
+        currency="USD",
+        shipping_cost=6.5,
+    )
+
+    result = calculate_product_opportunity(
+        product=product,
+        selling_price=50.0,
+        shipping_cost=0.0,
+        marketplace_fee_rate=0.0,
+    )
+
+    assert result["shipping_cost"] == 0.0
+    assert result["shipping_cost_source"] == "override"
+    assert result["is_free_shipping"] is True
+    assert result["net_profit"] == 30.0

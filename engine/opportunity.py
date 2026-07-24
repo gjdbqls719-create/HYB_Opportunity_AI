@@ -4,6 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from app.models import Product
+from services.shipping import resolve_shipping_cost
 
 
 MONEY_QUANTUM = Decimal("0.01")
@@ -231,7 +232,7 @@ def calculate_opportunity(product: dict[str, Any]) -> dict[str, Any]:
 def calculate_product_opportunity(
     product: Product,
     selling_price: float,
-    shipping_cost: float = 0,
+    shipping_cost: float | None = None,
     marketplace_fee_rate: float = 0.15,
     payment_fee_rate: float = 0,
     tax_rate: float = 0,
@@ -243,6 +244,11 @@ def calculate_product_opportunity(
     risk_level: str = "medium",
 ) -> dict[str, Any]:
     """공통 Product 모델을 Opportunity Engine 입력으로 변환한다."""
+    shipping = resolve_shipping_cost(
+        product.shipping_cost,
+        shipping_cost,
+    )
+
     opportunity_input: dict[str, Any] = {
         "marketplace": product.marketplace,
         "item_id": product.item_id,
@@ -255,7 +261,9 @@ def calculate_product_opportunity(
         "marketplace_fee_rate": marketplace_fee_rate,
         "payment_fee_rate": payment_fee_rate,
         "tax_rate": tax_rate,
-        "shipping_cost": shipping_cost,
+        "shipping_cost": shipping.cost,
+        "shipping_cost_source": shipping.source,
+        "is_free_shipping": shipping.is_free_shipping,
         "other_cost": other_cost,
         "minimum_net_profit": minimum_net_profit,
         "minimum_roi": minimum_roi,

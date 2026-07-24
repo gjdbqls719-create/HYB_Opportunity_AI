@@ -235,7 +235,7 @@ def find_best_opportunities(
     query: str,
     *,
     selling_price_multiplier: float = 1.5,
-    shipping_cost: float = 0,
+    shipping_cost: float | None = None,
     marketplace_fee_rate: float = 0.15,
     payment_fee_rate: float = 0,
     tax_rate: float = 0,

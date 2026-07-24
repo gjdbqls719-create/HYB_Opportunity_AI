@@ -364,3 +364,29 @@ def test_search_products_raises_when_all_marketplaces_fail(
             "모든 마켓 실패 시 "
             "RuntimeError가 필요합니다."
         )
+
+def test_find_best_opportunities_uses_product_shipping_cost(
+    monkeypatch,
+) -> None:
+    product = Product(
+        marketplace="ebay",
+        item_id="shipping-orchestrator",
+        title="Shipping Aware Product",
+        price=20.0,
+        currency="USD",
+        shipping_cost=7.0,
+    )
+
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        lambda query, limit: [product],
+    )
+
+    result = find_best_opportunities(
+        query="shipping",
+        marketplace_fee_rate=0.0,
+    )[0]
+
+    assert result.analysis["shipping_cost"] == 7.0
+    assert result.analysis["shipping_cost_source"] == "marketplace"
+    assert result.analysis["is_free_shipping"] is False

@@ -67,8 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--shipping-cost",
         type=float,
-        default=0.0,
-        help="예상 배송비 (기본값: 0)",
+        default=None,
+        help=(
+            "예상 배송비 재정의. 생략하면 상품의 "
+            "수집 배송비를 사용하며, 0을 입력하면 "
+            "무료배송으로 재정의합니다."
+        ),
     )
 
     parser.add_argument(
@@ -195,7 +199,7 @@ def _validate_arguments(
     payment_fee_rate: float,
     tax_rate: float,
     selling_multiplier: float,
-    shipping_cost: float,
+    shipping_cost: float | None,
     other_cost: float,
     minimum_net_profit: float,
     minimum_roi: float,
@@ -231,7 +235,6 @@ def _validate_arguments(
         )
 
     for value, name in (
-        (shipping_cost, "shipping-cost"),
         (other_cost, "other-cost"),
         (minimum_net_profit, "minimum-net-profit"),
         (minimum_roi, "minimum-roi"),
@@ -240,6 +243,11 @@ def _validate_arguments(
             raise ValueError(
                 f"{name}는 0 이상이어야 합니다."
             )
+
+    if shipping_cost is not None and shipping_cost < 0:
+        raise ValueError(
+            "shipping-cost는 0 이상이어야 합니다."
+        )
 
     if monthly_sales < 0:
         raise ValueError(
