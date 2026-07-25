@@ -260,3 +260,125 @@ def test_rejects_invalid_limit(
             item_id="TEST-001",
             limit=0,
         )
+
+def test_save_and_read_canonical_price_history(
+    tmp_path: Path,
+) -> None:
+    repository = make_repository(tmp_path)
+
+    ebay_product = make_product(
+        item_id="EBAY-001",
+        marketplace="ebay",
+        price=100.0,
+    )
+    amazon_product = make_product(
+        item_id="AMAZON-001",
+        marketplace="amazon",
+        price=95.0,
+    )
+
+    repository.save_product_price(
+        ebay_product,
+        canonical_product_id="CP-000001",
+        observed_at=datetime(2026, 7, 20, tzinfo=timezone.utc),
+    )
+    repository.save_product_price(
+        amazon_product,
+        canonical_product_id="CP-000001",
+        observed_at=datetime(2026, 7, 21, tzinfo=timezone.utc),
+    )
+
+    history = repository.get_canonical_history(
+        canonical_product_id="CP-000001",
+    )
+
+    assert len(history) == 2
+    assert history[0].marketplace == "amazon"
+    assert history[0].canonical_product_id == "CP-000001"
+    assert history[1].marketplace == "ebay"
+
+
+def test_existing_database_is_migrated_without_data_loss(
+    tmp_path: Path,
+) -> None:
+    import sqlite3
+
+    database_path = tmp_path / "legacy_price_history.db"
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE price_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                marketplace TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                price REAL NOT NULL,
+                currency TEXT NOT NULL,
+                condition TEXT NOT NULL,
+                url TEXT NOT NULL,
+                observed_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO price_history (
+                marketplace,
+                item_id,
+                title,
+                price,
+                currency,
+                condition,
+                url,
+                observed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "ebay",
+                "LEGACY-001",
+                "Legacy Product",
+                50.0,
+                "USD",
+                "New",
+                "https://example.com/legacy",
+                "2026-07-20T00:00:00+00:00",
+            ),
+        )
+        connection.commit()
+
+    repository = PriceHistoryRepository(database_path=database_path)
+    records = repository.get_all_records()
+
+    assert len(records) == 1
+    assert records[0].item_id == "LEGACY-001"
+    assert records[0].canonical_product_id is None
+    assert records[0].seller_id is None
+
+
+def test_seller_is_preserved_in_price_snapshot(
+    tmp_path: Path,
+) -> None:
+    repository = make_repository(tmp_path)
+    product = Product(
+        marketplace="ebay",
+        item_id="SELLER-001",
+        title="Seller Product",
+        price=75.0,
+        currency="USD",
+        condition="New",
+        url="https://example.com/seller-product",
+        seller="seller-123",
+    )
+
+    repository.save_product_price(
+        product,
+        canonical_product_id="CP-000002",
+    )
+
+    record = repository.get_latest_canonical_record(
+        canonical_product_id="CP-000002",
+    )
+
+    assert record is not None
+    assert record.seller_id == "seller-123"

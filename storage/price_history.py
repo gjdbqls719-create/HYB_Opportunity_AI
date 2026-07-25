@@ -14,9 +14,7 @@ DEFAULT_DATABASE_PATH = Path("data") / "hyb_opportunity.db"
 
 @dataclass(slots=True, frozen=True)
 class PriceHistoryRecord:
-    """
-    데이터베이스에 저장된 상품 가격 기록.
-    """
+    """데이터베이스에 저장된 변경 불가능한 가격 관측 기록."""
 
     id: int
     marketplace: str
@@ -27,11 +25,16 @@ class PriceHistoryRecord:
     condition: str
     url: str
     observed_at: str
+    canonical_product_id: str | None = None
+    seller_id: str | None = None
 
 
 class PriceHistoryRepository:
     """
-    SQLite를 이용해 상품 가격 이력을 저장하고 조회한다.
+    SQLite를 이용해 Append-only 가격 이력을 저장하고 조회한다.
+
+    기존 Marketplace Listing 단위 조회를 유지하면서,
+    Canonical Product 단위의 다중 Marketplace 가격 이력 조회를 지원한다.
     """
 
     def __init__(
@@ -39,34 +42,25 @@ class PriceHistoryRepository:
         database_path: str | Path = DEFAULT_DATABASE_PATH,
     ) -> None:
         self.database_path = Path(database_path)
-
-        self.database_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self.initialize_database()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(
-            self.database_path,
-        )
-
+        connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
-
         return connection
 
     def initialize_database(self) -> None:
-        """
-        가격 이력 테이블과 조회용 인덱스를 생성한다.
-        """
+        """가격 이력 테이블을 생성하고 기존 DB 스키마를 안전하게 확장한다."""
         with self._connect() as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS price_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    canonical_product_id TEXT,
                     marketplace TEXT NOT NULL,
                     item_id TEXT NOT NULL,
+                    seller_id TEXT,
                     title TEXT NOT NULL,
                     price REAL NOT NULL,
                     currency TEXT NOT NULL,
@@ -77,66 +71,120 @@ class PriceHistoryRepository:
                 """
             )
 
-            connection.execute(
-                """
-                CREATE INDEX IF NOT EXISTS
-                idx_price_history_product
-                ON price_history (
-                    marketplace,
-                    item_id,
-                    observed_at
-                )
-                """
+            self._add_column_if_missing(
+                connection,
+                column_name="canonical_product_id",
+                column_definition="TEXT",
+            )
+            self._add_column_if_missing(
+                connection,
+                column_name="seller_id",
+                column_definition="TEXT",
             )
 
             connection.execute(
                 """
-                CREATE INDEX IF NOT EXISTS
-                idx_price_history_observed_at
-                ON price_history (
-                    observed_at
-                )
+                CREATE INDEX IF NOT EXISTS idx_price_history_product
+                ON price_history (marketplace, item_id, observed_at)
                 """
             )
-
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_price_history_canonical
+                ON price_history (canonical_product_id, observed_at)
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_price_history_observed_at
+                ON price_history (observed_at)
+                """
+            )
             connection.commit()
+
+    @staticmethod
+    def _add_column_if_missing(
+        connection: sqlite3.Connection,
+        *,
+        column_name: str,
+        column_definition: str,
+    ) -> None:
+        rows = connection.execute(
+            "PRAGMA table_info(price_history)"
+        ).fetchall()
+        existing_columns = {str(row["name"]) for row in rows}
+
+        if column_name in existing_columns:
+            return
+
+        connection.execute(
+            f"ALTER TABLE price_history ADD COLUMN "
+            f"{column_name} {column_definition}"
+        )
+
+    @staticmethod
+    def _normalize_optional_identifier(
+        value: str | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise TypeError(f"{field_name}는 문자열 또는 None이어야 합니다.")
+        cleaned = value.strip()
+        return cleaned or None
+
+    @staticmethod
+    def _normalize_observed_at(
+        observed_at: datetime | None,
+    ) -> str:
+        observation_time = observed_at or datetime.now(timezone.utc)
+
+        if not isinstance(observation_time, datetime):
+            raise TypeError("observed_at은 datetime 또는 None이어야 합니다.")
+
+        if observation_time.tzinfo is None:
+            observation_time = observation_time.replace(tzinfo=timezone.utc)
+
+        return observation_time.isoformat()
+
+    @staticmethod
+    def _validate_product(product: Product) -> None:
+        if not isinstance(product, Product):
+            raise TypeError("product는 Product 객체여야 합니다.")
+        if product.price < 0:
+            raise ValueError("상품 가격은 0 이상이어야 합니다.")
 
     def save_product_price(
         self,
         product: Product,
         *,
         observed_at: datetime | None = None,
+        canonical_product_id: str | None = None,
+        seller_id: str | None = None,
     ) -> int:
-        """
-        Product의 현재 가격을 데이터베이스에 저장한다.
+        """Product의 현재 가격을 새로운 스냅샷으로 추가한다."""
+        self._validate_product(product)
 
-        반환값:
-            새로 생성된 가격 기록의 ID
-        """
-        if product.price < 0:
-            raise ValueError(
-                "상품 가격은 0 이상이어야 합니다."
-            )
-
-        observation_time = (
-            observed_at
-            if observed_at is not None
-            else datetime.now(timezone.utc)
+        cleaned_canonical_id = self._normalize_optional_identifier(
+            canonical_product_id,
+            field_name="canonical_product_id",
         )
-
-        if observation_time.tzinfo is None:
-            observation_time = observation_time.replace(
-                tzinfo=timezone.utc,
-            )
-
-        observed_at_text = observation_time.isoformat()
+        resolved_seller_id = self._normalize_optional_identifier(
+            seller_id if seller_id is not None else product.seller,
+            field_name="seller_id",
+        )
+        observed_at_text = self._normalize_observed_at(observed_at)
 
         with self._connect() as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO price_history (
+                    canonical_product_id,
                     marketplace,
                     item_id,
+                    seller_id,
                     title,
                     price,
                     currency,
@@ -144,11 +192,13 @@ class PriceHistoryRepository:
                     url,
                     observed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    cleaned_canonical_id,
                     product.marketplace,
                     product.item_id,
+                    resolved_seller_id,
                     product.title,
                     float(product.price),
                     product.currency,
@@ -157,15 +207,11 @@ class PriceHistoryRepository:
                     observed_at_text,
                 ),
             )
-
             connection.commit()
-
             record_id = cursor.lastrowid
 
         if record_id is None:
-            raise RuntimeError(
-                "가격 기록 저장에 실패했습니다."
-            )
+            raise RuntimeError("가격 기록 저장에 실패했습니다.")
 
         return int(record_id)
 
@@ -175,34 +221,24 @@ class PriceHistoryRepository:
         *,
         observed_at: datetime | None = None,
     ) -> int:
-        """
-        여러 상품의 가격을 한 번에 저장한다.
-
-        반환값:
-            저장된 상품 개수
-        """
+        """여러 Product를 Listing 단위 가격 스냅샷으로 추가한다."""
         product_list = list(products)
-
         if not product_list:
             return 0
 
-        observation_time = (
-            observed_at
-            if observed_at is not None
-            else datetime.now(timezone.utc)
-        )
+        for product in product_list:
+            self._validate_product(product)
 
-        if observation_time.tzinfo is None:
-            observation_time = observation_time.replace(
-                tzinfo=timezone.utc,
-            )
-
-        observed_at_text = observation_time.isoformat()
-
+        observed_at_text = self._normalize_observed_at(observed_at)
         rows = [
             (
+                None,
                 product.marketplace,
                 product.item_id,
+                self._normalize_optional_identifier(
+                    product.seller,
+                    field_name="seller_id",
+                ),
                 product.title,
                 float(product.price),
                 product.currency,
@@ -217,8 +253,10 @@ class PriceHistoryRepository:
             connection.executemany(
                 """
                 INSERT INTO price_history (
+                    canonical_product_id,
                     marketplace,
                     item_id,
+                    seller_id,
                     title,
                     price,
                     currency,
@@ -226,11 +264,10 @@ class PriceHistoryRepository:
                     url,
                     observed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
-
             connection.commit()
 
         return len(rows)
@@ -242,63 +279,40 @@ class PriceHistoryRepository:
         item_id: str,
         limit: int | None = None,
     ) -> list[PriceHistoryRecord]:
-        """
-        특정 상품의 가격 이력을 최신순으로 반환한다.
-        """
+        """특정 Marketplace Listing의 가격 이력을 최신순으로 반환한다."""
         cleaned_marketplace = marketplace.strip()
         cleaned_item_id = item_id.strip()
 
         if not cleaned_marketplace:
-            raise ValueError(
-                "marketplace를 입력해야 합니다."
-            )
-
+            raise ValueError("marketplace를 입력해야 합니다.")
         if not cleaned_item_id:
-            raise ValueError(
-                "item_id를 입력해야 합니다."
-            )
+            raise ValueError("item_id를 입력해야 합니다.")
 
-        if limit is not None and limit < 1:
-            raise ValueError(
-                "limit은 1 이상이어야 합니다."
-            )
+        return self._query_records(
+            where_clause="marketplace = ? AND item_id = ?",
+            parameters=[cleaned_marketplace, cleaned_item_id],
+            limit=limit,
+        )
 
-        query = """
-            SELECT
-                id,
-                marketplace,
-                item_id,
-                title,
-                price,
-                currency,
-                condition,
-                url,
-                observed_at
-            FROM price_history
-            WHERE marketplace = ?
-              AND item_id = ?
-            ORDER BY observed_at DESC, id DESC
-        """
+    def get_canonical_history(
+        self,
+        *,
+        canonical_product_id: str,
+        limit: int | None = None,
+    ) -> list[PriceHistoryRecord]:
+        """Canonical Product에 연결된 전체 Marketplace 가격 이력을 반환한다."""
+        cleaned_id = self._normalize_optional_identifier(
+            canonical_product_id,
+            field_name="canonical_product_id",
+        )
+        if cleaned_id is None:
+            raise ValueError("canonical_product_id를 입력해야 합니다.")
 
-        parameters: list[object] = [
-            cleaned_marketplace,
-            cleaned_item_id,
-        ]
-
-        if limit is not None:
-            query += " LIMIT ?"
-            parameters.append(limit)
-
-        with self._connect() as connection:
-            rows = connection.execute(
-                query,
-                parameters,
-            ).fetchall()
-
-        return [
-            self._row_to_record(row)
-            for row in rows
-        ]
+        return self._query_records(
+            where_clause="canonical_product_id = ?",
+            parameters=[cleaned_id],
+            limit=limit,
+        )
 
     def get_latest_record(
         self,
@@ -306,38 +320,52 @@ class PriceHistoryRepository:
         marketplace: str,
         item_id: str,
     ) -> PriceHistoryRecord | None:
-        """
-        특정 상품의 가장 최근 가격 기록을 반환한다.
-        """
         records = self.get_product_history(
             marketplace=marketplace,
             item_id=item_id,
             limit=1,
         )
+        return records[0] if records else None
 
-        if not records:
-            return None
-
-        return records[0]
+    def get_latest_canonical_record(
+        self,
+        *,
+        canonical_product_id: str,
+    ) -> PriceHistoryRecord | None:
+        records = self.get_canonical_history(
+            canonical_product_id=canonical_product_id,
+            limit=1,
+        )
+        return records[0] if records else None
 
     def get_all_records(
         self,
         *,
         limit: int | None = None,
     ) -> list[PriceHistoryRecord]:
-        """
-        전체 가격 기록을 최신순으로 반환한다.
-        """
+        return self._query_records(
+            where_clause=None,
+            parameters=[],
+            limit=limit,
+        )
+
+    def _query_records(
+        self,
+        *,
+        where_clause: str | None,
+        parameters: list[object],
+        limit: int | None,
+    ) -> list[PriceHistoryRecord]:
         if limit is not None and limit < 1:
-            raise ValueError(
-                "limit은 1 이상이어야 합니다."
-            )
+            raise ValueError("limit은 1 이상이어야 합니다.")
 
         query = """
             SELECT
                 id,
+                canonical_product_id,
                 marketplace,
                 item_id,
+                seller_id,
                 title,
                 price,
                 currency,
@@ -345,71 +373,52 @@ class PriceHistoryRepository:
                 url,
                 observed_at
             FROM price_history
-            ORDER BY observed_at DESC, id DESC
         """
 
-        parameters: list[object] = []
+        if where_clause is not None:
+            query += f" WHERE {where_clause}"
 
+        query += " ORDER BY observed_at DESC, id DESC"
+
+        query_parameters = list(parameters)
         if limit is not None:
             query += " LIMIT ?"
-            parameters.append(limit)
+            query_parameters.append(limit)
 
         with self._connect() as connection:
-            rows = connection.execute(
-                query,
-                parameters,
-            ).fetchall()
+            rows = connection.execute(query, query_parameters).fetchall()
 
-        return [
-            self._row_to_record(row)
-            for row in rows
-        ]
+        return [self._row_to_record(row) for row in rows]
 
     def count_records(self) -> int:
-        """
-        전체 가격 기록 개수를 반환한다.
-        """
         with self._connect() as connection:
             row = connection.execute(
-                """
-                SELECT COUNT(*) AS record_count
-                FROM price_history
-                """
+                "SELECT COUNT(*) AS record_count FROM price_history"
             ).fetchone()
-
-        if row is None:
-            return 0
-
-        return int(row["record_count"])
+        return 0 if row is None else int(row["record_count"])
 
     def delete_all_records(self) -> int:
-        """
-        모든 가격 기록을 삭제한다.
-
-        반환값:
-            삭제된 기록 개수
-        """
         previous_count = self.count_records()
-
         with self._connect() as connection:
-            connection.execute(
-                """
-                DELETE FROM price_history
-                """
-            )
-
+            connection.execute("DELETE FROM price_history")
             connection.commit()
-
         return previous_count
 
     @staticmethod
-    def _row_to_record(
-        row: sqlite3.Row,
-    ) -> PriceHistoryRecord:
+    def _row_to_record(row: sqlite3.Row) -> PriceHistoryRecord:
+        canonical_product_id = row["canonical_product_id"]
+        seller_id = row["seller_id"]
+
         return PriceHistoryRecord(
             id=int(row["id"]),
+            canonical_product_id=(
+                str(canonical_product_id)
+                if canonical_product_id is not None
+                else None
+            ),
             marketplace=str(row["marketplace"]),
             item_id=str(row["item_id"]),
+            seller_id=str(seller_id) if seller_id is not None else None,
             title=str(row["title"]),
             price=float(row["price"]),
             currency=str(row["currency"]),
