@@ -1,0 +1,9 @@
+# Business
+
+사업 관련 문서 영역.
+
+관리 예정:
+- BUSINESS_MODEL
+- REVENUE_MODEL
+- MARKET_STRATEGY
+- VALIDATION_PLAN
