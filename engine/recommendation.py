@@ -7,6 +7,12 @@ from engine.explainable_score import (
     build_explainable_score,
 )
 from engine.price_trend import PriceTrend
+from engine.market_adjustment import (
+    MarketAdjustmentResult,
+)
+from engine.market_adjustment import (
+    MarketAdjustmentResult,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -39,7 +45,8 @@ def generate_recommendation(
     risk_level: str,
     confidence: ConfidenceResult | None,
     price_trend: PriceTrend | None,
-) -> RecommendationResult:
+    market_adjustment: MarketAdjustmentResult | None = None,
+    ) -> RecommendationResult:
     """
     Explainable Score 결과를 기반으로
     최종 추천 등급과 행동 지침을 생성한다.
@@ -56,6 +63,7 @@ def generate_recommendation(
         risk_level=risk_level,
         confidence=confidence,
         price_trend=price_trend,
+        market_adjustment=market_adjustment,
     )
 
     normalized_score = explainable_score.final_score

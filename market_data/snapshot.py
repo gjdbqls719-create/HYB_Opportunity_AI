@@ -1,7 +1,72 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class BaseSnapshot:
+    """
+    HYB Snapshot Foundation.
+
+    모든 Snapshot이 공통으로 가져야 하는
+    관찰 이벤트(Event Record) 계약.
+
+    Snapshot은 특정 시점 Marketplace에서
+    관찰된 데이터를 의미하며 수정되지 않는다.
+    """
+
+    snapshot_id: str
+    canonical_product_id: str
+    marketplace: str
+    observed_at: datetime
+    source_url: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "snapshot_id",
+            self.snapshot_id.strip(),
+        )
+
+        object.__setattr__(
+            self,
+            "canonical_product_id",
+            self.canonical_product_id.strip(),
+        )
+
+        object.__setattr__(
+            self,
+            "marketplace",
+            self.marketplace.strip(),
+        )
+
+        object.__setattr__(
+            self,
+            "source_url",
+            self.source_url.strip(),
+        )
+
+        if not self.snapshot_id:
+            raise ValueError(
+                "Snapshot ID는 비어 있을 수 없습니다."
+            )
+
+        if not self.canonical_product_id:
+            raise ValueError(
+                "Canonical Product ID는 비어 있을 수 없습니다."
+            )
+
+        if not self.marketplace:
+            raise ValueError(
+                "마켓 이름은 비어 있을 수 없습니다."
+            )
+
+        if not self.source_url:
+            raise ValueError(
+                "Source URL은 비어 있을 수 없습니다."
+            )
 
 
 @dataclass(slots=True)
@@ -42,10 +107,14 @@ class MarketSnapshot:
 
         for label, price in prices.items():
             if price < 0:
-                raise ValueError(f"{label}는 0보다 작을 수 없습니다.")
+                raise ValueError(
+                    f"{label}는 0보다 작을 수 없습니다."
+                )
 
         if self.lowest_price > self.highest_price:
-            raise ValueError("최저가는 최고가보다 클 수 없습니다.")
+            raise ValueError(
+                "최저가는 최고가보다 클 수 없습니다."
+            )
 
         if not self.lowest_price <= self.average_price <= self.highest_price:
             raise ValueError(
@@ -53,24 +122,30 @@ class MarketSnapshot:
             )
 
         if self.estimated_monthly_sales < 0:
-            raise ValueError("예상 판매량은 0보다 작을 수 없습니다.")
+            raise ValueError(
+                "예상 판매량은 0보다 작을 수 없습니다."
+            )
 
         if self.competitor_count < 0:
-            raise ValueError("경쟁 판매자 수는 0보다 작을 수 없습니다.")
+            raise ValueError(
+                "경쟁 판매자 수는 0보다 작을 수 없습니다."
+            )
 
         if self.rating is not None and not 0 <= self.rating <= 5:
-            raise ValueError("평점은 0에서 5 사이여야 합니다.")
+            raise ValueError(
+                "평점은 0에서 5 사이여야 합니다."
+            )
 
         if self.review_count is not None and self.review_count < 0:
-            raise ValueError("리뷰 수는 0보다 작을 수 없습니다.")
+            raise ValueError(
+                "리뷰 수는 0보다 작을 수 없습니다."
+            )
 
     @property
     def price_position_rate(self) -> float:
         """
-        현재 가격이 최저가와 최고가 사이에서 어느 위치인지 계산한다.
-
-        0%에 가까우면 시장 최저가에 가깝고,
-        100%에 가까우면 시장 최고가에 가깝다.
+        현재 가격이 최저가와 최고가 사이에서
+        어느 위치인지 계산한다.
         """
 
         price_range = self.highest_price - self.lowest_price
@@ -89,8 +164,8 @@ class MarketSnapshot:
     @property
     def discount_from_average_rate(self) -> float:
         """
-        현재가가 시장 평균가보다 얼마나 저렴한지 계산한다.
-        양수면 평균가보다 저렴하고, 음수면 더 비싸다.
+        현재가가 시장 평균가보다
+        얼마나 저렴한지 계산한다.
         """
 
         if self.average_price == 0:
@@ -106,8 +181,13 @@ class MarketSnapshot:
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
-        data["price_position_rate"] = self.price_position_rate
+
+        data["price_position_rate"] = (
+            self.price_position_rate
+        )
+
         data["discount_from_average_rate"] = (
             self.discount_from_average_rate
         )
+
         return data

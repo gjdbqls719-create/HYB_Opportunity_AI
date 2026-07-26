@@ -4,6 +4,9 @@ from dataclasses import dataclass
 
 from engine.confidence import ConfidenceResult
 from engine.price_trend import PriceTrend
+from engine.market_adjustment import (
+    MarketAdjustmentResult,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -45,6 +48,7 @@ def build_explainable_score(
     risk_level: str,
     confidence: ConfidenceResult | None,
     price_trend: PriceTrend | None,
+    market_adjustment: MarketAdjustmentResult | None = None,
 ) -> ExplainableScoreResult:
     """
     추천 점수가 어떤 항목으로 구성됐는지 계산한다.
@@ -98,6 +102,9 @@ def build_explainable_score(
         _build_risk_contribution(
             risk_level=normalized_risk_level,
         ),
+        _build_market_adjustment_contribution(
+            market_adjustment=market_adjustment,
+        ),  
     )
 
     raw_total = sum(
@@ -507,4 +514,40 @@ def _build_risk_contribution(
         description=message,
         reasons=(),
         warnings=(message,),
+    )
+def _build_market_adjustment_contribution(
+    *,
+    market_adjustment: MarketAdjustmentResult | None,
+) -> ScoreContribution:
+    """
+    Market Intelligence 보정값을
+    Explainable Score 항목으로 변환한다.
+    """
+
+    if market_adjustment is None:
+        return ScoreContribution(
+            key="market_adjustment",
+            label="시장 분석 보정",
+            adjustment=0.0,
+            description=(
+                "시장 분석 보정 정보가 없어 "
+                "추가 점수를 적용하지 않았습니다."
+            ),
+            reasons=(),
+            warnings=(),
+        )
+
+    return ScoreContribution(
+        key="market_adjustment",
+        label="시장 분석 보정",
+        adjustment=(
+            market_adjustment.adjustment
+        ),
+        description=" ".join(
+            market_adjustment.reasons
+        ),
+        reasons=(
+            market_adjustment.reasons
+        ),
+        warnings=(),
     )

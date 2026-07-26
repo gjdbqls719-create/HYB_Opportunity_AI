@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from app.models import Product
@@ -41,6 +42,32 @@ from engine.recommendation import (
 from engine.trend_scoring import (
     TrendScoreResult,
     calculate_trend_score,
+)
+from engine.inventory_analysis import (
+    InventoryAnalysisResult,
+    analyze_inventory,
+)
+
+from engine.seller_analysis import (
+    SellerAnalysisResult,
+    analyze_seller,
+)
+
+from engine.market_adjustment import (
+    MarketAdjustmentResult,
+    calculate_market_adjustment,
+)
+
+from engine.market_intelligence import (
+    build_market_intelligence,
+)
+
+from market_data.inventory_snapshot import (
+    InventorySnapshot,
+)
+
+from market_data.seller_snapshot import (
+    SellerSnapshot,
 )
 from marketplaces.amazon import (
     search_products as search_amazon_products,
@@ -103,6 +130,12 @@ class OpportunityResult:
     ai_partner_report: AIPartnerReport | None = None
 
     memory_insight: AIMemoryInsight | None = None
+
+    inventory_analysis: InventoryAnalysisResult | None = None
+
+    seller_analysis: SellerAnalysisResult | None = None
+
+    market_adjustment: MarketAdjustmentResult | None = None
 
 class OpportunityHistoryLoader(Protocol):
     """
@@ -403,9 +436,91 @@ def find_best_opportunities(
             trend_score.adjustment
         )
 
+        inventory_snapshot = InventorySnapshot(
+            snapshot_id=(
+                f"inventory_{representative.item_id}"
+            ),
+            canonical_product_id=(
+                representative.item_id
+            ),
+            marketplace=(
+                representative.marketplace
+            ),
+            observed_at=datetime.now(
+                timezone.utc
+            ),
+            source_url=(
+                representative.url
+                or "unknown://source"
+            ),
+            item_id=(
+                representative.item_id
+            ),
+            available=(
+                representative.in_stock
+            ),
+            quantity=None,
+        )
+
+        inventory_analysis = analyze_inventory(
+            inventory_snapshot
+        )
+
+        seller_snapshot = SellerSnapshot(
+            snapshot_id=(
+                f"seller_{representative.item_id}"
+            ),
+            canonical_product_id=(
+                representative.item_id
+            ),
+            marketplace=(
+                representative.marketplace
+            ),
+            observed_at=datetime.now(
+                timezone.utc
+            ),
+            source_url=(
+                representative.url
+                or "unknown://source"
+            ),
+            item_id=(
+                representative.item_id
+            ),
+            seller_id=(
+                representative.seller.strip()
+                if representative.seller
+                else None
+            ),
+            seller_rating=(
+                representative.rating
+            ),
+            seller_review_count=(
+                representative.review_count
+            ),
+            seller_count=(
+                competitor_count
+            ),
+        )
+
+        seller_analysis = analyze_seller(
+            seller_snapshot
+        )
+
+        market_intelligence = build_market_intelligence(
+            price_trend=price_trend,
+            inventory_analysis=inventory_analysis,
+            seller_analysis=seller_analysis,
+        )
+
+        market_adjustment = calculate_market_adjustment(
+            market_intelligence
+        )
+
+
         final_opportunity_score = round(
             adjusted_opportunity_score
-            + trend_score_adjustment,
+            + trend_score_adjustment
+            + market_adjustment.adjustment,
             2,
         )
 
@@ -425,6 +540,7 @@ def find_best_opportunities(
             ),
             confidence=confidence,
             price_trend=price_trend,
+            market_adjustment=market_adjustment,
         )
 
         decision_report = build_decision_report(
@@ -574,29 +690,50 @@ def find_best_opportunities(
                     group.products
                 ),
                 price_intelligence=price_info,
+
                 confidence=confidence,
+
                 adjusted_opportunity_score=(
                     adjusted_opportunity_score
                 ),
+
                 price_trend=price_trend,
+
                 trend_score=trend_score,
+
                 trend_score_adjustment=(
                     trend_score_adjustment
                 ),
+
                 final_opportunity_score=(
                     final_opportunity_score
                 ),
+
                 ai_recommendation=(
                     ai_recommendation
                 ),
+
                 decision_report=decision_report,
+
                 ai_partner_report=(
                     ai_partner_report
                 ),
+
                 memory_insight=memory_insight,
+
+                inventory_analysis=(
+                    inventory_analysis
+                ),
+
+                seller_analysis=(
+                    seller_analysis
+                ),
+
+                market_adjustment=(
+                    market_adjustment
+                ),
             )
         )
-
     results.sort(
         key=lambda result: (
             (

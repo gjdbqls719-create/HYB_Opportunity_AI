@@ -105,6 +105,8 @@ def test_builds_negative_score_contributions() -> None:
     assert contribution_map["trend"] == -13.0
     assert contribution_map["competition"] == -10.0
     assert contribution_map["risk"] == -10.0
+    assert contribution_map["market_adjustment"] == 0.0
+
 
     assert result.raw_total == -38.0
     assert result.final_score == 0
@@ -169,13 +171,14 @@ def test_contribution_order_is_stable() -> None:
     )
 
     assert tuple(
-        contribution.key
-        for contribution in result.contributions
-    ) == (
-        "base_score",
-        "profit",
-        "confidence",
-        "trend",
-        "competition",
-        "risk",
-    )
+    contribution.key
+    for contribution in result.contributions
+) == (
+    "base_score",
+    "profit",
+    "confidence",
+    "trend",
+    "competition",
+    "risk",
+    "market_adjustment",
+)

@@ -79,7 +79,7 @@ def _format_contribution_line(
         adjustment
     )
 
-    if adjustment > 0:
+    if adjustment >= 0:
         return (
             f"{label}: +{formatted_adjustment}"
         )
