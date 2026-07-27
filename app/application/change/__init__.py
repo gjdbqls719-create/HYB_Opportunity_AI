@@ -6,10 +6,14 @@ from app.application.change.models import (
     SnapshotPair,
     SupportedSnapshot,
 )
+from app.application.change.ports import (
+    PriceSnapshotProvider,
+)
 
 __all__ = [
     "ChangeDetectionResponse",
     "DetectChangesUseCase",
+    "PriceSnapshotProvider",
     "SnapshotPair",
     "SupportedSnapshot",
 ]
