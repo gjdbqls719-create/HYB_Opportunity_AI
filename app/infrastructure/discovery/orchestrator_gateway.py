@@ -61,6 +61,11 @@ class OrchestratorOpportunityDiscoveryGateway:
                     if opportunity.confidence is not None
                     else None
                 ),
+                "trend_score_adjustment": getattr(
+                    opportunity,
+                    "trend_score_adjustment",
+                    None,
+                ),
                 "success_probability": (
                     recommendation.success_probability
                     if recommendation is not None

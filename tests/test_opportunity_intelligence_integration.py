@@ -120,3 +120,135 @@ def test_invalid_confidence_returns_failed_result() -> None:
 
     assert result.status is OpportunityIntelligenceStatus.FAILED
     assert "0 이상 100 이하" in (result.error_message or "")
+
+
+def test_discovery_adapter_builds_complete_factors_from_verified_metadata() -> None:
+    result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-factor",
+            title="Factor Product",
+            price=100,
+            currency="USD",
+        ),
+        opportunity_score=80,
+        metadata={
+            "confidence_score": 82,
+            "trend_score_adjustment": 15,
+            "analysis": {
+                "roi": 50,
+                "estimated_monthly_sales": 500,
+                "competitor_count": 5,
+                "risk_level": "low",
+            },
+        },
+    )
+
+    prepared = DiscoveryResultOpportunityIntelligenceAdapter().adapt(result)
+
+    assert prepared.missing_factors == ()
+    assert prepared.confidence == Decimal("82")
+    assert prepared.factors == OpportunityFactors(
+        price_score=Decimal("80.00"),
+        trend_score=Decimal("100"),
+        demand_score=Decimal("100"),
+        competition_score=Decimal("90.00"),
+        risk_score=Decimal("90"),
+    )
+
+
+def test_default_adapter_can_run_full_intelligence_when_sources_are_complete() -> None:
+    discovery_result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-complete",
+            title="Complete Product",
+            price=100,
+            currency="USD",
+        ),
+        opportunity_score=80,
+        metadata={
+            "confidence_score": 80,
+            "trend_score_adjustment": 0,
+            "analysis": {
+                "roi": 30,
+                "estimated_monthly_sales": 200,
+                "competitor_count": 20,
+                "risk_level": "medium",
+            },
+        },
+    )
+
+    result = OpportunityIntelligenceService(
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter()
+    ).evaluate(discovery_result)
+
+    assert result.status is OpportunityIntelligenceStatus.EVALUATED
+    assert result.score is not None
+    assert result.score.factors == OpportunityFactors(
+        price_score=Decimal("60.00"),
+        trend_score=Decimal("50.00"),
+        demand_score=Decimal("70.00"),
+        competition_score=Decimal("60.00"),
+        risk_score=Decimal("50"),
+    )
+    assert result.evaluation is not None
+
+
+def test_discovery_adapter_reports_only_the_missing_factor_sources() -> None:
+    discovery_result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-partial",
+            title="Partial Product",
+            price=100,
+            currency="USD",
+        ),
+        opportunity_score=80,
+        metadata={
+            "confidence_score": 80,
+            "analysis": {
+                "roi": 30,
+                "estimated_monthly_sales": 200,
+                "competitor_count": 20,
+                "risk_level": "medium",
+            },
+        },
+    )
+
+    prepared = DiscoveryResultOpportunityIntelligenceAdapter().adapt(
+        discovery_result
+    )
+
+    assert prepared.factors is None
+    assert prepared.missing_factors == ("trend_score",)
+
+
+def test_invalid_factor_source_returns_failed_result() -> None:
+    discovery_result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-invalid",
+            title="Invalid Product",
+            price=100,
+            currency="USD",
+        ),
+        opportunity_score=80,
+        metadata={
+            "confidence_score": 80,
+            "trend_score_adjustment": 0,
+            "analysis": {
+                "roi": 30,
+                "estimated_monthly_sales": -1,
+                "competitor_count": 20,
+                "risk_level": "medium",
+            },
+        },
+    )
+
+    result = OpportunityIntelligenceService(
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter()
+    ).evaluate(discovery_result)
+
+    assert result.status is OpportunityIntelligenceStatus.FAILED
+    assert "0 이상" in (result.error_message or "")

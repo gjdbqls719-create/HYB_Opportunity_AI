@@ -1,6 +1,19 @@
 # HYB Changelog
 
 
+## Sprint 5.1 PR-5 — Discovery Factor Provider
+
+### Added
+
+- 기존 Discovery 분석값을 `OpportunityFactors`로 변환하는 `DiscoveryFactorPolicy`
+- Factor 원천값별 명시적 0~100 정규화 정책
+- 완전한 원천 데이터로 기본 Opportunity Intelligence 실행을 검증하는 통합 테스트 4개
+
+### Changed
+
+- Discovery Gateway metadata에 `trend_score_adjustment` 전달
+- Adapter가 전체 누락 고정값 대신 실제 누락 Factor만 보고하도록 확장
+
 ## Sprint 5.1 PR-4 — Discovery Workflow Intelligence Integration
 
 ### Added
