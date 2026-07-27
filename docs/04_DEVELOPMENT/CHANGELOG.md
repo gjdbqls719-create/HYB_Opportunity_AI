@@ -20,3 +20,13 @@
 - 구조 변경
 - 버그 수정
 - 문서 변경
+
+## Sprint 5.1 PR-2 — Opportunity Intelligence Integration Contract
+
+- Discovery → Opportunity Factors Source Map 문서화
+- confidence만 직접 재사용 가능함을 확정
+- 불완전 Factor의 임의 0/50 대체 금지
+- `unavailable` 결측 상태 정책 확정
+- 기존 Recommendation과 신규 Evaluation 병행 운영 결정
+- Application Service / Infrastructure Adapter 경계 확정
+- ADR-0001 추가
