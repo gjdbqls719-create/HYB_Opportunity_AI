@@ -17,3 +17,5 @@ class OpportunityReason(str, Enum):
     LOW_DEMAND = "low_demand"
     HIGH_COMPETITION = "high_competition"
     HIGH_RISK = "high_risk"
+
+    BALANCED_FACTORS = "balanced_factors"
