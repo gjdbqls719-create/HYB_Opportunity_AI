@@ -214,7 +214,7 @@ def _build_recommendation_text(
     decision_report: DecisionReport,
 ) -> str:
     """
-    강점, 약점, 경고, AI 의견을 종합해
+    강점, 약점, 경고, 시장 분석 설명, AI 의견을 종합해
     구체적인 판단 문장을 만든다.
     """
     parts: list[str] = []
@@ -239,6 +239,14 @@ def _build_recommendation_text(
         getattr(
             decision_report,
             "weaknesses",
+            (),
+        )
+    )
+
+    market_explanations = _clean_text_items(
+        getattr(
+            decision_report,
+            "market_explanations",
             (),
         )
     )
@@ -271,6 +279,12 @@ def _build_recommendation_text(
         parts.append(
             "가장 중요한 긍정 요인은 "
             f"{primary_strength}"
+        )
+
+    if market_explanations:
+        parts.append(
+            "시장 분석 근거는 "
+            + " ".join(market_explanations)
         )
 
     primary_risk = _first_unique_item(

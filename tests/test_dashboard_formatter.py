@@ -5,6 +5,7 @@ from presentation.formatter import (
 from presentation.models import (
     DashboardAIPartner,
     DashboardCard,
+    DashboardDecisionStep,
     DashboardMemory,
     DashboardMetrics,
     DashboardProduct,
@@ -66,6 +67,26 @@ def _make_dashboard_card() -> DashboardCard:
         confidence_level="HIGH",
         trend_direction="UP",
         decision="Buy",
+        decision_timeline=(
+            DashboardDecisionStep(
+                stage="confidence",
+                title="Data Confidence",
+                summary="HIGH",
+            ),
+            DashboardDecisionStep(
+                stage="market",
+                title="Market Analysis",
+                summary=(
+                    "현재 시장 상태가 양호하여 "
+                    "점수를 높였습니다."
+                ),
+            ),
+            DashboardDecisionStep(
+                stage="ai_partner",
+                title="AI Partner",
+                summary="소량 테스트 매입을 검토하세요.",
+            ),
+        ),
     )
 
 
@@ -99,6 +120,27 @@ def test_format_dashboard_card_contains_ai_sections() -> None:
     assert "85.00%" in output
 
 
+def test_format_dashboard_card_contains_decision_timeline() -> None:
+    output = format_dashboard_card(
+        _make_dashboard_card()
+    )
+
+    assert "DECISION TIMELINE" in output
+    assert "1. Data Confidence" in output
+    assert "Result        : HIGH" in output
+
+    assert "2. Market Analysis" in output
+    assert (
+        "현재 시장 상태가 양호하여 "
+        "점수를 높였습니다."
+        in output
+    )
+
+    assert "3. AI Partner" in output
+    assert "소량 테스트 매입을 검토하세요." in output
+    assert "   v" in output
+
+
 def test_format_dashboard_card_supports_missing_ai_data() -> None:
     original = _make_dashboard_card()
 
@@ -119,6 +161,7 @@ def test_format_dashboard_card_supports_missing_ai_data() -> None:
     assert "AI RECOMMENDATION" not in output
     assert "AI PARTNER" not in output
     assert "AI MEMORY" not in output
+    assert "DECISION TIMELINE" not in output
     assert "Confidence    : -" in output
     assert "Price Trend   : -" in output
     assert "Decision      : -" in output

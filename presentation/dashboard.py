@@ -7,6 +7,7 @@ from engine.orchestrator import OpportunityResult
 from presentation.models import (
     DashboardAIPartner,
     DashboardCard,
+    DashboardDecisionStep,
     DashboardMemory,
     DashboardMetrics,
     DashboardProduct,
@@ -32,6 +33,9 @@ def build_dashboard_card(
         confidence_level=_extract_confidence_level(result),
         trend_direction=_extract_trend_direction(result),
         decision=_extract_decision(result),
+        decision_timeline=_build_decision_timeline(
+            result
+        ),
     )
 
 
@@ -243,6 +247,192 @@ def _build_memory(
         summary=_to_text(
             getattr(memory, "summary", "")
         ),
+    )
+
+
+def _build_decision_timeline(
+    result: OpportunityResult,
+) -> tuple[DashboardDecisionStep, ...]:
+    """
+    엔진이 이미 계산한 결과를 의사결정 순서대로 정리한다.
+
+    이 함수는 새로운 판단이나 점수 계산을 하지 않는다.
+    값이 존재하는 분석 단계만 Timeline에 포함한다.
+    """
+    steps: list[DashboardDecisionStep] = []
+
+    confidence_level = _extract_confidence_level(
+        result
+    )
+
+    if confidence_level:
+        steps.append(
+            DashboardDecisionStep(
+                stage="confidence",
+                title="Data Confidence",
+                summary=confidence_level,
+            )
+        )
+
+    trend_direction = _extract_trend_direction(
+        result
+    )
+
+    if trend_direction:
+        steps.append(
+            DashboardDecisionStep(
+                stage="price_trend",
+                title="Price Trend",
+                summary=trend_direction,
+            )
+        )
+
+    inventory_analysis = (
+        result.inventory_analysis
+    )
+
+    if inventory_analysis is not None:
+        inventory_summary = _first_text_attribute(
+            inventory_analysis,
+            "summary",
+            "insight",
+            "status",
+            "condition",
+        )
+
+        if inventory_summary:
+            steps.append(
+                DashboardDecisionStep(
+                    stage="inventory",
+                    title="Inventory",
+                    summary=inventory_summary,
+                )
+            )
+
+    seller_analysis = result.seller_analysis
+
+    if seller_analysis is not None:
+        seller_summary = _first_text_attribute(
+            seller_analysis,
+            "summary",
+            "insight",
+            "status",
+            "condition",
+        )
+
+        if seller_summary:
+            steps.append(
+                DashboardDecisionStep(
+                    stage="seller",
+                    title="Seller Competition",
+                    summary=seller_summary,
+                )
+            )
+
+    market_explanations = (
+        _extract_market_explanations(result)
+    )
+
+    for explanation in market_explanations:
+        steps.append(
+            DashboardDecisionStep(
+                stage="market",
+                title="Market Analysis",
+                summary=explanation,
+            )
+        )
+
+    recommendation = result.ai_recommendation
+
+    if recommendation is not None:
+        recommendation_summary = _to_text(
+            getattr(
+                recommendation,
+                "summary",
+                "",
+            )
+        )
+
+        recommendation_grade = _to_text(
+            getattr(
+                recommendation,
+                "grade",
+                "",
+            )
+        )
+
+        summary = (
+            recommendation_summary
+            or recommendation_grade
+        )
+
+        if summary:
+            steps.append(
+                DashboardDecisionStep(
+                    stage="recommendation",
+                    title="Recommendation",
+                    summary=summary,
+                )
+            )
+
+    ai_partner = result.ai_partner_report
+
+    if ai_partner is not None:
+        next_action = _to_text(
+            getattr(
+                ai_partner,
+                "next_action",
+                "",
+            )
+        )
+
+        if next_action:
+            steps.append(
+                DashboardDecisionStep(
+                    stage="ai_partner",
+                    title="AI Partner",
+                    summary=next_action,
+                )
+            )
+
+    return tuple(steps)
+
+
+def _extract_market_explanations(
+    result: OpportunityResult,
+) -> tuple[str, ...]:
+    """
+    DecisionReport를 우선적인 설명 원천으로 사용하고,
+    없으면 MarketAdjustment의 설명을 사용한다.
+
+    이를 통해 기존 객체나 일부 테스트 객체도
+    안전하게 처리할 수 있다.
+    """
+    decision_report = result.decision_report
+
+    if decision_report is not None:
+        explanations = _to_text_tuple(
+            getattr(
+                decision_report,
+                "market_explanations",
+                (),
+            )
+        )
+
+        if explanations:
+            return explanations
+
+    market_adjustment = result.market_adjustment
+
+    if market_adjustment is None:
+        return ()
+
+    return _to_text_tuple(
+        getattr(
+            market_adjustment,
+            "explanations",
+            (),
+        )
     )
 
 

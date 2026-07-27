@@ -63,6 +63,11 @@ def _make_opportunity_result() -> OpportunityResult:
 
     decision_report = SimpleNamespace(
         decision="BUY",
+        market_explanations=(
+            "현재 시장 상태가 양호하여 "
+            "Opportunity Score를 높였습니다.",
+            "판매자 경쟁이 낮습니다.",
+        ),
     )
 
     return OpportunityResult(
@@ -155,6 +160,43 @@ def test_build_dashboard_card() -> None:
     assert card.trend_direction == "UP"
     assert card.decision == "Buy"
 
+    assert len(card.decision_timeline) == 6
+
+    assert (
+        card.decision_timeline[0].stage
+        == "confidence"
+    )
+    assert (
+        card.decision_timeline[0].summary
+        == "HIGH"
+    )
+
+    assert (
+        card.decision_timeline[1].stage
+        == "price_trend"
+    )
+    assert (
+        card.decision_timeline[1].summary
+        == "UP"
+    )
+
+    assert (
+        card.decision_timeline[2].stage
+        == "market"
+    )
+    assert (
+        card.decision_timeline[2].summary
+        == (
+            "현재 시장 상태가 양호하여 "
+            "Opportunity Score를 높였습니다."
+        )
+    )
+
+    assert (
+        card.decision_timeline[-1].stage
+        == "ai_partner"
+    )
+
 
 def test_build_dashboard_card_without_optional_results() -> None:
     result = _make_opportunity_result()
@@ -175,6 +217,7 @@ def test_build_dashboard_card_without_optional_results() -> None:
     assert card.confidence_level == ""
     assert card.trend_direction == ""
     assert card.decision == ""
+    assert card.decision_timeline == ()
 
 
 def test_build_dashboard_cards_preserves_order() -> None:
@@ -231,3 +274,14 @@ def test_build_dashboard_card_converts_to_dict() -> None:
         data["memory"]["rank_label"]
         == "상위권"
     )
+
+    assert (
+        data["decision_timeline"][0]["stage"]
+        == "confidence"
+    )
+    assert (
+        data["decision_timeline"][-1]["stage"]
+        == "ai_partner"
+    )
+
+    

@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from engine.confidence import ConfidenceResult
+from engine.market_adjustment import (
+    MarketAdjustmentResult,
+)
 from engine.price_trend import PriceTrend
 from engine.recommendation import RecommendationResult
 
@@ -12,6 +15,10 @@ class DecisionReport:
     """
     Recommendation 결과를 사람이 읽기 쉬운
     AI 분석 리포트 형태로 정리한다.
+
+    Market Adjustment의 설명도 함께 보존하여
+    AI Partner, Dashboard, CLI, API가 동일한
+    시장 판단 근거를 재사용할 수 있도록 한다.
     """
 
     strengths: tuple[str, ...]
@@ -21,16 +28,27 @@ class DecisionReport:
     buy_timing: str
     ai_comment: str
 
+    market_explanations: tuple[str, ...] = ()
+
 
 def build_decision_report(
     *,
     recommendation: RecommendationResult,
     confidence: ConfidenceResult | None,
     price_trend: PriceTrend | None,
+    market_adjustment: (
+        MarketAdjustmentResult | None
+    ) = None,
 ) -> DecisionReport:
     """
     Recommendation 결과를 기반으로
     AI 분석 리포트를 생성한다.
+
+    market_adjustment가 제공되면 이미 계산된
+    인간 친화적 시장 설명을 그대로 보존한다.
+
+    market_adjustment를 전달하지 않아도
+    기존 호출 방식과 동일하게 동작한다.
     """
 
     strengths: list[str] = list(
@@ -65,13 +83,79 @@ def build_decision_report(
         price_trend=price_trend,
     )
 
+    market_explanations = (
+        _extract_market_explanations(
+            market_adjustment=market_adjustment,
+        )
+    )
+
     return DecisionReport(
         strengths=tuple(strengths),
         weaknesses=tuple(weaknesses),
         market_summary=market_summary,
         buy_timing=buy_timing,
         ai_comment=ai_comment,
+        market_explanations=market_explanations,
     )
+
+
+def _extract_market_explanations(
+    *,
+    market_adjustment: (
+        MarketAdjustmentResult | None
+    ),
+) -> tuple[str, ...]:
+    """
+    Market Adjustment가 생성한 설명을
+    중복과 빈 문자열 없이 안전하게 정리한다.
+
+    설명의 긍정·부정을 문자열로 추측해 분류하지 않고,
+    계산 계층에서 생성한 원본 의미를 그대로 보존한다.
+    """
+    if market_adjustment is None:
+        return ()
+
+    explanations = getattr(
+        market_adjustment,
+        "explanations",
+        (),
+    )
+
+    if explanations is None:
+        return ()
+
+    if isinstance(explanations, str):
+        cleaned_explanation = explanations.strip()
+
+        if not cleaned_explanation:
+            return ()
+
+        return (cleaned_explanation,)
+
+    try:
+        items = tuple(explanations)
+    except TypeError:
+        cleaned_explanation = str(
+            explanations
+        ).strip()
+
+        if not cleaned_explanation:
+            return ()
+
+        return (cleaned_explanation,)
+
+    cleaned_items: list[str] = []
+
+    for item in items:
+        cleaned_item = str(item).strip()
+
+        if (
+            cleaned_item
+            and cleaned_item not in cleaned_items
+        ):
+            cleaned_items.append(cleaned_item)
+
+    return tuple(cleaned_items)
 
 
 def _build_market_summary(

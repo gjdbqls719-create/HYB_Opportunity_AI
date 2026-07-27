@@ -110,6 +110,24 @@ class DashboardMemory:
 
 
 @dataclass(slots=True, frozen=True)
+class DashboardDecisionStep:
+    """
+    HYB가 최종 판단에 도달하기까지 사용한
+    하나의 분석 단계를 표현한다.
+
+    Presentation 전용 모델이며 점수 계산이나
+    비즈니스 판단을 직접 수행하지 않는다.
+    """
+
+    stage: str
+    title: str
+    summary: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True, frozen=True)
 class DashboardCard:
     """
     하나의 상품 기회를 Dashboard에 표시하기 위한 최종 모델.
@@ -127,6 +145,10 @@ class DashboardCard:
     confidence_level: str
     trend_direction: str
     decision: str
+
+    decision_timeline: (
+        tuple[DashboardDecisionStep, ...]
+    ) = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -150,4 +172,8 @@ class DashboardCard:
             "confidence_level": self.confidence_level,
             "trend_direction": self.trend_direction,
             "decision": self.decision,
+            "decision_timeline": [
+                step.to_dict()
+                for step in self.decision_timeline
+            ],
         }

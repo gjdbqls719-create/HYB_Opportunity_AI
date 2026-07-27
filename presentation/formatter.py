@@ -128,6 +128,34 @@ def format_dashboard_card(
         ),
     ]
 
+    if card.decision_timeline:
+        lines.extend(
+            [
+                section_separator,
+                "DECISION TIMELINE",
+            ]
+        )
+
+        for index, step in enumerate(
+            card.decision_timeline,
+            start=1,
+        ):
+            lines.append(
+                f"{index}. {step.title}"
+            )
+            lines.append(
+                _format_multiline_value(
+                    "Result",
+                    step.summary,
+                )
+            )
+
+            if index < len(
+                card.decision_timeline
+            ):
+                lines.append("   |")
+                lines.append("   v")
+
     if recommendation is not None:
         lines.extend(
             [
