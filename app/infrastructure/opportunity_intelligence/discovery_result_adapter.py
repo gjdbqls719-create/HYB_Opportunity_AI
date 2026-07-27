@@ -49,7 +49,19 @@ class DiscoveryFactorPolicy:
                 "위험 안전성 점수는 low > medium > high 순이어야 합니다."
             )
 
-    def price_score(self, roi: Decimal) -> Decimal:
+    def profitability_score(self, *, roi: Decimal) -> Decimal:
+        """검증된 수익성 지표를 가격 Factor 점수로 정규화한다.
+
+        현재 계약은 기존 동작과의 완전한 호환성을 위해 ROI만 사용한다.
+        키워드 전용 인자를 사용해 향후 ``margin_rate`` 또는
+        ``landed_cost_roi`` 같은 검증된 지표를 명시적으로 확장할 수 있는
+        진입점을 제공한다.
+        """
+        if not isinstance(roi, Decimal):
+            raise TypeError("roi는 Decimal이어야 합니다.")
+        if not roi.is_finite():
+            raise ValueError("roi는 유한한 값이어야 합니다.")
+
         return _piecewise_score(
             roi,
             (
@@ -60,6 +72,10 @@ class DiscoveryFactorPolicy:
                 (Decimal("100"), Decimal("100")),
             ),
         )
+
+    def price_score(self, roi: Decimal) -> Decimal:
+        """기존 호출자를 위한 하위 호환 진입점."""
+        return self.profitability_score(roi=roi)
 
     def trend_score(self, adjustment: Decimal) -> Decimal:
         return _piecewise_score(
@@ -197,7 +213,7 @@ class DiscoveryResultOpportunityIntelligenceAdapter:
 
         return (
             OpportunityFactors(
-                price_score=self._factor_policy.price_score(roi),
+                price_score=self._factor_policy.profitability_score(roi=roi),
                 trend_score=self._factor_policy.trend_score(trend_adjustment),
                 demand_score=self._factor_policy.demand_score(monthly_sales),
                 competition_score=self._factor_policy.competition_score(

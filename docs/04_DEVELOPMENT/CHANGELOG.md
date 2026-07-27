@@ -67,3 +67,13 @@
 - 완전한 Factor Adapter가 주입된 경우에만 신규 Score와 Evaluation 생성
 - 기존 Recommendation 필드와 Discovery 공개 동작 변경 없음
 - 신규 통합 테스트 6개 추가
+
+
+## Sprint 5.2 PR-1 — Profitability Score Extension Point
+
+- ROI 기반 가격 Factor 계산을 `profitability_score()` 진입점으로 명시화
+- 현재 ROI 점수 구간과 결과를 그대로 유지해 기존 추천 결과의 회귀 방지
+- 기존 `price_score()` 공개 호출은 하위 호환 위임 메서드로 유지
+- 향후 `margin_rate`, `landed_cost_roi` 등 검증된 수익성 지표 확장을 위한 경계 마련
+- Decimal 타입 및 유한값 검증 추가
+- 정책 호환성과 경계 검증 테스트 4개 추가

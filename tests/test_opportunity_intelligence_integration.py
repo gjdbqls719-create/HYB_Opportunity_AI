@@ -10,6 +10,7 @@ from app.application.opportunity_intelligence import (
 from app.domain.discovery import DiscoveryResult
 from app.domain.opportunity import OpportunityDecision, OpportunityFactors
 from app.infrastructure.opportunity_intelligence import (
+    DiscoveryFactorPolicy,
     DiscoveryResultOpportunityIntelligenceAdapter,
 )
 from app.models import Product
@@ -252,3 +253,43 @@ def test_invalid_factor_source_returns_failed_result() -> None:
 
     assert result.status is OpportunityIntelligenceStatus.FAILED
     assert "0 이상" in (result.error_message or "")
+
+
+def test_profitability_score_preserves_existing_roi_mapping() -> None:
+    policy = DiscoveryFactorPolicy()
+
+    assert policy.profitability_score(roi=Decimal("0")) == Decimal("0")
+    assert policy.profitability_score(roi=Decimal("15")) == Decimal("40.00")
+    assert policy.profitability_score(roi=Decimal("30")) == Decimal("60.00")
+    assert policy.profitability_score(roi=Decimal("50")) == Decimal("80.00")
+    assert policy.profitability_score(roi=Decimal("100")) == Decimal("100")
+
+
+def test_legacy_price_score_delegates_to_profitability_score() -> None:
+    policy = DiscoveryFactorPolicy()
+
+    assert policy.price_score(Decimal("37.5")) == policy.profitability_score(
+        roi=Decimal("37.5")
+    )
+
+
+def test_profitability_score_rejects_non_decimal_roi() -> None:
+    policy = DiscoveryFactorPolicy()
+
+    try:
+        policy.profitability_score(roi=30)  # type: ignore[arg-type]
+    except TypeError as error:
+        assert str(error) == "roi는 Decimal이어야 합니다."
+    else:
+        raise AssertionError("TypeError가 발생해야 합니다.")
+
+
+def test_profitability_score_rejects_non_finite_roi() -> None:
+    policy = DiscoveryFactorPolicy()
+
+    try:
+        policy.profitability_score(roi=Decimal("NaN"))
+    except ValueError as error:
+        assert str(error) == "roi는 유한한 값이어야 합니다."
+    else:
+        raise AssertionError("ValueError가 발생해야 합니다.")
