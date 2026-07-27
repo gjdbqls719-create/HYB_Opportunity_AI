@@ -1,5 +1,18 @@
 # HYB Changelog
 
+
+## Sprint 5.1 PR-4 — Discovery Workflow Intelligence Integration
+
+### Added
+
+- Discovery Workflow의 선택적 Opportunity Intelligence 실행 단계
+- Discovery 결과 순서를 보존하는 `intelligence_results` 응답 계약
+- 항목 단위 Intelligence 실패 격리 테스트
+
+### Changed
+
+- Intelligence 실패가 Discovery 및 Publish 성공을 중단하지 않도록 Workflow 경계를 확장
+
 버전별 변경 내용을 기록한다.
 
 ## Sprint 5.1 PR-1 — Architecture Alignment v1

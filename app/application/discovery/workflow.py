@@ -7,6 +7,11 @@ from app.application.discovery.discover_opportunities import (
     DiscoverOpportunitiesResponse,
     DiscoverOpportunitiesUseCase,
 )
+from app.application.opportunity_intelligence import (
+    OpportunityIntelligenceResult,
+    OpportunityIntelligenceService,
+    OpportunityIntelligenceStatus,
+)
 from app.application.workflow import (
     WorkflowContext,
     WorkflowObserver,
@@ -26,6 +31,7 @@ class OpportunityPublisher(Protocol):
 class DiscoverOpportunitiesWorkflowResponse:
     discovery: DiscoverOpportunitiesResponse
     workflow_run: WorkflowRun
+    intelligence_results: tuple[OpportunityIntelligenceResult, ...] = ()
 
 
 @dataclass(slots=True)
@@ -49,6 +55,34 @@ class _DiscoverStep:
 
 
 @dataclass(slots=True)
+class _OpportunityIntelligenceStep:
+    service: OpportunityIntelligenceService
+
+    @property
+    def name(self) -> str:
+        return "opportunity_intelligence"
+
+    def execute(self, context: WorkflowContext) -> None:
+        discovery_response = context.require("discovery_response")
+        results: list[OpportunityIntelligenceResult] = []
+
+        for discovery_result in discovery_response.results:
+            try:
+                intelligence_result = self.service.evaluate(discovery_result)
+            except Exception as error:  # 마지막 격리 경계: Discovery 성공을 보존한다.
+                intelligence_result = OpportunityIntelligenceResult(
+                    status=OpportunityIntelligenceStatus.FAILED,
+                    error_message=(
+                        "Opportunity Intelligence 실행 중 예기치 않은 오류가 "
+                        f"발생했습니다: {error}"
+                    ),
+                )
+            results.append(intelligence_result)
+
+        context.set("intelligence_results", tuple(results))
+
+
+@dataclass(slots=True)
 class _PublishStep:
     publisher: OpportunityPublisher
 
@@ -62,16 +96,18 @@ class _PublishStep:
 
 
 class DiscoverOpportunitiesWorkflow:
-    """Opportunity 탐색과 선택적 결과 발행을 조정하는 Workflow."""
+    """Opportunity 탐색, 선택적 Intelligence 평가와 결과 발행을 조정한다."""
 
     def __init__(
         self,
         *,
         use_case: DiscoverOpportunitiesUseCase,
+        intelligence_service: OpportunityIntelligenceService | None = None,
         publisher: OpportunityPublisher | None = None,
         observers: tuple[WorkflowObserver, ...] = (),
     ) -> None:
         self._use_case = use_case
+        self._intelligence_service = intelligence_service
         self._publisher = publisher
         self._observers = observers
 
@@ -92,6 +128,13 @@ class DiscoverOpportunitiesWorkflow:
             )
         ]
 
+        if self._intelligence_service is not None:
+            steps.append(
+                _OpportunityIntelligenceStep(
+                    service=self._intelligence_service,
+                )
+            )
+
         if self._publisher is not None:
             steps.append(_PublishStep(publisher=self._publisher))
 
@@ -104,4 +147,5 @@ class DiscoverOpportunitiesWorkflow:
         return DiscoverOpportunitiesWorkflowResponse(
             discovery=context.require("discovery_response"),
             workflow_run=workflow_run,
+            intelligence_results=context.get("intelligence_results", ()),
         )
