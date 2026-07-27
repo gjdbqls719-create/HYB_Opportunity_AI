@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import Decimal
 from datetime import datetime, timezone
 from typing import Any, Protocol
+from uuid import uuid4
 
+from app.application.change import (
+    DetectLatestPriceChangeUseCase,
+)
+from app.application.change.models import (
+    ChangeDetectionResponse,
+)
+from app.infrastructure.change import (
+    PriceHistorySnapshotProvider,
+)
 from app.models import Product
 from engine.ai_partner import (
     AIPartnerReport,
@@ -65,6 +76,9 @@ from engine.market_intelligence import (
 from market_data.inventory_snapshot import (
     InventorySnapshot,
 )
+from market_data.price_snapshot import (
+    PriceSnapshot,
+)
 
 from market_data.seller_snapshot import (
     SellerSnapshot,
@@ -112,6 +126,11 @@ class OpportunityResult:
     matched_product_count: int
     price_intelligence: PriceIntelligence
 
+    price_snapshot: PriceSnapshot | None = None
+    price_change_detection: (
+        ChangeDetectionResponse | None
+    ) = None
+    price_history_record_id: int | None = None
     confidence: ConfidenceResult | None = None
     adjusted_opportunity_score: float = 0.0
 
@@ -242,6 +261,99 @@ def group_similar_products(
     return groups
 
 
+def build_price_snapshot(
+    *,
+    product: Product,
+    observed_at: datetime | None = None,
+) -> PriceSnapshot:
+    """
+    Marketplace Product를 변경 탐지용 PriceSnapshot으로 변환한다.
+
+    현재 Discovery 단계에는 별도의 Canonical Product ID가 없으므로
+    기존 Inventory/Seller Snapshot과 동일하게 item_id를 임시
+    canonical_product_id로 사용한다.
+    """
+    resolved_observed_at = observed_at or datetime.now(
+        timezone.utc
+    )
+    resolved_condition = (
+        product.condition.strip()
+        if product.condition
+        and product.condition.strip()
+        else "unknown"
+    )
+    resolved_seller_id = (
+        product.seller.strip()
+        if product.seller
+        and product.seller.strip()
+        else None
+    )
+
+    return PriceSnapshot(
+        snapshot_id=(
+            "price_"
+            f"{product.marketplace}_"
+            f"{product.item_id}_"
+            f"{uuid4().hex}"
+        ),
+        canonical_product_id=product.item_id,
+        marketplace=product.marketplace,
+        observed_at=resolved_observed_at,
+        source_url=(
+            product.url
+            or "unknown://source"
+        ),
+        item_id=product.item_id,
+        price=Decimal(str(product.price)),
+        currency=product.currency,
+        condition=resolved_condition,
+        seller_id=resolved_seller_id,
+    )
+
+
+def _build_price_change_detector(
+    *,
+    repository: PriceHistoryRepository | None,
+) -> DetectLatestPriceChangeUseCase | None:
+    """
+    PriceHistoryRepository가 제공된 경우에만
+    최신 가격 변경 탐지 Use Case를 구성한다.
+    """
+    if repository is None:
+        return None
+
+    snapshot_provider = PriceHistorySnapshotProvider(
+        repository=repository,
+    )
+
+    return DetectLatestPriceChangeUseCase(
+        snapshot_provider=snapshot_provider,
+    )
+
+
+def _save_current_price_snapshot(
+    *,
+    repository: PriceHistoryRepository | None,
+    product: Product,
+    snapshot: PriceSnapshot,
+) -> int | None:
+    """
+    변경 탐지가 끝난 현재 가격 Snapshot을
+    append-only Price History에 저장한다.
+    """
+    if repository is None:
+        return None
+
+    return repository.save_product_price(
+        product,
+        observed_at=snapshot.observed_at,
+        canonical_product_id=(
+            snapshot.canonical_product_id
+        ),
+        seller_id=snapshot.seller_id,
+    )
+
+
 def _load_price_trend(
     *,
     repository: PriceHistoryRepository | None,
@@ -367,6 +479,10 @@ def find_best_opportunities(
         match_threshold=match_threshold,
     )
 
+    price_change_detector = _build_price_change_detector(
+        repository=price_history_repository,
+    )
+
     results: list[OpportunityResult] = []
 
     for group in product_groups:
@@ -436,6 +552,31 @@ def find_best_opportunities(
             trend_score.adjustment
         )
 
+        snapshot_observed_at = datetime.now(
+            timezone.utc
+        )
+
+        price_snapshot = build_price_snapshot(
+            product=representative,
+            observed_at=snapshot_observed_at,
+        )
+
+        price_change_detection = (
+            price_change_detector.execute(
+                current_snapshot=price_snapshot,
+            )
+            if price_change_detector is not None
+            else None
+        )
+
+        price_history_record_id = (
+            _save_current_price_snapshot(
+                repository=price_history_repository,
+                product=representative,
+                snapshot=price_snapshot,
+            )
+        )
+
         inventory_snapshot = InventorySnapshot(
             snapshot_id=(
                 f"inventory_{representative.item_id}"
@@ -446,9 +587,7 @@ def find_best_opportunities(
             marketplace=(
                 representative.marketplace
             ),
-            observed_at=datetime.now(
-                timezone.utc
-            ),
+            observed_at=snapshot_observed_at,
             source_url=(
                 representative.url
                 or "unknown://source"
@@ -476,9 +615,7 @@ def find_best_opportunities(
             marketplace=(
                 representative.marketplace
             ),
-            observed_at=datetime.now(
-                timezone.utc
-            ),
+            observed_at=snapshot_observed_at,
             source_url=(
                 representative.url
                 or "unknown://source"
@@ -690,6 +827,16 @@ def find_best_opportunities(
                     group.products
                 ),
                 price_intelligence=price_info,
+
+                price_snapshot=price_snapshot,
+
+                price_change_detection=(
+                    price_change_detection
+                ),
+
+                price_history_record_id=(
+                    price_history_record_id
+                ),
 
                 confidence=confidence,
 
