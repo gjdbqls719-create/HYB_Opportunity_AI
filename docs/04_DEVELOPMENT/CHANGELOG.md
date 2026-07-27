@@ -30,3 +30,14 @@
 - 기존 Recommendation과 신규 Evaluation 병행 운영 결정
 - Application Service / Infrastructure Adapter 경계 확정
 - ADR-0001 추가
+
+## Sprint 5.1 PR-3 — Minimal Opportunity Intelligence Integration
+
+- `OpportunityIntelligenceStatus` (`evaluated`, `unavailable`, `failed`) 추가
+- Application 입력/결과 계약 및 Adapter Port 추가
+- `OpportunityIntelligenceService`로 Score/Decision Engine 오케스트레이션 추가
+- 기존 `DiscoveryResult`에서 confidence를 엄격하게 Decimal로 변환하는 Infrastructure Adapter 추가
+- 5개 Factor가 준비되지 않은 현재 상태를 임의 기본값 없이 `unavailable`로 반환
+- 완전한 Factor Adapter가 주입된 경우에만 신규 Score와 Evaluation 생성
+- 기존 Recommendation 필드와 Discovery 공개 동작 변경 없음
+- 신규 통합 테스트 6개 추가
