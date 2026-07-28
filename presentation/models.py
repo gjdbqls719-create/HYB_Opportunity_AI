@@ -202,3 +202,49 @@ class DashboardCard:
                 for step in self.decision_timeline
             ],
         }
+
+@dataclass(slots=True, frozen=True)
+class OpportunityListItem:
+    """
+    여러 상품 기회를 빠르게 비교하기 위한 목록 항목.
+
+    엔진 객체를 직접 노출하지 않고 목록 화면에 필요한
+    핵심 정보만 보관한다. rank는 현재 입력 순서를 기준으로 한다.
+    """
+
+    rank: int
+    marketplace: str
+    item_id: str
+    title: str
+    decision: str
+    score: float
+    net_profit: float
+    roi: float
+    confidence_level: str
+    currency: str
+    url: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True, frozen=True)
+class OpportunityListCard:
+    """
+    Top Opportunity 목록을 표현하는 화면 독립적 ViewModel.
+
+    CLI, Web, API, Export 계층이 동일한 목록 데이터를
+    재사용할 수 있도록 항목과 전체 개수를 함께 보관한다.
+    """
+
+    items: tuple[OpportunityListItem, ...]
+    total_count: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "items": [
+                item.to_dict()
+                for item in self.items
+            ],
+            "total_count": self.total_count,
+        }
