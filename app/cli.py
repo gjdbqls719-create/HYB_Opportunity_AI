@@ -9,7 +9,7 @@ from engine.orchestrator import (
     OpportunityResult,
     find_best_opportunities,
 )
-from presentation.cli import print_dashboard_results
+from presentation.cli import print_opportunity_results
 from storage.opportunity_history import (
     OpportunityHistoryRepository,
     SavedOpportunity,
@@ -365,7 +365,7 @@ def render_results(
     )
     print("", file=output)
 
-    print_dashboard_results(
+    print_opportunity_results(
         selected_results,
         output=output,
     )

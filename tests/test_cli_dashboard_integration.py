@@ -55,6 +55,8 @@ def test_render_results_uses_dashboard_presentation() -> None:
 
     assert "검색어: iphone" in rendered
     assert "분석 결과: 1개 그룹" in rendered
+    assert "TOP OPPORTUNITIES (1 of 1)" in rendered
+    assert "#1 ⚪ UNDECIDED" in rendered
     assert "HYB OPPORTUNITY DASHBOARD" in rendered
     assert "Apple iPhone" in rendered
     assert "110.00 USD" in rendered
@@ -89,6 +91,10 @@ def test_render_results_respects_top_limit() -> None:
 
     assert "분석 결과: 3개 그룹" in rendered
     assert "표시 결과: 2개" in rendered
+
+    assert "TOP OPPORTUNITIES (2 of 2)" in rendered
+    assert "#1 ⚪ UNDECIDED" in rendered
+    assert "#2 ⚪ UNDECIDED" in rendered
 
     assert "First Product" in rendered
     assert "Second Product" in rendered

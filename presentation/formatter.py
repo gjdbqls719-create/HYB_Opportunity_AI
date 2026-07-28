@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from presentation.models import DashboardCard
+from presentation.models import (
+    DashboardCard,
+    OpportunityListCard,
+    OpportunityListItem,
+)
 
 
 DEFAULT_WIDTH = 60
@@ -273,6 +277,76 @@ def format_dashboard_card(
     lines.append(separator)
 
     return "\n".join(lines)
+
+
+def format_opportunity_list_card(
+    card: OpportunityListCard,
+    *,
+    width: int = DEFAULT_WIDTH,
+) -> str:
+    """
+    OpportunityListCard를 빠른 비교용 CLI 문자열로 변환한다.
+
+    목록은 ViewModel에 저장된 순서를 그대로 표시하며 점수 계산이나
+    재정렬을 수행하지 않는다.
+    """
+    if not card.items:
+        return "No opportunity results."
+
+    safe_width = max(width, 40)
+    separator = "=" * safe_width
+    item_separator = "-" * safe_width
+
+    lines = [
+        separator,
+        f"TOP OPPORTUNITIES ({len(card.items)} of {card.total_count})",
+        separator,
+    ]
+
+    for index, item in enumerate(card.items):
+        lines.extend(_format_opportunity_list_item(item))
+
+        if index < len(card.items) - 1:
+            lines.append(item_separator)
+
+    lines.append(separator)
+    return "\n".join(lines)
+
+
+def _format_opportunity_list_item(
+    item: OpportunityListItem,
+) -> list[str]:
+    decision = item.decision.strip().upper() or "UNDECIDED"
+    icon = _decision_icon(decision)
+    marketplace = item.marketplace.strip().upper() or "-"
+
+    return [
+        f"#{item.rank} {icon} {decision}",
+        item.title.strip() or "-",
+        _format_row("Marketplace", marketplace),
+        _format_number_row("HYB Score", item.score),
+        _format_money_row("Net Profit", item.net_profit, item.currency),
+        _format_percentage_row("ROI", item.roi),
+        _format_row(
+            "Confidence",
+            item.confidence_level.strip() or "-",
+        ),
+    ]
+
+
+def _decision_icon(decision: str) -> str:
+    normalized = decision.strip().upper()
+
+    if normalized in {"BUY", "STRONG BUY"}:
+        return "🟢"
+
+    if normalized in {"WATCH", "HOLD", "REVIEW", "검토"}:
+        return "🟡"
+
+    if normalized in {"SKIP", "AVOID", "SELL"}:
+        return "🔴"
+
+    return "⚪"
 
 
 def format_dashboard_cards(
