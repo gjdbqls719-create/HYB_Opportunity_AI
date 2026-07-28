@@ -28,7 +28,7 @@ class SellerSnapshot(BaseSnapshot):
     is_verified: bool = False
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        BaseSnapshot.__post_init__(self)
 
         object.__setattr__(
             self,

@@ -22,7 +22,7 @@ class InventorySnapshot(BaseSnapshot):
     quantity: int | None = None
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        BaseSnapshot.__post_init__(self)
 
         object.__setattr__(
             self,

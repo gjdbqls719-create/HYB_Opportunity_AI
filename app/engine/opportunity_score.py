@@ -24,6 +24,8 @@ class OpportunityScorePolicy:
     demand_weight: Decimal = Decimal("0.20")
     competition_weight: Decimal = Decimal("0.15")
     risk_weight: Decimal = Decimal("0.15")
+    fee_weight: Decimal = Decimal("0.10")
+    roi_weight: Decimal = Decimal("0.10")
 
     excellent_threshold: Decimal = Decimal("90")
     good_threshold: Decimal = Decimal("75")
@@ -58,6 +60,22 @@ class OpportunityScorePolicy:
                 raise ValueError(
                     f"{field_name}는 0 이상 1 이하여야 합니다."
                 )
+
+        if not isinstance(self.fee_weight, Decimal):
+            raise TypeError("fee_weight는 Decimal이어야 합니다.")
+        if not self.fee_weight.is_finite():
+            raise ValueError("fee_weight는 유한한 값이어야 합니다.")
+        if self.fee_weight < Decimal("0") or self.fee_weight > Decimal("1"):
+            raise ValueError("fee_weight는 0 이상 1 이하여야 합니다.")
+
+        if not isinstance(self.roi_weight, Decimal):
+            raise TypeError("roi_weight는 Decimal이어야 합니다.")
+        if not self.roi_weight.is_finite():
+            raise ValueError("roi_weight는 유한한 값이어야 합니다.")
+        if self.roi_weight < Decimal("0") or self.roi_weight > Decimal("1"):
+            raise ValueError("roi_weight는 0 이상 1 이하여야 합니다.")
+        if self.fee_weight + self.roi_weight > Decimal("1"):
+            raise ValueError("fee_weight와 roi_weight 합계는 1 이하여야 합니다.")
 
         weight_total = sum(
             (getattr(self, name) for name in weight_names),
@@ -99,20 +117,38 @@ class OpportunityScoreEngine:
         *,
         confidence: Decimal = Decimal("0"),
         generated_at: datetime | None = None,
+        fee_score: Decimal | None = None,
+        roi_score: Decimal | None = None,
     ) -> OpportunityScore:
         if not isinstance(factors, OpportunityFactors):
             raise TypeError("factors는 OpportunityFactors여야 합니다.")
 
         self._validate_confidence(confidence)
+        self._validate_fee_score(fee_score)
+        self._validate_roi_score(roi_score)
         resolved_generated_at = self._resolve_generated_at(generated_at)
 
-        score = (
+        base_score = (
             factors.price_score * self._policy.price_weight
             + factors.trend_score * self._policy.trend_weight
             + factors.demand_score * self._policy.demand_weight
             + factors.competition_score * self._policy.competition_weight
             + factors.risk_score * self._policy.risk_weight
-        ).quantize(_SCORE_QUANTUM, rounding=ROUND_HALF_UP)
+        )
+
+        active_weight = Decimal("0")
+        enhancement_score = Decimal("0")
+
+        if fee_score is not None:
+            active_weight += self._policy.fee_weight
+            enhancement_score += fee_score * self._policy.fee_weight
+
+        if roi_score is not None:
+            active_weight += self._policy.roi_weight
+            enhancement_score += roi_score * self._policy.roi_weight
+
+        score = base_score * (Decimal("1") - active_weight) + enhancement_score
+        score = score.quantize(_SCORE_QUANTUM, rounding=ROUND_HALF_UP)
 
         return OpportunityScore(
             score=score,
@@ -141,6 +177,29 @@ class OpportunityScoreEngine:
             raise ValueError("confidence는 유한한 값이어야 합니다.")
         if confidence < Decimal("0") or confidence > Decimal("100"):
             raise ValueError("confidence는 0 이상 100 이하여야 합니다.")
+
+
+    @staticmethod
+    def _validate_fee_score(fee_score: object) -> None:
+        if fee_score is None:
+            return
+        if not isinstance(fee_score, Decimal):
+            raise TypeError("fee_score는 Decimal 또는 None이어야 합니다.")
+        if not fee_score.is_finite():
+            raise ValueError("fee_score는 유한한 값이어야 합니다.")
+        if fee_score < Decimal("0") or fee_score > Decimal("100"):
+            raise ValueError("fee_score는 0 이상 100 이하여야 합니다.")
+
+    @staticmethod
+    def _validate_roi_score(roi_score: object) -> None:
+        if roi_score is None:
+            return
+        if not isinstance(roi_score, Decimal):
+            raise TypeError("roi_score는 Decimal 또는 None이어야 합니다.")
+        if not roi_score.is_finite():
+            raise ValueError("roi_score는 유한한 값이어야 합니다.")
+        if roi_score < Decimal("0") or roi_score > Decimal("100"):
+            raise ValueError("roi_score는 0 이상 100 이하여야 합니다.")
 
     @staticmethod
     def _resolve_generated_at(generated_at: datetime | None) -> datetime:

@@ -7,9 +7,7 @@ from collectors.base import MarketplaceAdapter, parse_price
 
 
 class AmazonAdapter(MarketplaceAdapter):
-    """
-    Amazon 원본 상품 데이터를 공통 Product 모델로 변환한다.
-    """
+    """Amazon 원본 상품 데이터를 공통 Product 모델로 변환한다."""
 
     marketplace_name = "amazon"
 
@@ -19,24 +17,12 @@ class AmazonAdapter(MarketplaceAdapter):
     ) -> Product:
         return Product(
             marketplace=self.marketplace_name,
-            item_id=str(
-                raw_product.get("asin", "")
-            ).strip(),
-            title=str(
-                raw_product.get("title", "제목 없음")
-            ).strip(),
-            price=parse_price(
-                raw_product.get("price", 0)
-            ),
-            currency=str(
-                raw_product.get("currency", "USD")
-            ).strip(),
-            condition=str(
-                raw_product.get("condition", "New")
-            ).strip(),
-            url=str(
-                raw_product.get("url", "")
-            ).strip(),
+            item_id=str(raw_product.get("asin", "")).strip(),
+            title=str(raw_product.get("title", "제목 없음")).strip(),
+            price=parse_price(raw_product.get("price", 0)),
+            currency=str(raw_product.get("currency", "USD")).strip(),
+            condition=str(raw_product.get("condition", "New")).strip(),
+            url=str(raw_product.get("url", "")).strip(),
         )
 
 
@@ -44,9 +30,8 @@ def search_items(
     query: str,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
-    """
-    실제 Amazon API 연결 전 사용하는 테스트용 상품 데이터.
-    """
+    """실제 Amazon API 연결 전 사용하는 테스트용 상품 데이터."""
+
     cleaned_query = query.strip()
 
     if not cleaned_query:
@@ -89,17 +74,9 @@ def search_products(
     query: str,
     limit: int = 10,
 ) -> list[Product]:
-    """
-    Amazon 상품을 검색하고 공통 Product 목록으로 반환한다.
-    """
+    """Amazon 상품을 검색하고 검증된 공통 Product 목록으로 반환한다."""
+
     adapter = AmazonAdapter()
+    raw_items = search_items(query=query, limit=limit)
 
-    raw_items = search_items(
-        query=query,
-        limit=limit,
-    )
-
-    return [
-        adapter.normalize(item)
-        for item in raw_items
-    ]
+    return [adapter.normalize_and_validate(item) for item in raw_items]

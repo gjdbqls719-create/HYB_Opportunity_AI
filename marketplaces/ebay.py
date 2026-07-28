@@ -11,7 +11,6 @@ from services.ebay_auth import get_application_token
 
 
 DEFAULT_MARKETPLACE_ID = "EBAY_US"
-DEFAULT_PRICE = 0.0
 
 
 class EbayAdapter(MarketplaceAdapter):
@@ -20,25 +19,17 @@ class EbayAdapter(MarketplaceAdapter):
     marketplace_name = "ebay"
 
     def normalize(self, raw_product: dict[str, Any]) -> Product:
-        price_data = raw_product.get("price", {})
+        price_data = raw_product.get("price")
 
         if not isinstance(price_data, dict):
-            price_data = {}
-
-        raw_price = price_data.get("value", DEFAULT_PRICE)
-        currency = str(price_data.get("currency", "")).strip()
-
-        try:
-            price = parse_price(raw_price)
-        except (TypeError, ValueError):
-            price = DEFAULT_PRICE
+            raise ValueError("eBay 가격 정보는 dict 형식이어야 합니다.")
 
         return Product(
             marketplace=self.marketplace_name,
             item_id=str(raw_product.get("itemId", "")).strip(),
             title=str(raw_product.get("title", "제목 없음")).strip(),
-            price=price,
-            currency=currency,
+            price=parse_price(price_data.get("value")),
+            currency=str(price_data.get("currency", "")).strip(),
             condition=str(
                 raw_product.get("condition", "상태 정보 없음")
             ).strip(),
@@ -100,9 +91,9 @@ def search_items(
 
 
 def ebay_item_to_product(item: dict[str, Any]) -> Product:
-    """이전 함수형 호출과의 호환을 유지하는 변환 함수."""
+    """이전 함수형 호출과의 호환을 유지하는 검증된 변환 함수."""
 
-    return EbayAdapter().normalize(item)
+    return EbayAdapter().normalize_and_validate(item)
 
 
 def search_products(
@@ -110,7 +101,7 @@ def search_products(
     limit: int = 10,
     marketplace_id: str = DEFAULT_MARKETPLACE_ID,
 ) -> list[Product]:
-    """eBay 상품을 검색하고 공통 Product 객체 목록으로 반환한다."""
+    """eBay 상품을 검색하고 검증된 공통 Product 목록으로 반환한다."""
 
     adapter = EbayAdapter()
     raw_items = search_items(
@@ -119,4 +110,4 @@ def search_products(
         marketplace_id=marketplace_id,
     )
 
-    return [adapter.normalize(item) for item in raw_items]
+    return [adapter.normalize_and_validate(item) for item in raw_items]

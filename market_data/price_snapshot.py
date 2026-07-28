@@ -23,7 +23,7 @@ class PriceSnapshot(BaseSnapshot):
     seller_id: str | None = None
 
     def __post_init__(self) -> None:
-        super().__post_init__()
+        BaseSnapshot.__post_init__(self)
         
         object.__setattr__(
             self,

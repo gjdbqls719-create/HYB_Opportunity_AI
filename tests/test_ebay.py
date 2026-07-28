@@ -45,16 +45,15 @@ def test_ebay_adapter_normalizes_product() -> None:
     "raw_price",
     [None, "", "not-a-price", {"unexpected": "value"}],
 )
-def test_ebay_adapter_uses_zero_for_invalid_price(raw_price: object) -> None:
+def test_ebay_adapter_rejects_invalid_price(raw_price: object) -> None:
     raw_item = make_raw_item()
     raw_item["price"] = {
         "value": raw_price,
         "currency": "USD",
     }
 
-    product = EbayAdapter().normalize(raw_item)
-
-    assert product.price == 0.0
+    with pytest.raises((TypeError, ValueError)):
+        EbayAdapter().normalize(raw_item)
 
 
 def test_legacy_conversion_function_uses_adapter_behavior() -> None:

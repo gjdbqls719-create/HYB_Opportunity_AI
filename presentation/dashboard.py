@@ -8,10 +8,19 @@ from presentation.models import (
     DashboardAIPartner,
     DashboardCard,
     DashboardDecisionStep,
+    DashboardEvidence,
     DashboardMemory,
     DashboardMetrics,
     DashboardProduct,
     DashboardRecommendation,
+)
+
+from presentation.dashboard_utils import (
+    _analysis_float,
+    _first_text_attribute,
+    _to_float,
+    _to_text,
+    _to_text_tuple,
 )
 
 
@@ -256,8 +265,9 @@ def _build_decision_timeline(
     """
     엔진이 이미 계산한 결과를 의사결정 순서대로 정리한다.
 
-    이 함수는 새로운 판단이나 점수 계산을 하지 않는다.
-    값이 존재하는 분석 단계만 Timeline에 포함한다.
+    새로운 판단이나 점수 계산은 수행하지 않는다.
+    각 분석 객체가 제공하는 기존 결과를 Summary와
+    구조화된 Evidence로 변환한다.
     """
     steps: list[DashboardDecisionStep] = []
 
@@ -271,6 +281,9 @@ def _build_decision_timeline(
                 stage="confidence",
                 title="Data Confidence",
                 summary=confidence_level,
+                evidence=_build_confidence_evidence(
+                    result
+                ),
             )
         )
 
@@ -284,6 +297,9 @@ def _build_decision_timeline(
                 stage="price_trend",
                 title="Price Trend",
                 summary=trend_direction,
+                evidence=_build_price_trend_evidence(
+                    result
+                ),
             )
         )
 
@@ -306,6 +322,17 @@ def _build_decision_timeline(
                     stage="inventory",
                     title="Inventory",
                     summary=inventory_summary,
+                    evidence=_build_object_evidence(
+                        inventory_analysis,
+                        (
+                            ("Insight", "insight"),
+                            ("Reason", "reason"),
+                            ("Warning", "warning"),
+                        ),
+                        excluded_values=(
+                            inventory_summary,
+                        ),
+                    ),
                 )
             )
 
@@ -326,6 +353,17 @@ def _build_decision_timeline(
                     stage="seller",
                     title="Seller Competition",
                     summary=seller_summary,
+                    evidence=_build_object_evidence(
+                        seller_analysis,
+                        (
+                            ("Insight", "insight"),
+                            ("Reason", "reason"),
+                            ("Warning", "warning"),
+                        ),
+                        excluded_values=(
+                            seller_summary,
+                        ),
+                    ),
                 )
             )
 
@@ -333,12 +371,23 @@ def _build_decision_timeline(
         _extract_market_explanations(result)
     )
 
-    for explanation in market_explanations:
+    market_evidence = _build_market_evidence(
+        result
+    )
+
+    for index, explanation in enumerate(
+        market_explanations
+    ):
         steps.append(
             DashboardDecisionStep(
                 stage="market",
                 title="Market Analysis",
                 summary=explanation,
+                evidence=(
+                    market_evidence
+                    if index == 0
+                    else ()
+                ),
             )
         )
 
@@ -372,6 +421,11 @@ def _build_decision_timeline(
                     stage="recommendation",
                     title="Recommendation",
                     summary=summary,
+                    evidence=(
+                        _build_recommendation_evidence(
+                            recommendation
+                        )
+                    ),
                 )
             )
 
@@ -392,10 +446,313 @@ def _build_decision_timeline(
                     stage="ai_partner",
                     title="AI Partner",
                     summary=next_action,
+                    evidence=_build_ai_partner_evidence(
+                        ai_partner
+                    ),
                 )
             )
 
     return tuple(steps)
+
+
+def _build_confidence_evidence(
+    result: OpportunityResult,
+) -> tuple[DashboardEvidence, ...]:
+    confidence = result.confidence
+
+    if confidence is None:
+        return ()
+
+    return _build_object_evidence(
+        confidence,
+        (
+            ("Score", "score"),
+            ("Reason", "reason"),
+            ("Summary", "summary"),
+        ),
+        excluded_values=(
+            _extract_confidence_level(result),
+        ),
+    )
+
+
+def _build_price_trend_evidence(
+    result: OpportunityResult,
+) -> tuple[DashboardEvidence, ...]:
+    price_trend = result.price_trend
+
+    if price_trend is None:
+        return ()
+
+    return _build_object_evidence(
+        price_trend,
+        (
+            ("Position", "price_position"),
+            ("Lowest Price", "lowest_price"),
+            ("Highest Price", "highest_price"),
+            ("Average Price", "average_price"),
+            (
+                "History Available",
+                "has_sufficient_history",
+            ),
+        ),
+        excluded_values=(
+            _extract_trend_direction(result),
+        ),
+    )
+
+
+def _build_market_evidence(
+    result: OpportunityResult,
+) -> tuple[DashboardEvidence, ...]:
+    market_adjustment = result.market_adjustment
+
+    if market_adjustment is None:
+        return ()
+
+    evidence: list[DashboardEvidence] = []
+
+    evidence.extend(
+        _build_evidence_items(
+            label="Reason",
+            values=getattr(
+                market_adjustment,
+                "reasons",
+                (),
+            ),
+        )
+    )
+
+    evidence.extend(
+        _build_evidence_items(
+            label="Insight",
+            values=getattr(
+                market_adjustment,
+                "insights",
+                (),
+            ),
+        )
+    )
+
+    adjustment = getattr(
+        market_adjustment,
+        "adjustment",
+        None,
+    )
+
+    adjustment_text = _to_text(adjustment)
+
+    if (
+        adjustment is not None
+        and adjustment_text
+    ):
+        evidence.append(
+            DashboardEvidence(
+                label="Adjustment",
+                value=adjustment_text,
+            )
+        )
+
+    return _deduplicate_evidence(evidence)
+
+
+def _build_recommendation_evidence(
+    recommendation: object,
+) -> tuple[DashboardEvidence, ...]:
+    evidence: list[DashboardEvidence] = []
+
+    evidence.extend(
+        _build_evidence_items(
+            label="Reason",
+            values=getattr(
+                recommendation,
+                "reasons",
+                (),
+            ),
+        )
+    )
+
+    evidence.extend(
+        _build_evidence_items(
+            label="Warning",
+            values=getattr(
+                recommendation,
+                "warnings",
+                (),
+            ),
+        )
+    )
+
+    grade = _to_text(
+        getattr(
+            recommendation,
+            "grade",
+            "",
+        )
+    )
+
+    action = _to_text(
+        getattr(
+            recommendation,
+            "action",
+            "",
+        )
+    )
+
+    if grade:
+        evidence.append(
+            DashboardEvidence(
+                label="Grade",
+                value=grade,
+            )
+        )
+
+    if action and action != grade:
+        evidence.append(
+            DashboardEvidence(
+                label="Action",
+                value=action,
+            )
+        )
+
+    return _deduplicate_evidence(evidence)
+
+
+def _build_ai_partner_evidence(
+    ai_partner: object,
+) -> tuple[DashboardEvidence, ...]:
+    evidence: list[DashboardEvidence] = []
+
+    recommendation = _to_text(
+        getattr(
+            ai_partner,
+            "recommendation",
+            "",
+        )
+    )
+
+    summary = _to_text(
+        getattr(
+            ai_partner,
+            "summary",
+            "",
+        )
+    )
+
+    memory_summary = _to_text(
+        getattr(
+            ai_partner,
+            "memory_summary",
+            "",
+        )
+    )
+
+    if recommendation:
+        evidence.append(
+            DashboardEvidence(
+                label="Recommendation",
+                value=recommendation,
+            )
+        )
+
+    if summary:
+        evidence.append(
+            DashboardEvidence(
+                label="Summary",
+                value=summary,
+            )
+        )
+
+    if memory_summary:
+        evidence.append(
+            DashboardEvidence(
+                label="Memory",
+                value=memory_summary,
+            )
+        )
+
+    return _deduplicate_evidence(evidence)
+
+
+def _build_object_evidence(
+    target: object,
+    fields: tuple[tuple[str, str], ...],
+    *,
+    excluded_values: tuple[str, ...] = (),
+) -> tuple[DashboardEvidence, ...]:
+    excluded = {
+        value.strip()
+        for value in excluded_values
+        if value and value.strip()
+    }
+
+    evidence: list[DashboardEvidence] = []
+
+    for label, attribute_name in fields:
+        raw_value = getattr(
+            target,
+            attribute_name,
+            None,
+        )
+
+        values = _to_text_tuple(raw_value)
+
+        for value in values:
+            if value in excluded:
+                continue
+
+            evidence.append(
+                DashboardEvidence(
+                    label=label,
+                    value=value,
+                )
+            )
+
+    return _deduplicate_evidence(evidence)
+
+
+def _build_evidence_items(
+    *,
+    label: str,
+    values: object,
+) -> tuple[DashboardEvidence, ...]:
+    return tuple(
+        DashboardEvidence(
+            label=label,
+            value=value,
+        )
+        for value in _to_text_tuple(values)
+    )
+
+
+def _deduplicate_evidence(
+    evidence: list[DashboardEvidence],
+) -> tuple[DashboardEvidence, ...]:
+    unique_items: list[DashboardEvidence] = []
+    seen: set[tuple[str, str]] = set()
+
+    for item in evidence:
+        key = (
+            item.label.strip(),
+            item.value.strip(),
+        )
+
+        if not key[0] or not key[1]:
+            continue
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        unique_items.append(
+            DashboardEvidence(
+                label=key[0],
+                value=key[1],
+            )
+        )
+
+    return tuple(unique_items)
 
 
 def _extract_market_explanations(
@@ -516,108 +873,3 @@ def _extract_decision(
         )
 
     return ""
-
-
-def _analysis_float(
-    analysis: dict[str, Any],
-    *keys: str,
-) -> float:
-    for key in keys:
-        if key not in analysis:
-            continue
-
-        value = analysis[key]
-
-        if value is not None:
-            return _to_float(value)
-
-    return 0.0
-
-
-def _first_text_attribute(
-    target: object,
-    *attribute_names: str,
-) -> str:
-    for attribute_name in attribute_names:
-        value = _to_text(
-            getattr(target, attribute_name, "")
-        )
-
-        if value:
-            return value
-
-    return ""
-
-
-def _to_text(
-    value: object,
-) -> str:
-    if value is None:
-        return ""
-
-    return str(value).strip()
-
-
-def _to_float(
-    value: object,
-) -> float:
-    if value is None:
-        return 0.0
-
-    if isinstance(value, str):
-        cleaned = (
-            value.strip()
-            .replace(",", "")
-            .replace("%", "")
-        )
-
-        if not cleaned:
-            return 0.0
-
-        try:
-            return float(cleaned)
-        except ValueError:
-            return 0.0
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _to_text_tuple(
-    values: object,
-) -> tuple[str, ...]:
-    if values is None:
-        return ()
-
-    if isinstance(values, str):
-        cleaned = values.strip()
-
-        if not cleaned:
-            return ()
-
-        return (cleaned,)
-
-    try:
-        items = tuple(values)
-    except TypeError:
-        cleaned = _to_text(values)
-
-        if not cleaned:
-            return ()
-
-        return (cleaned,)
-
-    cleaned_items: list[str] = []
-
-    for item in items:
-        cleaned = _to_text(item)
-
-        if (
-            cleaned
-            and cleaned not in cleaned_items
-        ):
-            cleaned_items.append(cleaned)
-
-    return tuple(cleaned_items)

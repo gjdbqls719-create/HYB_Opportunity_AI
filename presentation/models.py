@@ -110,6 +110,22 @@ class DashboardMemory:
 
 
 @dataclass(slots=True, frozen=True)
+class DashboardEvidence:
+    """
+    의사결정 단계의 근거 한 항목을 표현한다.
+
+    label은 근거의 종류이고,
+    value는 실제 근거 내용을 보관한다.
+    """
+
+    label: str
+    value: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True, frozen=True)
 class DashboardDecisionStep:
     """
     HYB가 최종 판단에 도달하기까지 사용한
@@ -122,9 +138,18 @@ class DashboardDecisionStep:
     stage: str
     title: str
     summary: str
+    evidence: tuple[DashboardEvidence, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            "stage": self.stage,
+            "title": self.title,
+            "summary": self.summary,
+            "evidence": [
+                item.to_dict()
+                for item in self.evidence
+            ],
+        }
 
 
 @dataclass(slots=True, frozen=True)

@@ -209,3 +209,125 @@ def test_policy_grade_thresholds_require_descending_order() -> None:
             excellent_threshold=Decimal("75"),
             good_threshold=Decimal("75"),
         )
+
+
+def test_fee_score_changes_weighted_opportunity_score() -> None:
+    factors = make_factors(Decimal("50"))
+
+    low_fee_result = OpportunityScoreEngine().calculate(
+        factors,
+        fee_score=Decimal("100"),
+    )
+    high_fee_result = OpportunityScoreEngine().calculate(
+        factors,
+        fee_score=Decimal("0"),
+    )
+
+    assert low_fee_result.score == Decimal("55.00")
+    assert high_fee_result.score == Decimal("45.00")
+
+
+@pytest.mark.parametrize("value", [0.0, "50", object()])
+def test_fee_score_requires_decimal_or_none(value: object) -> None:
+    with pytest.raises(TypeError):
+        OpportunityScoreEngine().calculate(
+            make_factors(),
+            fee_score=value,
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("-0.01"), Decimal("100.01"), Decimal("NaN")],
+)
+def test_fee_score_must_be_finite_and_inside_range(value: Decimal) -> None:
+    with pytest.raises(ValueError):
+        OpportunityScoreEngine().calculate(
+            make_factors(),
+            fee_score=value,
+        )
+
+
+def test_fee_weight_requires_decimal() -> None:
+    with pytest.raises(TypeError):
+        OpportunityScorePolicy(fee_weight=0.10)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("-0.01"), Decimal("1.01"), Decimal("NaN")],
+)
+def test_fee_weight_requires_finite_unit_range(value: Decimal) -> None:
+    with pytest.raises(ValueError):
+        OpportunityScorePolicy(fee_weight=value)
+
+
+def test_roi_score_changes_weighted_opportunity_score() -> None:
+    factors = make_factors(Decimal("50"))
+
+    high_roi_result = OpportunityScoreEngine().calculate(
+        factors,
+        roi_score=Decimal("100"),
+    )
+    low_roi_result = OpportunityScoreEngine().calculate(
+        factors,
+        roi_score=Decimal("0"),
+    )
+
+    assert high_roi_result.score == Decimal("55.00")
+    assert low_roi_result.score == Decimal("45.00")
+
+
+def test_fee_and_roi_scores_are_combined_without_double_counting_base() -> None:
+    factors = make_factors(Decimal("50"))
+
+    result = OpportunityScoreEngine().calculate(
+        factors,
+        fee_score=Decimal("100"),
+        roi_score=Decimal("0"),
+    )
+
+    assert result.score == Decimal("50.00")
+
+
+@pytest.mark.parametrize("value", [0.0, "50", object()])
+def test_roi_score_requires_decimal_or_none(value: object) -> None:
+    with pytest.raises(TypeError):
+        OpportunityScoreEngine().calculate(
+            make_factors(),
+            roi_score=value,
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("-0.01"), Decimal("100.01"), Decimal("NaN")],
+)
+def test_roi_score_must_be_finite_and_inside_range(value: Decimal) -> None:
+    with pytest.raises(ValueError):
+        OpportunityScoreEngine().calculate(
+            make_factors(),
+            roi_score=value,
+        )
+
+
+def test_roi_weight_requires_decimal() -> None:
+    with pytest.raises(TypeError):
+        OpportunityScorePolicy(roi_weight=0.10)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [Decimal("-0.01"), Decimal("1.01"), Decimal("NaN")],
+)
+def test_roi_weight_requires_finite_unit_range(value: Decimal) -> None:
+    with pytest.raises(ValueError):
+        OpportunityScorePolicy(roi_weight=value)
+
+
+def test_fee_and_roi_weights_cannot_exceed_one_together() -> None:
+    with pytest.raises(ValueError):
+        OpportunityScorePolicy(
+            fee_weight=Decimal("0.60"),
+            roi_weight=Decimal("0.50"),
+        )
