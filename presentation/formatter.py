@@ -30,6 +30,13 @@ def format_dashboard_card(
         separator,
         "HYB OPPORTUNITY DASHBOARD",
         separator,
+        *_format_hero_summary(
+            card,
+            currency=currency,
+            separator=section_separator,
+        ),
+        section_separator,
+        "OPPORTUNITY DETAILS",
         _format_row(
             "Product",
             card.product.title,
@@ -365,3 +372,168 @@ def _format_multiline_value(
         )
 
     return "\n".join(output_lines)
+
+def _format_hero_summary(
+    card: DashboardCard,
+    *,
+    currency: str,
+    separator: str,
+) -> list[str]:
+    """
+    Dashboard의 핵심 판단을 첫 화면에 요약한다.
+
+    엔진 결과를 재계산하지 않고 DashboardCard에 이미
+    포함된 판단, 점수, 수익성, 근거, 다음 행동만 표시한다.
+    """
+    decision = _resolve_hero_decision(card)
+    next_action = _resolve_next_action(card)
+    reasons = _collect_hero_reasons(card)
+
+    lines = [
+        "HERO SUMMARY",
+        _format_row("Decision", decision),
+        _format_number_row(
+            "HYB Score",
+            card.metrics.final_opportunity_score,
+        ),
+        _format_money_row(
+            "Net Profit",
+            card.metrics.net_profit,
+            currency,
+        ),
+        _format_percentage_row(
+            "ROI",
+            card.metrics.roi,
+        ),
+        _format_row(
+            "Confidence",
+            card.confidence_level or "-",
+        ),
+    ]
+
+    if card.recommendation is not None:
+        lines.append(
+            _format_percentage_row(
+                "Success Chance",
+                card.recommendation.success_probability,
+            )
+        )
+
+    if reasons:
+        lines.extend(
+            [
+                separator,
+                "WHY THIS DECISION",
+            ]
+        )
+
+        for reason in reasons:
+            lines.append(f"  - {reason}")
+
+    lines.extend(
+        [
+            separator,
+            "NEXT ACTION",
+            _format_multiline_value(
+                "Action",
+                next_action,
+            ),
+        ]
+    )
+
+    return lines
+
+
+def _resolve_hero_decision(
+    card: DashboardCard,
+) -> str:
+    recommendation = card.recommendation
+
+    candidates = [
+        (
+            recommendation.grade
+            if recommendation is not None
+            else ""
+        ),
+        card.decision,
+        (
+            recommendation.action
+            if recommendation is not None
+            else ""
+        ),
+    ]
+
+    for candidate in candidates:
+        cleaned = candidate.strip()
+
+        if cleaned:
+            return cleaned.upper()
+
+    return "UNDECIDED"
+
+
+def _resolve_next_action(
+    card: DashboardCard,
+) -> str:
+    if card.ai_partner is not None:
+        next_action = card.ai_partner.next_action.strip()
+
+        if next_action:
+            return next_action
+
+    if card.recommendation is not None:
+        action = card.recommendation.action.strip()
+
+        if action:
+            return action
+
+    return "추가 데이터를 확인한 뒤 다시 분석하세요."
+
+
+def _collect_hero_reasons(
+    card: DashboardCard,
+    *,
+    limit: int = 4,
+) -> tuple[str, ...]:
+    candidates: list[str] = []
+
+    if card.recommendation is not None:
+        candidates.extend(card.recommendation.reasons)
+
+        if card.recommendation.summary:
+            candidates.append(
+                card.recommendation.summary
+            )
+
+    for step in card.decision_timeline:
+        if step.stage in {
+            "confidence",
+            "recommendation",
+            "ai_partner",
+        }:
+            continue
+
+        candidates.append(step.summary)
+
+    unique_reasons: list[str] = []
+    seen: set[str] = set()
+
+    for candidate in candidates:
+        cleaned = candidate.strip()
+
+        if not cleaned:
+            continue
+
+        normalized = cleaned.casefold()
+
+        if normalized in seen:
+            continue
+
+        seen.add(normalized)
+        unique_reasons.append(cleaned)
+
+        if len(unique_reasons) >= limit:
+            break
+
+    return tuple(unique_reasons)
+

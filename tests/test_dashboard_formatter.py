@@ -171,3 +171,43 @@ def test_format_dashboard_cards_handles_empty_list() -> None:
     output = format_dashboard_cards([])
 
     assert output == "No dashboard results."
+
+
+def test_format_dashboard_card_contains_hero_summary() -> None:
+    output = format_dashboard_card(
+        _make_dashboard_card()
+    )
+
+    assert "HERO SUMMARY" in output
+    assert "Decision      : BUY" in output
+    assert "HYB Score     : 72.00" in output
+    assert "Net Profit    : 130.00 USD" in output
+    assert "ROI           : 25.00%" in output
+    assert "Success Chance: 75.00%" in output
+    assert "WHY THIS DECISION" in output
+    assert "예상 수익성이 양호합니다." in output
+    assert "NEXT ACTION" in output
+    assert "수수료와 배송비를 확인하세요." in output
+
+
+def test_format_dashboard_card_hero_supports_missing_ai_data() -> None:
+    original = _make_dashboard_card()
+
+    card = DashboardCard(
+        product=original.product,
+        metrics=original.metrics,
+        recommendation=None,
+        ai_partner=None,
+        memory=None,
+        confidence_level="",
+        trend_direction="",
+        decision="",
+    )
+
+    output = format_dashboard_card(card)
+
+    assert "HERO SUMMARY" in output
+    assert "Decision      : UNDECIDED" in output
+    assert "Success Chance" not in output
+    assert "추가 데이터를 확인한 뒤 다시 분석하세요." in output
+
