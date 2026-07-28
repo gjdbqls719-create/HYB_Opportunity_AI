@@ -1,18 +1,49 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any
 
 import requests
 
 from app.models import Product
-from collectors.base import parse_price
+from collectors.base import MarketplaceAdapter, parse_price
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
 
 
 DEFAULT_MARKETPLACE_ID = "EBAY_US"
-DEFAULT_PRICE = Decimal("0.00")
+DEFAULT_PRICE = 0.0
+
+
+class EbayAdapter(MarketplaceAdapter):
+    """eBay 원본 상품 데이터를 공통 Product 모델로 변환한다."""
+
+    marketplace_name = "ebay"
+
+    def normalize(self, raw_product: dict[str, Any]) -> Product:
+        price_data = raw_product.get("price", {})
+
+        if not isinstance(price_data, dict):
+            price_data = {}
+
+        raw_price = price_data.get("value", DEFAULT_PRICE)
+        currency = str(price_data.get("currency", "")).strip()
+
+        try:
+            price = parse_price(raw_price)
+        except (TypeError, ValueError):
+            price = DEFAULT_PRICE
+
+        return Product(
+            marketplace=self.marketplace_name,
+            item_id=str(raw_product.get("itemId", "")).strip(),
+            title=str(raw_product.get("title", "제목 없음")).strip(),
+            price=price,
+            currency=currency,
+            condition=str(
+                raw_product.get("condition", "상태 정보 없음")
+            ).strip(),
+            url=str(raw_product.get("itemWebUrl", "")).strip(),
+        )
 
 
 def search_items(
@@ -20,9 +51,7 @@ def search_items(
     limit: int = 10,
     marketplace_id: str = DEFAULT_MARKETPLACE_ID,
 ) -> list[dict[str, Any]]:
-    """
-    eBay Browse API에서 원본 상품 데이터를 검색한다.
-    """
+    """eBay Browse API에서 원본 상품 데이터를 검색한다."""
 
     cleaned_query = query.strip()
 
@@ -36,10 +65,7 @@ def search_items(
     token_data = get_application_token()
     access_token = token_data["access_token"]
 
-    url = (
-        f"{settings.ebay_browse_api_url}"
-        "/item_summary/search"
-    )
+    url = f"{settings.ebay_browse_api_url}/item_summary/search"
 
     response = requests.get(
         url,
@@ -73,49 +99,10 @@ def search_items(
     return item_summaries
 
 
-def ebay_item_to_product(
-    item: dict[str, Any],
-) -> Product:
-    """
-    eBay 원본 상품 데이터를 공통 Product 객체로 변환한다.
+def ebay_item_to_product(item: dict[str, Any]) -> Product:
+    """이전 함수형 호출과의 호환을 유지하는 변환 함수."""
 
-    가격은 공통 parse_price 함수를 통해 Decimal로 변환한다.
-    가격 데이터가 없거나 올바르지 않으면 기존 동작과의
-    호환성을 위해 0.00으로 처리한다.
-    """
-
-    price_data = item.get("price", {})
-
-    if not isinstance(price_data, dict):
-        price_data = {}
-
-    raw_price = price_data.get("value", DEFAULT_PRICE)
-    currency = str(
-        price_data.get("currency", "")
-    ).strip()
-
-    try:
-        price = parse_price(raw_price)
-    except (TypeError, ValueError):
-        price = DEFAULT_PRICE
-
-    return Product(
-        marketplace="ebay",
-        item_id=str(
-            item.get("itemId", "")
-        ).strip(),
-        title=str(
-            item.get("title", "제목 없음")
-        ).strip(),
-        price=price,
-        currency=currency,
-        condition=str(
-            item.get("condition", "상태 정보 없음")
-        ).strip(),
-        url=str(
-            item.get("itemWebUrl", "")
-        ).strip(),
-    )
+    return EbayAdapter().normalize(item)
 
 
 def search_products(
@@ -123,17 +110,13 @@ def search_products(
     limit: int = 10,
     marketplace_id: str = DEFAULT_MARKETPLACE_ID,
 ) -> list[Product]:
-    """
-    eBay 상품을 검색하고 공통 Product 객체 목록으로 반환한다.
-    """
+    """eBay 상품을 검색하고 공통 Product 객체 목록으로 반환한다."""
 
+    adapter = EbayAdapter()
     raw_items = search_items(
         query=query,
         limit=limit,
         marketplace_id=marketplace_id,
     )
 
-    return [
-        ebay_item_to_product(item)
-        for item in raw_items
-    ]
+    return [adapter.normalize(item) for item in raw_items]
