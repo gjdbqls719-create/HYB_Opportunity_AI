@@ -293,3 +293,138 @@ def test_profitability_score_rejects_non_finite_roi() -> None:
         assert str(error) == "roi는 유한한 값이어야 합니다."
     else:
         raise AssertionError("ValueError가 발생해야 합니다.")
+
+
+def test_discovery_adapter_builds_trend_analysis_from_price_history(
+    tmp_path,
+) -> None:
+    from datetime import datetime, timezone
+
+    from app.domain.trend import TrendDirection
+    from storage.price_history import PriceHistoryRepository
+
+    repository = PriceHistoryRepository(
+        database_path=tmp_path / "price_history.db"
+    )
+    discovery_result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-trend",
+            title="Trend Product",
+            price=80,
+            currency="USD",
+        ),
+        opportunity_score=80,
+        metadata={
+            "confidence_score": 90,
+            "trend_score_adjustment": 15,
+            "analysis": {
+                "roi": 50,
+                "estimated_monthly_sales": 500,
+                "competitor_count": 5,
+                "risk_level": "low",
+            },
+        },
+    )
+    repository.save_product_price(
+        Product(
+            marketplace="ebay",
+            item_id="item-trend",
+            title="Trend Product",
+            price=100,
+            currency="USD",
+        ),
+        observed_at=datetime(2026, 7, 28, tzinfo=timezone.utc),
+    )
+    repository.save_product_price(
+        discovery_result.product,
+        observed_at=datetime(2026, 7, 29, tzinfo=timezone.utc),
+    )
+
+    prepared = DiscoveryResultOpportunityIntelligenceAdapter(
+        price_history_repository=repository
+    ).adapt(discovery_result)
+
+    assert prepared.trend_analysis is not None
+    assert prepared.trend_analysis.sample_count == 2
+    assert prepared.trend_analysis.current_price == Decimal("80.0")
+    assert prepared.trend_analysis.direction is TrendDirection.DOWN
+
+
+def test_discovery_adapter_keeps_trend_optional_without_price_history(
+    tmp_path,
+) -> None:
+    from storage.price_history import PriceHistoryRepository
+
+    prepared = DiscoveryResultOpportunityIntelligenceAdapter(
+        price_history_repository=PriceHistoryRepository(
+            database_path=tmp_path / "empty_price_history.db"
+        )
+    ).adapt(make_result())
+
+    assert prepared.trend_analysis is None
+
+
+def test_service_generates_recommendation_from_persisted_price_history(
+    tmp_path,
+) -> None:
+    from datetime import datetime, timezone
+
+    from storage.price_history import PriceHistoryRepository
+
+    repository = PriceHistoryRepository(
+        database_path=tmp_path / "service_price_history.db"
+    )
+    discovery_result = DiscoveryResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="item-service-trend",
+            title="Service Trend Product",
+            price=80,
+            currency="USD",
+        ),
+        opportunity_score=90,
+        metadata={
+            "confidence_score": 95,
+            "trend_score_adjustment": 15,
+            "analysis": {
+                "roi": 100,
+                "estimated_monthly_sales": 500,
+                "competitor_count": 0,
+                "risk_level": "low",
+            },
+        },
+    )
+    repository.save_product_price(
+        Product(
+            marketplace="ebay",
+            item_id="item-service-trend",
+            title="Service Trend Product",
+            price=100,
+            currency="USD",
+        ),
+        observed_at=datetime(2026, 7, 28, tzinfo=timezone.utc),
+    )
+    repository.save_product_price(
+        discovery_result.product,
+        observed_at=datetime(2026, 7, 29, tzinfo=timezone.utc),
+    )
+
+    result = OpportunityIntelligenceService(
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter(
+            price_history_repository=repository
+        )
+    ).evaluate(discovery_result)
+
+    assert result.status is OpportunityIntelligenceStatus.EVALUATED
+    assert result.trend_assessment is not None
+    assert result.recommendation is not None
+
+
+def test_discovery_adapter_rejects_invalid_price_history_limit() -> None:
+    try:
+        DiscoveryResultOpportunityIntelligenceAdapter(price_history_limit=0)
+    except ValueError as error:
+        assert str(error) == "price_history_limit은 1 이상이어야 합니다."
+    else:
+        raise AssertionError("ValueError가 발생해야 합니다.")
