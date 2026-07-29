@@ -4,6 +4,11 @@ from app.application.opportunity_intelligence.decision_report import (
     OpportunityDecisionReport,
     OpportunityDecisionReportBuilder,
 )
+from app.application.opportunity_intelligence.final_recommendation import (
+    OpportunityRecommendation,
+    OpportunityRecommendationEngine,
+    OpportunityRecommendationLevel,
+)
 from app.application.opportunity_intelligence.models import (
     OpportunityIntelligenceInput,
     OpportunityIntelligenceResult,
@@ -33,6 +38,9 @@ __all__ = [
     "OpportunityIntelligenceResult",
     "OpportunityIntelligenceService",
     "OpportunityIntelligenceStatus",
+    "OpportunityRecommendationLevel",
+    "OpportunityRecommendationEngine",
+    "OpportunityRecommendation",
     "OpportunityTrendAssessment",
     "OpportunityTrendInterpreter",
     "OpportunityTrendLevel",
