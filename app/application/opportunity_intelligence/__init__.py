@@ -15,7 +15,9 @@ from app.application.opportunity_intelligence.ports import (
 from app.application.opportunity_intelligence.service import (
     OpportunityIntelligenceService,
 )
-
+from app.application.opportunity_intelligence.decision_report_renderer import (
+    DecisionReportRenderer,
+)
 
 __all__ = [
     "OpportunityDecisionReport",
@@ -25,4 +27,5 @@ __all__ = [
     "OpportunityIntelligenceResult",
     "OpportunityIntelligenceService",
     "OpportunityIntelligenceStatus",
+    "DecisionReportRenderer",
 ]
