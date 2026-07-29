@@ -1,81 +1,126 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-07-28  
-**Status Basis:** Repository snapshot and Git history included in the uploaded project ZIP
+**Last Updated:** 2026-07-29  
+**Status Basis:** Sprint 8 PR3-B2 완료 저장소 스냅샷, Git 기록, 전체 회귀 테스트 재실행
 
 ## Current Stage
 
-HYB Opportunity AI는 Foundation과 핵심 Opportunity Intelligence Engine 기반 구축을 완료했으며,
-현재는 **Explainable Decision Pipeline**을 갖춘 상태입니다.
+HYB Opportunity AI는 Foundation, Opportunity Intelligence, Explainable Decision Pipeline,
+Presentation 기반 구축을 완료했으며 현재 **WatchList Monitoring System**을 확장하고 있습니다.
+
+현재 핵심 흐름은 다음과 같습니다.
 
 ```text
-Product
-→ Opportunity Analysis
-→ Price Intelligence
-→ Price Trend
-→ Inventory Analysis
-→ Seller Analysis
-→ Market Intelligence
-→ Market Adjustment
-→ Recommendation
-→ Decision Report
+Marketplace Data
+→ Product Normalization
+→ Opportunity Discovery
+→ Opportunity Intelligence
+→ Explainable Decision
 → AI Partner
-→ Dashboard
+→ Dashboard / CLI
+→ WatchList
+→ Marketplace Listing Lookup
+→ Change Detection
 ```
 
-Git 기록상 Sprint 6 완료 커밋은 다음과 같습니다.
-
-```text
-dcedb13 feat: complete Sprint 6 explainable decision pipeline
-```
-
-현재 Sprint 7에서는 문서 체계와 프로젝트 품질을 정비하고 있습니다.
+현재 Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 다시 조회하고,
+변경 감지 흐름으로 전달할 수 있도록 Application과 Infrastructure 경계를 연결하고 있습니다.
 
 ---
 
 ## Current Snapshot
 
-- Current Sprint: **Sprint 7**
-- Previous Sprint: **Sprint 6 완료**
-- Last Confirmed Full Regression Test: **853 passed**
-- Git: Sprint 6 Commit 및 Push 완료
-- Architecture: Explainable Decision Pipeline 구축 완료
-- Documentation Inventory: `docs/` 아래 Markdown 문서 **78개**
-- Documentation Encoding: 전체 Markdown UTF-8 읽기 성공
-- Markdown Link Audit: 검사 가능한 상대 링크 기준 깨진 링크 없음
+- Current Sprint: **Sprint 8**
+- Current Position: **PR3-B2 완료 / PR3-B3 준비**
+- Current Focus: **Marketplace Reader Integration**
+- Latest Commit: `3806736 feat: add marketplace item lookup APIs`
+- Branch: `main`
+- Last Confirmed Full Regression Test: **1053 passed**
+- Regression Verified At: **2026-07-29**
+- Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
-> `853 passed`는 업로드된 프로젝트 문서와 Sprint 6 기록에 남아 있는 마지막 확인값입니다.
-> 이번 문서 전용 PR에서는 테스트를 다시 실행하지 않았습니다.
+### Recently Completed
+
+- Sprint 7 Documentation Quality Audit
+- Sprint 7 Marketplace Adapter Integration
+- Sprint 7 Marketplace Contract Tests
+- Sprint 7 Presentation Refactoring
+- Sprint 7 Opportunity List ViewModel 및 CLI
+- Sprint 8 WatchList Domain
+- Sprint 8 SQLite WatchList Repository
+- Sprint 8 Monitor Foundation
+- Sprint 8 PR3-B1 Marketplace Listing Lookup Dispatcher
+- Sprint 8 PR3-B2 Marketplace Item Lookup APIs
 
 ---
 
-## Sprint 6 Outcome
+## Current Core Systems
 
-- Market Adjustment Explainability
-- Decision Report 개선
-- AI Partner 연동
-- Dashboard Decision Timeline
-- Explainable Decision Pipeline 완성
-- 마지막 확인 전체 회귀 테스트 **853 passed**
+### Opportunity Intelligence
+
+- Product normalization
+- Canonical product identity
+- Product matching
+- Price intelligence
+- Price trend analysis
+- Inventory analysis
+- Seller analysis
+- Market intelligence
+- Market adjustment
+- Opportunity scoring
+- ROI intelligence
+
+### Explainable Decision
+
+- Recommendation
+- Decision report
+- AI Partner explanation
+- Dashboard decision timeline
+- Opportunity list presentation
+
+### WatchList Monitoring
+
+Completed:
+
+- WatchList domain model
+- WatchList application ports
+- SQLite repository and mapper
+- Monitor request/result models
+- WatchList monitor use case foundation
+- Marketplace listing lookup dispatcher
+- eBay item lookup API
+- Amazon deterministic item lookup contract
+
+Next:
+
+- Concrete Marketplace Reader integration
+- Dispatcher registration and composition
+- WatchList end-to-end monitoring flow
+- Change detection connection
 
 ---
 
-## Documentation Health
+## Current Architecture Direction
 
-### Confirmed Strengths
+```text
+WatchListMonitorUseCase
+        ↓
+ListingLookupPort
+        ↓
+MarketplaceListingLookupAdapter
+        ↓
+Marketplace Reader
+        ↓
+eBay / Amazon get_product_by_id()
+        ↓
+Product
+        ↓
+Change Detection
+```
 
-- Foundation, Context, Architecture, Engineering, Development, Operations, Governance 영역이 분리되어 있음
-- Sprint별 상세 기록이 `docs/04_DEVELOPMENT/sprints/`에 유지되고 있음
-- ADR, Audit, Template 체계가 이미 존재함
-- 현재 저장소의 Markdown 문서는 UTF-8로 정상 해석됨
-- 검사 가능한 Markdown 상대 링크에서 끊어진 링크가 발견되지 않음
-
-### Current Documentation Debt
-
-- `SPRINT_HISTORY.md`가 Sprint 3 상태에 머물러 있어 최신 이력을 반영하지 못함
-- `DOCUMENT_INDEX.md`가 실제 문서 탐색에 필요한 대표 링크를 충분히 제공하지 않음
-- CHANGELOG와 Sprint 상세 문서 사이의 연결 규칙이 명시적이지 않음
-- 문서 전용 PR에서 테스트를 재실행했는지 여부를 더 일관되게 기록할 필요가 있음
+Search와 exact item lookup은 서로 다른 책임으로 유지합니다.
+검색 결과 첫 항목을 감시 대상 상품으로 추정하지 않으며,
+Marketplace의 정확한 item ID를 사용해 조회합니다.
 
 ---
 
@@ -83,59 +128,59 @@ dcedb13 feat: complete Sprint 6 explainable decision pipeline
 
 ### Marketplace
 
-- Amazon Production
-- eBay Live
-- Walmart
-- Coupang
-- AliExpress
-- Temu
+- Amazon Production API 미연결
+- eBay Live 환경 검증 미완료
+- Walmart, Coupang, AliExpress, Temu 미연결
 
 ### Business Intelligence
 
-- Landed Cost
-- Competition Signal
-- Demand Signal
-- Sales Velocity
-- Fees / Tax / Duty
-- Return Risk
-- Inventory Risk
+- Landed cost
+- Tax / duty
+- Return risk
+- Sales velocity
+- Competition and demand signals
+- 운영 데이터 기반 수익성 검증
 
 ### Operations
 
 - Authentication
 - Deployment
 - Monitoring
-- Alerting
+- Alerting / notification
 
 ---
 
-## Sprint 7 Priorities
+## Current Priorities
 
-1. Documentation Quality Audit
-2. Development History 최신화
-3. 문서 간 탐색 경로와 책임 정리
-4. Presentation 구조 검토
-5. 공통 테스트 Fixture 검토
-6. Marketplace 확장 기반 준비
+1. Sprint 8 PR3-B3 Marketplace Reader Integration
+2. WatchList Monitor end-to-end 연결
+3. Marketplace lookup 결과와 Change Detection 연결
+4. 기능별 테스트 후 전체 회귀 테스트 유지
+5. Sprint 상태·로드맵·개발 기록의 지속적 최신화
 
 ---
 
 ## Definition of Done
 
-- 설계 검토
-- 구현 완료
-- 테스트 작성
-- 전체 테스트 통과
-- 문서 반영
-- Git Commit
-- Git Push
+모든 주요 PR은 다음 순서를 따릅니다.
 
-문서 전용 변경에서는 코드 테스트를 생략할 수 있지만,
-그 사실과 마지막 확인 테스트 기준을 문서에 명시해야 합니다.
+1. Architecture / design review
+2. Small PR-sized implementation
+3. Feature-specific tests
+4. Full regression test
+5. Documentation update
+6. Git commit and push
+7. Changed-files ZIP
+8. Quick Context and Full Context ZIP
+9. Next-step guidance
 
 ---
 
 ## Long-term Goal
 
-HYB Opportunity AI는 실제 사업 의사결정을 지원하는
-설명 가능한 AI Opportunity Platform을 목표로 합니다.
+HYB Opportunity AI는 온라인 판매자가
+“이 상품에 내 돈을 투자해도 되는가?”를 데이터와 설명 가능한 근거로 판단하도록 돕는
+AI Opportunity Intelligence Platform을 목표로 합니다.
+
+장기적으로는 Opportunity Discovery, Investment Decision,
+Continuous Monitoring, Automatic Opportunity Detection을 하나의 안정적인 흐름으로 연결합니다.

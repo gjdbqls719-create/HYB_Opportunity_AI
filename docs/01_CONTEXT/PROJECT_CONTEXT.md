@@ -1,88 +1,122 @@
 # HYB Opportunity AI Project Context
 
-## 프로젝트 개요
+**Last Updated:** 2026-07-29  
+**Primary Audience:** 새 채팅의 AI Partner, 개발자, 리뷰어
 
-프로젝트명:
-HYB Opportunity AI
+## Quick Context
 
-목표:
+- Project: **HYB Opportunity AI**
+- Current Sprint: **Sprint 8**
+- Current Position: **PR3-B2 완료 / PR3-B3 준비**
+- Current Focus: **Marketplace Reader Integration**
+- Branch: `main`
+- Latest Commit: `3806736 feat: add marketplace item lookup APIs`
+- Latest Full Regression: **1053 passed**
+- Architecture Baseline: **Sprint 4.4 Architecture Freeze**
 
-온라인 마켓플레이스의 상품 데이터를 수집·정규화·비교하고,
-동일하거나 유사한 상품을 매칭한 뒤 가격·시장 신호·수익성·위험 요소를 분석하여
-AI가 높은 가능성의 상품 기회를 발견하고 설명 가능한 추천을 제공하는 플랫폼 구축.
+## Product Purpose
 
-HYB는 단순 검색 페이지나 가격 비교 사이트가 아니라,
-상품 기회의 신뢰성을 판단하는 Decision Engine을 핵심 가치로 한다.
+온라인 판매자가 상품을 구매하거나 투자하기 전에
+가격, 시장, 수익성, 위험, 변화 이력을 바탕으로
+“이 상품에 투자할 가치가 있는가?”를 판단하도록 지원합니다.
 
----
+HYB는 단순 검색 또는 가격 비교 도구가 아니라,
+상품 기회를 발견하고 평가하며 지속적으로 감시하는
+설명 가능한 Opportunity Intelligence Platform입니다.
 
-## Product Definition
+## Current System Flow
 
-HYB는 Multi-market Product Intelligence System이다.
-
-핵심 기능:
-
-- 상품 데이터 수집
-- 상품 정규화
-- 동일 상품 매칭
-- 가격 분석
-- 시장 신호 분석
-- Opportunity 품질 계산
-- 추천 생성
-
----
-
-## 대상 시장
-
-초기 목표:
-
-- 미국
-- 한국
-
-예정 Marketplace:
-
-- eBay
-- Amazon
-- Walmart
-- Coupang
-- AliExpress
-- Temu
-- 공통 Collector Interface 기반 추가 Marketplace
-
----
-
-## 핵심 Processing Pipeline
-
+```text
 Marketplace Collectors
-↓
-Normalized Product Model
-↓
-Product Matching
-↓
-Price Intelligence
-↓
-Trend / Confidence Analysis
-↓
-Opportunity Scoring
-↓
-Recommendation Engine
-↓
-Storage / API / Dashboard / Alerts
+→ Normalized Product
+→ Product Matching / Canonical Identity
+→ Opportunity Discovery
+→ Opportunity Intelligence
+→ Explainable Decision
+→ AI Partner
+→ Dashboard / CLI
+→ WatchList
+→ Exact Marketplace Listing Lookup
+→ Change Detection
+```
 
----
+## Current Sprint 8 Scope
 
-## 현재 아키텍처 원칙
+### Completed
 
-- Marketplace별 코드는 수집과 변환 담당
-- Engine은 Marketplace 구조를 몰라야 함
-- 핵심 계산은 설명 가능하고 테스트 가능해야 함
-- Marketplace 오류는 독립적으로 처리
-- Web UI는 Domain 설계를 주도하지 않음
+- WatchList domain
+- SQLite WatchList repository
+- Monitor foundation
+- Listing lookup application port
+- Marketplace listing dispatcher
+- eBay exact item lookup API
+- Amazon deterministic exact item lookup contract
 
----
+### Next PR
 
-## 개발 철학
+**Sprint 8 PR3-B3 — Marketplace Reader Integration**
 
-HYB의 핵심은 검색 기능이 아니라,
-상품 기회가 실제로 가치 있는지 판단하는 시스템이다.
+Expected direction:
 
+```text
+MarketplaceListingLookupAdapter
+        ↓
+EbayListingReader / AmazonListingReader
+        ↓
+marketplaces.ebay.get_product_by_id()
+marketplaces.amazon.get_product_by_id()
+```
+
+Do not bypass exact lookup with `search_items(...)[0]`.
+Search and single-item lookup must remain separate responsibilities.
+
+## Architecture Rules
+
+- User is Product Owner and final decision-maker.
+- Prefer correctness, stability, maintainability, extensibility, readability, performance, then speed.
+- Review architecture before implementation.
+- Preserve the Sprint 4.4 architecture baseline unless strong evidence and an ADR justify change.
+- Domain and application layers must not depend on Marketplace HTTP details.
+- Marketplace-specific fetching belongs in infrastructure / marketplace modules.
+- Canonical identity distinguishes Strong Identity from Weak Identity.
+- Price history remains append-only.
+- Do not invent unavailable data or silently substitute defaults.
+- Do not redesign stable architecture merely to simplify one PR.
+
+## Development Workflow
+
+1. Inspect actual repository state.
+2. Review design and boundaries.
+3. Implement in a small PR-sized increment.
+4. Run feature-specific tests.
+5. Run full regression.
+6. Update code, tests, ADRs, architecture, changelog, release notes, AI development log, and `DEVELOPMENT_PRINCIPLES.md` when major work changes engineering practice.
+7. Commit and push.
+8. Produce one changed-files ZIP per PR.
+9. Produce Quick Context and Full Context ZIPs.
+10. State the exact next development step.
+
+## Standard Deliverable
+
+Each PR should include:
+
+- Implementation summary
+- Added / modified / deleted paths
+- Feature test command and result
+- Full regression command and result
+- Git commands
+- Changed-files ZIP
+- Quick Context ZIP script
+- Full Context ZIP script
+- Next-step recommendation
+
+## Important Continuity Rule
+
+Before implementing in a new chat:
+
+1. Read this document.
+2. Read `PROJECT_STATUS.md`.
+3. Inspect relevant source and tests from the uploaded Context ZIP.
+4. Confirm repository and Git metadata.
+5. Report the understood current state.
+6. Only then begin implementation.

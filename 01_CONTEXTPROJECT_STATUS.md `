@@ -1,0 +1,878 @@
+warning: in the working copy of 'docs/01_CONTEXT/PROJECT_CONTEXT.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/01_CONTEXT/PROJECT_STATUS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/04_DEVELOPMENT/CHANGELOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/07_ROADMAP/ROADMAP.md', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/docs/01_CONTEXT/PROJECT_CONTEXT.md b/docs/01_CONTEXT/PROJECT_CONTEXT.md[m
+[1mindex e232fa0..3bb40b8 100644[m
+[1m--- a/docs/01_CONTEXT/PROJECT_CONTEXT.md[m
+[1m+++ b/docs/01_CONTEXT/PROJECT_CONTEXT.md[m
+[36m@@ -1,88 +1,122 @@[m
+ # HYB Opportunity AI Project Context[m
+ [m
+[31m-## 프로젝트 개요[m
+[32m+[m[32m**Last Updated:** 2026-07-29[m[41m  [m
+[32m+[m[32m**Primary Audience:** 새 채팅의 AI Partner, 개발자, 리뷰어[m
+ [m
+[31m-프로젝트명:[m
+[31m-HYB Opportunity AI[m
+[32m+[m[32m## Quick Context[m
+ [m
+[31m-목표:[m
+[32m+[m[32m- Project: **HYB Opportunity AI**[m
+[32m+[m[32m- Current Sprint: **Sprint 8**[m
+[32m+[m[32m- Current Position: **PR3-B2 완료 / PR3-B3 준비**[m
+[32m+[m[32m- Current Focus: **Marketplace Reader Integration**[m
+[32m+[m[32m- Branch: `main`[m
+[32m+[m[32m- Latest Commit: `3806736 feat: add marketplace item lookup APIs`[m
+[32m+[m[32m- Latest Full Regression: **1053 passed**[m
+[32m+[m[32m- Architecture Baseline: **Sprint 4.4 Architecture Freeze**[m
+ [m
+[31m-온라인 마켓플레이스의 상품 데이터를 수집·정규화·비교하고,[m
+[31m-동일하거나 유사한 상품을 매칭한 뒤 가격·시장 신호·수익성·위험 요소를 분석하여[m
+[31m-AI가 높은 가능성의 상품 기회를 발견하고 설명 가능한 추천을 제공하는 플랫폼 구축.[m
+[32m+[m[32m## Product Purpose[m
+ [m
+[31m-HYB는 단순 검색 페이지나 가격 비교 사이트가 아니라,[m
+[31m-상품 기회의 신뢰성을 판단하는 Decision Engine을 핵심 가치로 한다.[m
+[32m+[m[32m온라인 판매자가 상품을 구매하거나 투자하기 전에[m
+[32m+[m[32m가격, 시장, 수익성, 위험, 변화 이력을 바탕으로[m
+[32m+[m[32m“이 상품에 투자할 가치가 있는가?”를 판단하도록 지원합니다.[m
+ [m
+[31m----[m
+[32m+[m[32mHYB는 단순 검색 또는 가격 비교 도구가 아니라,[m
+[32m+[m[32m상품 기회를 발견하고 평가하며 지속적으로 감시하는[m
+[32m+[m[32m설명 가능한 Opportunity Intelligence Platform입니다.[m
+ [m
+[31m-## Product Definition[m
+[31m-[m
+[31m-HYB는 Multi-market Product Intelligence System이다.[m
+[31m-[m
+[31m-핵심 기능:[m
+[31m-[m
+[31m-- 상품 데이터 수집[m
+[31m-- 상품 정규화[m
+[31m-- 동일 상품 매칭[m
+[31m-- 가격 분석[m
+[31m-- 시장 신호 분석[m
+[31m-- Opportunity 품질 계산[m
+[31m-- 추천 생성[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 대상 시장[m
+[31m-[m
+[31m-초기 목표:[m
+[31m-[m
+[31m-- 미국[m
+[31m-- 한국[m
+[31m-[m
+[31m-예정 Marketplace:[m
+[31m-[m
+[31m-- eBay[m
+[31m-- Amazon[m
+[31m-- Walmart[m
+[31m-- Coupang[m
+[31m-- AliExpress[m
+[31m-- Temu[m
+[31m-- 공통 Collector Interface 기반 추가 Marketplace[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 핵심 Processing Pipeline[m
+[32m+[m[32m## Current System Flow[m
+ [m
+[32m+[m[32m```text[m
+ Marketplace Collectors[m
+[31m-↓[m
+[31m-Normalized Product Model[m
+[31m-↓[m
+[31m-Product Matching[m
+[31m-↓[m
+[31m-Price Intelligence[m
+[31m-↓[m
+[31m-Trend / Confidence Analysis[m
+[31m-↓[m
+[31m-Opportunity Scoring[m
+[31m-↓[m
+[31m-Recommendation Engine[m
+[31m-↓[m
+[31m-Storage / API / Dashboard / Alerts[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 현재 아키텍처 원칙[m
+[31m-[m
+[31m-- Marketplace별 코드는 수집과 변환 담당[m
+[31m-- Engine은 Marketplace 구조를 몰라야 함[m
+[31m-- 핵심 계산은 설명 가능하고 테스트 가능해야 함[m
+[31m-- Marketplace 오류는 독립적으로 처리[m
+[31m-- Web UI는 Domain 설계를 주도하지 않음[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 개발 철학[m
+[31m-[m
+[31m-HYB의 핵심은 검색 기능이 아니라,[m
+[31m-상품 기회가 실제로 가치 있는지 판단하는 시스템이다.[m
+[31m-[m
+[32m+[m[32m→ Normalized Product[m
+[32m+[m[32m→ Product Matching / Canonical Identity[m
+[32m+[m[32m→ Opportunity Discovery[m
+[32m+[m[32m→ Opportunity Intelligence[m
+[32m+[m[32m→ Explainable Decision[m
+[32m+[m[32m→ AI Partner[m
+[32m+[m[32m→ Dashboard / CLI[m
+[32m+[m[32m→ WatchList[m
+[32m+[m[32m→ Exact Marketplace Listing Lookup[m
+[32m+[m[32m→ Change Detection[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m## Current Sprint 8 Scope[m
+[32m+[m
+[32m+[m[32m### Completed[m
+[32m+[m
+[32m+[m[32m- WatchList domain[m
+[32m+[m[32m- SQLite WatchList repository[m
+[32m+[m[32m- Monitor foundation[m
+[32m+[m[32m- Listing lookup application port[m
+[32m+[m[32m- Marketplace listing dispatcher[m
+[32m+[m[32m- eBay exact item lookup API[m
+[32m+[m[32m- Amazon deterministic exact item lookup contract[m
+[32m+[m
+[32m+[m[32m### Next PR[m
+[32m+[m
+[32m+[m[32m**Sprint 8 PR3-B3 — Marketplace Reader Integration**[m
+[32m+[m
+[32m+[m[32mExpected direction:[m
+[32m+[m
+[32m+[m[32m```text[m
+[32m+[m[32mMarketplaceListingLookupAdapter[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mEbayListingReader / AmazonListingReader[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mmarketplaces.ebay.get_product_by_id()[m
+[32m+[m[32mmarketplaces.amazon.get_product_by_id()[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mDo not bypass exact lookup with `search_items(...)[0]`.[m
+[32m+[m[32mSearch and single-item lookup must remain separate responsibilities.[m
+[32m+[m
+[32m+[m[32m## Architecture Rules[m
+[32m+[m
+[32m+[m[32m- User is Product Owner and final decision-maker.[m
+[32m+[m[32m- Prefer correctness, stability, maintainability, extensibility, readability, performance, then speed.[m
+[32m+[m[32m- Review architecture before implementation.[m
+[32m+[m[32m- Preserve the Sprint 4.4 architecture baseline unless strong evidence and an ADR justify change.[m
+[32m+[m[32m- Domain and application layers must not depend on Marketplace HTTP details.[m
+[32m+[m[32m- Marketplace-specific fetching belongs in infrastructure / marketplace modules.[m
+[32m+[m[32m- Canonical identity distinguishes Strong Identity from Weak Identity.[m
+[32m+[m[32m- Price history remains append-only.[m
+[32m+[m[32m- Do not invent unavailable data or silently substitute defaults.[m
+[32m+[m[32m- Do not redesign stable architecture merely to simplify one PR.[m
+[32m+[m
+[32m+[m[32m## Development Workflow[m
+[32m+[m
+[32m+[m[32m1. Inspect actual repository state.[m
+[32m+[m[32m2. Review design and boundaries.[m
+[32m+[m[32m3. Implement in a small PR-sized increment.[m
+[32m+[m[32m4. Run feature-specific tests.[m
+[32m+[m[32m5. Run full regression.[m
+[32m+[m[32m6. Update code, tests, ADRs, architecture, changelog, release notes, AI development log, and `DEVELOPMENT_PRINCIPLES.md` when major work changes engineering practice.[m
+[32m+[m[32m7. Commit and push.[m
+[32m+[m[32m8. Produce one changed-files ZIP per PR.[m
+[32m+[m[32m9. Produce Quick Context and Full Context ZIPs.[m
+[32m+[m[32m10. State the exact next development step.[m
+[32m+[m
+[32m+[m[32m## Standard Deliverable[m
+[32m+[m
+[32m+[m[32mEach PR should include:[m
+[32m+[m
+[32m+[m[32m- Implementation summary[m
+[32m+[m[32m- Added / modified / deleted paths[m
+[32m+[m[32m- Feature test command and result[m
+[32m+[m[32m- Full regression command and result[m
+[32m+[m[32m- Git commands[m
+[32m+[m[32m- Changed-files ZIP[m
+[32m+[m[32m- Quick Context ZIP script[m
+[32m+[m[32m- Full Context ZIP script[m
+[32m+[m[32m- Next-step recommendation[m
+[32m+[m
+[32m+[m[32m## Important Continuity Rule[m
+[32m+[m
+[32m+[m[32mBefore implementing in a new chat:[m
+[32m+[m
+[32m+[m[32m1. Read this document.[m
+[32m+[m[32m2. Read `PROJECT_STATUS.md`.[m
+[32m+[m[32m3. Inspect relevant source and tests from the uploaded Context ZIP.[m
+[32m+[m[32m4. Confirm repository and Git metadata.[m
+[32m+[m[32m5. Report the understood current state.[m
+[32m+[m[32m6. Only then begin implementation.[m
+[1mdiff --git a/docs/01_CONTEXT/PROJECT_STATUS.md b/docs/01_CONTEXT/PROJECT_STATUS.md[m
+[1mindex 5355068..30baddd 100644[m
+[1m--- a/docs/01_CONTEXT/PROJECT_STATUS.md[m
+[1m+++ b/docs/01_CONTEXT/PROJECT_STATUS.md[m
+[36m@@ -1,81 +1,126 @@[m
+ # HYB Opportunity AI Project Status[m
+ [m
+[31m-**Last Updated:** 2026-07-28  [m
+[31m-**Status Basis:** Repository snapshot and Git history included in the uploaded project ZIP[m
+[32m+[m[32m**Last Updated:** 2026-07-29[m[41m  [m
+[32m+[m[32m**Status Basis:** Sprint 8 PR3-B2 완료 저장소 스냅샷, Git 기록, 전체 회귀 테스트 재실행[m
+ [m
+ ## Current Stage[m
+ [m
+[31m-HYB Opportunity AI는 Foundation과 핵심 Opportunity Intelligence Engine 기반 구축을 완료했으며,[m
+[31m-현재는 **Explainable Decision Pipeline**을 갖춘 상태입니다.[m
+[32m+[m[32mHYB Opportunity AI는 Foundation, Opportunity Intelligence, Explainable Decision Pipeline,[m
+[32m+[m[32mPresentation 기반 구축을 완료했으며 현재 **WatchList Monitoring System**을 확장하고 있습니다.[m
+[32m+[m
+[32m+[m[32m현재 핵심 흐름은 다음과 같습니다.[m
+ [m
+ ```text[m
+[31m-Product[m
+[31m-→ Opportunity Analysis[m
+[31m-→ Price Intelligence[m
+[31m-→ Price Trend[m
+[31m-→ Inventory Analysis[m
+[31m-→ Seller Analysis[m
+[31m-→ Market Intelligence[m
+[31m-→ Market Adjustment[m
+[31m-→ Recommendation[m
+[31m-→ Decision Report[m
+[32m+[m[32mMarketplace Data[m
+[32m+[m[32m→ Product Normalization[m
+[32m+[m[32m→ Opportunity Discovery[m
+[32m+[m[32m→ Opportunity Intelligence[m
+[32m+[m[32m→ Explainable Decision[m
+ → AI Partner[m
+[31m-→ Dashboard[m
+[32m+[m[32m→ Dashboard / CLI[m
+[32m+[m[32m→ WatchList[m
+[32m+[m[32m→ Marketplace Listing Lookup[m
+[32m+[m[32m→ Change Detection[m
+ ```[m
+ [m
+[31m-Git 기록상 Sprint 6 완료 커밋은 다음과 같습니다.[m
+[32m+[m[32m현재 Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 다시 조회하고,[m
+[32m+[m[32m변경 감지 흐름으로 전달할 수 있도록 Application과 Infrastructure 경계를 연결하고 있습니다.[m
+ [m
+[31m-```text[m
+[31m-dcedb13 feat: complete Sprint 6 explainable decision pipeline[m
+[31m-```[m
+[32m+[m[32m---[m
+ [m
+[31m-현재 Sprint 7에서는 문서 체계와 프로젝트 품질을 정비하고 있습니다.[m
+[32m+[m[32m## Current Snapshot[m
+[32m+[m
+[32m+[m[32m- Current Sprint: **Sprint 8**[m
+[32m+[m[32m- Current Position: **PR3-B2 완료 / PR3-B3 준비**[m
+[32m+[m[32m- Current Focus: **Marketplace Reader Integration**[m
+[32m+[m[32m- Latest Commit: `3806736 feat: add marketplace item lookup APIs`[m
+[32m+[m[32m- Branch: `main`[m
+[32m+[m[32m- Last Confirmed Full Regression Test: **1053 passed**[m
+[32m+[m[32m- Regression Verified At: **2026-07-29**[m
+[32m+[m[32m- Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**[m
+[32m+[m
+[32m+[m[32m### Recently Completed[m
+[32m+[m
+[32m+[m[32m- Sprint 7 Documentation Quality Audit[m
+[32m+[m[32m- Sprint 7 Marketplace Adapter Integration[m
+[32m+[m[32m- Sprint 7 Marketplace Contract Tests[m
+[32m+[m[32m- Sprint 7 Presentation Refactoring[m
+[32m+[m[32m- Sprint 7 Opportunity List ViewModel 및 CLI[m
+[32m+[m[32m- Sprint 8 WatchList Domain[m
+[32m+[m[32m- Sprint 8 SQLite WatchList Repository[m
+[32m+[m[32m- Sprint 8 Monitor Foundation[m
+[32m+[m[32m- Sprint 8 PR3-B1 Marketplace Listing Lookup Dispatcher[m
+[32m+[m[32m- Sprint 8 PR3-B2 Marketplace Item Lookup APIs[m
+ [m
+ ---[m
+ [m
+[31m-## Current Snapshot[m
+[32m+[m[32m## Current Core Systems[m
+ [m
+[31m-- Current Sprint: **Sprint 7**[m
+[31m-- Previous Sprint: **Sprint 6 완료**[m
+[31m-- Last Confirmed Full Regression Test: **853 passed**[m
+[31m-- Git: Sprint 6 Commit 및 Push 완료[m
+[31m-- Architecture: Explainable Decision Pipeline 구축 완료[m
+[31m-- Documentation Inventory: `docs/` 아래 Markdown 문서 **78개**[m
+[31m-- Documentation Encoding: 전체 Markdown UTF-8 읽기 성공[m
+[31m-- Markdown Link Audit: 검사 가능한 상대 링크 기준 깨진 링크 없음[m
+[32m+[m[32m### Opportunity Intelligence[m
+ [m
+[31m-> `853 passed`는 업로드된 프로젝트 문서와 Sprint 6 기록에 남아 있는 마지막 확인값입니다.[m
+[31m-> 이번 문서 전용 PR에서는 테스트를 다시 실행하지 않았습니다.[m
+[32m+[m[32m- Product normalization[m
+[32m+[m[32m- Canonical product identity[m
+[32m+[m[32m- Product matching[m
+[32m+[m[32m- Price intelligence[m
+[32m+[m[32m- Price trend analysis[m
+[32m+[m[32m- Inventory analysis[m
+[32m+[m[32m- Seller analysis[m
+[32m+[m[32m- Market intelligence[m
+[32m+[m[32m- Market adjustment[m
+[32m+[m[32m- Opportunity scoring[m
+[32m+[m[32m- ROI intelligence[m
+ [m
+[31m----[m
+[32m+[m[32m### Explainable Decision[m
+ [m
+[31m-## Sprint 6 Outcome[m
+[32m+[m[32m- Recommendation[m
+[32m+[m[32m- Decision report[m
+[32m+[m[32m- AI Partner explanation[m
+[32m+[m[32m- Dashboard decision timeline[m
+[32m+[m[32m- Opportunity list presentation[m
+ [m
+[31m-- Market Adjustment Explainability[m
+[31m-- Decision Report 개선[m
+[31m-- AI Partner 연동[m
+[31m-- Dashboard Decision Timeline[m
+[31m-- Explainable Decision Pipeline 완성[m
+[31m-- 마지막 확인 전체 회귀 테스트 **853 passed**[m
+[32m+[m[32m### WatchList Monitoring[m
+ [m
+[31m----[m
+[32m+[m[32mCompleted:[m
+[32m+[m
+[32m+[m[32m- WatchList domain model[m
+[32m+[m[32m- WatchList application ports[m
+[32m+[m[32m- SQLite repository and mapper[m
+[32m+[m[32m- Monitor request/result models[m
+[32m+[m[32m- WatchList monitor use case foundation[m
+[32m+[m[32m- Marketplace listing lookup dispatcher[m
+[32m+[m[32m- eBay item lookup API[m
+[32m+[m[32m- Amazon deterministic item lookup contract[m
+ [m
+[31m-## Documentation Health[m
+[32m+[m[32mNext:[m
+ [m
+[31m-### Confirmed Strengths[m
+[32m+[m[32m- Concrete Marketplace Reader integration[m
+[32m+[m[32m- Dispatcher registration and composition[m
+[32m+[m[32m- WatchList end-to-end monitoring flow[m
+[32m+[m[32m- Change detection connection[m
+[32m+[m
+[32m+[m[32m---[m
+ [m
+[31m-- Foundation, Context, Architecture, Engineering, Development, Operations, Governance 영역이 분리되어 있음[m
+[31m-- Sprint별 상세 기록이 `docs/04_DEVELOPMENT/sprints/`에 유지되고 있음[m
+[31m-- ADR, Audit, Template 체계가 이미 존재함[m
+[31m-- 현재 저장소의 Markdown 문서는 UTF-8로 정상 해석됨[m
+[31m-- 검사 가능한 Markdown 상대 링크에서 끊어진 링크가 발견되지 않음[m
+[32m+[m[32m## Current Architecture Direction[m
+ [m
+[31m-### Current Documentation Debt[m
+[32m+[m[32m```text[m
+[32m+[m[32mWatchListMonitorUseCase[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mListingLookupPort[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mMarketplaceListingLookupAdapter[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mMarketplace Reader[m
+[32m+[m[32m        ↓[m
+[32m+[m[32meBay / Amazon get_product_by_id()[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mProduct[m
+[32m+[m[32m        ↓[m
+[32m+[m[32mChange Detection[m
+[32m+[m[32m```[m
+ [m
+[31m-- `SPRINT_HISTORY.md`가 Sprint 3 상태에 머물러 있어 최신 이력을 반영하지 못함[m
+[31m-- `DOCUMENT_INDEX.md`가 실제 문서 탐색에 필요한 대표 링크를 충분히 제공하지 않음[m
+[31m-- CHANGELOG와 Sprint 상세 문서 사이의 연결 규칙이 명시적이지 않음[m
+[31m-- 문서 전용 PR에서 테스트를 재실행했는지 여부를 더 일관되게 기록할 필요가 있음[m
+[32m+[m[32mSearch와 exact item lookup은 서로 다른 책임으로 유지합니다.[m
+[32m+[m[32m검색 결과 첫 항목을 감시 대상 상품으로 추정하지 않으며,[m
+[32m+[m[32mMarketplace의 정확한 item ID를 사용해 조회합니다.[m
+ [m
+ ---[m
+ [m
+[36m@@ -83,59 +128,59 @@[m [mdcedb13 feat: complete Sprint 6 explainable decision pipeline[m
+ [m
+ ### Marketplace[m
+ [m
+[31m-- Amazon Production[m
+[31m-- eBay Live[m
+[31m-- Walmart[m
+[31m-- Coupang[m
+[31m-- AliExpress[m
+[31m-- Temu[m
+[32m+[m[32m- Amazon Production API 미연결[m
+[32m+[m[32m- eBay Live 환경 검증 미완료[m
+[32m+[m[32m- Walmart, Coupang, AliExpress, Temu 미연결[m
+ [m
+ ### Business Intelligence[m
+ [m
+[31m-- Landed Cost[m
+[31m-- Competition Signal[m
+[31m-- Demand Signal[m
+[31m-- Sales Velocity[m
+[31m-- Fees / Tax / Duty[m
+[31m-- Return Risk[m
+[31m-- Inventory Risk[m
+[32m+[m[32m- Landed cost[m
+[32m+[m[32m- Tax / duty[m
+[32m+[m[32m- Return risk[m
+[32m+[m[32m- Sales velocity[m
+[32m+[m[32m- Competition and demand signals[m
+[32m+[m[32m- 운영 데이터 기반 수익성 검증[m
+ [m
+ ### Operations[m
+ [m
+ - Authentication[m
+ - Deployment[m
+ - Monitoring[m
+[31m-- Alerting[m
+[32m+[m[32m- Alerting / notification[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 7 Priorities[m
+[32m+[m[32m## Current Priorities[m
+ [m
+[31m-1. Documentation Quality Audit[m
+[31m-2. Development History 최신화[m
+[31m-3. 문서 간 탐색 경로와 책임 정리[m
+[31m-4. Presentation 구조 검토[m
+[31m-5. 공통 테스트 Fixture 검토[m
+[31m-6. Marketplace 확장 기반 준비[m
+[32m+[m[32m1. Sprint 8 PR3-B3 Marketplace Reader Integration[m
+[32m+[m[32m2. WatchList Monitor end-to-end 연결[m
+[32m+[m[32m3. Marketplace lookup 결과와 Change Detection 연결[m
+[32m+[m[32m4. 기능별 테스트 후 전체 회귀 테스트 유지[m
+[32m+[m[32m5. Sprint 상태·로드맵·개발 기록의 지속적 최신화[m
+ [m
+ ---[m
+ [m
+ ## Definition of Done[m
+ [m
+[31m-- 설계 검토[m
+[31m-- 구현 완료[m
+[31m-- 테스트 작성[m
+[31m-- 전체 테스트 통과[m
+[31m-- 문서 반영[m
+[31m-- Git Commit[m
+[31m-- Git Push[m
+[32m+[m[32m모든 주요 PR은 다음 순서를 따릅니다.[m
+ [m
+[31m-문서 전용 변경에서는 코드 테스트를 생략할 수 있지만,[m
+[31m-그 사실과 마지막 확인 테스트 기준을 문서에 명시해야 합니다.[m
+[32m+[m[32m1. Architecture / design review[m
+[32m+[m[32m2. Small PR-sized implementation[m
+[32m+[m[32m3. Feature-specific tests[m
+[32m+[m[32m4. Full regression test[m
+[32m+[m[32m5. Documentation update[m
+[32m+[m[32m6. Git commit and push[m
+[32m+[m[32m7. Changed-files ZIP[m
+[32m+[m[32m8. Quick Context and Full Context ZIP[m
+[32m+[m[32m9. Next-step guidance[m
+ [m
+ ---[m
+ [m
+ ## Long-term Goal[m
+ [m
+[31m-HYB Opportunity AI는 실제 사업 의사결정을 지원하는[m
+[31m-설명 가능한 AI Opportunity Platform을 목표로 합니다.[m
+[32m+[m[32mHYB Opportunity AI는 온라인 판매자가[m
+[32m+[m[32m“이 상품에 내 돈을 투자해도 되는가?”를 데이터와 설명 가능한 근거로 판단하도록 돕는[m
+[32m+[m[32mAI Opportunity Intelligence Platform을 목표로 합니다.[m
+[32m+[m
+[32m+[m[32m장기적으로는 Opportunity Discovery, Investment Decision,[m
+[32m+[m[32mContinuous Monitoring, Automatic Opportunity Detection을 하나의 안정적인 흐름으로 연결합니다.[m
+[1mdiff --git a/docs/04_DEVELOPMENT/CHANGELOG.md b/docs/04_DEVELOPMENT/CHANGELOG.md[m
+[1mindex e528d2b..e1e3078 100644[m
+[1m--- a/docs/04_DEVELOPMENT/CHANGELOG.md[m
+[1m+++ b/docs/04_DEVELOPMENT/CHANGELOG.md[m
+[36m@@ -1,169 +1,142 @@[m
+ # HYB Changelog[m
+ [m
+[31m-이 문서는 버전 및 Sprint별 주요 변경사항을 기록한다.[m
+[32m+[m[32m이 문서는 Sprint 및 PR별 주요 변경사항을 최신 항목부터 기록합니다.[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 7 PR-3 — Documentation Quality Audit[m
+[32m+[m[32m## Sprint 8 PR3-B2 — Marketplace Item Lookup APIs[m
+ [m
+ ### Added[m
+ [m
+[31m-- `docs/11_AUDIT/HYB_DOCUMENTATION_AUDIT_2026-07-28.md`[m
+[31m-- `docs/04_DEVELOPMENT/sprints/SPRINT_6_SUMMARY.md`[m
+[31m-- 실제 문서 구조를 반영한 Documentation Inventory 및 Cross-reference 감사 결과[m
+[32m+[m[32m- eBay exact item lookup API[m
+[32m+[m[32m- eBay raw item response to validated `Product` conversion[m
+[32m+[m[32m- Amazon deterministic exact item lookup contract[m
+[32m+[m[32m- Amazon lookup result to `Product` conversion[m
+[32m+[m[32m- Exact lookup validation and error-handling tests[m
+ [m
+ ### Changed[m
+ [m
+[31m-- `PROJECT_STATUS.md`에 문서 상태, 감사 근거, 마지막 확인 테스트 기준을 명시[m
+[31m-- `SPRINT_HISTORY.md`를 Sprint 6 완료 및 Sprint 7 진행 상태까지 최신화[m
+[31m-- `DOCUMENT_INDEX.md`를 실제 파일 링크 중심의 탐색 문서로 확장[m
+[31m-- `DOCUMENT_POLICY.md`에 문서 책임, 검증, 테스트 기록 및 Deliverable 규칙을 추가[m
+[31m-- CHANGELOG와 Sprint 상세 문서의 연결 규칙을 명시[m
+[32m+[m[32m- Search와 single-item lookup 책임을 명확히 분리[m
+[32m+[m[32m- Amazon 개발용 item catalog를 search와 lookup에서 공통 사용하도록 정리[m
+[32m+[m[32m- WatchList monitoring이 검색 첫 결과를 추정값으로 사용하지 않도록 기반 강화[m
+ [m
+ ### Validation[m
+ [m
+[31m-- `docs/` Markdown 문서 78개 UTF-8 읽기 확인[m
+[31m-- 검사 가능한 Markdown 상대 링크 기준 깨진 링크 0개[m
+[31m-- 코드 테스트는 재실행하지 않음[m
+[31m-- 마지막 확인 전체 회귀 테스트 기준: **853 passed**[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## Sprint 7 PR-2 — Development Documentation Recovery[m
+[31m-[m
+[31m-### Changed[m
+[31m-[m
+[31m-- 깨진 한글 인코딩이 포함된 개발 문서를 UTF-8 기준으로 복구[m
+[31m-- `CHANGELOG.md`, `DEV_LOG.md`, `DEVELOPMENT_JOURNAL.md`의 역할과 기록 형식을 정리[m
+[31m-- Sprint 6 완료 상태와 853개 전체 회귀 테스트 통과 결과를 문서에 반영[m
+[31m-- 문서별 책임 중복을 줄이기 위한 Documentation Architecture 원칙을 적용[m
+[31m-[m
+[31m-### Notes[m
+[31m-[m
+[31m-- 후속 실제 저장소 Audit에서 `docs/04_DEVELOPMENT/sprints/SPRINT_HISTORY.md`가 존재함을 확인했다.[m
+[31m-- PR-2의 경로 확인 메모는 PR-3에서 정정하고 Sprint History를 최신화했다.[m
+[32m+[m[32m- Full regression: **1053 passed**[m
+[32m+[m[32m- Commit: `3806736 feat: add marketplace item lookup APIs`[m
+[32m+[m[32m- Branch: `main`[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 6 — Explainable Decision Pipeline[m
+[32m+[m[32m## Sprint 8 PR3-B1 — Marketplace Listing Lookup Dispatcher[m
+ [m
+ ### Added[m
+ [m
+[31m-- Market Adjustment 결과 설명[m
+[31m-- Decision Report와 Market Adjustment 연결[m
+[31m-- AI Partner의 Decision Report 기반 시장 설명 사용[m
+[31m-- Dashboard Decision Timeline[m
+[31m-- Decision Report 전용 테스트[m
+[32m+[m[32m- `MarketplaceListingLookupAdapter`[m
+[32m+[m[32m- Marketplace reader protocol[m
+[32m+[m[32m- Marketplace name normalization and dispatch[m
+[32m+[m[32m- Unsupported Marketplace handling[m
+[32m+[m[32m- Reader result contract validation[m
+[32m+[m[32m- Dispatcher tests[m
+ [m
+[31m-### Changed[m
+[32m+[m[32m### Decisions[m
+ [m
+[31m-- Engine, Presentation, Formatter 사이의 책임을 분리한 상태로 설명 데이터 전달 경로 강화[m
+[31m-- 분석 결과를 단순 점수에서 판단 근거가 포함된 의사결정 정보로 확장[m
+[32m+[m[32m- Application layer는 Marketplace 구현을 직접 알지 않음[m
+[32m+[m[32m- Infrastructure dispatcher가 Marketplace별 reader를 선택[m
+[32m+[m[32m- Reader exception은 숨기지 않고 상위 호출자가 처리할 수 있도록 유지[m
+ [m
+[31m-### Validation[m
+[32m+[m[32m### Git[m
+ [m
+[31m-- 전체 회귀 테스트: **853 passed**[m
+[31m-- Sprint 6 변경사항 Commit 및 Push 완료[m
+[32m+[m[32m- Commit: `97b60e7 feat: add marketplace listing lookup dispatcher`[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 5.2 PR-1 — Profitability Score Extension Point[m
+[32m+[m[32m## Sprint 8 PR3-A — WatchList Monitor Foundation[m
+ [m
+ ### Added[m
+ [m
+[31m-- ROI 기반 가격 Factor 계산을 `profitability_score()` 진입점으로 명시[m
+[31m-- 향후 `margin_rate`, `landed_cost_roi` 등 검증된 수익성 지표로 확장할 수 있는 경계 마련[m
+[31m-- Decimal 입력 및 유효 범위 검증 테스트 추가[m
+[31m-- 정상 반환 및 경계 검증 테스트 4개 추가[m
+[32m+[m[32m- Listing lookup application port[m
+[32m+[m[32m- Monitor request/result models[m
+[32m+[m[32m- WatchList monitor use case foundation[m
+[32m+[m[32m- WatchList monitoring tests[m
+ [m
+[31m-### Changed[m
+[32m+[m[32m### Direction[m
+ [m
+[31m-- 기존 `price_score()` 공개 호출은 하위 호환을 위한 위임 메서드로 유지[m
+[31m-- 기존 ROI 점수 구간과 결과를 유지하여 기존 추천 결과에 미치는 영향 방지[m
+[32m+[m[32m- WatchList entry를 Marketplace의 최신 `Product`로 조회[m
+[32m+[m[32m- 이후 Change Detection과 연결할 수 있는 Application boundary 확보[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 5.1 PR-5 — Discovery Factor Provider[m
+[32m+[m[32m## Sprint 8 — WatchList Foundation[m
+ [m
+ ### Added[m
+ [m
+[31m-- 기존 Discovery 분석값을 `OpportunityFactors`로 변환하는 `DiscoveryFactorPolicy`[m
+[31m-- Factor 원천값별 0~100 정규화 정책[m
+[31m-- 실제 원천 데이터로 기본 Opportunity Intelligence 실행을 검증하는 통합 테스트 4개[m
+[32m+[m[32m- WatchList domain models and aggregate behavior[m
+[32m+[m[32m- SQLite WatchList repository[m
+[32m+[m[32m- Infrastructure mapper[m
+[32m+[m[32m- Repository and domain tests[m
+ [m
+[31m-### Changed[m
+[32m+[m[32m### Architecture[m
+ [m
+[31m-- Discovery Gateway metadata에 `trend_score_adjustment` 전달[m
+[31m-- Adapter가 전체 가격 고정값이 아닌 실제 가격 Factor를 사용하도록 확장[m
+[32m+[m[32m- WatchList state와 Marketplace 조회 책임 분리[m
+[32m+[m[32m- 저장소 구현은 Infrastructure에 유지[m
+[32m+[m[32m- Monitoring은 Application use case로 구성[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 5.1 PR-4 — Discovery Workflow Intelligence Integration[m
+[32m+[m[32m## Sprint 7 — Marketplace and Presentation Expansion[m
+ [m
+[31m-### Added[m
+[32m+[m[32m### Added / Changed[m
+ [m
+[31m-- Discovery Workflow에 선택적 Opportunity Intelligence 실행 단계[m
+[31m-- Discovery 결과 순서를 유지하는 `intelligence_results` 응답 계약[m
+[31m-- 항목 단위 Intelligence 실패 격리 테스트[m
+[32m+[m[32m- eBay marketplace adapter integration[m
+[32m+[m[32m- Marketplace adapter contract tests[m
+[32m+[m[32m- Marketplace validation strengthening[m
+[32m+[m[32m- Dashboard utilities and component extraction[m
+[32m+[m[32m- Hero summary[m
+[32m+[m[32m- Opportunity list ViewModel[m
+[32m+[m[32m- Opportunity list CLI presentation[m
+ [m
+[31m-### Changed[m
+[32m+[m[32m### Recent Commits[m
+ [m
+[31m-- Intelligence 실패가 Discovery 및 Publish 성공을 중단하지 않도록 Workflow 경계를 확장[m
+[32m+[m[32m- `6972c7e feat: integrate eBay marketplace adapter`[m
+[32m+[m[32m- `0980269 test: add marketplace adapter contract tests`[m
+[32m+[m[32m- `df23ee0 refactor(presentation): extract dashboard utilities and restore decision timeline`[m
+[32m+[m[32m- `95a3570 refactor(presentation): extract dashboard component builders`[m
+[32m+[m[32m- `2655753 feat(presentation): add dashboard hero summary`[m
+[32m+[m[32m- `1efe197 feat(presentation): add opportunity list view model`[m
+[32m+[m[32m- `448b443 feat(presentation): render opportunity list in cli`[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 5.1 PR-3 — Minimal Opportunity Intelligence Integration[m
+[32m+[m[32m## Sprint 7 PR-3 — Documentation Quality Audit[m
+ [m
+ ### Added[m
+ [m
+[31m-- `OpportunityIntelligenceStatus`[m
+[31m-  - `evaluated`[m
+[31m-  - `unavailable`[m
+[31m-  - `failed`[m
+[31m-- Application 입력·결과 계약과 Adapter Port[m
+[31m-- `OpportunityIntelligenceService`[m
+[31m-- Infrastructure Adapter[m
+[31m-- 신규 통합 테스트 6개[m
+[32m+[m[32m- Documentation audit report[m
+[32m+[m[32m- Sprint 6 summary[m
+[32m+[m[32m- Documentation inventory and cross-reference audit[m
+ [m
+ ### Changed[m
+ [m
+[31m-- 기존 `DiscoveryResult`의 confidence 값을 Decimal로 변환[m
+[31m-- 5개 Factor가 준비되지 않은 상태는 임의 기본값 없이 `unavailable`로 반환[m
+[31m-- 완전한 Factor Adapter가 주입된 경우에만 신규 Score와 Evaluation 생성[m
+[31m-- 기존 Recommendation 필드와 Discovery 공개 동작은 유지[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## Sprint 5.1 PR-2 — Opportunity Intelligence Integration Contract[m
+[31m-[m
+[31m-### Added[m
+[32m+[m[32m- Project status, Sprint history, document index, documentation policy, and changelog[m
+ [m
+[31m-- Discovery → Opportunity Factors Source Map 문서[m
+[31m-- `unavailable` 결과 상태 정책[m
+[31m-- Application Service와 Infrastructure Adapter 경계[m
+[31m-- ADR-0001[m
+[31m-[m
+[31m-### Decisions[m
+[32m+[m[32m### Validation[m
+ [m
+[31m-- confidence만 직접 사용할 수 있는 값으로 확정[m
+[31m-- 불완전한 Factor에 임의의 0 또는 50을 채우지 않음[m
+[31m-- 기존 Recommendation과 신규 Evaluation을 일정 기간 병행 운영[m
+[32m+[m[32m- Markdown UTF-8 validation passed[m
+[32m+[m[32m- Inspectable relative links: no broken links found[m
+[32m+[m[32m- Last code regression at that point: **853 passed**[m
+ [m
+ ---[m
+ [m
+[31m-## Sprint 5.1 PR-1 — Architecture Alignment v1[m
+[32m+[m[32m## Sprint 6 — Explainable Decision Pipeline[m
+ [m
+[31m-### Changed[m
+[32m+[m[32m### Added[m
+ [m
+[31m-- 최신 실제 코드 기준 결합도 및 Dependency Boundary Audit 완료[m
+[31m-- Discovery Workflow, Use Case, Gateway, Ranking 책임 정리[m
+[31m-- Ranking Strategy 조기 도입 보류[m
+[31m-- Opportunity Dataset 조기 도입 보류[m
+[31m-- 기존 Opportunity Score 및 Decision과 Discovery의 통합 계약을 우선순위로 확정[m
+[31m-- 안정 영역과 기술 부채 우선순위 P1~P3 문서화[m
+[31m-- 공개 API 변경 없이 아키텍처 정렬 수행[m
+[32m+[m[32m- Market Adjustment explanation[m
+[32m+[m[32m- Decision Report integration[m
+[32m+[m[32m- AI Partner decision explanation[m
+[32m+[m[32m- Dashboard Decision Timeline[m
+ [m
+ ### Validation[m
+ [m
+[31m-- 관련 Architecture 테스트 145개 통과[m
+[31m-- 당시 전체 테스트 실행에서 Snapshot 계열 오류가 별도로 확인됨[m
+[32m+[m[32m- Full regression at Sprint 6 completion: **853 passed**[m
+[1mdiff --git a/docs/07_ROADMAP/ROADMAP.md b/docs/07_ROADMAP/ROADMAP.md[m
+[1mindex 6f30cf9..834769f 100644[m
+[1m--- a/docs/07_ROADMAP/ROADMAP.md[m
+[1m+++ b/docs/07_ROADMAP/ROADMAP.md[m
+[36m@@ -1,8 +1,134 @@[m
+ # HYB Roadmap[m
+ [m
+[31m-장기 개발 방향을 기록한다.[m
+[32m+[m[32m**Last Updated:** 2026-07-29[m[41m  [m
+[32m+[m[32m**Current Baseline:** Sprint 8 PR3-B2 completed, 1053 tests passed[m
+ [m
+[31m-관리 대상:[m
+[31m-- 현재 단계[m
+[31m-- 다음 개발 목표[m
+[31m-- 미래 확장 계획[m
+[32m+[m[32m## Roadmap Principle[m
+[32m+[m
+[32m+[m[32mHYB는 기능 수를 빠르게 늘리는 것보다[m
+[32m+[m[32m정확한 데이터, 안정적인 경계, 설명 가능한 판단,[m
+[32m+[m[32m실제 사업 가치 검증을 우선합니다.[m
+[32m+[m
+[32m+[m[32m우선순위는 다음과 같습니다.[m
+[32m+[m
+[32m+[m[32m```text[m
+[32m+[m[32mCorrectness[m
+[32m+[m[32m→ Stability[m
+[32m+[m[32m→ Maintainability[m
+[32m+[m[32m→ Extensibility[m
+[32m+[m[32m→ Readability[m
+[32m+[m[32m→ Performance[m
+[32m+[m[32m→ Speed[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m## Completed Foundations[m
+[32m+[m
+[32m+[m[32m### Architecture and Domain Foundation[m
+[32m+[m
+[32m+[m[32m- Architecture baseline and domain separation[m
+[32m+[m[32m- Opportunity Discovery domain/application/workflow[m
+[32m+[m[32m- Canonical product identity[m
+[32m+[m[32m- Change domain foundation[m
+[32m+[m[32m- Append-only price history[m
+[32m+[m
+[32m+[m[32m### Opportunity Intelligence[m
+[32m+[m
+[32m+[m[32m- Price, trend, inventory, seller, market analysis[m
+[32m+[m[32m- Opportunity scoring and ROI intelligence[m
+[32m+[m[32m- Explainable recommendation and decision report[m
+[32m+[m[32m- AI Partner and dashboard integration[m
+[32m+[m
+[32m+[m[32m### Presentation and Marketplace Foundation[m
+[32m+[m
+[32m+[m[32m- Marketplace adapter contract[m
+[32m+[m[32m- eBay adapter integration[m
+[32m+[m[32m- Opportunity list ViewModel and CLI[m
+[32m+[m[32m- Presentation component refactoring[m
+[32m+[m
+[32m+[m[32m## Current Milestone — Sprint 8 WatchList Monitoring[m
+[32m+[m
+[32m+[m[32m### Completed[m
+[32m+[m
+[32m+[m[32m- WatchList domain[m
+[32m+[m[32m- SQLite repository[m
+[32m+[m[32m- Monitor foundation[m
+[32m+[m[32m- Listing lookup port and dispatcher[m
+[32m+[m[32m- Exact eBay item lookup API[m
+[32m+[m[32m- Deterministic Amazon item lookup contract[m
+[32m+[m
+[32m+[m[32m### Immediate Next[m
+[32m+[m
+[32m+[m[32m1. **PR3-B3 Marketplace Reader Integration**[m
+[32m+[m[32m2. Dispatcher composition and reader registration[m
+[32m+[m[32m3. WatchList Monitor end-to-end lookup flow[m
+[32m+[m[32m4. Lookup result to Change Detection connection[m
+[32m+[m[32m5. Monitoring result contract stabilization[m
+[32m+[m
+[32m+[m[32m## Near-Term Roadmap[m
+[32m+[m
+[32m+[m[32m### Sprint 8 Completion[m
+[32m+[m
+[32m+[m[32m- WatchList item registration and retrieval[m
+[32m+[m[32m- Exact Marketplace listing lookup[m
+[32m+[m[32m- Change Detection integration[m
+[32m+[m[32m- Feature and full regression validation[m
+[32m+[m[32m- Sprint 8 documentation and audit update[m
+[32m+[m
+[32m+[m[32m### Next Development Phase[m
+[32m+[m
+[32m+[m[32m- Monitoring orchestration[m
+[32m+[m[32m- Change persistence and history[m
+[32m+[m[32m- Dashboard WatchList visibility[m
+[32m+[m[32m- Alert/notification boundary design[m
+[32m+[m[32m- Sandbox/live evidence collection[m
+[32m+[m
+[32m+[m[32mThe exact Sprint number and PR breakdown for this phase must be decided after Sprint 8 evidence review.[m
+[32m+[m
+[32m+[m[32m## Business Validation Roadmap[m
+[32m+[m
+[32m+[m[32mTechnical expansion should remain connected to real seller decisions.[m
+[32m+[m
+[32m+[m[32mPriority evidence:[m
+[32m+[m
+[32m+[m[32m- Accurate landed cost[m
+[32m+[m[32m- Marketplace fee structure[m
+[32m+[m[32m- Tax and duty impact[m
+[32m+[m[32m- Demand and competition signals[m
+[32m+[m[32m- Sales velocity[m
+[32m+[m[32m- Return and inventory risk[m
+[32m+[m[32m- Historical price stability[m
+[32m+[m[32m- Real opportunity outcomes[m
+[32m+[m
+[32m+[m[32m## Marketplace Expansion Roadmap[m
+[32m+[m
+[32m+[m[32mExpansion order is evidence-driven rather than feature-count-driven.[m
+[32m+[m
+[32m+[m[32mCurrent state:[m
+[32m+[m
+[32m+[m[32m- eBay: adapter and exact item lookup foundation[m
+[32m+[m[32m- Amazon: deterministic development contract; production integration pending[m
+[32m+[m
+[32m+[m[32mFuture candidates:[m
+[32m+[m
+[32m+[m[32m- Walmart[m
+[32m+[m[32m- Coupang[m
+[32m+[m[32m- AliExpress[m
+[32m+[m[32m- Temu[m
+[32m+[m
+[32m+[m[32mA new Marketplace should be added only after its contract, data quality,[m
+[32m+[m[32mfailure isolation, normalization, and business value are reviewed.[m
+[32m+[m
+[32m+[m[32m## Long-Term Product Direction[m
+[32m+[m
+[32m+[m[32m```text[m
+[32m+[m[32mOpportunity Discovery[m
+[32m+[m[32m→ Opportunity Evaluation[m
+[32m+[m[32m→ Explainable Investment Decision[m
+[32m+[m[32m→ WatchList Monitoring[m
+[32m+[m[32m→ Change Detection[m
+[32m+[m[32m→ Alerts[m
+[32m+[m[32m→ Automated Opportunity Discovery[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mLong-term success is measured by whether HYB improves real investment decisions,[m
+[32m+[m[32mnot merely by the number of supported features or marketplaces.[m
