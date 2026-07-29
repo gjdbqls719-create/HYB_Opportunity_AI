@@ -3,6 +3,12 @@ from __future__ import annotations
 from app.application.opportunity_intelligence.decision_report import (
     OpportunityDecisionReportBuilder,
 )
+from app.application.opportunity_intelligence.final_recommendation import (
+    OpportunityRecommendationEngine,
+)
+from app.application.opportunity_intelligence.trend_interpreter import (
+    OpportunityTrendInterpreter,
+)
 from app.application.opportunity_intelligence.models import (
     OpportunityIntelligenceResult,
     OpportunityIntelligenceStatus,
@@ -11,7 +17,12 @@ from app.application.opportunity_intelligence.ports import (
     OpportunityIntelligenceInputAdapter,
 )
 from app.domain.discovery import DiscoveryResult
-from app.engine import OpportunityDecisionEngine, OpportunityScoreEngine
+from app.engine import (
+    OpportunityConfidenceEngine,
+    OpportunityDecisionEngine,
+    OpportunityRiskEngine,
+    OpportunityScoreEngine,
+)
 
 
 class OpportunityIntelligenceService:
@@ -24,11 +35,21 @@ class OpportunityIntelligenceService:
         score_engine: OpportunityScoreEngine | None = None,
         decision_engine: OpportunityDecisionEngine | None = None,
         report_builder: OpportunityDecisionReportBuilder | None = None,
+        confidence_engine: OpportunityConfidenceEngine | None = None,
+        risk_engine: OpportunityRiskEngine | None = None,
+        trend_interpreter: OpportunityTrendInterpreter | None = None,
+        recommendation_engine: OpportunityRecommendationEngine | None = None,
     ) -> None:
         self._input_adapter = input_adapter
         self._score_engine = score_engine or OpportunityScoreEngine()
         self._decision_engine = decision_engine or OpportunityDecisionEngine()
         self._report_builder = report_builder or OpportunityDecisionReportBuilder()
+        self._confidence_engine = confidence_engine or OpportunityConfidenceEngine()
+        self._risk_engine = risk_engine or OpportunityRiskEngine()
+        self._trend_interpreter = trend_interpreter or OpportunityTrendInterpreter()
+        self._recommendation_engine = (
+            recommendation_engine or OpportunityRecommendationEngine()
+        )
 
     def evaluate(self, discovery_result: DiscoveryResult) -> OpportunityIntelligenceResult:
         if not isinstance(discovery_result, DiscoveryResult):
@@ -55,6 +76,25 @@ class OpportunityIntelligenceService:
             )
             evaluation = self._decision_engine.evaluate(score)
             decision_report = self._report_builder.build(evaluation)
+            confidence_assessment = self._confidence_engine.assess(
+                prepared.confidence
+            )
+            risk_assessment = self._risk_engine.assess(
+                score.factors.risk_score
+            )
+
+            trend_assessment = None
+            recommendation = None
+            if prepared.trend_analysis is not None:
+                trend_assessment = self._trend_interpreter.interpret(
+                    prepared.trend_analysis
+                )
+                recommendation = self._recommendation_engine.recommend(
+                    decision_report=decision_report,
+                    confidence=confidence_assessment,
+                    risk=risk_assessment,
+                    trend=trend_assessment,
+                )
         except (TypeError, ValueError) as error:
             return OpportunityIntelligenceResult(
                 status=OpportunityIntelligenceStatus.FAILED,
@@ -66,4 +106,8 @@ class OpportunityIntelligenceService:
             score=score,
             evaluation=evaluation,
             decision_report=decision_report,
+            confidence_assessment=confidence_assessment,
+            risk_assessment=risk_assessment,
+            trend_assessment=trend_assessment,
+            recommendation=recommendation,
         )
