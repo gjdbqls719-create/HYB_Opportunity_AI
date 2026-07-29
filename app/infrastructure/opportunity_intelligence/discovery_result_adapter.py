@@ -9,6 +9,7 @@ from app.application.opportunity_intelligence import (
 )
 from app.domain.discovery import DiscoveryResult
 from app.domain.opportunity import OpportunityFactors
+from app.engine import OpportunityConfidenceEngine
 
 
 _FACTOR_NAMES = (
@@ -128,8 +129,10 @@ class DiscoveryResultOpportunityIntelligenceAdapter:
         self,
         *,
         factor_policy: DiscoveryFactorPolicy | None = None,
+        confidence_engine: OpportunityConfidenceEngine | None = None,
     ) -> None:
         self._factor_policy = factor_policy or DiscoveryFactorPolicy()
+        self._confidence_engine = confidence_engine or OpportunityConfidenceEngine()
 
     def adapt(
         self,
@@ -144,11 +147,13 @@ class DiscoveryResultOpportunityIntelligenceAdapter:
             minimum=_ZERO,
             maximum=_HUNDRED,
         )
+        assert confidence is not None
+        confidence_assessment = self._confidence_engine.assess(confidence)
         factors, missing_factors = self._build_factors(discovery_result.metadata)
 
         return OpportunityIntelligenceInput(
             factors=factors,
-            confidence=confidence,
+            confidence=confidence_assessment.score,
             missing_factors=missing_factors,
         )
 

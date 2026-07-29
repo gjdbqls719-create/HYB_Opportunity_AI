@@ -4,6 +4,12 @@ from app.engine.fee_efficiency import (
     FeeEfficiencyPolicy,
     FeeEfficiencyScorer,
 )
+from app.engine.opportunity_confidence import (
+    OpportunityConfidenceAssessment,
+    OpportunityConfidenceEngine,
+    OpportunityConfidenceLevel,
+    OpportunityConfidencePolicy,
+)
 from app.engine.opportunity_decision import (
     OpportunityDecisionEngine,
     OpportunityDecisionPolicy,
@@ -27,6 +33,10 @@ from app.engine.trend_analysis import (
 __all__ = [
     "FeeEfficiencyPolicy",
     "FeeEfficiencyScorer",
+    "OpportunityConfidenceAssessment",
+    "OpportunityConfidenceEngine",
+    "OpportunityConfidenceLevel",
+    "OpportunityConfidencePolicy",
     "OpportunityDecisionEngine",
     "OpportunityDecisionPolicy",
     "OpportunityScoreEngine",
