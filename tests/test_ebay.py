@@ -105,3 +105,150 @@ def test_search_products_normalizes_all_search_results(
         "v1|987654321|0",
     ]
     assert all(product.marketplace == "ebay" for product in products)
+
+
+class FakeResponse:
+    def __init__(
+        self,
+        *,
+        status_code: int,
+        payload: object,
+        text: str = "",
+    ) -> None:
+        self.status_code = status_code
+        self._payload = payload
+        self.text = text
+        self.ok = 200 <= status_code < 300
+
+    def json(self) -> object:
+        return self._payload
+
+
+def test_get_item_by_id_calls_exact_browse_item_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: dict[str, object] = {}
+
+    class FakeSettings:
+        ebay_browse_api_url = "https://api.ebay.test/buy/browse/v1"
+
+    def fake_get(
+        url: str,
+        *,
+        headers: dict[str, str],
+        timeout: int,
+    ) -> FakeResponse:
+        received.update(url=url, headers=headers, timeout=timeout)
+        return FakeResponse(status_code=200, payload=make_raw_item())
+
+    monkeypatch.setattr(ebay, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(
+        ebay,
+        "get_application_token",
+        lambda: {"access_token": "test-token"},
+    )
+    monkeypatch.setattr(ebay.requests, "get", fake_get)
+
+    result = ebay.get_item_by_id(
+        " v1|123456789|0 ",
+        marketplace_id="EBAY_US",
+    )
+
+    assert result == make_raw_item()
+    assert received == {
+        "url": (
+            "https://api.ebay.test/buy/browse/v1/item/"
+            "v1%7C123456789%7C0"
+        ),
+        "headers": {
+            "Authorization": "Bearer test-token",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+            "Accept": "application/json",
+        },
+        "timeout": 30,
+    }
+
+
+def test_get_item_by_id_returns_none_for_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSettings:
+        ebay_browse_api_url = "https://api.ebay.test/buy/browse/v1"
+
+    monkeypatch.setattr(ebay, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(
+        ebay,
+        "get_application_token",
+        lambda: {"access_token": "test-token"},
+    )
+    monkeypatch.setattr(
+        ebay.requests,
+        "get",
+        lambda *args, **kwargs: FakeResponse(
+            status_code=404,
+            payload={},
+            text="not found",
+        ),
+    )
+
+    assert ebay.get_item_by_id("missing-item") is None
+
+
+def test_get_item_by_id_raises_for_non_404_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeSettings:
+        ebay_browse_api_url = "https://api.ebay.test/buy/browse/v1"
+
+    monkeypatch.setattr(ebay, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(
+        ebay,
+        "get_application_token",
+        lambda: {"access_token": "test-token"},
+    )
+    monkeypatch.setattr(
+        ebay.requests,
+        "get",
+        lambda *args, **kwargs: FakeResponse(
+            status_code=500,
+            payload={},
+            text="server error",
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="eBay 단일 상품 조회 실패"):
+        ebay.get_item_by_id("v1|123456789|0")
+
+
+@pytest.mark.parametrize("item_id", ["", "   "])
+def test_get_item_by_id_rejects_empty_item_id(item_id: str) -> None:
+    with pytest.raises(ValueError, match="상품 ID"):
+        ebay.get_item_by_id(item_id)
+
+
+def test_get_product_by_id_normalizes_exact_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ebay,
+        "get_item_by_id",
+        lambda item_id, marketplace_id: make_raw_item(),
+    )
+
+    product = ebay.get_product_by_id("v1|123456789|0")
+
+    assert isinstance(product, Product)
+    assert product.item_id == "v1|123456789|0"
+    assert product.marketplace == "ebay"
+
+
+def test_get_product_by_id_preserves_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ebay,
+        "get_item_by_id",
+        lambda item_id, marketplace_id: None,
+    )
+
+    assert ebay.get_product_by_id("missing-item") is None

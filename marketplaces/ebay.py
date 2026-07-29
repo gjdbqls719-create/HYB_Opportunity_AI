@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -37,6 +38,18 @@ class EbayAdapter(MarketplaceAdapter):
         )
 
 
+def _build_browse_headers(
+    *,
+    access_token: str,
+    marketplace_id: str,
+) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "X-EBAY-C-MARKETPLACE-ID": marketplace_id,
+        "Accept": "application/json",
+    }
+
+
 def search_items(
     query: str,
     limit: int = 10,
@@ -60,11 +73,10 @@ def search_items(
 
     response = requests.get(
         url,
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "X-EBAY-C-MARKETPLACE-ID": marketplace_id,
-            "Accept": "application/json",
-        },
+        headers=_build_browse_headers(
+            access_token=access_token,
+            marketplace_id=marketplace_id,
+        ),
         params={
             "q": cleaned_query,
             "limit": limit,
@@ -90,10 +102,81 @@ def search_items(
     return item_summaries
 
 
+def get_item_by_id(
+    item_id: str,
+    marketplace_id: str = DEFAULT_MARKETPLACE_ID,
+) -> dict[str, Any] | None:
+    """eBay Browse API에서 정확한 item ID의 원본 상품을 조회한다.
+
+    존재하지 않거나 더 이상 조회할 수 없는 상품(HTTP 404)은 ``None``을
+    반환한다. 그 밖의 HTTP 실패는 호출자에게 명확한 오류로 전달한다.
+    """
+
+    cleaned_item_id = item_id.strip()
+    cleaned_marketplace_id = marketplace_id.strip()
+
+    if not cleaned_item_id:
+        raise ValueError("eBay 상품 ID를 입력해야 합니다.")
+
+    if not cleaned_marketplace_id:
+        raise ValueError("eBay marketplace_id를 입력해야 합니다.")
+
+    settings = get_settings()
+    token_data = get_application_token()
+    access_token = token_data["access_token"]
+
+    encoded_item_id = quote(cleaned_item_id, safe="")
+    url = f"{settings.ebay_browse_api_url}/item/{encoded_item_id}"
+
+    response = requests.get(
+        url,
+        headers=_build_browse_headers(
+            access_token=access_token,
+            marketplace_id=cleaned_marketplace_id,
+        ),
+        timeout=30,
+    )
+
+    if response.status_code == 404:
+        return None
+
+    if not response.ok:
+        raise RuntimeError(
+            "eBay 단일 상품 조회 실패\n"
+            f"상품 ID: {cleaned_item_id}\n"
+            f"HTTP 상태: {response.status_code}\n"
+            f"응답: {response.text}"
+        )
+
+    response_data = response.json()
+
+    if not isinstance(response_data, dict):
+        raise RuntimeError("eBay 단일 상품 응답은 dict 형식이어야 합니다.")
+
+    return response_data
+
+
 def ebay_item_to_product(item: dict[str, Any]) -> Product:
     """이전 함수형 호출과의 호환을 유지하는 검증된 변환 함수."""
 
     return EbayAdapter().normalize_and_validate(item)
+
+
+def get_product_by_id(
+    item_id: str,
+    marketplace_id: str = DEFAULT_MARKETPLACE_ID,
+) -> Product | None:
+    """정확한 eBay item ID를 조회해 검증된 Product로 반환한다."""
+
+    raw_item = get_item_by_id(
+        item_id=item_id,
+        marketplace_id=marketplace_id,
+    )
+
+    if raw_item is None:
+        return None
+
+    return EbayAdapter().normalize_and_validate(raw_item)
 
 
 def search_products(
