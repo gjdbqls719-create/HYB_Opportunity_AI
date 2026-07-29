@@ -14,6 +14,12 @@ from app.engine.opportunity_decision import (
     OpportunityDecisionEngine,
     OpportunityDecisionPolicy,
 )
+from app.engine.opportunity_risk import (
+    OpportunityRiskAssessment,
+    OpportunityRiskEngine,
+    OpportunityRiskLevel,
+    OpportunityRiskPolicy,
+)
 from app.engine.opportunity_score import (
     OpportunityScoreEngine,
     OpportunityScorePolicy,
@@ -39,6 +45,10 @@ __all__ = [
     "OpportunityConfidencePolicy",
     "OpportunityDecisionEngine",
     "OpportunityDecisionPolicy",
+    "OpportunityRiskAssessment",
+    "OpportunityRiskEngine",
+    "OpportunityRiskLevel",
+    "OpportunityRiskPolicy",
     "OpportunityScoreEngine",
     "OpportunityScorePolicy",
     "RoiGrade",
