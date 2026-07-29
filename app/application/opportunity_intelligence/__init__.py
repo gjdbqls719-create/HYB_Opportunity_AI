@@ -1,5 +1,9 @@
 """Opportunity Intelligence application boundary."""
 
+from app.application.opportunity_intelligence.decision_report import (
+    OpportunityDecisionReport,
+    OpportunityDecisionReportBuilder,
+)
 from app.application.opportunity_intelligence.models import (
     OpportunityIntelligenceInput,
     OpportunityIntelligenceResult,
@@ -14,6 +18,8 @@ from app.application.opportunity_intelligence.service import (
 
 
 __all__ = [
+    "OpportunityDecisionReport",
+    "OpportunityDecisionReportBuilder",
     "OpportunityIntelligenceInput",
     "OpportunityIntelligenceInputAdapter",
     "OpportunityIntelligenceResult",
