@@ -4,6 +4,44 @@
 
 ---
 
+## Sprint 10 PR1 — FastAPI JSON MVP
+
+### Added
+
+- FastAPI application entry point
+- `GET /health`
+- `GET /version`
+- `POST /api/v1/opportunities/search`
+- 기존 `find_best_opportunities()` 호출
+- 기존 Opportunity List와 Dashboard Presentation Builder 기반 JSON 응답
+- 외부 Marketplace 호출을 mock한 FastAPI TestClient 테스트
+
+### Dependencies
+
+- `fastapi 0.141.1`
+- `uvicorn 0.52.0`
+- `httpx 0.28.1`
+
+위 버전은 프로젝트 Python 3.14.6 환경에서 실제 설치하고 검증했다.
+
+### Architecture
+
+- Engine, Domain, Application, CLI 변경 없음
+- Engine 객체를 직접 JSON으로 반환하지 않음
+- 기존 `OpportunityListCard.to_dict()`와 `DashboardCard.to_dict()` 재사용
+
+### Validation
+
+- FastAPI feature tests:
+  - `4 passed`
+- Full pytest:
+  - `1125 passed`
+- Warning:
+  - FastAPI TestClient의 `httpx` fallback에 대한
+    `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 9 PR3 — Price History Integration for Opportunity Intelligence
 
 ### Added

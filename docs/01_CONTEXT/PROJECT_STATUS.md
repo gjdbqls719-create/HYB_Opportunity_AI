@@ -1,13 +1,12 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-30
-**Status Basis:** Sprint 9 PR3 구현, 기능 테스트 및 전체 회귀 테스트
+**Status Basis:** Sprint 10 PR1 구현, FastAPI 기능 테스트 및 전체 회귀 테스트
 
 ## Current Stage
 
-HYB Opportunity AI는 기존 CLI와 Orchestrator를 유지하면서 신규
-**Opportunity Intelligence 결과와 Price History 기반 Trend 및
-Final Recommendation을 실제 CLI 실행 경로에 연결**했습니다.
+HYB Opportunity AI는 기존 CLI와 Business Logic을 유지하면서
+**FastAPI 기반 JSON API를 새로운 외부 진입점으로 추가**했습니다.
 
 현재 핵심 흐름은 다음과 같습니다.
 
@@ -32,15 +31,20 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 
 ## Current Snapshot
 
-- Current Sprint: **Sprint 9**
-- Current Position: **PR3 구현 및 검증 완료**
-- Current Focus: **Price History 기반 Opportunity Intelligence**
-- Last Confirmed Full Regression Test: **1121 passed**
+- Current Sprint: **Sprint 10**
+- Current Position: **PR1 구현 및 검증 완료**
+- Current Focus: **FastAPI JSON MVP**
+- Last Confirmed Full Regression Test: **1125 passed**
 - Regression Verified At: **2026-07-30**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 10 PR1 FastAPI JSON MVP
+- `GET /health`, `GET /version`
+- `POST /api/v1/opportunities/search`
+- 기존 Orchestrator와 Dashboard Presentation Builder 재사용
+- Engine 객체를 노출하지 않는 JSON 응답
 - Sprint 9 PR3 기본 CLI Price History Repository 통합
 - 동일 Repository를 Orchestrator와 Opportunity Intelligence Adapter에 공유
 - Price History 기반 Trend Assessment 및 Final Recommendation 활성화
@@ -70,6 +74,13 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 - `--no-save`에서는 Repository를 생성하거나 전달하지 않으므로 기존
   비저장 의미를 유지하며 Trend와 신규 Final Recommendation은 비활성이다.
 - 기존 `ai_recommendation`은 제거하거나 대체하지 않는다.
+
+### Sprint 10 PR1 Limitation
+
+- FastAPI TestClient는 현재 설치된 `httpx 0.28.1` fallback을 사용하며
+  `httpx2` 전환 deprecation warning이 1건 발생한다.
+- 웹 API는 JSON MVP이며 HTML Dashboard, 인증, CORS, 배포 구성은
+  이번 PR 범위에 포함하지 않는다.
 
 ---
 
