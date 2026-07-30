@@ -4,6 +4,63 @@
 
 ---
 
+## Sprint 10 PR2B — API-First Opportunity Search
+
+### Added
+
+- Vanilla JavaScript `searchOpportunities()` function
+- Existing `POST /api/v1/opportunities/search` integration
+- Loading, error, and results containers
+- Simple title, marketplace, and final opportunity score rendering
+- Landing page search-control test
+
+### Architecture
+
+- Search results are rendered in the browser without server-side result rendering
+- Existing search API and business logic remain unchanged
+- No new search route or external frontend dependency was added
+
+### Validation
+
+- FastAPI feature tests:
+  - `8 passed`
+- Full pytest:
+  - `1129 passed`
+
+---
+
+## Sprint 10 PR2A — Initial Web Landing Page
+
+### Added
+
+- `GET /` HTML landing page
+- FastAPI `Jinja2Templates` configuration
+- `templates/index.html` with a minimal search form
+- Landing page response test
+
+### Dependencies
+
+- `jinja2 3.1.6`
+
+### Architecture
+
+- HTML endpoint renders a template only and contains no business logic
+- No Marketplace API is called
+- Existing JSON endpoints, including `POST /api/v1/opportunities/search`, are unchanged
+- Engine, Domain, Application, CLI, Storage, Presentation, and Marketplace layers are unchanged
+
+### Validation
+
+- FastAPI feature tests:
+  - `7 passed`
+- Full pytest:
+  - `1128 passed`
+- Warning:
+  - FastAPI TestClient의 `httpx` fallback 관련
+    `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 10 PR1 — FastAPI JSON MVP
 
 ### Added

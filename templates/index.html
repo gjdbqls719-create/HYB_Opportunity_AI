@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HYB Opportunity AI</title>
+</head>
+<body>
+    <main>
+        <h1>HYB Opportunity AI</h1>
+        <form id="search-form">
+            <label for="query">Search products</label>
+            <input id="query" name="query" type="search">
+            <button id="search-button" type="submit">Search</button>
+        </form>
+        <p id="loading" hidden>Loading...</p>
+        <p id="error-message" hidden></p>
+        <ul id="results"></ul>
+    </main>
+    <script>
+        const searchForm = document.getElementById("search-form");
+        const queryInput = document.getElementById("query");
+        const searchButton = document.getElementById("search-button");
+        const loadingIndicator = document.getElementById("loading");
+        const errorMessage = document.getElementById("error-message");
+        const resultsContainer = document.getElementById("results");
+
+        function renderOpportunities(opportunities) {
+            resultsContainer.replaceChildren();
+
+            for (const opportunity of opportunities) {
+                const item = document.createElement("li");
+                const title = document.createElement("strong");
+                const details = document.createElement("span");
+
+                title.textContent = opportunity.title;
+                details.textContent =
+                    ` — ${opportunity.marketplace} — Score: ${opportunity.score}`;
+                item.append(title, details);
+                resultsContainer.append(item);
+            }
+        }
+
+        async function searchOpportunities() {
+            const query = queryInput.value.trim();
+
+            if (!query) {
+                return;
+            }
+
+            searchButton.disabled = true;
+            loadingIndicator.hidden = false;
+            errorMessage.hidden = true;
+            resultsContainer.replaceChildren();
+
+            try {
+                const response = await fetch("/api/v1/opportunities/search", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        query,
+                        limit: 10,
+                        top: 5,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error("Search request failed");
+                }
+
+                const data = await response.json();
+                renderOpportunities(data.opportunities.items);
+            } catch (error) {
+                errorMessage.textContent = "Search failed.";
+                errorMessage.hidden = false;
+            } finally {
+                searchButton.disabled = false;
+                loadingIndicator.hidden = true;
+            }
+        }
+
+        searchForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            searchOpportunities();
+        });
+    </script>
+</body>
+</html>

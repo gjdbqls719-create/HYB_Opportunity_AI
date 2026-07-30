@@ -12,6 +12,28 @@ from engine.orchestrator import OpportunityResult
 client = TestClient(app)
 
 
+def test_index_renders_html_landing_page() -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "HYB Opportunity AI" in response.text
+    assert "<form" in response.text
+    assert "<input" in response.text
+
+
+def test_index_contains_api_first_search_controls() -> None:
+    response = client.get("/")
+
+    assert 'id="query"' in response.text
+    assert 'id="search-button"' in response.text
+    assert 'id="results"' in response.text
+    assert 'id="error-message"' in response.text
+    assert 'id="loading"' in response.text
+    assert "async function searchOpportunities()" in response.text
+    assert 'fetch("/api/v1/opportunities/search"' in response.text
+
+
 def make_result(
     *,
     item_id: str,

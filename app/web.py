@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from engine.orchestrator import find_best_opportunities
@@ -10,6 +13,10 @@ from presentation.dashboard_list import build_opportunity_list_card
 
 PROJECT_NAME = "HYB Opportunity AI"
 API_VERSION = "v1"
+TEMPLATE_DIRECTORY = (
+    Path(__file__).resolve().parent.parent
+    / "templates"
+)
 
 
 class OpportunitySearchRequest(BaseModel):
@@ -21,6 +28,17 @@ class OpportunitySearchRequest(BaseModel):
 
 
 app = FastAPI(title=PROJECT_NAME)
+templates = Jinja2Templates(
+    directory=str(TEMPLATE_DIRECTORY)
+)
+
+
+@app.get("/")
+def index(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+    )
 
 
 @app.get("/health")

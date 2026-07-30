@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-30
-**Status Basis:** Sprint 10 PR1 구현, FastAPI 기능 테스트 및 전체 회귀 테스트
+**Status Basis:** Sprint 10 PR2B 구현, API-first landing page 기능 테스트 및 전체 회귀 테스트
 
 ## Current Stage
 
@@ -32,14 +32,20 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 10**
-- Current Position: **PR1 구현 및 검증 완료**
-- Current Focus: **FastAPI JSON MVP**
-- Last Confirmed Full Regression Test: **1125 passed**
+- Current Position: **PR2B 구현 및 검증 완료**
+- Current Focus: **API-First Opportunity Search**
+- Last Confirmed Full Regression Test: **1129 passed**
 - Regression Verified At: **2026-07-30**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 10 PR2B API-First Opportunity Search
+- 기존 `POST /api/v1/opportunities/search`를 호출하는 vanilla JavaScript 검색
+- Opportunity title, marketplace, final score의 단순 목록 렌더링
+- Sprint 10 PR2A Initial Web Landing Page
+- `GET /` Jinja2 HTML rendering
+- JavaScript와 CSS framework가 없는 최소 검색 폼
 - Sprint 10 PR1 FastAPI JSON MVP
 - `GET /health`, `GET /version`
 - `POST /api/v1/opportunities/search`
@@ -75,12 +81,12 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
   비저장 의미를 유지하며 Trend와 신규 Final Recommendation은 비활성이다.
 - 기존 `ai_recommendation`은 제거하거나 대체하지 않는다.
 
-### Sprint 10 PR1 Limitation
+### Sprint 10 Web Limitations
 
 - FastAPI TestClient는 현재 설치된 `httpx 0.28.1` fallback을 사용하며
   `httpx2` 전환 deprecation warning이 1건 발생한다.
-- 웹 API는 JSON MVP이며 HTML Dashboard, 인증, CORS, 배포 구성은
-  이번 PR 범위에 포함하지 않는다.
+- PR2B의 HTML은 기존 API를 통한 검색과 단순 목록만 제공하며 dashboard cards,
+  CSS framework, 인증, CORS, 배포 구성은 포함하지 않는다.
 
 ---
 
