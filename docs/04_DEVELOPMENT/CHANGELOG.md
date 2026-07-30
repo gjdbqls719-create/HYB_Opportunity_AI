@@ -4,6 +4,33 @@
 
 ---
 
+## Sprint 9 PR3 — Price History Integration for Opportunity Intelligence
+
+### Added
+
+- 일반 CLI 검색에서 `PriceHistoryRepository` 생성
+- 동일 Repository 인스턴스를 기존 Orchestrator와 신규 Opportunity
+  Intelligence Adapter에 공유
+- 저장된 가격 이력 기반 Trend Assessment와 Final Recommendation 출력
+
+### Compatibility
+
+- 기존 CLI 인수, Orchestrator 계약, Presentation 출력과 기존
+  Recommendation 유지
+- `_evaluate_opportunity_intelligence()`의 Repository 인자는 선택적이며
+  기본값은 `None`
+- `--no-save`에서는 Repository를 생성하거나 전달하지 않아 기존 비저장
+  동작 유지
+
+### Validation
+
+- Feature tests:
+  - `34 passed`
+- Full pytest:
+  - `1121 passed`
+
+---
+
 ## Sprint 9 PR2 — Existing CLI Opportunity Intelligence Output
 
 ### Added

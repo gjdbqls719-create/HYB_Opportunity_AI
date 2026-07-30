@@ -28,6 +28,9 @@ from storage.opportunity_history import (
     OpportunityHistoryRepository,
     SavedOpportunity,
 )
+from storage.price_history import (
+    PriceHistoryRepository,
+)
 
 
 DEFAULT_DATABASE_PATH = "data/hyb_opportunity.db"
@@ -342,10 +345,18 @@ def _render_ai_partner_report(
 
 def _evaluate_opportunity_intelligence(
     results: Sequence[OpportunityResult],
+    *,
+    price_history_repository: (
+        PriceHistoryRepository | None
+    ) = None,
 ) -> tuple[OpportunityIntelligenceResult, ...]:
     """기존 Orchestrator 결과를 신규 Intelligence로 항목별 평가한다."""
     service = OpportunityIntelligenceService(
-        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter()
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter(
+            price_history_repository=(
+                price_history_repository
+            )
+        )
     )
     evaluations: list[OpportunityIntelligenceResult] = []
 
@@ -569,6 +580,12 @@ def run_cli(
                 f"{marketplace} 검색 실패: {error}"
             )
 
+        price_history_repository = (
+            None
+            if args.no_save
+            else PriceHistoryRepository(args.db)
+        )
+
         results = find_best_opportunities(
             query=query,
             selling_price_multiplier=(
@@ -594,6 +611,9 @@ def run_cli(
             search_error_handler=(
                 handle_search_error
             ),
+            price_history_repository=(
+                price_history_repository
+            ),
         )
 
         for warning in search_warnings:
@@ -605,7 +625,10 @@ def run_cli(
         selected_results = results[:args.top]
         intelligence_results = (
             _evaluate_opportunity_intelligence(
-                selected_results
+                selected_results,
+                price_history_repository=(
+                    price_history_repository
+                ),
             )
         )
 

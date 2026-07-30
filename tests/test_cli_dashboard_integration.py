@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from io import StringIO
 from types import SimpleNamespace
 
@@ -8,6 +9,7 @@ from app.cli import (
 from app.models.product import Product
 from engine.confidence import ConfidenceResult
 from engine.orchestrator import OpportunityResult
+from storage.price_history import PriceHistoryRepository
 
 
 def _make_result(
@@ -149,3 +151,60 @@ def test_render_results_handles_empty_results() -> None:
     assert "분석 결과: 0개 그룹" in rendered
     assert "표시 결과: 0개" in rendered
     assert "No dashboard results." in rendered
+
+
+def test_price_history_enables_trend_and_final_recommendation(
+    tmp_path,
+) -> None:
+    output = StringIO()
+    result = _make_result(
+        title="History Product",
+        final_score=80.0,
+    )
+    repository = PriceHistoryRepository(
+        tmp_path / "history.db"
+    )
+    repository.save_product_price(
+        Product(
+            marketplace=result.product.marketplace,
+            item_id=result.product.item_id,
+            title=result.product.title,
+            price=120.0,
+            currency=result.product.currency,
+        ),
+        observed_at=datetime(
+            2026,
+            7,
+            29,
+            tzinfo=timezone.utc,
+        ),
+    )
+    repository.save_product_price(
+        result.product,
+        observed_at=datetime(
+            2026,
+            7,
+            30,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    intelligence_results = (
+        _evaluate_opportunity_intelligence(
+            [result],
+            price_history_repository=repository,
+        )
+    )
+    render_results(
+        "history",
+        [result],
+        intelligence_results=intelligence_results,
+        output=output,
+    )
+
+    rendered = output.getvalue()
+
+    assert intelligence_results[0].trend_assessment is not None
+    assert intelligence_results[0].recommendation is not None
+    assert "Trend:" in rendered
+    assert "Final recommendation:" in rendered

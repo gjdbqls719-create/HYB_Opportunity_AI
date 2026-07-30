@@ -1,13 +1,13 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-30
-**Status Basis:** Sprint 9 PR2 구현, 기능 테스트 및 전체 회귀 테스트
+**Status Basis:** Sprint 9 PR3 구현, 기능 테스트 및 전체 회귀 테스트
 
 ## Current Stage
 
 HYB Opportunity AI는 기존 CLI와 Orchestrator를 유지하면서 신규
-**Opportunity Intelligence 결과를 실제 CLI 실행 경로에 추가 출력**하도록
-Sprint 9 PR2 수직 통합을 완료했습니다.
+**Opportunity Intelligence 결과와 Price History 기반 Trend 및
+Final Recommendation을 실제 CLI 실행 경로에 연결**했습니다.
 
 현재 핵심 흐름은 다음과 같습니다.
 
@@ -33,14 +33,18 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 9**
-- Current Position: **PR2 구현 및 검증 완료**
-- Current Focus: **Opportunity Intelligence CLI Integration**
-- Last Confirmed Full Regression Test: **1119 passed**
+- Current Position: **PR3 구현 및 검증 완료**
+- Current Focus: **Price History 기반 Opportunity Intelligence**
+- Last Confirmed Full Regression Test: **1121 passed**
 - Regression Verified At: **2026-07-30**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 9 PR3 기본 CLI Price History Repository 통합
+- 동일 Repository를 Orchestrator와 Opportunity Intelligence Adapter에 공유
+- Price History 기반 Trend Assessment 및 Final Recommendation 활성화
+- `--no-save` 실행의 기존 비저장 동작 유지
 - Sprint 9 PR2 기존 CLI Opportunity Intelligence 추가 출력
 - 기존 OpportunityResult → DiscoveryResult 변환 재사용
 - 신규 Score, Decision, Confidence, Risk CLI 표시
@@ -56,13 +60,15 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 - Sprint 8 PR3-B1 Marketplace Listing Lookup Dispatcher
 - Sprint 8 PR3-B2 Marketplace Item Lookup APIs
 
-### Sprint 9 PR2 Limitations
+### Sprint 9 PR2 Limitation Resolution
 
-- 기본 CLI는 Price History Repository를 신규 Opportunity Intelligence
-  Adapter에 주입하지 않는다.
-- 따라서 Trend Assessment와 신규 Final Recommendation은 실제 입력이
-  제공되는 경로에서만 생성되며, 기본 CLI에서는 Score, Decision,
-  Decision Report, Confidence, Risk 결과를 표시한다.
+- Sprint 9 PR2에서는 기본 CLI가 Price History Repository를 신규
+  Opportunity Intelligence Adapter에 주입하지 않았다.
+- Sprint 9 PR3에서 일반 저장 실행 시 동일 Repository를 Orchestrator와
+  Adapter에 공유해 Trend Assessment와 신규 Final Recommendation을
+  활성화했다.
+- `--no-save`에서는 Repository를 생성하거나 전달하지 않으므로 기존
+  비저장 의미를 유지하며 Trend와 신규 Final Recommendation은 비활성이다.
 - 기존 `ai_recommendation`은 제거하거나 대체하지 않는다.
 
 ---
