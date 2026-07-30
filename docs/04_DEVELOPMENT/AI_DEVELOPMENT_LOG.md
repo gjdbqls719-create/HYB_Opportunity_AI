@@ -13,6 +13,29 @@
 
 ---
 
+## 2026-07-31 — Price Observation Idempotency
+
+Sprint 11 PR4-B made `save_product_price()` idempotent for the observation
+identity `(canonical_product_id, marketplace, item_id, observed_at)`.
+Identical data returns the existing record ID; different data raises an
+explicit conflict without changing history.
+
+The repository uses `BEGIN IMMEDIATE` so separate SQLite repository instances
+serialize the identity check and insert. This preserves existing schemas and
+data while preventing duplicate inserts through this API. Direct SQL and other
+write APIs remain outside this guarantee.
+
+Price History and WatchItem writes remain non-atomic. If WatchItem persistence
+fails after recording, retrying the same observation reuses the existing row
+and proceeds to WatchItem save. ADR-0002 records this policy and its limits.
+
+Validation completed with `34 passed` for Price History, `94 passed` for
+WatchList, `30 passed` for Change Detection, `30 passed` for CLI, and
+`1158 passed` for the full regression suite. The existing FastAPI TestClient
+warning remains.
+
+---
+
 ## 2026-07-31 — WatchList Price Observation Recording
 
 Sprint 11 PR4-A connected successful WatchList Monitor observations to the

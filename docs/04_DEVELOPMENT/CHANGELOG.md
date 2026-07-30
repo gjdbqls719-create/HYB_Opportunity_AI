@@ -4,6 +4,36 @@
 
 ---
 
+## Sprint 11 PR4-B — Price Observation Idempotency
+
+### Added
+
+- Observation identity based on canonical product, marketplace, item, and
+  observation time
+- Idempotent retry returning the existing Price History record ID
+- Explicit `PriceObservationConflictError` for different data under one
+  observation identity
+- ADR-0002 documenting idempotency and partial-failure policy
+
+### Architecture
+
+- Price remains observation data rather than identity
+- Existing records remain append-only and are never overwritten
+- SQLite `BEGIN IMMEDIATE` serializes the repository identity check and insert
+- Price History and WatchItem writes remain separate transactions
+- A retained observation allows WatchItem save to recover on retry
+
+### Validation
+
+- Price History tests: `34 passed`
+- WatchList tests: `94 passed`
+- Change Detection tests: `30 passed`
+- CLI tests: `30 passed`
+- Full pytest: `1158 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR4-A — WatchList Price Observation Recording
 
 ### Added

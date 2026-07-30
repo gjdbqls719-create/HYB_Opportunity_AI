@@ -12,6 +12,10 @@ from app.models import Product
 DEFAULT_DATABASE_PATH = Path("data") / "hyb_opportunity.db"
 
 
+class PriceObservationConflictError(RuntimeError):
+    """Raised when one observation identity has different stored data."""
+
+
 @dataclass(slots=True, frozen=True)
 class PriceHistoryRecord:
     """데이터베이스에 저장된 변경 불가능한 가격 관측 기록."""
@@ -176,8 +180,65 @@ class PriceHistoryRepository:
             field_name="seller_id",
         )
         observed_at_text = self._normalize_observed_at(observed_at)
+        observation_data = (
+            cleaned_canonical_id,
+            product.marketplace,
+            product.item_id,
+            resolved_seller_id,
+            product.title,
+            float(product.price),
+            product.currency,
+            product.condition,
+            product.url,
+            observed_at_text,
+        )
 
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing_rows = connection.execute(
+                """
+                SELECT
+                    id,
+                    canonical_product_id,
+                    marketplace,
+                    item_id,
+                    seller_id,
+                    title,
+                    price,
+                    currency,
+                    condition,
+                    url,
+                    observed_at
+                FROM price_history
+                WHERE canonical_product_id IS ?
+                  AND marketplace = ?
+                  AND item_id = ?
+                  AND observed_at = ?
+                ORDER BY id
+                """,
+                (
+                    cleaned_canonical_id,
+                    product.marketplace,
+                    product.item_id,
+                    observed_at_text,
+                ),
+            ).fetchall()
+
+            if existing_rows:
+                existing = existing_rows[0]
+                if all(
+                    self._observation_data_from_row(row)
+                    == observation_data
+                    for row in existing_rows
+                ):
+                    connection.commit()
+                    return int(existing["id"])
+
+                raise PriceObservationConflictError(
+                    "The observation identity already exists with "
+                    "different data."
+                )
+
             cursor = connection.execute(
                 """
                 INSERT INTO price_history (
@@ -194,18 +255,7 @@ class PriceHistoryRepository:
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (
-                    cleaned_canonical_id,
-                    product.marketplace,
-                    product.item_id,
-                    resolved_seller_id,
-                    product.title,
-                    float(product.price),
-                    product.currency,
-                    product.condition,
-                    product.url,
-                    observed_at_text,
-                ),
+                observation_data,
             )
             connection.commit()
             record_id = cursor.lastrowid
@@ -214,6 +264,23 @@ class PriceHistoryRepository:
             raise RuntimeError("가격 기록 저장에 실패했습니다.")
 
         return int(record_id)
+
+    @staticmethod
+    def _observation_data_from_row(
+        row: sqlite3.Row,
+    ) -> tuple[object, ...]:
+        return (
+            row["canonical_product_id"],
+            row["marketplace"],
+            row["item_id"],
+            row["seller_id"],
+            row["title"],
+            float(row["price"]),
+            row["currency"],
+            row["condition"],
+            row["url"],
+            row["observed_at"],
+        )
 
     def save_products(
         self,

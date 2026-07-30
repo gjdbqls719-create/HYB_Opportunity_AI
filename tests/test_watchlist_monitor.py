@@ -11,8 +11,12 @@ from app.application.watchlist import (
     WatchListMonitorUseCase,
 )
 from app.domain.watchlist import WatchItem, WatchItemStatus
+from app.infrastructure.watchlist.price_observation_recorder import (
+    PriceHistoryObservationRecorder,
+)
 from app.models import Product
 from market_data.price_snapshot import PriceSnapshot
+from storage.price_history import PriceHistoryRepository
 
 
 BASE_TIME = datetime(2026, 7, 29, tzinfo=timezone.utc)
@@ -464,6 +468,84 @@ def test_watch_item_save_failure_occurs_after_observation_and_is_isolated() -> N
         "successful",
     ]
     assert repository.saved == [successful]
+
+
+def test_retry_after_watch_item_save_failure_does_not_duplicate_observation(
+    tmp_path,
+) -> None:
+    item = make_item(price=500.0, canonical_product_id="canonical-1")
+
+    class FailOnceRepository(FakeRepository):
+        def __init__(self) -> None:
+            super().__init__((item,))
+            self.save_attempts = 0
+
+        def save(self, saved_item: WatchItem) -> None:
+            self.save_attempts += 1
+            if self.save_attempts == 1:
+                raise RuntimeError("watch item save failed")
+            super().save(saved_item)
+
+    repository = FailOnceRepository()
+    price_history = PriceHistoryRepository(tmp_path / "retry.db")
+    use_case = WatchListMonitorUseCase(
+        repository=repository,
+        listing_lookup=FakeLookup(
+            {"item-1": make_product(price=450.0)}
+        ),
+        change_detector=FakeDetector(
+            {"item-1": FakeChangeResponse(True, 1)}
+        ),
+        price_observation_recorder=PriceHistoryObservationRecorder(
+            repository=price_history
+        ),
+        clock=lambda: ANALYZED_AT,
+        snapshot_id_factory=lambda: "snapshot-1",
+    )
+
+    first_result = use_case.execute()
+    second_result = use_case.execute()
+
+    assert first_result.items[0].status is MonitorStatus.FAILED
+    assert second_result.items[0].status is MonitorStatus.UPDATED
+    assert repository.save_attempts == 2
+    assert repository.saved == [item]
+    assert price_history.count_records() == 1
+
+
+def test_observation_conflict_does_not_update_watch_item(
+    tmp_path,
+) -> None:
+    item = make_item(price=500.0, canonical_product_id="canonical-1")
+    price_history = PriceHistoryRepository(tmp_path / "conflict.db")
+    price_history.save_product_price(
+        make_product(price=500.0),
+        observed_at=ANALYZED_AT,
+        canonical_product_id="canonical-1",
+        seller_id="seller-1",
+    )
+    repository = FakeRepository((item,))
+    use_case = WatchListMonitorUseCase(
+        repository=repository,
+        listing_lookup=FakeLookup(
+            {"item-1": make_product(price=450.0)}
+        ),
+        change_detector=FakeDetector(
+            {"item-1": FakeChangeResponse(True, 1)}
+        ),
+        price_observation_recorder=PriceHistoryObservationRecorder(
+            repository=price_history
+        ),
+        clock=lambda: ANALYZED_AT,
+    )
+
+    result = use_case.execute()
+
+    assert result.items[0].status is MonitorStatus.FAILED
+    assert "different data" in result.items[0].error_message
+    assert repository.saved == []
+    assert item.current_price == 500.0
+    assert price_history.count_records() == 1
 
 
 def test_monitor_creates_price_snapshot_for_existing_change_use_case() -> None:

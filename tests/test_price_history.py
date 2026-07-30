@@ -1,10 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
 from app.models import Product
 from storage.price_history import (
+    PriceObservationConflictError,
     PriceHistoryRepository,
 )
 
@@ -382,3 +385,137 @@ def test_seller_is_preserved_in_price_snapshot(
 
     assert record is not None
     assert record.seller_id == "seller-123"
+
+
+def test_same_observation_returns_existing_record_id(
+    tmp_path: Path,
+) -> None:
+    repository = make_repository(tmp_path)
+    product = make_product(price=100.0)
+    observed_at = datetime(2026, 7, 31, tzinfo=timezone.utc)
+
+    first_id = repository.save_product_price(
+        product,
+        observed_at=observed_at,
+        canonical_product_id="CP-IDEMPOTENT",
+    )
+    second_id = repository.save_product_price(
+        product,
+        observed_at=observed_at,
+        canonical_product_id="CP-IDEMPOTENT",
+    )
+
+    assert second_id == first_id
+    assert repository.count_records() == 1
+
+
+def test_same_observation_identity_with_different_data_conflicts(
+    tmp_path: Path,
+) -> None:
+    repository = make_repository(tmp_path)
+    observed_at = datetime(2026, 7, 31, tzinfo=timezone.utc)
+    original = make_product(price=100.0)
+    conflicting = make_product(price=80.0)
+
+    original_id = repository.save_product_price(
+        original,
+        observed_at=observed_at,
+        canonical_product_id="CP-CONFLICT",
+    )
+
+    with pytest.raises(PriceObservationConflictError):
+        repository.save_product_price(
+            conflicting,
+            observed_at=observed_at,
+            canonical_product_id="CP-CONFLICT",
+        )
+
+    records = repository.get_all_records()
+    assert len(records) == 1
+    assert records[0].id == original_id
+    assert records[0].price == 100.0
+
+
+def test_same_price_at_different_observation_time_is_appended(
+    tmp_path: Path,
+) -> None:
+    repository = make_repository(tmp_path)
+    product = make_product(price=100.0)
+
+    first_id = repository.save_product_price(
+        product,
+        observed_at=datetime(2026, 7, 30, tzinfo=timezone.utc),
+        canonical_product_id="CP-TIMES",
+    )
+    second_id = repository.save_product_price(
+        product,
+        observed_at=datetime(2026, 7, 31, tzinfo=timezone.utc),
+        canonical_product_id="CP-TIMES",
+    )
+
+    assert second_id != first_id
+    assert repository.count_records() == 2
+
+
+@pytest.mark.parametrize(
+    ("canonical_product_id", "marketplace", "item_id"),
+    [
+        ("CP-OTHER", "test-market", "TEST-001"),
+        ("CP-IDENTITY", "other-market", "TEST-001"),
+        ("CP-IDENTITY", "test-market", "OTHER-ITEM"),
+    ],
+)
+def test_different_observation_identity_is_appended(
+    tmp_path: Path,
+    canonical_product_id: str,
+    marketplace: str,
+    item_id: str,
+) -> None:
+    repository = make_repository(tmp_path)
+    observed_at = datetime(2026, 7, 31, tzinfo=timezone.utc)
+    repository.save_product_price(
+        make_product(),
+        observed_at=observed_at,
+        canonical_product_id="CP-IDENTITY",
+    )
+
+    repository.save_product_price(
+        make_product(
+            marketplace=marketplace,
+            item_id=item_id,
+        ),
+        observed_at=observed_at,
+        canonical_product_id=canonical_product_id,
+    )
+
+    assert repository.count_records() == 2
+
+
+def test_concurrent_same_observation_is_recorded_once(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "concurrent.db"
+    first_repository = PriceHistoryRepository(database_path)
+    second_repository = PriceHistoryRepository(database_path)
+    product = make_product(price=100.0)
+    observed_at = datetime(2026, 7, 31, tzinfo=timezone.utc)
+    barrier = Barrier(2)
+
+    def save(repository: PriceHistoryRepository) -> int:
+        barrier.wait()
+        return repository.save_product_price(
+            product,
+            observed_at=observed_at,
+            canonical_product_id="CP-CONCURRENT",
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(save, first_repository)
+        second_future = executor.submit(save, second_repository)
+        record_ids = {
+            first_future.result(),
+            second_future.result(),
+        }
+
+    assert len(record_ids) == 1
+    assert first_repository.count_records() == 1

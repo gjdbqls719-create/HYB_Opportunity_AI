@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-31
-**Status Basis:** Sprint 11 PR4-A WatchList Price Observation Recording 구현 및 검증
+**Status Basis:** Sprint 11 PR4-B Price Observation Idempotency 구현 및 검증
 
 ## Current Stage
 
@@ -32,14 +32,18 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 11**
-- Current Position: **PR4-A 구현 및 검증 완료**
-- Current Focus: **WatchList Price Observation Recording**
-- Last Confirmed Full Regression Test: **1148 passed**
+- Current Position: **PR4-B 구현 및 검증 완료**
+- Current Focus: **Price Observation Idempotency and Partial-Failure Policy**
+- Last Confirmed Full Regression Test: **1158 passed**
 - Regression Verified At: **2026-07-31**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 11 PR4-B Price Observation Idempotency
+- 동일 observation identity 재시도 시 기존 record ID 반환
+- 동일 identity의 다른 데이터는 명시적 conflict로 거부
+- Observation 성공 후 WatchItem 저장 실패 시 재시도로 복구
 - Sprint 11 PR4-A WatchList Price Observation Recording
 - WatchList Monitor의 성공한 현재 가격 관측을 기존 Price History에 기록
 - Change Detection 후 기록하고 WatchItem을 갱신하는 compare-before-record 순서

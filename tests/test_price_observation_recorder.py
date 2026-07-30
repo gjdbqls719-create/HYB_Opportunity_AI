@@ -70,6 +70,27 @@ def test_recorder_appends_observation_with_snapshot_metadata(
     assert record.seller_id == "snapshot-seller"
 
 
+def test_recorder_returns_existing_id_for_idempotent_retry(
+    tmp_path,
+) -> None:
+    repository = PriceHistoryRepository(tmp_path / "retry.db")
+    recorder = PriceHistoryObservationRecorder(repository=repository)
+    product = make_product()
+    snapshot = make_snapshot()
+
+    first_id = recorder.record_observation(
+        product=product,
+        snapshot=snapshot,
+    )
+    second_id = recorder.record_observation(
+        product=product,
+        snapshot=snapshot,
+    )
+
+    assert second_id == first_id
+    assert repository.count_records() == 1
+
+
 def test_recorder_propagates_repository_error(tmp_path) -> None:
     class FailingPriceHistoryRepository(PriceHistoryRepository):
         def save_product_price(self, *args, **kwargs) -> int:
