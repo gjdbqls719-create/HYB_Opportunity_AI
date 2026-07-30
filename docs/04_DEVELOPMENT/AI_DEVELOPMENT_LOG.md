@@ -13,6 +13,22 @@
 
 ---
 
+## 2026-07-31 — Marketplace Reader Integration
+
+Sprint 11 PR1 connected the existing eBay and Amazon exact-item lookup
+functions to the existing `MarketplaceListingReader` contract. A small
+Infrastructure factory now creates `MarketplaceListingLookupAdapter` with both
+readers registered.
+
+The PR does not construct `WatchListMonitorUseCase` or add an execution entry
+point. Composition Root, CLI, worker scheduling, Snapshot storage, and
+Dashboard integration remain outside this scope.
+
+Validation completed with `43 passed` for the focused reader/dispatcher suite
+and `1136 passed` for the full regression suite.
+
+---
+
 ## 2026-07-31 — Context Pack Automation
 
 Sprint 11 PR0 added repository scripts that generate Quick and Full Context

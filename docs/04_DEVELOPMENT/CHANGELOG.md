@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint 11 PR1 — Marketplace Reader Integration
+
+### Added
+
+- `EbayListingReader` using `marketplaces.ebay.get_product_by_id()`
+- `AmazonListingReader` using `marketplaces.amazon.get_product_by_id()`
+- eBay/Amazon reader registry factory for
+  `MarketplaceListingLookupAdapter`
+- Concrete reader contract and registry dispatch tests
+
+### Architecture
+
+- Existing reader and lookup adapter contracts remain unchanged
+- No Composition Root, CLI, worker, Snapshot storage, or Dashboard changes
+
+### Validation
+
+- Reader, dispatcher, adapter, and exact lookup tests: `43 passed`
+- Full pytest: `1136 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR0 — Context Pack Automation
 
 ### Added
