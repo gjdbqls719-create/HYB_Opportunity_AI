@@ -45,6 +45,18 @@ def test_index_contains_opportunity_dashboard_contract() -> None:
     assert "Search failed." in response.text
 
 
+def test_index_contains_dashboard_ux_accessibility_contract() -> None:
+    response = client.get("/")
+
+    assert 'id="summary"' in response.text
+    assert "Start searching to discover opportunities." in response.text
+    assert 'id="loading" class="state-message" role="status"' in response.text
+    assert 'id="summary" class="state-message" role="status"' in response.text
+    assert 'aria-live="polite"' in response.text
+    assert 'id="error-message" class="state-message" role="alert"' in response.text
+    assert "Found ${data.dashboard_cards.length} opportunities" in response.text
+
+
 def make_result(
     *,
     item_id: str,
