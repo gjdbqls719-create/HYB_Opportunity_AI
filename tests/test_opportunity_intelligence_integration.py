@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from types import SimpleNamespace
 
 from app.application.opportunity_intelligence import (
     OpportunityIntelligenceInput,
@@ -13,7 +14,12 @@ from app.infrastructure.opportunity_intelligence import (
     DiscoveryFactorPolicy,
     DiscoveryResultOpportunityIntelligenceAdapter,
 )
+from app.infrastructure.discovery.orchestrator_gateway import (
+    opportunity_result_to_discovery_result,
+)
 from app.models import Product
+from engine.confidence import ConfidenceResult
+from engine.orchestrator import OpportunityResult
 
 
 def make_result(*, confidence: object = 82) -> DiscoveryResult:
@@ -49,6 +55,48 @@ class CompleteInputAdapter:
 class InvalidInputAdapter:
     def adapt(self, discovery_result: DiscoveryResult) -> OpportunityIntelligenceInput:
         raise ValueError("invalid factor source")
+
+
+def test_orchestrator_result_conversion_supports_intelligence_evaluation() -> None:
+    opportunity = OpportunityResult(
+        product=Product(
+            marketplace="ebay",
+            item_id="converted-item",
+            title="Converted Product",
+            price=100,
+            currency="USD",
+        ),
+        analysis={
+            "roi": 50,
+            "estimated_monthly_sales": 500,
+            "competitor_count": 5,
+            "risk_level": "low",
+        },
+        matched_product_count=3,
+        price_intelligence=SimpleNamespace(),
+        confidence=ConfidenceResult(
+            sample_size=3,
+            confidence_score=82,
+            confidence_multiplier=0.9,
+            confidence_level="높음",
+            used_fallback_price=False,
+            reason="충분한 표본",
+        ),
+        trend_score_adjustment=15,
+        final_opportunity_score=80,
+    )
+
+    discovery_result = opportunity_result_to_discovery_result(opportunity)
+    result = OpportunityIntelligenceService(
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter()
+    ).evaluate(discovery_result)
+
+    assert result.status is OpportunityIntelligenceStatus.EVALUATED
+    assert result.score is not None
+    assert result.confidence_assessment is not None
+    assert result.risk_assessment is not None
+    assert discovery_result.product is opportunity.product
+    assert discovery_result.metadata["analysis"]["roi"] == 50
 
 
 def test_discovery_adapter_extracts_confidence_and_reports_missing_factors() -> None:

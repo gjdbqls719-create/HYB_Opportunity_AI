@@ -5,11 +5,25 @@ import sys
 from collections.abc import Sequence
 from typing import TextIO
 
+from app.application.opportunity_intelligence import (
+    OpportunityIntelligenceResult,
+    OpportunityIntelligenceService,
+    OpportunityIntelligenceStatus,
+)
+from app.infrastructure.discovery.orchestrator_gateway import (
+    opportunity_result_to_discovery_result,
+)
+from app.infrastructure.opportunity_intelligence import (
+    DiscoveryResultOpportunityIntelligenceAdapter,
+)
 from engine.orchestrator import (
     OpportunityResult,
     find_best_opportunities,
 )
-from presentation.cli import print_opportunity_results
+from presentation.cli import (
+    print_opportunity_intelligence_results,
+    print_opportunity_results,
+)
 from storage.opportunity_history import (
     OpportunityHistoryRepository,
     SavedOpportunity,
@@ -326,11 +340,39 @@ def _render_ai_partner_report(
         )
 
 
+def _evaluate_opportunity_intelligence(
+    results: Sequence[OpportunityResult],
+) -> tuple[OpportunityIntelligenceResult, ...]:
+    """기존 Orchestrator 결과를 신규 Intelligence로 항목별 평가한다."""
+    service = OpportunityIntelligenceService(
+        input_adapter=DiscoveryResultOpportunityIntelligenceAdapter()
+    )
+    evaluations: list[OpportunityIntelligenceResult] = []
+
+    for result in results:
+        try:
+            discovery_result = opportunity_result_to_discovery_result(result)
+            evaluation = service.evaluate(discovery_result)
+        except Exception as error:  # 기존 CLI 성공 결과를 보존하는 격리 경계다.
+            message = str(error).strip() or type(error).__name__
+            evaluation = OpportunityIntelligenceResult(
+                status=OpportunityIntelligenceStatus.FAILED,
+                error_message=message,
+            )
+
+        evaluations.append(evaluation)
+
+    return tuple(evaluations)
+
+
 def render_results(
     query: str,
     results: Sequence[OpportunityResult],
     *,
     top: int = 5,
+    intelligence_results: (
+        Sequence[OpportunityIntelligenceResult] | None
+    ) = None,
     output: TextIO = sys.stdout,
 ) -> None:
     """
@@ -369,6 +411,13 @@ def render_results(
         selected_results,
         output=output,
     )
+
+    if intelligence_results is not None:
+        print_opportunity_intelligence_results(
+            selected_results,
+            intelligence_results,
+            output=output,
+        )
 
 
 def render_saved_results(
@@ -553,10 +602,20 @@ def run_cli(
                 file=error_output,
             )
 
+        selected_results = results[:args.top]
+        intelligence_results = (
+            _evaluate_opportunity_intelligence(
+                selected_results
+            )
+        )
+
         render_results(
             query,
             results,
             top=args.top,
+            intelligence_results=(
+                intelligence_results
+            ),
             output=output,
         )
 

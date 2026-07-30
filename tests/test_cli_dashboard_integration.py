@@ -1,8 +1,12 @@
 from io import StringIO
 from types import SimpleNamespace
 
-from app.cli import render_results
+from app.cli import (
+    _evaluate_opportunity_intelligence,
+    render_results,
+)
 from app.models.product import Product
+from engine.confidence import ConfidenceResult
 from engine.orchestrator import OpportunityResult
 
 
@@ -29,9 +33,20 @@ def _make_result(
             "net_profit": 30.0,
             "roi": 27.27,
             "opportunity_score": 65.0,
+            "estimated_monthly_sales": 200,
+            "competitor_count": 20,
+            "risk_level": "medium",
         },
         matched_product_count=3,
         price_intelligence=SimpleNamespace(),
+        confidence=ConfidenceResult(
+            sample_size=3,
+            confidence_score=80,
+            confidence_multiplier=0.9,
+            confidence_level="높음",
+            used_fallback_price=False,
+            reason="충분한 표본",
+        ),
         adjusted_opportunity_score=67.0,
         final_opportunity_score=final_score,
     )
@@ -39,15 +54,19 @@ def _make_result(
 
 def test_render_results_uses_dashboard_presentation() -> None:
     output = StringIO()
+    results = [
+        _make_result(
+            title="Apple iPhone",
+            final_score=72.0,
+        )
+    ]
 
     render_results(
         "iphone",
-        [
-            _make_result(
-                title="Apple iPhone",
-                final_score=72.0,
-            )
-        ],
+        results,
+        intelligence_results=(
+            _evaluate_opportunity_intelligence(results)
+        ),
         output=output,
     )
 
@@ -62,28 +81,36 @@ def test_render_results_uses_dashboard_presentation() -> None:
     assert "110.00 USD" in rendered
     assert "30.00 USD" in rendered
     assert "72.00" in rendered
+    assert "[Opportunity Intelligence] Apple iPhone" in rendered
+    assert "Status: evaluated" in rendered
+    assert "Confidence: HIGH (80)" in rendered
+    assert "Risk: MEDIUM (50)" in rendered
 
 
 def test_render_results_respects_top_limit() -> None:
     output = StringIO()
+    results = [
+        _make_result(
+            title="First Product",
+            final_score=80.0,
+        ),
+        _make_result(
+            title="Second Product",
+            final_score=70.0,
+        ),
+        _make_result(
+            title="Third Product",
+            final_score=60.0,
+        ),
+    ]
 
     render_results(
         "sample",
-        [
-            _make_result(
-                title="First Product",
-                final_score=80.0,
-            ),
-            _make_result(
-                title="Second Product",
-                final_score=70.0,
-            ),
-            _make_result(
-                title="Third Product",
-                final_score=60.0,
-            ),
-        ],
+        results,
         top=2,
+        intelligence_results=(
+            _evaluate_opportunity_intelligence(results[:2])
+        ),
         output=output,
     )
 
@@ -102,6 +129,9 @@ def test_render_results_respects_top_limit() -> None:
 
     assert rendered.count(
         "HYB OPPORTUNITY DASHBOARD"
+    ) == 2
+    assert rendered.count(
+        "[Opportunity Intelligence]"
     ) == 2
 
 
