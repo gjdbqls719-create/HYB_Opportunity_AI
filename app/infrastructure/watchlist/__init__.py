@@ -15,6 +15,9 @@ from app.infrastructure.watchlist.marketplace_readers import (
     EbayListingReader,
     create_marketplace_listing_lookup_adapter,
 )
+from app.infrastructure.watchlist.price_observation_recorder import (
+    PriceHistoryObservationRecorder,
+)
 from app.infrastructure.watchlist.sqlite_repository import (
     SQLiteWatchListRepository,
 )
@@ -24,6 +27,7 @@ __all__ = [
     "EbayListingReader",
     "MarketplaceListingLookupAdapter",
     "MarketplaceListingReader",
+    "PriceHistoryObservationRecorder",
     "SQLiteWatchListRepository",
     "UnsupportedMarketplaceError",
     "create_marketplace_listing_lookup_adapter",

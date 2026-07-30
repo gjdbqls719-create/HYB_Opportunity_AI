@@ -79,7 +79,7 @@ def test_factory_creates_monitor_without_marketplace_call(
     assert monitor.execute().total_count == 0
 
 
-def test_composed_monitor_uses_real_dependencies_without_saving_snapshot(
+def test_composed_monitor_uses_real_dependencies_and_records_observation(
     tmp_path,
     monkeypatch,
 ) -> None:
@@ -123,9 +123,44 @@ def test_composed_monitor_uses_real_dependencies_without_saving_snapshot(
     assert persisted is not None
     assert persisted.current_price == 80.0
     assert persisted.last_analyzed_at is not None
-    assert len(
-        price_history.get_product_history(
-            marketplace="ebay",
-            item_id="item-1",
+    history = price_history.get_product_history(
+        marketplace="ebay",
+        item_id="item-1",
+    )
+    assert len(history) == 2
+    assert [record.price for record in history] == [80.0, 100.0]
+    assert history[0].canonical_product_id == "canonical-1"
+    assert history[0].seller_id == "seller-1"
+
+
+def test_composed_monitor_records_first_observation(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    database_path = tmp_path / "first-observation.db"
+
+    monkeypatch.setattr(
+        "app.infrastructure.watchlist.marketplace_readers."
+        "ebay.get_product_by_id",
+        lambda item_id: make_product(price=100.0),
+    )
+
+    with SQLiteWatchListRepository(database_path) as repository:
+        item = make_watch_item()
+        repository.save(item)
+        monitor = create_watchlist_monitor(
+            database_path,
+            repository=repository,
         )
-    ) == 1
+
+        result = monitor.execute()
+
+    history = PriceHistoryRepository(
+        database_path
+    ).get_product_history(
+        marketplace="ebay",
+        item_id="item-1",
+    )
+    assert result.items[0].status is MonitorStatus.UNCHANGED
+    assert len(history) == 1
+    assert history[0].price == 100.0

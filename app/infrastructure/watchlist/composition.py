@@ -8,6 +8,7 @@ from app.application.change import (
 from app.application.watchlist import (
     LatestPriceChangeDetector,
     ListingLookupPort,
+    PriceObservationRecorder,
     WatchListMonitorUseCase,
     WatchListRepository,
 )
@@ -16,6 +17,9 @@ from app.infrastructure.change import (
 )
 from app.infrastructure.watchlist.marketplace_readers import (
     create_marketplace_listing_lookup_adapter,
+)
+from app.infrastructure.watchlist.price_observation_recorder import (
+    PriceHistoryObservationRecorder,
 )
 from app.infrastructure.watchlist.sqlite_repository import (
     SQLiteWatchListRepository,
@@ -32,6 +36,7 @@ def create_watchlist_monitor(
     repository: WatchListRepository | None = None,
     listing_lookup: ListingLookupPort | None = None,
     change_detector: LatestPriceChangeDetector | None = None,
+    price_observation_recorder: PriceObservationRecorder | None = None,
 ) -> WatchListMonitorUseCase:
     """실제 Infrastructure 구현체로 WatchList Monitor를 조립한다."""
 
@@ -46,10 +51,9 @@ def create_watchlist_monitor(
         else create_marketplace_listing_lookup_adapter()
     )
 
+    price_history_repository = PriceHistoryRepository(database_path)
+
     if change_detector is None:
-        price_history_repository = PriceHistoryRepository(
-            database_path
-        )
         snapshot_provider = PriceHistorySnapshotProvider(
             repository=price_history_repository,
         )
@@ -61,8 +65,19 @@ def create_watchlist_monitor(
     else:
         resolved_change_detector = change_detector
 
+    resolved_price_observation_recorder = (
+        price_observation_recorder
+        if price_observation_recorder is not None
+        else PriceHistoryObservationRecorder(
+            repository=price_history_repository,
+        )
+    )
+
     return WatchListMonitorUseCase(
         repository=resolved_repository,
         listing_lookup=resolved_listing_lookup,
         change_detector=resolved_change_detector,
+        price_observation_recorder=(
+            resolved_price_observation_recorder
+        ),
     )

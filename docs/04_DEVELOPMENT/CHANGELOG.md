@@ -4,6 +4,35 @@
 
 ---
 
+## Sprint 11 PR4-A — WatchList Price Observation Recording
+
+### Added
+
+- Narrow `PriceObservationRecorder` Application port
+- `PriceHistoryObservationRecorder` adapter backed by the existing
+  `PriceHistoryRepository`
+- WatchList Monitor recording of successful current-price observations
+
+### Architecture
+
+- Execution order is change detection, observation recording, then WatchItem save
+- Changed and unchanged successful observations are both appended
+- Price History and WatchItem writes remain separate transactions
+- Deduplication and detailed partial-failure policy remain PR4-B scope
+
+### Validation
+
+- Monitor feature tests: `23 passed`
+- Recorder adapter tests: `2 passed`
+- Composition tests: `3 passed`
+- WatchList regression: `92 passed`
+- Change Detection and Price History regression: `57 passed`
+- CLI regression: `30 passed`
+- Full pytest: `1148 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR3 — WatchList Monitor CLI Entry Point
 
 ### Added

@@ -13,6 +13,32 @@
 
 ---
 
+## 2026-07-31 — WatchList Price Observation Recording
+
+Sprint 11 PR4-A connected successful WatchList Monitor observations to the
+existing append-only Price History through a narrow Application port and an
+Infrastructure adapter.
+
+```text
+Marketplace lookup
+→ current PriceSnapshot
+→ change detection
+→ observation recording
+→ WatchItem update and save
+```
+
+The Production Composition Root shares one `PriceHistoryRepository` instance
+between the snapshot provider and observation recorder. Successful changed and
+unchanged observations are both appended. Price History and WatchItem writes
+remain separate transactions; duplicate prevention and the complete
+partial-failure policy remain PR4-B work.
+
+Validation completed with `23 passed` for Monitor tests, `2 passed` for the
+recorder adapter, `3 passed` for Composition, and `1148 passed` for the full
+regression suite. The existing FastAPI TestClient warning remains.
+
+---
+
 ## 2026-07-31 — WatchList Monitor CLI Entry Point
 
 Sprint 11 PR3 exposed one WatchList Monitor execution through the existing

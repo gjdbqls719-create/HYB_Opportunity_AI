@@ -13,6 +13,7 @@ from app.application.watchlist.monitor_models import (
 from app.application.watchlist.monitor_ports import (
     LatestPriceChangeDetector,
     ListingLookupPort,
+    PriceObservationRecorder,
 )
 from app.application.watchlist.ports import WatchListRepository
 from app.domain.watchlist import WatchItem
@@ -40,6 +41,7 @@ class WatchListMonitorUseCase:
         repository: WatchListRepository,
         listing_lookup: ListingLookupPort,
         change_detector: LatestPriceChangeDetector,
+        price_observation_recorder: PriceObservationRecorder | None = None,
         clock: Clock | None = None,
         snapshot_id_factory: SnapshotIdFactory | None = None,
     ) -> None:
@@ -63,6 +65,12 @@ class WatchListMonitorUseCase:
             method_name="execute",
             dependency_name="change_detector",
         )
+        if price_observation_recorder is not None:
+            self._validate_dependency(
+                price_observation_recorder,
+                method_name="record_observation",
+                dependency_name="price_observation_recorder",
+            )
 
         if clock is not None and not callable(clock):
             raise TypeError("clock은 callable 또는 None이어야 합니다.")
@@ -78,6 +86,7 @@ class WatchListMonitorUseCase:
         self._repository = repository
         self._listing_lookup = listing_lookup
         self._change_detector = change_detector
+        self._price_observation_recorder = price_observation_recorder
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._snapshot_id_factory = (
             snapshot_id_factory or (lambda: uuid4().hex)
@@ -115,6 +124,12 @@ class WatchListMonitorUseCase:
             response = self._change_detector.execute(
                 current_snapshot=snapshot,
             )
+
+            if self._price_observation_recorder is not None:
+                self._price_observation_recorder.record_observation(
+                    product=product,
+                    snapshot=snapshot,
+                )
 
             item.record_analysis(
                 observed_price=product.price,
