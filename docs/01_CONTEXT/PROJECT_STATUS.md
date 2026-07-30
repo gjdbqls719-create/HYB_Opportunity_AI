@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-31
-**Status Basis:** Sprint 11 PR0 Context Pack 자동화 구현 및 검증
+**Status Basis:** Sprint 11 PR2 WatchList Monitor Composition Root 구현 및 검증
 
 ## Current Stage
 
@@ -32,14 +32,19 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 11**
-- Current Position: **PR0 구현 및 검증 완료**
-- Current Focus: **Context Pack Automation**
-- Last Confirmed Full Regression Test: **1131 passed**
+- Current Position: **PR2 구현 및 검증 완료**
+- Current Focus: **WatchList Monitor Composition**
+- Last Confirmed Full Regression Test: **1138 passed**
 - Regression Verified At: **2026-07-31**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 11 PR2 WatchList Monitor Composition Root
+- 실제 WatchList SQLite Repository, Marketplace Lookup Adapter,
+  Price History Change Detector 조립
+- Sprint 11 PR1 Marketplace Reader Integration
+- eBay/Amazon concrete reader와 Adapter registry 연결
 - Sprint 11 PR0 Context Pack Automation
 - Quick/Full Context 생성·정리 및 ZIP 제외 규칙 검증
 - Sprint 10 final audit report
@@ -135,13 +140,16 @@ Completed:
 - Marketplace listing lookup dispatcher
 - eBay item lookup API
 - Amazon deterministic item lookup contract
+- eBay/Amazon concrete Marketplace readers
+- Marketplace reader registry
+- WatchList Monitor Composition Root
+- 기존 Price History 기반 Change Detector 연결
 
-Sprint 8에서 남은 후속 항목:
+남은 후속 항목:
 
-- Concrete Marketplace Reader integration
-- Dispatcher registration and composition
-- WatchList end-to-end monitoring flow
-- Change detection connection
+- CLI/Worker 실행 진입점
+- 현재 관측 Price Snapshot의 가격 이력 저장
+- WatchList Dashboard 및 alert/notification 연결
 
 ---
 

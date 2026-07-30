@@ -13,6 +13,31 @@
 
 ---
 
+## 2026-07-31 — WatchList Monitor Composition Root
+
+Sprint 11 PR2 added a small WatchList Infrastructure factory because the
+repository has no general bootstrap or DI-container pattern. The factory
+follows the existing Marketplace adapter factory style and composes:
+
+```text
+SQLiteWatchListRepository
+MarketplaceListingLookupAdapter with eBay/Amazon readers
+PriceHistoryRepository
+→ PriceHistorySnapshotProvider
+→ DetectLatestPriceChangeUseCase
+→ WatchListMonitorUseCase
+```
+
+The database path and the three Application dependencies remain optionally
+injectable for isolated tests. Factory construction performs no Marketplace
+lookup. CLI/Worker execution and current Snapshot persistence remain pending.
+
+Validation completed with `2 passed` for the new composition tests, `76 passed`
+for the existing WatchList suite, `72 passed` for Change Detection and Price
+History, and `1138 passed` for the full regression suite.
+
+---
+
 ## 2026-07-31 — Marketplace Reader Integration
 
 Sprint 11 PR1 connected the existing eBay and Amazon exact-item lookup

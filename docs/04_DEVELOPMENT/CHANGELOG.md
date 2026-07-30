@@ -4,6 +4,31 @@
 
 ---
 
+## Sprint 11 PR2 — WatchList Monitor Composition Root
+
+### Added
+
+- Public `create_watchlist_monitor()` Infrastructure factory
+- Actual SQLite WatchList repository, eBay/Amazon lookup adapter,
+  Price History provider, and latest-price detector composition
+- Public-behavior composition tests using an isolated SQLite database
+
+### Architecture
+
+- Factory construction does not call Marketplace APIs
+- Existing Domain, Application, Adapter, and Reader contracts are unchanged
+- CLI/Worker execution and current Snapshot storage remain outside this PR
+
+### Validation
+
+- New composition tests: `2 passed`
+- Existing WatchList tests: `76 passed`
+- Change Detection and Price History tests: `72 passed`
+- Full pytest: `1138 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR1 — Marketplace Reader Integration
 
 ### Added
