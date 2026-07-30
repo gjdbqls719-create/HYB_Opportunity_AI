@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint 11 PR0 — Context Pack Automation
+
+### Added
+
+- PowerShell scripts to create and clean Quick and Full Context Packs
+- Generated Context manifest and documented archive exclusions
+- Context Pack usage guide and persistent `context/.gitkeep`
+
+### Changed
+
+- Generated Context Pack artifacts are ignored by Git
+- Context Pack refresh is part of the project Definition of Done
+
+### Validation
+
+- Create and cleanup scripts executed in PowerShell
+- Quick Context: `6` expected files, `0` missing or unexpected
+- Full Context: `375` files, `0` excluded entries
+- Full pytest: `1131 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 10 Finalization — Audit Report
 
 ### Added

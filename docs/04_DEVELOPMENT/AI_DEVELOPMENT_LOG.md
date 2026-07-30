@@ -1,6 +1,6 @@
 # HYB AI Development Log
 
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-07-31
 
 ## Purpose
 
@@ -10,6 +10,18 @@
 상세 구현 명세와 명령 로그는 `DEV_LOG.md`,
 프로젝트 여정과 학습은 `DEVELOPMENT_JOURNAL.md`,
 사용 가능한 변경 결과는 `CHANGELOG.md`에 기록합니다.
+
+---
+
+## 2026-07-31 — Context Pack Automation
+
+Sprint 11 PR0 added repository scripts that generate Quick and Full Context
+ZIPs from the current project state. Generation removes the previous two
+Context ZIPs and manifest first; cleanup removes only those three generated
+artifacts and preserves `context/.gitkeep`.
+
+PowerShell execution and archive-entry validation confirmed the Quick and Full
+contents. The full regression result remained `1131 passed`.
 
 ---
 

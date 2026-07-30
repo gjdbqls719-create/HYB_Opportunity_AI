@@ -182,6 +182,7 @@ A feature is complete only when:
 - Implementation is finished.
 - Tests pass.
 - Documentation is updated.
+- Context Packs are refreshed when project state changes.
 - Code review is completed.
 - Git history is clean.
 
