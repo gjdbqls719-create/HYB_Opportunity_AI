@@ -7,7 +7,11 @@ from app.application.watchlist import (
     MonitorStatus,
     WatchListMonitorResult,
 )
+from app.domain.watchlist import WatchItem
 from app.cli import run_cli
+from app.infrastructure.watchlist import SQLiteWatchListRepository
+from app.models import Product
+from storage.price_history import PriceHistoryRepository
 
 
 class FakeMonitor:
@@ -130,3 +134,62 @@ def test_watch_monitor_cli_runs_with_isolated_empty_database(
     assert "Failed: 0" in output.getvalue()
     assert "Not Found: 0" in output.getvalue()
     assert errors.getvalue() == ""
+
+
+def test_watch_monitor_cli_uses_production_composition(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    database_path = tmp_path / "production-cli.db"
+    item = WatchItem(
+        marketplace="ebay",
+        item_id="item-1",
+        canonical_product_id="canonical-1",
+        title="CLI Product",
+        current_price=100.0,
+        currency="USD",
+        url="https://example.com/item-1",
+    )
+    with SQLiteWatchListRepository(database_path) as repository:
+        repository.save(item)
+
+    monkeypatch.setattr(
+        "app.infrastructure.watchlist.marketplace_readers."
+        "ebay.get_product_by_id",
+        lambda item_id: Product(
+            marketplace="ebay",
+            item_id=item_id,
+            title="CLI Product",
+            price=80.0,
+            currency="USD",
+            condition="New",
+            url="https://example.com/item-1",
+            seller="seller-1",
+        ),
+    )
+    output = StringIO()
+    errors = StringIO()
+
+    exit_code = run_cli(
+        ["--watch-monitor", "--db", str(database_path)],
+        output=output,
+        error_output=errors,
+    )
+
+    with SQLiteWatchListRepository(database_path) as repository:
+        persisted = repository.get(item.watch_id)
+    history = PriceHistoryRepository(
+        database_path
+    ).get_product_history(
+        marketplace="ebay",
+        item_id="item-1",
+    )
+
+    assert exit_code == 0
+    assert "Total: 1" in output.getvalue()
+    assert "Unchanged: 1" in output.getvalue()
+    assert errors.getvalue() == ""
+    assert persisted is not None
+    assert persisted.current_price == 80.0
+    assert len(history) == 1
+    assert history[0].price == 80.0

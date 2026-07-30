@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-31
-**Status Basis:** Sprint 11 PR4-B Price Observation Idempotency 구현 및 검증
+**Status Basis:** Sprint 11 PR5 Release Candidate 검증 및 완료
 
 ## Current Stage
 
@@ -31,15 +31,19 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 
 ## Current Snapshot
 
-- Current Sprint: **Sprint 11**
-- Current Position: **PR4-B 구현 및 검증 완료**
-- Current Focus: **Price Observation Idempotency and Partial-Failure Policy**
-- Last Confirmed Full Regression Test: **1158 passed**
+- Current Sprint: **Sprint 11 Completed**
+- Current Position: **PR5 Release Candidate 검증 완료**
+- Current Focus: **Sprint 12 Planning**
+- Last Confirmed Full Regression Test: **1160 passed**
 - Regression Verified At: **2026-07-31**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 11 PR5 Release Candidate and Sprint Completion
+- Production Composition 기반 WatchList Monitor 연속 E2E 검증
+- 실제 `--watch-monitor` CLI와 Observation 저장 연결 검증
+- Architecture Audit 및 Sprint 11 Completion Report 완료
 - Sprint 11 PR4-B Price Observation Idempotency
 - 동일 observation identity 재시도 시 기존 record ID 반환
 - 동일 identity의 다른 데이터는 명시적 conflict로 거부

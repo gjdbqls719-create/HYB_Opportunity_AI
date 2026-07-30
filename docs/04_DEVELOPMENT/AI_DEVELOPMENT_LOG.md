@@ -13,6 +13,26 @@
 
 ---
 
+## 2026-07-31 — Sprint 11 Release Candidate
+
+Sprint 11 PR5 validated the complete WatchList monitoring path without adding
+new business behavior. A Production Composition E2E test exercises first,
+changed, unchanged, retry, partial failure, conflict, recovery, and multi-item
+processing against one isolated SQLite database.
+
+The actual `--watch-monitor` CLI path was verified to resolve Production
+Composition, execute the Monitor, update WatchItem state, append Price History,
+and render the expected summary.
+
+The architecture audit found no reverse Domain dependency, Infrastructure
+dependency in the WatchList Application package, circular dependency, or
+Domain rule violation. Full regression completed with `1160 passed` and the
+existing FastAPI TestClient warning.
+
+Sprint 11 is complete and the current focus moves to Sprint 12 planning.
+
+---
+
 ## 2026-07-31 — Price Observation Idempotency
 
 Sprint 11 PR4-B made `save_product_price()` idempotent for the observation

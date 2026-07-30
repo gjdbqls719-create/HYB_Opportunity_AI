@@ -4,6 +4,33 @@
 
 ---
 
+## Sprint 11 PR5 — Release Candidate and Sprint Completion
+
+### Added
+
+- Production Composition Release Candidate E2E coverage
+- Actual `--watch-monitor` CLI integration with WatchList and Price History
+- Sprint 11 Completion Report
+
+### Audit
+
+- Repository, Change Detector, Observation Recorder, and Monitor wiring verified
+- Domain and WatchList Application dependency directions verified
+- No circular dependency, Infrastructure leak, or Domain rule violation found
+
+### Validation
+
+- Release Candidate E2E: `1 passed`
+- Production Composition: `3 passed`
+- CLI: `31 passed`
+- WatchList: `96 passed`
+- Price History: `34 passed`
+- Change Detection: `30 passed`
+- Full pytest: `1160 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR4-B — Price Observation Idempotency
 
 ### Added
