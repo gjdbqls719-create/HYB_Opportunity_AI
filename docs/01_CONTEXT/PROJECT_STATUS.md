@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-31
-**Status Basis:** Sprint 11 PR2 WatchList Monitor Composition Root 구현 및 검증
+**Status Basis:** Sprint 11 PR3 WatchList Monitor CLI Entry Point 구현 및 검증
 
 ## Current Stage
 
@@ -32,14 +32,16 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 11**
-- Current Position: **PR2 구현 및 검증 완료**
-- Current Focus: **WatchList Monitor Composition**
-- Last Confirmed Full Regression Test: **1138 passed**
+- Current Position: **PR3 구현 및 검증 완료**
+- Current Focus: **WatchList Monitor CLI Entry Point**
+- Last Confirmed Full Regression Test: **1140 passed**
 - Regression Verified At: **2026-07-31**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 11 PR3 WatchList Monitor CLI Entry Point
+- 기존 argparse flag 스타일의 `--watch-monitor` 실행 경로와 집계 출력
 - Sprint 11 PR2 WatchList Monitor Composition Root
 - 실제 WatchList SQLite Repository, Marketplace Lookup Adapter,
   Price History Change Detector 조립
@@ -144,10 +146,11 @@ Completed:
 - Marketplace reader registry
 - WatchList Monitor Composition Root
 - 기존 Price History 기반 Change Detector 연결
+- `--watch-monitor` CLI 실행 진입점
 
 남은 후속 항목:
 
-- CLI/Worker 실행 진입점
+- Worker/Scheduler 실행 진입점
 - 현재 관측 Price Snapshot의 가격 이력 저장
 - WatchList Dashboard 및 alert/notification 연결
 

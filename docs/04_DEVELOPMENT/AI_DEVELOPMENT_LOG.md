@@ -13,6 +13,29 @@
 
 ---
 
+## 2026-07-31 — WatchList Monitor CLI Entry Point
+
+Sprint 11 PR3 exposed one WatchList Monitor execution through the existing
+argparse CLI style:
+
+```text
+--watch-monitor
+→ create_watchlist_monitor(database_path)
+→ WatchListMonitorUseCase.execute()
+→ aggregate CLI output
+```
+
+The mode branches before query resolution and Opportunity search repository
+creation, so it does not require a search query or execute the search flow.
+Worker scheduling, Dashboard integration, notification, and current Snapshot
+storage remain outside this scope.
+
+Validation completed with `2 passed` for the new CLI tests, `18 passed` for
+existing CLI/Presentation/Composition tests, and `1140 passed` for the full
+regression suite.
+
+---
+
 ## 2026-07-31 — WatchList Monitor Composition Root
 
 Sprint 11 PR2 added a small WatchList Infrastructure factory because the

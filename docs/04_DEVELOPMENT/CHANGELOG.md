@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint 11 PR3 — WatchList Monitor CLI Entry Point
+
+### Added
+
+- Existing argparse-style `--watch-monitor` CLI mode
+- CLI connection from `create_watchlist_monitor()` to one monitor execution
+- Total, Updated, Unchanged, Failed, and Not Found summary output
+- Isolated CLI tests with fake and real empty SQLite composition
+
+### Architecture
+
+- Existing search and history CLI flows remain unchanged
+- No Worker, Scheduler, Dashboard, notification, or Snapshot storage changes
+
+### Validation
+
+- New WatchList Monitor CLI tests: `2 passed`
+- Existing CLI, Presentation, and Composition tests: `18 passed`
+- Full pytest: `1140 passed`
+- Warning: existing FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR2 — WatchList Monitor Composition Root
 
 ### Added

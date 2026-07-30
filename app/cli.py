@@ -10,11 +10,17 @@ from app.application.opportunity_intelligence import (
     OpportunityIntelligenceService,
     OpportunityIntelligenceStatus,
 )
+from app.application.watchlist import (
+    WatchListMonitorResult,
+)
 from app.infrastructure.discovery.orchestrator_gateway import (
     opportunity_result_to_discovery_result,
 )
 from app.infrastructure.opportunity_intelligence import (
     DiscoveryResultOpportunityIntelligenceAdapter,
+)
+from app.infrastructure.watchlist import (
+    create_watchlist_monitor,
 )
 from engine.orchestrator import (
     OpportunityResult,
@@ -152,6 +158,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--history",
         action="store_true",
         help="저장된 최근 분석 결과를 조회합니다.",
+    )
+
+    parser.add_argument(
+        "--watch-monitor",
+        action="store_true",
+        help="WatchList Monitor를 한 번 실행합니다.",
     )
 
     parser.add_argument(
@@ -514,6 +526,28 @@ def render_saved_results(
             )
 
 
+def render_watchlist_monitor_result(
+    result: WatchListMonitorResult,
+    *,
+    output: TextIO = sys.stdout,
+) -> None:
+    """WatchList Monitor 실행 집계를 CLI에 출력한다."""
+
+    print(
+        "\nWatchList Monitor",
+        file=output,
+    )
+    print(
+        "=" * 64,
+        file=output,
+    )
+    print(f"Total: {result.total_count}", file=output)
+    print(f"Updated: {result.updated_count}", file=output)
+    print(f"Unchanged: {result.unchanged_count}", file=output)
+    print(f"Failed: {result.failed_count}", file=output)
+    print(f"Not Found: {result.not_found_count}", file=output)
+
+
 def run_cli(
     argv: Sequence[str] | None = None,
     *,
@@ -528,6 +562,17 @@ def run_cli(
     args = parser.parse_args(argv)
 
     try:
+        if args.watch_monitor:
+            monitor = create_watchlist_monitor(
+                args.db
+            )
+            result = monitor.execute()
+            render_watchlist_monitor_result(
+                result,
+                output=output,
+            )
+            return 0
+
         repository = OpportunityHistoryRepository(
             args.db
         )
