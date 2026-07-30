@@ -7,8 +7,12 @@ from typing import Mapping
 from app.application.opportunity_intelligence import (
     OpportunityIntelligenceInput,
 )
+from app.application.opportunity_intelligence.ports import PriceHistoryReader
 from app.domain.discovery import DiscoveryResult
+from app.domain.trend import PriceTrendAnalysis
 from app.domain.opportunity import OpportunityFactors
+from app.engine import OpportunityConfidenceEngine
+from app.engine.trend_analysis import TrendAnalysisEngine
 
 
 _FACTOR_NAMES = (
@@ -128,8 +132,19 @@ class DiscoveryResultOpportunityIntelligenceAdapter:
         self,
         *,
         factor_policy: DiscoveryFactorPolicy | None = None,
+        confidence_engine: OpportunityConfidenceEngine | None = None,
+        price_history_repository: PriceHistoryReader | None = None,
+        trend_analysis_engine: TrendAnalysisEngine | None = None,
+        price_history_limit: int | None = None,
     ) -> None:
+        if price_history_limit is not None and price_history_limit < 1:
+            raise ValueError("price_history_limit은 1 이상이어야 합니다.")
+
         self._factor_policy = factor_policy or DiscoveryFactorPolicy()
+        self._confidence_engine = confidence_engine or OpportunityConfidenceEngine()
+        self._price_history_repository = price_history_repository
+        self._trend_analysis_engine = trend_analysis_engine or TrendAnalysisEngine()
+        self._price_history_limit = price_history_limit
 
     def adapt(
         self,
@@ -144,13 +159,35 @@ class DiscoveryResultOpportunityIntelligenceAdapter:
             minimum=_ZERO,
             maximum=_HUNDRED,
         )
+        assert confidence is not None
+        confidence_assessment = self._confidence_engine.assess(confidence)
         factors, missing_factors = self._build_factors(discovery_result.metadata)
+        trend_analysis = self._build_trend_analysis(discovery_result)
 
         return OpportunityIntelligenceInput(
             factors=factors,
-            confidence=confidence,
+            confidence=confidence_assessment.score,
+            trend_analysis=trend_analysis,
             missing_factors=missing_factors,
         )
+
+    def _build_trend_analysis(
+        self,
+        discovery_result: DiscoveryResult,
+    ) -> PriceTrendAnalysis | None:
+        """저장된 Listing 가격 이력이 있으면 추세 분석 결과를 생성한다."""
+        if self._price_history_repository is None:
+            return None
+
+        records = self._price_history_repository.get_product_history(
+            marketplace=discovery_result.product.marketplace,
+            item_id=discovery_result.product.item_id,
+            limit=self._price_history_limit,
+        )
+        if not records:
+            return None
+
+        return self._trend_analysis_engine.analyze(records)
 
     def _build_factors(
         self,

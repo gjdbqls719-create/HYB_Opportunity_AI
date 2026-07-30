@@ -4,6 +4,38 @@
 
 ---
 
+## Sprint 9 PR2 — Existing CLI Opportunity Intelligence Output
+
+### Added
+
+- 기존 CLI 결과 뒤에 Opportunity Intelligence 상태와 평가 결과 추가 출력
+- 신규 Opportunity Score, Decision, Grade, Confidence, Risk 표시
+- Trend와 신규 Final Recommendation이 존재할 때만 선택적으로 표시
+- `OpportunityResult` 단위 Intelligence 실패 격리
+
+### Changed
+
+- 기존 Orchestrator의 `OpportunityResult` → `DiscoveryResult` 변환을
+  CLI와 Gateway가 함께 재사용할 수 있는 함수로 추출
+- 기존 CLI 인수, Orchestrator 호출, Dashboard, 기존 Recommendation 유지
+
+### Validation
+
+- Feature tests:
+  - `44 passed`
+- Full regression:
+  - `1119 passed`
+- 기존 `.venv` 실행 파일은 프로세스를 생성하지 못해 프로젝트 기반
+  Python 3.14 런타임으로 테스트 실행
+
+### Known Limitation
+
+- 기본 CLI는 신규 Intelligence Adapter에 Price History Repository를
+  주입하지 않으므로 Trend와 신규 Final Recommendation은 기본 실행에서
+  생성되지 않는다.
+
+---
+
 ## Sprint 8 PR3-B2 — Marketplace Item Lookup APIs
 
 ### Added

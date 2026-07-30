@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from storage.price_history import PriceHistoryRecord
+
 from app.application.opportunity_intelligence.models import (
     OpportunityIntelligenceInput,
 )
@@ -15,4 +17,17 @@ class OpportunityIntelligenceInputAdapter(Protocol):
         self,
         discovery_result: DiscoveryResult,
     ) -> OpportunityIntelligenceInput:
+        ...
+
+
+class PriceHistoryReader(Protocol):
+    """Opportunity 추세 분석에 필요한 Listing 가격 이력 조회 Port."""
+
+    def get_product_history(
+        self,
+        *,
+        marketplace: str,
+        item_id: str,
+        limit: int | None = None,
+    ) -> list[PriceHistoryRecord]:
         ...
