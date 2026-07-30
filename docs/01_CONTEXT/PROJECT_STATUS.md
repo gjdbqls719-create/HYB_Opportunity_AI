@@ -1,7 +1,7 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-07-30
-**Status Basis:** Sprint 10 PR2B 구현, API-first landing page 기능 테스트 및 전체 회귀 테스트
+**Status Basis:** Sprint 10 PR2C 구현, Opportunity Dashboard MVP 기능 테스트 및 전체 회귀 테스트
 
 ## Current Stage
 
@@ -32,14 +32,17 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 ## Current Snapshot
 
 - Current Sprint: **Sprint 10**
-- Current Position: **PR2B 구현 및 검증 완료**
-- Current Focus: **API-First Opportunity Search**
-- Last Confirmed Full Regression Test: **1129 passed**
+- Current Position: **PR2C 구현 및 검증 완료**
+- Current Focus: **Opportunity Dashboard MVP**
+- Last Confirmed Full Regression Test: **1130 passed**
 - Regression Verified At: **2026-07-30**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 10 PR2C Opportunity Dashboard MVP
+- 기존 `dashboard_cards` JSON을 사용하는 semantic opportunity cards
+- Score, ROI, expected selling price, net profit 표시와 검색 상태 UI
 - Sprint 10 PR2B API-First Opportunity Search
 - 기존 `POST /api/v1/opportunities/search`를 호출하는 vanilla JavaScript 검색
 - Opportunity title, marketplace, final score의 단순 목록 렌더링
@@ -85,8 +88,8 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 
 - FastAPI TestClient는 현재 설치된 `httpx 0.28.1` fallback을 사용하며
   `httpx2` 전환 deprecation warning이 1건 발생한다.
-- PR2B의 HTML은 기존 API를 통한 검색과 단순 목록만 제공하며 dashboard cards,
-  CSS framework, 인증, CORS, 배포 구성은 포함하지 않는다.
+- PR2C의 HTML dashboard는 핵심 지표 카드와 검색 상태만 제공하며 상세 분석,
+  외부 UI library, 인증, CORS, 배포 구성은 포함하지 않는다.
 
 ---
 

@@ -34,6 +34,17 @@ def test_index_contains_api_first_search_controls() -> None:
     assert 'fetch("/api/v1/opportunities/search"' in response.text
 
 
+def test_index_contains_opportunity_dashboard_contract() -> None:
+    response = client.get("/")
+
+    assert 'id="results"' in response.text
+    assert 'className = "opportunity-card"' in response.text
+    assert "Final Opportunity Score" in response.text
+    assert "No opportunities found." in response.text
+    assert "Searching..." in response.text
+    assert "Search failed." in response.text
+
+
 def make_result(
     *,
     item_id: str,

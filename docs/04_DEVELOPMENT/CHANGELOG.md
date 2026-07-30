@@ -4,6 +4,32 @@
 
 ---
 
+## Sprint 10 PR2C — Opportunity Dashboard MVP
+
+### Added
+
+- Semantic opportunity card rendering from existing `dashboard_cards` JSON
+- Product title, Marketplace, final score, ROI, expected selling price,
+  and net profit display
+- Minimal card styling with emphasized score
+- Searching, no-results, and error states
+- Opportunity dashboard HTML contract test
+
+### Architecture
+
+- Existing search API and JSON response are reused without backend changes
+- Dashboard rendering remains browser-side
+- No API route or external UI dependency was added
+
+### Validation
+
+- FastAPI feature tests:
+  - `9 passed`
+- Full pytest:
+  - `1130 passed`
+
+---
+
 ## Sprint 10 PR2B — API-First Opportunity Search
 
 ### Added

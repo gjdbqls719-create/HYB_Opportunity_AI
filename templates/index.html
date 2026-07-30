@@ -4,6 +4,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HYB Opportunity AI</title>
+    <style>
+        #results {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .opportunity-card {
+            border: 1px solid #cccccc;
+            padding: 1rem;
+        }
+
+        .opportunity-score {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .opportunity-card dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 0.5rem 1rem;
+        }
+
+        .opportunity-card dd {
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
     <main>
@@ -13,9 +40,9 @@
             <input id="query" name="query" type="search">
             <button id="search-button" type="submit">Search</button>
         </form>
-        <p id="loading" hidden>Loading...</p>
-        <p id="error-message" hidden></p>
-        <ul id="results"></ul>
+        <p id="loading" hidden>Searching...</p>
+        <p id="error-message" hidden>Search failed.</p>
+        <section id="results" aria-live="polite"></section>
     </main>
     <script>
         const searchForm = document.getElementById("search-form");
@@ -25,19 +52,64 @@
         const errorMessage = document.getElementById("error-message");
         const resultsContainer = document.getElementById("results");
 
+        function formatAmount(value, currency) {
+            return `${value} ${currency}`.trim();
+        }
+
         function renderOpportunities(opportunities) {
             resultsContainer.replaceChildren();
 
-            for (const opportunity of opportunities) {
-                const item = document.createElement("li");
-                const title = document.createElement("strong");
-                const details = document.createElement("span");
+            if (opportunities.length === 0) {
+                const emptyMessage = document.createElement("p");
+                emptyMessage.textContent = "No opportunities found.";
+                resultsContainer.append(emptyMessage);
+                return;
+            }
 
-                title.textContent = opportunity.title;
-                details.textContent =
-                    ` — ${opportunity.marketplace} — Score: ${opportunity.score}`;
-                item.append(title, details);
-                resultsContainer.append(item);
+            for (const opportunity of opportunities) {
+                const product = opportunity.product;
+                const metrics = opportunity.metrics;
+                const card = document.createElement("article");
+                const title = document.createElement("h2");
+                const marketplace = document.createElement("p");
+                const score = document.createElement("p");
+                const details = document.createElement("dl");
+                const values = [
+                    ["ROI", `${metrics.roi}%`],
+                    [
+                        "Expected Selling Price",
+                        formatAmount(
+                            metrics.expected_selling_price,
+                            product.currency,
+                        ),
+                    ],
+                    [
+                        "Net Profit",
+                        formatAmount(
+                            metrics.net_profit,
+                            product.currency,
+                        ),
+                    ],
+                ];
+
+                card.className = "opportunity-card";
+                title.textContent = product.title;
+                marketplace.textContent = `Marketplace: ${product.marketplace}`;
+                score.className = "opportunity-score";
+                score.textContent =
+                    `Final Opportunity Score: ${metrics.final_opportunity_score}`;
+
+                for (const [label, value] of values) {
+                    const term = document.createElement("dt");
+                    const description = document.createElement("dd");
+
+                    term.textContent = label;
+                    description.textContent = value;
+                    details.append(term, description);
+                }
+
+                card.append(title, marketplace, score, details);
+                resultsContainer.append(card);
             }
         }
 
@@ -71,9 +143,8 @@
                 }
 
                 const data = await response.json();
-                renderOpportunities(data.opportunities.items);
+                renderOpportunities(data.dashboard_cards);
             } catch (error) {
-                errorMessage.textContent = "Search failed.";
                 errorMessage.hidden = false;
             } finally {
                 searchButton.disabled = false;
