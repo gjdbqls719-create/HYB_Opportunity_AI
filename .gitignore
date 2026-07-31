@@ -26,6 +26,10 @@ env/
 exports/*
 !exports/.gitkeep
 
+# Generated Context Packs
+context/*
+!context/.gitkeep
+
 # Editors / operating system
 .vscode/
 .idea/

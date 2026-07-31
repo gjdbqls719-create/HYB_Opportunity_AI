@@ -42,6 +42,7 @@ def test_cli_runs_full_search_flow(
     assert exit_code == 0
     assert captured["query"] == "gaming mouse"
     assert captured["limit"] == 3
+    assert captured["price_history_repository"] is None
 
     assert "검색어: gaming mouse" in rendered
     assert "분석 결과: 0개 그룹" in rendered
@@ -220,3 +221,63 @@ def test_cli_passes_sprint3_cost_options(
     assert captured["other_cost"] == 4.0
     assert captured["minimum_net_profit"] == 10.0
     assert captured["minimum_roi"] == 20.0
+
+
+def test_cli_shares_price_history_repository_with_analysis_and_intelligence(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    price_repository = object()
+    captured: dict[str, object] = {}
+
+    class FakeOpportunityHistoryRepository:
+        def __init__(self, database_path) -> None:
+            captured["opportunity_database_path"] = database_path
+
+        def save_results(self, query, results) -> int:
+            captured["saved_query"] = query
+            return 0
+
+    def fake_find_best_opportunities(**kwargs):
+        captured["orchestrator_repository"] = kwargs[
+            "price_history_repository"
+        ]
+        return []
+
+    def fake_evaluate(results, *, price_history_repository=None):
+        captured["intelligence_repository"] = price_history_repository
+        return ()
+
+    monkeypatch.setattr(
+        "app.cli.OpportunityHistoryRepository",
+        FakeOpportunityHistoryRepository,
+    )
+    monkeypatch.setattr(
+        "app.cli.PriceHistoryRepository",
+        lambda database_path: price_repository,
+    )
+    monkeypatch.setattr(
+        "app.cli.find_best_opportunities",
+        fake_find_best_opportunities,
+    )
+    monkeypatch.setattr(
+        "app.cli._evaluate_opportunity_intelligence",
+        fake_evaluate,
+    )
+
+    database_path = tmp_path / "cli.db"
+    exit_code = run_cli(
+        [
+            "camera",
+            "--db",
+            str(database_path),
+        ],
+        output=StringIO(),
+        error_output=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert captured["opportunity_database_path"] == str(database_path)
+    assert captured["orchestrator_repository"] is price_repository
+    assert captured["intelligence_repository"] is price_repository
+    assert captured["saved_query"] == "camera"

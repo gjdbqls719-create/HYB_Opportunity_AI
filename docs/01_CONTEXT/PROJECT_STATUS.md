@@ -1,13 +1,12 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-07-30
-**Status Basis:** Sprint 9 PR2 구현, 기능 테스트 및 전체 회귀 테스트
+**Last Updated:** 2026-07-31
+**Status Basis:** Sprint 11 PR5 Release Candidate 검증 및 완료
 
 ## Current Stage
 
-HYB Opportunity AI는 기존 CLI와 Orchestrator를 유지하면서 신규
-**Opportunity Intelligence 결과를 실제 CLI 실행 경로에 추가 출력**하도록
-Sprint 9 PR2 수직 통합을 완료했습니다.
+HYB Opportunity AI는 기존 CLI와 Business Logic을 유지하면서
+**FastAPI 기반 JSON API를 새로운 외부 진입점으로 추가**했습니다.
 
 현재 핵심 흐름은 다음과 같습니다.
 
@@ -32,15 +31,58 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 
 ## Current Snapshot
 
-- Current Sprint: **Sprint 9**
-- Current Position: **PR2 구현 및 검증 완료**
-- Current Focus: **Opportunity Intelligence CLI Integration**
-- Last Confirmed Full Regression Test: **1119 passed**
-- Regression Verified At: **2026-07-30**
+- Current Sprint: **Sprint 11 Completed**
+- Current Position: **PR5 Release Candidate 검증 완료**
+- Current Focus: **Sprint 12 Planning**
+- Last Confirmed Full Regression Test: **1160 passed**
+- Regression Verified At: **2026-07-31**
 - Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
 
 ### Recently Completed
 
+- Sprint 11 PR5 Release Candidate and Sprint Completion
+- Production Composition 기반 WatchList Monitor 연속 E2E 검증
+- 실제 `--watch-monitor` CLI와 Observation 저장 연결 검증
+- Architecture Audit 및 Sprint 11 Completion Report 완료
+- Sprint 11 PR4-B Price Observation Idempotency
+- 동일 observation identity 재시도 시 기존 record ID 반환
+- 동일 identity의 다른 데이터는 명시적 conflict로 거부
+- Observation 성공 후 WatchItem 저장 실패 시 재시도로 복구
+- Sprint 11 PR4-A WatchList Price Observation Recording
+- WatchList Monitor의 성공한 현재 가격 관측을 기존 Price History에 기록
+- Change Detection 후 기록하고 WatchItem을 갱신하는 compare-before-record 순서
+- 변경 여부와 관계없이 성공한 관측은 append-only 방식으로 기록
+- Sprint 11 PR3 WatchList Monitor CLI Entry Point
+- 기존 argparse flag 스타일의 `--watch-monitor` 실행 경로와 집계 출력
+- Sprint 11 PR2 WatchList Monitor Composition Root
+- 실제 WatchList SQLite Repository, Marketplace Lookup Adapter,
+  Price History Change Detector 조립
+- Sprint 11 PR1 Marketplace Reader Integration
+- eBay/Amazon concrete reader와 Adapter registry 연결
+- Sprint 11 PR0 Context Pack Automation
+- Quick/Full Context 생성·정리 및 ZIP 제외 규칙 검증
+- Sprint 10 final audit report
+- Sprint 10 PR2D Dashboard UX Polish
+- 초기 안내와 검색 결과 요약을 포함한 명확한 UI 상태 구분
+- 반응형 중앙 layout과 loading, summary, error 접근성 역할
+- Sprint 10 PR2C Opportunity Dashboard MVP
+- 기존 `dashboard_cards` JSON을 사용하는 semantic opportunity cards
+- Score, ROI, expected selling price, net profit 표시와 검색 상태 UI
+- Sprint 10 PR2B API-First Opportunity Search
+- 기존 `POST /api/v1/opportunities/search`를 호출하는 vanilla JavaScript 검색
+- Opportunity title, marketplace, final score의 단순 목록 렌더링
+- Sprint 10 PR2A Initial Web Landing Page
+- `GET /` Jinja2 HTML rendering
+- JavaScript와 CSS framework가 없는 최소 검색 폼
+- Sprint 10 PR1 FastAPI JSON MVP
+- `GET /health`, `GET /version`
+- `POST /api/v1/opportunities/search`
+- 기존 Orchestrator와 Dashboard Presentation Builder 재사용
+- Engine 객체를 노출하지 않는 JSON 응답
+- Sprint 9 PR3 기본 CLI Price History Repository 통합
+- 동일 Repository를 Orchestrator와 Opportunity Intelligence Adapter에 공유
+- Price History 기반 Trend Assessment 및 Final Recommendation 활성화
+- `--no-save` 실행의 기존 비저장 동작 유지
 - Sprint 9 PR2 기존 CLI Opportunity Intelligence 추가 출력
 - 기존 OpportunityResult → DiscoveryResult 변환 재사용
 - 신규 Score, Decision, Confidence, Risk CLI 표시
@@ -56,14 +98,23 @@ Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 �
 - Sprint 8 PR3-B1 Marketplace Listing Lookup Dispatcher
 - Sprint 8 PR3-B2 Marketplace Item Lookup APIs
 
-### Sprint 9 PR2 Limitations
+### Sprint 9 PR2 Limitation Resolution
 
-- 기본 CLI는 Price History Repository를 신규 Opportunity Intelligence
-  Adapter에 주입하지 않는다.
-- 따라서 Trend Assessment와 신규 Final Recommendation은 실제 입력이
-  제공되는 경로에서만 생성되며, 기본 CLI에서는 Score, Decision,
-  Decision Report, Confidence, Risk 결과를 표시한다.
+- Sprint 9 PR2에서는 기본 CLI가 Price History Repository를 신규
+  Opportunity Intelligence Adapter에 주입하지 않았다.
+- Sprint 9 PR3에서 일반 저장 실행 시 동일 Repository를 Orchestrator와
+  Adapter에 공유해 Trend Assessment와 신규 Final Recommendation을
+  활성화했다.
+- `--no-save`에서는 Repository를 생성하거나 전달하지 않으므로 기존
+  비저장 의미를 유지하며 Trend와 신규 Final Recommendation은 비활성이다.
 - 기존 `ai_recommendation`은 제거하거나 대체하지 않는다.
+
+### Sprint 10 Web Limitations
+
+- FastAPI TestClient는 현재 설치된 `httpx 0.28.1` fallback을 사용하며
+  `httpx2` 전환 deprecation warning이 1건 발생한다.
+- PR2D의 HTML dashboard는 핵심 지표 카드와 기본 UX 상태만 제공하며 상세 분석,
+  외부 UI library, 인증, CORS, 배포 구성은 포함하지 않는다.
 
 ---
 
@@ -103,13 +154,17 @@ Completed:
 - Marketplace listing lookup dispatcher
 - eBay item lookup API
 - Amazon deterministic item lookup contract
+- eBay/Amazon concrete Marketplace readers
+- Marketplace reader registry
+- WatchList Monitor Composition Root
+- 기존 Price History 기반 Change Detector 연결
+- `--watch-monitor` CLI 실행 진입점
 
-Sprint 8에서 남은 후속 항목:
+남은 후속 항목:
 
-- Concrete Marketplace Reader integration
-- Dispatcher registration and composition
-- WatchList end-to-end monitoring flow
-- Change detection connection
+- Worker/Scheduler 실행 진입점
+- 현재 관측 Price Snapshot의 가격 이력 저장
+- WatchList Dashboard 및 alert/notification 연결
 
 ---
 

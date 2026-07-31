@@ -49,3 +49,16 @@ class LatestPriceChangeDetector(Protocol):
         current_snapshot: PriceSnapshot,
     ) -> ChangeDetectionResponse:
         ...
+
+
+@runtime_checkable
+class PriceObservationRecorder(Protocol):
+    """현재 Marketplace 가격 관측을 기록하는 Application Port."""
+
+    def record_observation(
+        self,
+        *,
+        product: Product,
+        snapshot: PriceSnapshot,
+    ) -> int:
+        ...

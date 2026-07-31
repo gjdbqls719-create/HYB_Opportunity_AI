@@ -1,6 +1,6 @@
 # HYB AI Development Log
 
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-07-31
 
 ## Purpose
 
@@ -10,6 +10,151 @@
 상세 구현 명세와 명령 로그는 `DEV_LOG.md`,
 프로젝트 여정과 학습은 `DEVELOPMENT_JOURNAL.md`,
 사용 가능한 변경 결과는 `CHANGELOG.md`에 기록합니다.
+
+---
+
+## 2026-07-31 — Sprint 11 Release Candidate
+
+Sprint 11 PR5 validated the complete WatchList monitoring path without adding
+new business behavior. A Production Composition E2E test exercises first,
+changed, unchanged, retry, partial failure, conflict, recovery, and multi-item
+processing against one isolated SQLite database.
+
+The actual `--watch-monitor` CLI path was verified to resolve Production
+Composition, execute the Monitor, update WatchItem state, append Price History,
+and render the expected summary.
+
+The architecture audit found no reverse Domain dependency, Infrastructure
+dependency in the WatchList Application package, circular dependency, or
+Domain rule violation. Full regression completed with `1160 passed` and the
+existing FastAPI TestClient warning.
+
+Sprint 11 is complete and the current focus moves to Sprint 12 planning.
+
+---
+
+## 2026-07-31 — Price Observation Idempotency
+
+Sprint 11 PR4-B made `save_product_price()` idempotent for the observation
+identity `(canonical_product_id, marketplace, item_id, observed_at)`.
+Identical data returns the existing record ID; different data raises an
+explicit conflict without changing history.
+
+The repository uses `BEGIN IMMEDIATE` so separate SQLite repository instances
+serialize the identity check and insert. This preserves existing schemas and
+data while preventing duplicate inserts through this API. Direct SQL and other
+write APIs remain outside this guarantee.
+
+Price History and WatchItem writes remain non-atomic. If WatchItem persistence
+fails after recording, retrying the same observation reuses the existing row
+and proceeds to WatchItem save. ADR-0002 records this policy and its limits.
+
+Validation completed with `34 passed` for Price History, `94 passed` for
+WatchList, `30 passed` for Change Detection, `30 passed` for CLI, and
+`1158 passed` for the full regression suite. The existing FastAPI TestClient
+warning remains.
+
+---
+
+## 2026-07-31 — WatchList Price Observation Recording
+
+Sprint 11 PR4-A connected successful WatchList Monitor observations to the
+existing append-only Price History through a narrow Application port and an
+Infrastructure adapter.
+
+```text
+Marketplace lookup
+→ current PriceSnapshot
+→ change detection
+→ observation recording
+→ WatchItem update and save
+```
+
+The Production Composition Root shares one `PriceHistoryRepository` instance
+between the snapshot provider and observation recorder. Successful changed and
+unchanged observations are both appended. Price History and WatchItem writes
+remain separate transactions; duplicate prevention and the complete
+partial-failure policy remain PR4-B work.
+
+Validation completed with `23 passed` for Monitor tests, `2 passed` for the
+recorder adapter, `3 passed` for Composition, and `1148 passed` for the full
+regression suite. The existing FastAPI TestClient warning remains.
+
+---
+
+## 2026-07-31 — WatchList Monitor CLI Entry Point
+
+Sprint 11 PR3 exposed one WatchList Monitor execution through the existing
+argparse CLI style:
+
+```text
+--watch-monitor
+→ create_watchlist_monitor(database_path)
+→ WatchListMonitorUseCase.execute()
+→ aggregate CLI output
+```
+
+The mode branches before query resolution and Opportunity search repository
+creation, so it does not require a search query or execute the search flow.
+Worker scheduling, Dashboard integration, notification, and current Snapshot
+storage remain outside this scope.
+
+Validation completed with `2 passed` for the new CLI tests, `18 passed` for
+existing CLI/Presentation/Composition tests, and `1140 passed` for the full
+regression suite.
+
+---
+
+## 2026-07-31 — WatchList Monitor Composition Root
+
+Sprint 11 PR2 added a small WatchList Infrastructure factory because the
+repository has no general bootstrap or DI-container pattern. The factory
+follows the existing Marketplace adapter factory style and composes:
+
+```text
+SQLiteWatchListRepository
+MarketplaceListingLookupAdapter with eBay/Amazon readers
+PriceHistoryRepository
+→ PriceHistorySnapshotProvider
+→ DetectLatestPriceChangeUseCase
+→ WatchListMonitorUseCase
+```
+
+The database path and the three Application dependencies remain optionally
+injectable for isolated tests. Factory construction performs no Marketplace
+lookup. CLI/Worker execution and current Snapshot persistence remain pending.
+
+Validation completed with `2 passed` for the new composition tests, `76 passed`
+for the existing WatchList suite, `72 passed` for Change Detection and Price
+History, and `1138 passed` for the full regression suite.
+
+---
+
+## 2026-07-31 — Marketplace Reader Integration
+
+Sprint 11 PR1 connected the existing eBay and Amazon exact-item lookup
+functions to the existing `MarketplaceListingReader` contract. A small
+Infrastructure factory now creates `MarketplaceListingLookupAdapter` with both
+readers registered.
+
+The PR does not construct `WatchListMonitorUseCase` or add an execution entry
+point. Composition Root, CLI, worker scheduling, Snapshot storage, and
+Dashboard integration remain outside this scope.
+
+Validation completed with `43 passed` for the focused reader/dispatcher suite
+and `1136 passed` for the full regression suite.
+
+---
+
+## 2026-07-31 — Context Pack Automation
+
+Sprint 11 PR0 added repository scripts that generate Quick and Full Context
+ZIPs from the current project state. Generation removes the previous two
+Context ZIPs and manifest first; cleanup removes only those three generated
+artifacts and preserves `context/.gitkeep`.
+
+PowerShell execution and archive-entry validation confirmed the Quick and Full
+contents. The full regression result remained `1131 passed`.
 
 ---
 
