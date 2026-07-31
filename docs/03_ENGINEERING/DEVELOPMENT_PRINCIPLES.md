@@ -47,6 +47,13 @@ Engineering decisions should prioritize:
 
 Temporary convenience should never compromise long-term quality.
 
+Engineering should balance both long-term platform quality
+and short-term business value.
+
+Development speed may improve through better processes,
+but never by sacrificing correctness, stability,
+or maintainability.
+
 ---
 
 # 4. Development Workflow
@@ -256,6 +263,22 @@ Performance
 ↓
 
 Development Speed
+
+## Process Improvement
+
+HYB continuously improves not only the product
+but also the development process.
+
+When a more efficient workflow is proposed,
+it should be evaluated using the following criteria.
+
+- Does it preserve correctness?
+- Does it preserve stability?
+- Does it improve maintainability?
+- Does it reduce unnecessary work?
+
+If the answer is yes,
+the workflow should evolve accordingly.
 
 ---
 

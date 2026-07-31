@@ -84,6 +84,24 @@ Correctness
 
 The exact Sprint number and PR breakdown for this phase must be decided after Sprint 8 evidence review.
 
+## Founder Success Roadmap
+
+HYB의 첫 번째 고객은 Product Owner 자신이다.
+
+모든 기능은 실제 판매 활동에서 검증되며,
+실제 사업 성과를 만드는 것을 우선한다.
+
+우선 검증 대상은 다음과 같다.
+
+- 실제 투자 판단 개선
+- 수익률 향상
+- 시간 절약
+- 반복 업무 자동화
+- 실제 판매 데이터 기반 검증
+
+사업적 가치가 검증된 기능을 중심으로
+플랫폼을 점진적으로 확장한다.
+
 ## Business Validation Roadmap
 
 Technical expansion should remain connected to real seller decisions.
@@ -132,3 +150,19 @@ Opportunity Discovery
 
 Long-term success is measured by whether HYB improves real investment decisions,
 not merely by the number of supported features or marketplaces.
+
+Long-term vision:
+
+Founder Success
+
+↓
+
+Business Decision Intelligence
+
+↓
+
+AI Commerce Platform
+
+↓
+
+Autonomous Opportunity Discovery
