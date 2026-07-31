@@ -2,7 +2,7 @@
   "root": "C:\\Users\\user\\Desktop\\유빈\\HYB_Opportunity_AI",
   "statistics": {
     "directories": 66,
-    "python_files": 284,
+    "python_files": 286,
     "markdown_files": 118,
     "config_files": 2,
     "entry_points": 9
@@ -2237,6 +2237,20 @@
       ]
     },
     {
+      "path": "tests\\test_ai_knowledge_query.py",
+      "classes": [],
+      "functions": [
+        "build_query_repository",
+        "query_engine",
+        "test_symbol_query_returns_definitions_references_and_tests",
+        "test_dependency_query_accepts_file_class_and_symbol",
+        "test_reverse_dependency_query_returns_direct_dependents",
+        "test_impact_analysis_returns_transitive_dependents_and_tests",
+        "test_query_results_support_json_and_readable_summary",
+        "test_unknown_and_blank_queries_are_explicit"
+      ]
+    },
+    {
       "path": "tests\\test_ai_memory.py",
       "classes": [],
       "functions": [
@@ -4239,6 +4253,45 @@
         "_visibility",
         "_count_lines",
         "_detect_encoding"
+      ]
+    },
+    {
+      "path": "tools\\ai\\query.py",
+      "classes": [
+        "SymbolLocation",
+        "SymbolReference",
+        "KnowledgeQueryResult",
+        "KnowledgeQueryEngine"
+      ],
+      "functions": [
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_json",
+        "to_summary",
+        "__init__",
+        "find_symbol",
+        "dependencies",
+        "reverse_dependencies",
+        "analyze_impact",
+        "_find_definitions",
+        "_find_references",
+        "_resolve_target_files",
+        "_transitive_dependents",
+        "_direct_dependents",
+        "_related_tests",
+        "_classes_in_files",
+        "_definitions_in_files",
+        "_iter_classes",
+        "_paths_for_files",
+        "_relative_paths",
+        "_relative_path",
+        "_absolute_path",
+        "_validate_target",
+        "_symbol_matches",
+        "_reference_matches",
+        "_is_test_path",
+        "_sorted_locations"
       ]
     },
     {
