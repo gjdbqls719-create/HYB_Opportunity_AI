@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .import_graph_builder import ImportGraphBuilder
 from .models import (
-    CodeRelationship,
     DocumentationMapping,
     ImportGraph,
+    ImportReference,
     KnowledgeGraph,
     ProjectModel,
     PythonFile,
@@ -19,7 +20,7 @@ class ProjectMatcher:
 
     Responsibilities
     ----------------
-    * Python import graph
+    * Import-graph orchestration
     * Code ↔ Test mapping
     * Code ↔ Documentation mapping
     * KnowledgeGraph generation
@@ -27,28 +28,20 @@ class ProjectMatcher:
 
     def __init__(self, project: ProjectModel):
         self.project = project
-
         self.graph = KnowledgeGraph()
-
-        self._python_index = self._build_python_index()
+        self._import_graph_builder = ImportGraphBuilder(
+            project=self.project,
+            graph=self.graph,
+        )
 
     # ---------------------------------------------------------
     # Public API
     # ---------------------------------------------------------
 
     def build(self) -> KnowledgeGraph:
-        """
-        Build every relationship.
-
-        Returns
-        -------
-        KnowledgeGraph
-        """
-
+        """Build every relationship and attach the graph to the project."""
         self._build_import_graph()
-
         self._build_test_mapping()
-
         self._build_document_mapping()
 
         self.project.set_knowledge_graph(self.graph)
@@ -56,78 +49,29 @@ class ProjectMatcher:
         return self.graph
 
     # ---------------------------------------------------------
-    # Python Index
-    # ---------------------------------------------------------
-
-    def _build_python_index(
-        self,
-    ) -> dict[str, PythonFile]:
-
-        index: dict[str, PythonFile] = {}
-
-        for python_file in self.project.python_files:
-
-            module = python_file.module
-
-            if module:
-                index[module] = python_file
-
-        return index
-
-    # ---------------------------------------------------------
     # Import Graph
     # ---------------------------------------------------------
 
-    def _build_import_graph(
-        self,
-    ) -> None:
+    def _build_import_graph(self) -> None:
+        self._import_graph_builder.build()
 
-        for python_file in self.project.python_files:
+    # Compatibility delegates for existing callers and tests.
 
-            self._connect_imports(python_file)
+    def _resolve_module(self, module: str) -> PythonFile | None:
+        return self._import_graph_builder.resolve_module(module)
 
-    def _connect_imports(
+    def _resolve_symbol(self, symbol: str) -> PythonFile | None:
+        return self._import_graph_builder.resolve_symbol(symbol)
+
+    def _resolve_relative_module(
         self,
         source: PythonFile,
-    ) -> None:
-
-        for module in source.import_modules:
-
-            target = self._resolve_module(module)
-
-            if target is None:
-                continue
-
-            relationship = CodeRelationship(
-                importer=source.path,
-                imported=target.path,
-                symbol=module,
-                relationship="import",
-            )
-
-            self.graph.add_relationship(
-                relationship
-            )
-
-    # ---------------------------------------------------------
-    # Module Resolver
-    # ---------------------------------------------------------
-
-    def _resolve_module(
-        self,
-        module: str,
-    ) -> PythonFile | None:
-
-        if module in self._python_index:
-            return self._python_index[module]
-
-        for name, file in self._python_index.items():
-
-            if name.endswith(module):
-                return file
-
-        return None
-
+        import_ref: ImportReference,
+    ) -> str | None:
+        return self._import_graph_builder.resolve_relative_module(
+            source,
+            import_ref,
+        )
 
     # ---------------------------------------------------------
     # Test Mapping
@@ -138,13 +82,12 @@ class ProjectMatcher:
         Build Code <-> Test relationships.
 
         Matching priority
-
+        -----------------
         1. Exact filename
         2. test_<name>.py
         3. <name>_test.py
         4. Stem contains source stem
         """
-
         test_files = [
             file
             for file in self.project.python_files
@@ -152,7 +95,6 @@ class ProjectMatcher:
         ]
 
         for source in self.project.python_files:
-
             if self._is_test_file(source):
                 continue
 
@@ -166,74 +108,47 @@ class ProjectMatcher:
         source: PythonFile,
         test_files: list[PythonFile],
     ) -> None:
-
         source_stem = source.path.stem.lower()
 
         for test in test_files:
-
             confidence = 0.0
             reason = ""
-
             test_stem = test.path.stem.lower()
 
-            # ---------------------------------------------
-            # Exact
-            # ---------------------------------------------
-
             if test_stem == f"test_{source_stem}":
-
                 confidence = 1.00
                 reason = "Exact pytest naming"
 
             elif test_stem == f"{source_stem}_test":
-
                 confidence = 0.98
                 reason = "Alternative pytest naming"
 
-            # ---------------------------------------------
-            # Partial
-            # ---------------------------------------------
-
             elif source_stem in test_stem:
-
                 confidence = 0.80
                 reason = "Filename contains source module"
 
-            # ---------------------------------------------
-            # Class name match
-            # ---------------------------------------------
-
             elif source.analysis:
-
                 class_names = {
                     cls.name.lower()
                     for cls in source.analysis.classes
                 }
 
                 if any(
-                    cls in test_stem
-                    for cls in class_names
+                    class_name in test_stem
+                    for class_name in class_names
                 ):
                     confidence = 0.75
                     reason = "Class name inferred"
 
-            # ---------------------------------------------
-            # Function name match
-            # ---------------------------------------------
-
-            if (
-                confidence == 0
-                and source.analysis
-            ):
-
+            if confidence == 0 and source.analysis:
                 function_names = {
-                    fn.name.lower()
-                    for fn in source.analysis.functions
+                    function.name.lower()
+                    for function in source.analysis.functions
                 }
 
                 if any(
-                    fn in test_stem
-                    for fn in function_names
+                    function_name in test_stem
+                    for function_name in function_names
                 ):
                     confidence = 0.65
                     reason = "Function name inferred"
@@ -255,10 +170,7 @@ class ProjectMatcher:
     # ---------------------------------------------------------
 
     @staticmethod
-    def _is_test_file(
-        python_file: PythonFile,
-    ) -> bool:
-
+    def _is_test_file(python_file: PythonFile) -> bool:
         stem = python_file.path.stem.lower()
 
         if stem.startswith("test_"):
@@ -284,98 +196,59 @@ class ProjectMatcher:
         documentation.
 
         Matching priority
-
+        -----------------
         1. Exact filename
         2. README inside same directory
         3. Parent directory README
         4. Domain name
         """
-
         for source in self.project.python_files:
             self._connect_documents(source)
 
-    def _connect_documents(
-        self,
-        source: PythonFile,
-    ) -> None:
-
+    def _connect_documents(self, source: PythonFile) -> None:
         source_stem = source.path.stem.lower()
 
         for document in self.project.markdown_files:
-
             confidence = 0.0
             reason = ""
-
             doc_name = document.path.stem.lower()
 
-            # ---------------------------------------------
-            # Exact filename
-            # ---------------------------------------------
-
             if doc_name == source_stem:
-
                 confidence = 1.00
                 reason = "Matching filename"
-
-            # ---------------------------------------------
-            # Same directory README
-            # ---------------------------------------------
 
             elif (
                 doc_name == "readme"
                 and document.path.parent == source.path.parent
             ):
-
                 confidence = 0.95
                 reason = "Directory README"
 
-            # ---------------------------------------------
-            # Parent README
-            # ---------------------------------------------
-
             elif (
                 doc_name == "readme"
-                and document.path.parent
-                in source.path.parents
+                and document.path.parent in source.path.parents
             ):
-
                 confidence = 0.85
                 reason = "Parent README"
-
-            # ---------------------------------------------
-            # Domain name
-            # ---------------------------------------------
 
             elif any(
                 part.lower() == doc_name
                 for part in source.path.parts
             ):
-
                 confidence = 0.75
                 reason = "Directory / domain match"
 
-            # ---------------------------------------------
-            # Title contains filename
-            # ---------------------------------------------
-
             elif (
                 document.title
-                and source_stem
-                in document.title.lower()
+                and source_stem in document.title.lower()
             ):
-
                 confidence = 0.70
                 reason = "Document title match"
-
-            # ---------------------------------------------
-            # Heading contains filename
-            # ---------------------------------------------
 
             elif any(
                 source_stem in heading.lower()
                 for heading in document.headings
             ):
-
                 confidence = 0.65
                 reason = "Document heading match"
 
@@ -401,7 +274,7 @@ class ProjectMatcher:
     def knowledge_graph(self) -> KnowledgeGraph:
         return self.graph
 
-    def relationships(self) -> list[CodeRelationship]:
+    def relationships(self):
         return self.graph.import_graph.relationships
 
     def test_mappings(self) -> list[TestMapping]:
@@ -412,16 +285,12 @@ class ProjectMatcher:
     ) -> list[DocumentationMapping]:
         return self.graph.documentation_mappings
 
-# ---------------------------------------------------------
-# Analysis Helpers
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
+    # Analysis Helpers
+    # ---------------------------------------------------------
 
-    def find_orphan_python_files(
-        self,
-    ) -> list[PythonFile]:
-        """
-        Import 관계가 없는 Python 파일 반환.
-        """
+    def find_orphan_python_files(self) -> list[PythonFile]:
+        """Return Python files with no import relationship."""
         connected: set[Path] = set()
 
         for relationship in self.graph.import_graph.relationships:
@@ -434,12 +303,8 @@ class ProjectMatcher:
             if python_file.path not in connected
         ]
 
-    def find_untested_python_files(
-        self,
-    ) -> list[PythonFile]:
-        """
-        TestMapping이 존재하지 않는 Python 파일 반환.
-        """
+    def find_untested_python_files(self) -> list[PythonFile]:
+        """Return non-test Python files without a TestMapping."""
         mapped = {
             mapping.source
             for mapping in self.graph.test_mappings
@@ -454,12 +319,8 @@ class ProjectMatcher:
             )
         ]
 
-    def find_undocumented_python_files(
-        self,
-    ) -> list[PythonFile]:
-        """
-        DocumentationMapping이 없는 Python 파일 반환.
-        """
+    def find_undocumented_python_files(self) -> list[PythonFile]:
+        """Return Python files without a DocumentationMapping."""
         mapped = {
             mapping.source
             for mapping in self.graph.documentation_mappings
@@ -507,19 +368,14 @@ class ProjectMatcher:
 def build_knowledge_graph(
     project: ProjectModel,
 ) -> KnowledgeGraph:
-    """
-    Build complete KnowledgeGraph and attach it to ProjectModel.
-    """
-    matcher = ProjectMatcher(project)
-    return matcher.build()
+    """Build and attach a complete KnowledgeGraph."""
+    return ProjectMatcher(project).build()
 
 
 def build_import_graph(
     project: ProjectModel,
 ) -> ImportGraph:
-    """
-    Build only the import graph.
-    """
+    """Build only the import graph."""
     matcher = ProjectMatcher(project)
     matcher._build_import_graph()
     return matcher.import_graph()
@@ -528,9 +384,7 @@ def build_import_graph(
 def analyze_project(
     project: ProjectModel,
 ) -> dict[str, object]:
-    """
-    High-level helper used by generators.
-    """
+    """Return a high-level project relationship analysis."""
     matcher = ProjectMatcher(project)
     matcher.build()
 

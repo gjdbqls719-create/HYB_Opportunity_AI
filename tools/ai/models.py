@@ -76,17 +76,38 @@ class PythonFile(FileNode):
     @property
     def module(self) -> str:
         """
+        Return the best-effort Python module name.
+
+        Examples
+        --------
         app/domain/change/models.py
-            ↓
-        app.domain.change.models
+            -> app.domain.change.models
+
+        tests/unit/test_parser.py
+            -> tests.unit.test_parser
         """
 
-        relative = self.path.with_suffix("")
+        path = self.path.with_suffix("")
 
-        parts = relative.parts
+        parts = list(path.parts)
 
-        if parts[-1] == "__init__":
-            parts = parts[:-1]
+        # Windows absolute path
+        if len(parts) >= 2 and parts[0].endswith(":"):
+            parts = parts[1:]
+
+        # Repository root candidates
+        for marker in (
+            "app",
+            "tests",
+            "tools",
+            "docs",
+        ):
+            if marker in parts:
+                parts = parts[parts.index(marker):]
+                break
+
+        if parts and parts[-1] == "__init__":
+            parts.pop()
 
         return ".".join(parts)
 

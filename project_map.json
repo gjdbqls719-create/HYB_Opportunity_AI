@@ -1,10 +1,10 @@
 {
-  "root": "C:\\Users\\Administrator\\Desktop\\HYB\\HYB_Opportunity_AI",
+  "root": "C:\\Users\\user\\Desktop\\유빈\\HYB_Opportunity_AI",
   "statistics": {
-    "directories": 65,
-    "python_files": 278,
+    "directories": 66,
+    "python_files": 284,
     "markdown_files": 118,
-    "config_files": 1,
+    "config_files": 2,
     "entry_points": 9
   },
   "entry_points": [
@@ -127,23 +127,10 @@
     "matching": [
       "engine\\product_matching.py",
       "tests\\test_product_matching.py",
-      "tests\\test_product_matching_v2.py"
+      "tests\\test_product_matching_v2.py",
+      "tools\\ai\\matcher.py"
     ],
     "opportunity": [
-      "ai\\__init__.py",
-      "app\\__init__.py",
-      "app\\application\\__init__.py",
-      "app\\application\\change\\__init__.py",
-      "app\\application\\change\\detect_changes.py",
-      "app\\application\\change\\detect_latest_price_change.py",
-      "app\\application\\change\\models.py",
-      "app\\application\\change\\ports.py",
-      "app\\application\\discovery\\__init__.py",
-      "app\\application\\discovery\\discover_opportunities.py",
-      "app\\application\\discovery\\ports.py",
-      "app\\application\\discovery\\session.py",
-      "app\\application\\discovery\\statistics.py",
-      "app\\application\\discovery\\workflow.py",
       "app\\application\\opportunity_intelligence\\__init__.py",
       "app\\application\\opportunity_intelligence\\decision_report.py",
       "app\\application\\opportunity_intelligence\\decision_report_renderer.py",
@@ -152,198 +139,23 @@
       "app\\application\\opportunity_intelligence\\ports.py",
       "app\\application\\opportunity_intelligence\\service.py",
       "app\\application\\opportunity_intelligence\\trend_interpreter.py",
-      "app\\application\\watchlist\\__init__.py",
-      "app\\application\\watchlist\\monitor.py",
-      "app\\application\\watchlist\\monitor_models.py",
-      "app\\application\\watchlist\\monitor_ports.py",
-      "app\\application\\watchlist\\ports.py",
-      "app\\application\\workflow\\__init__.py",
-      "app\\application\\workflow\\models.py",
-      "app\\application\\workflow\\ports.py",
-      "app\\application\\workflow\\runner.py",
-      "app\\cli.py",
-      "app\\domain\\__init__.py",
-      "app\\domain\\change\\__init__.py",
-      "app\\domain\\change\\detection.py",
-      "app\\domain\\change\\event_factory.py",
-      "app\\domain\\change\\events.py",
-      "app\\domain\\change\\models.py",
-      "app\\domain\\change\\publisher.py",
-      "app\\domain\\discovery\\__init__.py",
-      "app\\domain\\discovery\\models.py",
-      "app\\domain\\discovery\\pipeline.py",
-      "app\\domain\\discovery\\queue.py",
-      "app\\domain\\discovery\\ranking.py",
       "app\\domain\\opportunity\\__init__.py",
       "app\\domain\\opportunity\\decision.py",
       "app\\domain\\opportunity\\evaluation.py",
       "app\\domain\\opportunity\\models.py",
       "app\\domain\\opportunity\\reasons.py",
-      "app\\domain\\trend\\__init__.py",
-      "app\\domain\\trend\\direction.py",
-      "app\\domain\\trend\\models.py",
-      "app\\domain\\trend\\volatility.py",
-      "app\\domain\\watchlist\\__init__.py",
-      "app\\domain\\watchlist\\models.py",
-      "app\\domain\\watchlist\\watch_list.py",
-      "app\\engine\\__init__.py",
-      "app\\engine\\fee_efficiency.py",
       "app\\engine\\opportunity_confidence.py",
       "app\\engine\\opportunity_decision.py",
       "app\\engine\\opportunity_risk.py",
       "app\\engine\\opportunity_score.py",
-      "app\\engine\\roi_intelligence.py",
-      "app\\engine\\trend_analysis.py",
-      "app\\infrastructure\\__init__.py",
-      "app\\infrastructure\\change\\__init__.py",
-      "app\\infrastructure\\change\\price_history_snapshot_provider.py",
-      "app\\infrastructure\\discovery\\__init__.py",
-      "app\\infrastructure\\discovery\\orchestrator_gateway.py",
       "app\\infrastructure\\opportunity_intelligence\\__init__.py",
       "app\\infrastructure\\opportunity_intelligence\\discovery_result_adapter.py",
-      "app\\infrastructure\\watchlist\\__init__.py",
-      "app\\infrastructure\\watchlist\\composition.py",
-      "app\\infrastructure\\watchlist\\listing_lookup_adapter.py",
-      "app\\infrastructure\\watchlist\\mapper.py",
-      "app\\infrastructure\\watchlist\\marketplace_readers.py",
-      "app\\infrastructure\\watchlist\\price_observation_recorder.py",
-      "app\\infrastructure\\watchlist\\sqlite_repository.py",
-      "app\\models\\__init__.py",
-      "app\\models\\canonical_product.py",
-      "app\\models\\product.py",
-      "app\\web.py",
-      "check_ebay_search.py",
-      "check_ebay_token.py",
-      "check_orchestrator.py",
-      "check_price_history.py",
-      "check_price_trend.py",
-      "collectors\\__init__.py",
-      "collectors\\base.py",
-      "config\\__init__.py",
-      "config\\settings.py",
-      "database\\__init__.py",
-      "database\\models.py",
-      "engine\\__init__.py",
-      "engine\\ai_analyst.py",
-      "engine\\ai_memory.py",
-      "engine\\ai_partner.py",
-      "engine\\canonical_id_generator.py",
-      "engine\\catalog_integration_service.py",
-      "engine\\catalog_manager.py",
-      "engine\\catalog_repository.py",
-      "engine\\confidence.py",
-      "engine\\decision_report.py",
       "engine\\explainable_score.py",
-      "engine\\inventory_analysis.py",
-      "engine\\market_adjustment.py",
-      "engine\\market_analyzer.py",
-      "engine\\market_intelligence.py",
       "engine\\opportunity.py",
-      "engine\\orchestrator.py",
-      "engine\\price_intelligence.py",
-      "engine\\price_snapshot_adapter.py",
-      "engine\\price_trend.py",
-      "engine\\product_attribute_comparator.py",
-      "engine\\product_attribute_extractor.py",
-      "engine\\product_attributes.py",
-      "engine\\product_draft_factory.py",
-      "engine\\product_matching.py",
-      "engine\\product_normalizer.py",
-      "engine\\product_synonyms.py",
-      "engine\\recommendation.py",
       "engine\\score_formatter.py",
-      "engine\\seller_analysis.py",
-      "engine\\trend_scoring.py",
-      "main.py",
-      "market_data\\__init__.py",
-      "market_data\\ebay_catalog_pipeline.py",
-      "market_data\\inventory_snapshot.py",
-      "market_data\\price_snapshot.py",
-      "market_data\\seller_snapshot.py",
-      "market_data\\snapshot.py",
-      "market_data\\snapshot_mapper.py",
-      "marketplaces\\__init__.py",
-      "marketplaces\\amazon.py",
-      "marketplaces\\ebay.py",
-      "presentation\\__init__.py",
-      "presentation\\cli.py",
-      "presentation\\dashboard.py",
-      "presentation\\dashboard_components.py",
-      "presentation\\dashboard_list.py",
-      "presentation\\dashboard_utils.py",
-      "presentation\\ebay_catalog_cli.py",
-      "presentation\\formatter.py",
-      "presentation\\models.py",
-      "services\\__init__.py",
-      "services\\currency\\__init__.py",
-      "services\\currency\\cached_provider.py",
-      "services\\currency\\converter.py",
-      "services\\currency\\frankfurter_provider.py",
-      "services\\currency\\mock_provider.py",
-      "services\\currency\\models.py",
-      "services\\currency\\normalizer.py",
-      "services\\currency\\provider.py",
-      "services\\ebay_auth.py",
-      "services\\fees\\__init__.py",
-      "services\\fees\\calculator.py",
-      "services\\fees\\models.py",
-      "services\\fees\\profiles.py",
-      "services\\marketplace_rules\\__init__.py",
-      "services\\marketplace_rules\\models.py",
-      "services\\marketplace_rules\\resolver.py",
-      "services\\marketplace_rules\\rules.py",
-      "services\\shipping\\__init__.py",
-      "services\\shipping\\models.py",
-      "services\\shipping\\resolver.py",
-      "storage\\__init__.py",
       "storage\\opportunity_history.py",
-      "storage\\price_history.py",
-      "tests\\contracts\\__init__.py",
-      "tests\\contracts\\test_marketplace_adapter_contract.py",
-      "tests\\test_ai_memory.py",
-      "tests\\test_amazon.py",
-      "tests\\test_cached_currency_provider.py",
-      "tests\\test_canonical_id_generator.py",
-      "tests\\test_canonical_product.py",
-      "tests\\test_catalog_integration_service.py",
-      "tests\\test_catalog_manager.py",
-      "tests\\test_catalog_repository.py",
-      "tests\\test_change_application.py",
-      "tests\\test_change_detection.py",
-      "tests\\test_change_events.py",
-      "tests\\test_change_models.py",
-      "tests\\test_cli.py",
-      "tests\\test_cli_dashboard_integration.py",
-      "tests\\test_collector_base.py",
-      "tests\\test_confidence.py",
-      "tests\\test_currency.py",
-      "tests\\test_currency_normalizer.py",
-      "tests\\test_dashboard_builder.py",
-      "tests\\test_dashboard_formatter.py",
-      "tests\\test_dashboard_list.py",
-      "tests\\test_decision_report.py",
-      "tests\\test_detect_latest_price_change.py",
-      "tests\\test_discovery_application.py",
-      "tests\\test_discovery_domain.py",
-      "tests\\test_discovery_workflow_intelligence.py",
-      "tests\\test_ebay.py",
-      "tests\\test_ebay_catalog_cli.py",
-      "tests\\test_ebay_catalog_pipeline.py",
       "tests\\test_explainable_score.py",
       "tests\\test_explainable_score_market_adjustment.py",
-      "tests\\test_fee_efficiency.py",
-      "tests\\test_frankfurter_currency_provider.py",
-      "tests\\test_inventory_analysis.py",
-      "tests\\test_inventory_snapshot.py",
-      "tests\\test_listing_lookup_adapter.py",
-      "tests\\test_market_adjustment.py",
-      "tests\\test_market_analyzer.py",
-      "tests\\test_market_intelligence.py",
-      "tests\\test_market_snapshot.py",
-      "tests\\test_marketplace_fees.py",
-      "tests\\test_marketplace_listing_readers.py",
-      "tests\\test_marketplace_rules.py",
-      "tests\\test_marketplace_validation.py",
       "tests\\test_opportunity.py",
       "tests\\test_opportunity_confidence_engine.py",
       "tests\\test_opportunity_decision_engine.py",
@@ -358,56 +170,7 @@
       "tests\\test_opportunity_risk_engine.py",
       "tests\\test_opportunity_score_engine.py",
       "tests\\test_opportunity_trend_interpreter.py",
-      "tests\\test_orchestrator.py",
-      "tests\\test_orchestrator_price_change_detection.py",
-      "tests\\test_orchestrator_price_snapshot.py",
-      "tests\\test_orchestrator_price_snapshot_persistence.py",
-      "tests\\test_presentation_cli.py",
-      "tests\\test_presentation_models.py",
-      "tests\\test_price_change_pipeline_e2e.py",
-      "tests\\test_price_history.py",
-      "tests\\test_price_history_snapshot_provider.py",
-      "tests\\test_price_intelligence.py",
-      "tests\\test_price_observation_recorder.py",
-      "tests\\test_price_snapshot.py",
-      "tests\\test_price_snapshot_adapter.py",
-      "tests\\test_price_trend.py",
-      "tests\\test_price_trend_domain.py",
-      "tests\\test_product_attributes.py",
-      "tests\\test_product_draft_factory.py",
-      "tests\\test_product_draft_identity_policy.py",
-      "tests\\test_product_matching.py",
-      "tests\\test_product_matching_v2.py",
-      "tests\\test_product_model.py",
-      "tests\\test_product_synonym_integration.py",
-      "tests\\test_product_synonyms.py",
-      "tests\\test_recommendation.py",
-      "tests\\test_roi_intelligence.py",
-      "tests\\test_score_formatter.py",
-      "tests\\test_seller_analysis.py",
-      "tests\\test_seller_snapshot.py",
-      "tests\\test_shipping_cost_resolver.py",
-      "tests\\test_snapshot.py",
-      "tests\\test_snapshot_analysis_flow.py",
-      "tests\\test_snapshot_mapper.py",
-      "tests\\test_sqlite_watchlist_repository.py",
-      "tests\\test_trend_analysis_engine.py",
-      "tests\\test_trend_scoring.py",
-      "tests\\test_watchlist_domain.py",
-      "tests\\test_watchlist_mapper.py",
-      "tests\\test_watchlist_monitor.py",
-      "tests\\test_watchlist_monitor_cli.py",
-      "tests\\test_watchlist_monitor_composition.py",
-      "tests\\test_watchlist_monitor_e2e.py",
-      "tests\\test_watchlist_monitor_models.py",
-      "tests\\test_watchlist_monitor_ports.py",
-      "tests\\test_web.py",
-      "tests\\test_workflow_engine.py",
-      "tools\\ai\\__init__.py",
-      "tools\\ai\\build_ai_index.py",
-      "tools\\ai\\config.py",
-      "tools\\ai\\models.py",
-      "tools\\ai\\scanner.py"
+      "tests\\test_score_formatter.py"
     ],
     "pricing": [
       "app\\application\\change\\detect_latest_price_change.py",
@@ -475,8 +238,8 @@
       ],
       "functions": [
         "__init__",
-        "_detect_pair",
-        "execute"
+        "execute",
+        "_detect_pair"
       ]
     },
     {
@@ -486,29 +249,29 @@
       ],
       "functions": [
         "__init__",
-        "_validate_provider",
-        "execute"
+        "execute",
+        "_validate_provider"
       ]
     },
     {
       "path": "app\\application\\change\\models.py",
       "classes": [
-        "ChangeDetectionResponse",
-        "SnapshotPair"
+        "SnapshotPair",
+        "ChangeDetectionResponse"
       ],
       "functions": [
         "__post_init__",
-        "__post_init__",
-        "canonical_product_id",
-        "change_count",
-        "changed_pair_count",
-        "compared_pair_count",
-        "event_count",
-        "events_for_product",
-        "has_changes",
-        "marketplace",
         "snapshot_type",
-        "unchanged_pair_count"
+        "canonical_product_id",
+        "marketplace",
+        "__post_init__",
+        "compared_pair_count",
+        "changed_pair_count",
+        "unchanged_pair_count",
+        "change_count",
+        "event_count",
+        "has_changes",
+        "events_for_product"
       ]
     },
     {
@@ -517,8 +280,8 @@
         "PriceSnapshotProvider"
       ],
       "functions": [
-        "get_latest_for_canonical_product",
-        "get_latest_for_listing"
+        "get_latest_for_listing",
+        "get_latest_for_canonical_product"
       ]
     },
     {
@@ -533,9 +296,9 @@
         "DiscoverOpportunitiesUseCase"
       ],
       "functions": [
+        "top",
         "__init__",
-        "execute",
-        "top"
+        "execute"
       ]
     },
     {
@@ -550,15 +313,15 @@
     {
       "path": "app\\application\\discovery\\session.py",
       "classes": [
-        "DiscoverySession",
-        "DiscoverySessionStatus"
+        "DiscoverySessionStatus",
+        "DiscoverySession"
       ],
       "functions": [
+        "utc_now",
         "__post_init__",
-        "_finish",
         "complete",
         "fail",
-        "utc_now"
+        "_finish"
       ]
     },
     {
@@ -573,23 +336,23 @@
     {
       "path": "app\\application\\discovery\\workflow.py",
       "classes": [
-        "DiscoverOpportunitiesWorkflow",
-        "DiscoverOpportunitiesWorkflowResponse",
         "OpportunityPublisher",
+        "DiscoverOpportunitiesWorkflowResponse",
         "_DiscoverStep",
         "_OpportunityIntelligenceStep",
-        "_PublishStep"
+        "_PublishStep",
+        "DiscoverOpportunitiesWorkflow"
       ],
       "functions": [
+        "publish",
+        "name",
+        "execute",
+        "name",
+        "execute",
+        "name",
+        "execute",
         "__init__",
-        "execute",
-        "execute",
-        "execute",
-        "execute",
-        "name",
-        "name",
-        "name",
-        "publish"
+        "execute"
       ]
     },
     {
@@ -620,27 +383,27 @@
     {
       "path": "app\\application\\opportunity_intelligence\\final_recommendation.py",
       "classes": [
+        "OpportunityRecommendationLevel",
         "OpportunityRecommendation",
-        "OpportunityRecommendationEngine",
-        "OpportunityRecommendationLevel"
+        "OpportunityRecommendationEngine"
       ],
       "functions": [
         "__post_init__",
+        "recommend",
+        "_validate_inputs",
+        "_determine_level",
         "_build_reasons",
         "_build_strengths",
         "_build_warnings",
-        "_determine_level",
-        "_recommendation_text",
-        "_validate_inputs",
-        "recommend"
+        "_recommendation_text"
       ]
     },
     {
       "path": "app\\application\\opportunity_intelligence\\models.py",
       "classes": [
+        "OpportunityIntelligenceStatus",
         "OpportunityIntelligenceInput",
-        "OpportunityIntelligenceResult",
-        "OpportunityIntelligenceStatus"
+        "OpportunityIntelligenceResult"
       ],
       "functions": [
         "__post_init__",
@@ -671,19 +434,19 @@
     {
       "path": "app\\application\\opportunity_intelligence\\trend_interpreter.py",
       "classes": [
-        "OpportunityTrendAssessment",
-        "OpportunityTrendInterpreter",
         "OpportunityTrendLevel",
-        "OpportunityTrendPolicy"
+        "OpportunityTrendAssessment",
+        "OpportunityTrendPolicy",
+        "OpportunityTrendInterpreter"
       ],
       "functions": [
+        "__post_init__",
+        "__post_init__",
         "__init__",
-        "__post_init__",
-        "__post_init__",
+        "interpret",
         "_interpret_downtrend",
-        "_interpret_stable_trend",
         "_interpret_uptrend",
-        "interpret"
+        "_interpret_stable_trend"
       ]
     },
     {
@@ -698,50 +461,50 @@
       ],
       "functions": [
         "__init__",
-        "_create_snapshot",
-        "_failed_result",
+        "execute",
         "_monitor_item",
-        "_not_found_result",
+        "_create_snapshot",
         "_resolve_observed_at",
-        "_validate_dependency",
         "_validate_listing_result",
-        "execute"
+        "_not_found_result",
+        "_failed_result",
+        "_validate_dependency"
       ]
     },
     {
       "path": "app\\application\\watchlist\\monitor_models.py",
       "classes": [
-        "MonitorItemResult",
         "MonitorStatus",
+        "MonitorItemResult",
         "WatchListMonitorResult"
       ],
       "functions": [
         "__post_init__",
-        "__post_init__",
-        "_validate_optional_price",
-        "change_count",
-        "failed_count",
-        "has_changes",
-        "has_changes",
-        "has_failures",
         "is_successful",
-        "not_found_count",
-        "successful_count",
+        "has_changes",
+        "_validate_optional_price",
+        "__post_init__",
         "total_count",
+        "successful_count",
+        "updated_count",
         "unchanged_count",
-        "updated_count"
+        "not_found_count",
+        "failed_count",
+        "change_count",
+        "has_failures",
+        "has_changes"
       ]
     },
     {
       "path": "app\\application\\watchlist\\monitor_ports.py",
       "classes": [
-        "LatestPriceChangeDetector",
         "ListingLookupPort",
+        "LatestPriceChangeDetector",
         "PriceObservationRecorder"
       ],
       "functions": [
-        "execute",
         "get_listing",
+        "execute",
         "record_observation"
       ]
     },
@@ -751,16 +514,16 @@
         "WatchListRepository"
       ],
       "functions": [
-        "count",
-        "delete",
+        "save",
+        "get",
+        "find_by_identity",
+        "list_all",
+        "list_watching",
+        "list_archived",
         "exists",
         "exists_identity",
-        "find_by_identity",
-        "get",
-        "list_all",
-        "list_archived",
-        "list_watching",
-        "save"
+        "delete",
+        "count"
       ]
     },
     {
@@ -771,30 +534,30 @@
     {
       "path": "app\\application\\workflow\\models.py",
       "classes": [
-        "WorkflowContext",
-        "WorkflowEvent",
+        "WorkflowStatus",
         "WorkflowEventType",
+        "WorkflowEvent",
         "WorkflowRun",
-        "WorkflowStatus"
+        "WorkflowContext"
       ],
       "functions": [
+        "utc_now",
         "duration_seconds",
+        "set",
         "get",
         "require",
-        "set",
-        "snapshot",
-        "utc_now"
+        "snapshot"
       ]
     },
     {
       "path": "app\\application\\workflow\\ports.py",
       "classes": [
-        "WorkflowObserver",
-        "WorkflowStep"
+        "WorkflowStep",
+        "WorkflowObserver"
       ],
       "functions": [
-        "execute",
         "name",
+        "execute",
         "on_event"
       ]
     },
@@ -807,21 +570,20 @@
       "functions": [
         "__init__",
         "__init__",
-        "_emit",
-        "run"
+        "run",
+        "_emit"
       ]
     },
     {
       "path": "app\\cli.py",
       "classes": [],
       "functions": [
-        "_evaluate_opportunity_intelligence",
-        "_format_money",
-        "_render_ai_partner_report",
+        "build_parser",
         "_resolve_query",
         "_validate_arguments",
-        "build_parser",
-        "handle_search_error",
+        "_format_money",
+        "_render_ai_partner_report",
+        "_evaluate_opportunity_intelligence",
         "render_results",
         "render_saved_results",
         "render_watchlist_monitor_result",
@@ -843,41 +605,41 @@
       "path": "app\\domain\\change\\detection.py",
       "classes": [],
       "functions": [
-        "_build_change_set",
-        "_build_numeric_change",
-        "_build_optional_numeric_change",
-        "_build_value_change",
-        "_validate_snapshot_pair",
-        "detect_inventory_changes",
         "detect_price_changes",
-        "detect_seller_changes"
+        "detect_inventory_changes",
+        "detect_seller_changes",
+        "_validate_snapshot_pair",
+        "_build_value_change",
+        "_build_optional_numeric_change",
+        "_build_numeric_change",
+        "_build_change_set"
       ]
     },
     {
       "path": "app\\domain\\change\\event_factory.py",
       "classes": [],
       "functions": [
+        "create_change_events",
         "_create_event",
         "_resolve_event_type",
-        "_resolve_inventory_event_type",
         "_resolve_price_event_type",
-        "_resolve_seller_event_type",
-        "create_change_events"
+        "_resolve_inventory_event_type",
+        "_resolve_seller_event_type"
       ]
     },
     {
       "path": "app\\domain\\change\\events.py",
       "classes": [
-        "ChangeDetectedEvent",
-        "ChangeEventType"
+        "ChangeEventType",
+        "ChangeDetectedEvent"
       ],
       "functions": [
-        "__post_init__",
         "_normalize_required_text",
         "_validate_aware_datetime",
+        "__post_init__",
         "identity_key",
-        "is_inventory_event",
         "is_price_event",
+        "is_inventory_event",
         "is_seller_event"
       ]
     },
@@ -885,28 +647,28 @@
       "path": "app\\domain\\change\\models.py",
       "classes": [
         "ChangeDirection",
-        "ChangeSet",
         "ChangeType",
-        "DetectedChange"
+        "DetectedChange",
+        "ChangeSet"
       ],
       "functions": [
-        "__post_init__",
-        "__post_init__",
-        "_normalize_optional_decimal",
         "_normalize_required_text",
+        "_normalize_optional_decimal",
         "_validate_aware_datetime",
-        "change_count",
-        "changes_of_type",
+        "__post_init__",
         "has_changed",
+        "is_numeric_change",
+        "__post_init__",
         "has_changes",
-        "is_numeric_change"
+        "change_count",
+        "changes_of_type"
       ]
     },
     {
       "path": "app\\domain\\change\\publisher.py",
       "classes": [
-        "ChangeEventBatchPublisher",
-        "ChangeEventPublisher"
+        "ChangeEventPublisher",
+        "ChangeEventBatchPublisher"
       ],
       "functions": [
         "publish",
@@ -932,33 +694,33 @@
     {
       "path": "app\\domain\\discovery\\pipeline.py",
       "classes": [
-        "DiscoveryPipeline",
+        "DiscoveryRunSummary",
         "DiscoveryRun",
-        "DiscoveryRunSummary"
+        "DiscoveryPipeline"
       ],
       "functions": [
+        "top",
         "__init__",
-        "run",
-        "top"
+        "run"
       ]
     },
     {
       "path": "app\\domain\\discovery\\queue.py",
       "classes": [
-        "InMemoryOpportunityQueue",
-        "OpportunityQueue"
+        "OpportunityQueue",
+        "InMemoryOpportunityQueue"
       ],
       "functions": [
-        "__init__",
-        "__len__",
-        "__len__",
-        "clear",
-        "clear",
         "default_product_identity",
-        "dequeue",
-        "dequeue",
         "enqueue",
-        "enqueue"
+        "dequeue",
+        "clear",
+        "__len__",
+        "__init__",
+        "enqueue",
+        "dequeue",
+        "clear",
+        "__len__"
       ]
     },
     {
@@ -994,14 +756,14 @@
     {
       "path": "app\\domain\\opportunity\\models.py",
       "classes": [
-        "OpportunityFactors",
         "OpportunityGrade",
+        "OpportunityFactors",
         "OpportunityScore"
       ],
       "functions": [
+        "_validate_score",
         "__post_init__",
-        "__post_init__",
-        "_validate_score"
+        "__post_init__"
       ]
     },
     {
@@ -1049,24 +811,24 @@
       "path": "app\\domain\\watchlist\\models.py",
       "classes": [
         "WatchIdentityStrength",
-        "WatchItem",
-        "WatchItemStatus"
+        "WatchItemStatus",
+        "WatchItem"
       ],
       "functions": [
+        "utc_now",
         "__post_init__",
-        "_touch",
-        "_validate_datetime",
-        "_validate_non_negative_number",
-        "archive",
         "from_product",
-        "identity_key",
         "identity_strength",
+        "identity_key",
         "is_active",
-        "record_analysis",
+        "archive",
         "restore",
-        "update_note",
         "update_targets",
-        "utc_now"
+        "update_note",
+        "record_analysis",
+        "_touch",
+        "_validate_non_negative_number",
+        "_validate_datetime"
       ]
     },
     {
@@ -1074,24 +836,24 @@
       "classes": [
         "DuplicateWatchItemError",
         "WatchItemNotFoundError",
-        "WatchList",
-        "WeakWatchIdentityError"
+        "WeakWatchIdentityError",
+        "WatchList"
       ],
       "functions": [
         "__init__",
-        "__iter__",
-        "__len__",
-        "_clean_watch_id",
         "add",
-        "archive",
-        "contains_identity",
-        "find_by_identity",
         "get",
-        "list_all",
-        "list_archived",
-        "list_watching",
+        "find_by_identity",
+        "contains_identity",
         "remove",
-        "restore"
+        "archive",
+        "restore",
+        "list_all",
+        "list_watching",
+        "list_archived",
+        "__len__",
+        "__iter__",
+        "_clean_watch_id"
       ]
     },
     {
@@ -1106,112 +868,112 @@
         "FeeEfficiencyScorer"
       ],
       "functions": [
-        "__init__",
         "__post_init__",
-        "_interpolate",
-        "calculate"
+        "__init__",
+        "calculate",
+        "_interpolate"
       ]
     },
     {
       "path": "app\\engine\\opportunity_confidence.py",
       "classes": [
-        "OpportunityConfidenceAssessment",
-        "OpportunityConfidenceEngine",
         "OpportunityConfidenceLevel",
-        "OpportunityConfidencePolicy"
+        "OpportunityConfidenceAssessment",
+        "OpportunityConfidencePolicy",
+        "OpportunityConfidenceEngine"
       ],
       "functions": [
+        "__post_init__",
+        "__post_init__",
         "__init__",
-        "__post_init__",
-        "__post_init__",
-        "_validate_score",
-        "assess"
+        "assess",
+        "_validate_score"
       ]
     },
     {
       "path": "app\\engine\\opportunity_decision.py",
       "classes": [
-        "OpportunityDecisionEngine",
-        "OpportunityDecisionPolicy"
+        "OpportunityDecisionPolicy",
+        "OpportunityDecisionEngine"
       ],
       "functions": [
-        "__init__",
         "__post_init__",
-        "_append_reason",
+        "__init__",
+        "evaluate",
         "_determine_decision",
         "_determine_reasons",
-        "_resolve_evaluated_at",
-        "evaluate"
+        "_append_reason",
+        "_resolve_evaluated_at"
       ]
     },
     {
       "path": "app\\engine\\opportunity_risk.py",
       "classes": [
-        "OpportunityRiskAssessment",
-        "OpportunityRiskEngine",
         "OpportunityRiskLevel",
-        "OpportunityRiskPolicy"
+        "OpportunityRiskAssessment",
+        "OpportunityRiskPolicy",
+        "OpportunityRiskEngine"
       ],
       "functions": [
-        "__init__",
-        "__post_init__",
-        "__post_init__",
         "_validate_score",
+        "__post_init__",
+        "__post_init__",
+        "__init__",
         "assess"
       ]
     },
     {
       "path": "app\\engine\\opportunity_score.py",
       "classes": [
-        "OpportunityScoreEngine",
-        "OpportunityScorePolicy"
+        "OpportunityScorePolicy",
+        "OpportunityScoreEngine"
       ],
       "functions": [
-        "__init__",
         "__post_init__",
+        "__init__",
+        "calculate",
         "_determine_grade",
-        "_resolve_generated_at",
         "_validate_confidence",
         "_validate_fee_score",
         "_validate_roi_score",
-        "calculate"
+        "_resolve_generated_at"
       ]
     },
     {
       "path": "app\\engine\\roi_intelligence.py",
       "classes": [
         "RoiGrade",
-        "RoiIntelligenceEngine",
         "RoiIntelligencePolicy",
-        "RoiIntelligenceResult"
+        "RoiIntelligenceResult",
+        "RoiIntelligenceEngine"
       ],
       "functions": [
+        "__post_init__",
+        "__post_init__",
         "__init__",
-        "__post_init__",
-        "__post_init__",
+        "calculate",
         "_calculate_score",
         "_determine_grade",
         "_interpolate",
-        "_validate_money",
-        "calculate"
+        "_validate_money"
       ]
     },
     {
       "path": "app\\engine\\trend_analysis.py",
       "classes": [
-        "TrendAnalysisEngine",
-        "TrendAnalysisPolicy"
+        "TrendAnalysisPolicy",
+        "TrendAnalysisEngine"
       ],
       "functions": [
-        "__init__",
+        "analyze_price_history",
         "__post_init__",
+        "__init__",
+        "analyze",
         "_calculate_change_rate",
         "_determine_direction",
-        "_determine_position_flags",
         "_determine_volatility",
-        "_validate_records",
-        "analyze",
-        "analyze_price_history"
+        "_determine_position_flags",
+        "_validate_records"
       ]
     },
     {
@@ -1231,10 +993,10 @@
       ],
       "functions": [
         "__init__",
-        "_map_optional_record",
-        "_require_text",
+        "get_latest_for_listing",
         "get_latest_for_canonical_product",
-        "get_latest_for_listing"
+        "_map_optional_record",
+        "_require_text"
       ]
     },
     {
@@ -1248,9 +1010,9 @@
         "OrchestratorOpportunityDiscoveryGateway"
       ],
       "functions": [
+        "opportunity_result_to_discovery_result",
         "__init__",
-        "discover",
-        "opportunity_result_to_discovery_result"
+        "discover"
       ]
     },
     {
@@ -1265,20 +1027,20 @@
         "DiscoveryResultOpportunityIntelligenceAdapter"
       ],
       "functions": [
-        "__init__",
-        "__post_init__",
-        "_build_factors",
-        "_build_trend_analysis",
-        "_parse_decimal",
         "_piecewise_score",
         "_validate_normalized_score",
-        "adapt",
-        "competition_score",
-        "demand_score",
-        "price_score",
+        "__post_init__",
         "profitability_score",
+        "price_score",
+        "trend_score",
+        "demand_score",
+        "competition_score",
         "risk_score",
-        "trend_score"
+        "__init__",
+        "adapt",
+        "_build_trend_analysis",
+        "_build_factors",
+        "_parse_decimal"
       ]
     },
     {
@@ -1296,39 +1058,39 @@
     {
       "path": "app\\infrastructure\\watchlist\\listing_lookup_adapter.py",
       "classes": [
-        "MarketplaceListingLookupAdapter",
+        "UnsupportedMarketplaceError",
         "MarketplaceListingReader",
-        "UnsupportedMarketplaceError"
+        "MarketplaceListingLookupAdapter"
       ],
       "functions": [
-        "__init__",
-        "_normalize_marketplace",
-        "_normalize_optional_text",
         "get_listing",
-        "get_listing"
+        "__init__",
+        "get_listing",
+        "_normalize_marketplace",
+        "_normalize_optional_text"
       ]
     },
     {
       "path": "app\\infrastructure\\watchlist\\mapper.py",
       "classes": [],
       "functions": [
-        "_get_value",
-        "_optional_datetime",
-        "_optional_float",
-        "_optional_string",
-        "_parse_datetime",
-        "_required_datetime",
-        "_required_float",
-        "_required_string",
+        "watch_item_to_record",
         "watch_item_from_row",
-        "watch_item_to_record"
+        "_get_value",
+        "_required_string",
+        "_optional_string",
+        "_required_float",
+        "_optional_float",
+        "_required_datetime",
+        "_optional_datetime",
+        "_parse_datetime"
       ]
     },
     {
       "path": "app\\infrastructure\\watchlist\\marketplace_readers.py",
       "classes": [
-        "AmazonListingReader",
-        "EbayListingReader"
+        "EbayListingReader",
+        "AmazonListingReader"
       ],
       "functions": [
         "create_marketplace_listing_lookup_adapter",
@@ -1352,25 +1114,25 @@
         "SQLiteWatchListRepository"
       ],
       "functions": [
-        "__enter__",
-        "__exit__",
         "__init__",
-        "_clean_required_text",
-        "_ensure_open",
-        "_initialize_schema",
-        "_is_identity_conflict",
-        "_list_by_status",
-        "close",
-        "count",
-        "delete",
+        "save",
+        "get",
+        "find_by_identity",
+        "list_all",
+        "list_watching",
+        "list_archived",
         "exists",
         "exists_identity",
-        "find_by_identity",
-        "get",
-        "list_all",
-        "list_archived",
-        "list_watching",
-        "save"
+        "delete",
+        "count",
+        "close",
+        "__enter__",
+        "__exit__",
+        "_list_by_status",
+        "_initialize_schema",
+        "_ensure_open",
+        "_clean_required_text",
+        "_is_identity_conflict"
       ]
     },
     {
@@ -1384,11 +1146,11 @@
         "CanonicalProduct"
       ],
       "functions": [
-        "__post_init__",
-        "_normalize_attributes",
+        "_utc_now",
         "_normalize_optional_text",
         "_normalize_required_text",
-        "_utc_now",
+        "_normalize_attributes",
+        "__post_init__",
         "identity_summary"
       ]
     },
@@ -1404,8 +1166,8 @@
         "name",
         "product_url",
         "product_url",
-        "to_dict",
-        "total_cost"
+        "total_cost",
+        "to_dict"
       ]
     },
     {
@@ -1414,10 +1176,10 @@
         "OpportunitySearchRequest"
       ],
       "functions": [
-        "health",
         "index",
-        "search_opportunities",
-        "version"
+        "health",
+        "version",
+        "search_opportunities"
       ]
     },
     {
@@ -1436,24 +1198,24 @@
       "path": "check_orchestrator.py",
       "classes": [],
       "functions": [
-        "main",
-        "print_separator"
+        "print_separator",
+        "main"
       ]
     },
     {
       "path": "check_price_history.py",
       "classes": [],
       "functions": [
-        "main",
-        "print_separator"
+        "print_separator",
+        "main"
       ]
     },
     {
       "path": "check_price_trend.py",
       "classes": [],
       "functions": [
-        "main",
-        "print_separator"
+        "print_separator",
+        "main"
       ]
     },
     {
@@ -1464,15 +1226,15 @@
     {
       "path": "collectors\\base.py",
       "classes": [
-        "MarketplaceAdapter",
-        "MarketplaceValidationError"
+        "MarketplaceValidationError",
+        "MarketplaceAdapter"
       ],
       "functions": [
-        "normalize",
-        "normalize_and_validate",
         "parse_price",
         "parse_rating",
         "parse_review_count",
+        "normalize",
+        "normalize_and_validate",
         "validate_product"
       ]
     },
@@ -1487,9 +1249,9 @@
         "Settings"
       ],
       "functions": [
-        "ebay_browse_api_url",
+        "get_settings",
         "ebay_token_url",
-        "get_settings"
+        "ebay_browse_api_url"
       ]
     },
     {
@@ -1519,16 +1281,16 @@
     {
       "path": "engine\\ai_memory.py",
       "classes": [
-        "AIMemoryInsight",
-        "HistoricalOpportunity"
+        "HistoricalOpportunity",
+        "AIMemoryInsight"
       ],
       "functions": [
-        "_build_empty_insight",
+        "analyze_ai_memory",
+        "_calculate_percentile",
         "_build_rank_label",
         "_build_summary",
-        "_calculate_percentile",
         "_format_difference",
-        "analyze_ai_memory"
+        "_build_empty_insight"
       ]
     },
     {
@@ -1537,14 +1299,14 @@
         "AIPartnerReport"
       ],
       "functions": [
-        "_build_memory_summary",
-        "_build_next_action",
-        "_build_recommendation_text",
-        "_build_summary",
+        "build_ai_partner_report",
         "_build_title",
+        "_build_summary",
+        "_build_memory_summary",
+        "_build_recommendation_text",
+        "_build_next_action",
         "_clean_text_items",
-        "_first_unique_item",
-        "build_ai_partner_report"
+        "_first_unique_item"
       ]
     },
     {
@@ -1554,16 +1316,16 @@
         "InMemoryCanonicalIdGenerator"
       ],
       "functions": [
+        "generate",
         "__init__",
-        "_format_display_id",
-        "_validate_positive_integer",
         "_validate_prefix",
-        "generate",
-        "generate",
-        "next_sequence",
+        "_validate_positive_integer",
         "prefix",
-        "synchronize",
-        "width"
+        "width",
+        "next_sequence",
+        "_format_display_id",
+        "generate",
+        "synchronize"
       ]
     },
     {
@@ -1575,73 +1337,73 @@
         "__init__",
         "catalog_manager",
         "draft_factory",
-        "integrate",
-        "price_history_repository"
+        "price_history_repository",
+        "integrate"
       ]
     },
     {
       "path": "engine\\catalog_manager.py",
       "classes": [
         "CanonicalProductDraft",
-        "CatalogManager",
-        "CatalogResult"
+        "CatalogResult",
+        "CatalogManager"
       ],
       "functions": [
-        "__init__",
-        "__post_init__",
-        "_build_identity_key_from_draft",
-        "_build_identity_key_from_product",
+        "_normalize_optional_text",
         "_normalize_attributes",
         "_normalize_identity_value",
-        "_normalize_optional_text",
-        "_synchronize_id_generator",
-        "create",
-        "find",
-        "find_or_create",
+        "__post_init__",
         "has_identity_information",
+        "__init__",
+        "repository",
         "id_generator",
-        "repository"
+        "_synchronize_id_generator",
+        "_build_identity_key_from_draft",
+        "_build_identity_key_from_product",
+        "find",
+        "create",
+        "find_or_create"
       ]
     },
     {
       "path": "engine\\catalog_repository.py",
       "classes": [
-        "CanonicalProductNotFoundError",
-        "CatalogRepository",
         "CatalogRepositoryError",
         "DuplicateCanonicalProductError",
+        "CanonicalProductNotFoundError",
+        "CatalogRepository",
         "InMemoryCatalogRepository"
       ],
       "functions": [
+        "create",
+        "create_many",
+        "get_by_id",
+        "get_by_display_id",
+        "find_by_id",
+        "find_by_display_id",
+        "exists_by_id",
+        "exists_by_display_id",
+        "list_all",
+        "count",
+        "delete",
+        "clear",
         "__init__",
-        "_ensure_product_does_not_exist",
-        "_validate_display_id",
         "_validate_product",
         "_validate_product_id",
-        "clear",
-        "clear",
-        "count",
-        "count",
-        "create",
+        "_validate_display_id",
+        "_ensure_product_does_not_exist",
         "create",
         "create_many",
-        "create_many",
-        "delete",
-        "delete",
-        "exists_by_display_id",
-        "exists_by_display_id",
-        "exists_by_id",
-        "exists_by_id",
-        "find_by_display_id",
-        "find_by_display_id",
-        "find_by_id",
-        "find_by_id",
-        "get_by_display_id",
-        "get_by_display_id",
         "get_by_id",
-        "get_by_id",
+        "get_by_display_id",
+        "find_by_id",
+        "find_by_display_id",
+        "exists_by_id",
+        "exists_by_display_id",
         "list_all",
-        "list_all"
+        "count",
+        "delete",
+        "clear"
       ]
     },
     {
@@ -1660,27 +1422,27 @@
         "DecisionReport"
       ],
       "functions": [
-        "_build_ai_comment",
-        "_build_buy_timing",
-        "_build_market_summary",
+        "build_decision_report",
         "_extract_market_explanations",
-        "build_decision_report"
+        "_build_market_summary",
+        "_build_buy_timing",
+        "_build_ai_comment"
       ]
     },
     {
       "path": "engine\\explainable_score.py",
       "classes": [
-        "ExplainableScoreResult",
-        "ScoreContribution"
+        "ScoreContribution",
+        "ExplainableScoreResult"
       ],
       "functions": [
-        "_build_competition_contribution",
-        "_build_confidence_contribution",
-        "_build_market_adjustment_contribution",
+        "build_explainable_score",
         "_build_profit_contribution",
-        "_build_risk_contribution",
+        "_build_confidence_contribution",
         "_build_trend_contribution",
-        "build_explainable_score"
+        "_build_competition_contribution",
+        "_build_risk_contribution",
+        "_build_market_adjustment_contribution"
       ]
     },
     {
@@ -1689,10 +1451,10 @@
         "InventoryAnalysisResult"
       ],
       "functions": [
+        "analyze_inventory",
         "_analyze_stock_level",
-        "_build_summary",
         "_determine_risk_level",
-        "analyze_inventory"
+        "_build_summary"
       ]
     },
     {
@@ -1710,13 +1472,13 @@
         "MarketAnalysisResult"
       ],
       "functions": [
+        "analyze_market",
         "_analyze_competition",
         "_analyze_confidence",
         "_analyze_price_trend",
-        "_build_summary",
-        "_determine_entry_difficulty",
         "_determine_market_condition",
-        "analyze_market"
+        "_determine_entry_difficulty",
+        "_build_summary"
       ]
     },
     {
@@ -1725,8 +1487,8 @@
         "MarketIntelligenceResult"
       ],
       "functions": [
-        "_determine_market_health",
-        "build_market_intelligence"
+        "build_market_intelligence",
+        "_determine_market_health"
       ]
     },
     {
@@ -1745,20 +1507,20 @@
     {
       "path": "engine\\orchestrator.py",
       "classes": [
-        "OpportunityHistoryLoader",
+        "ProductGroup",
         "OpportunityResult",
-        "ProductGroup"
+        "OpportunityHistoryLoader"
       ],
       "functions": [
-        "_build_price_change_detector",
-        "_load_price_trend",
-        "_save_current_price_snapshot",
-        "build_price_snapshot",
-        "find_best_opportunities",
+        "search_products",
         "group_similar_products",
-        "load_ai_memory_history",
+        "build_price_snapshot",
+        "_build_price_change_detector",
+        "_save_current_price_snapshot",
+        "_load_price_trend",
+        "find_best_opportunities",
         "representative",
-        "search_products"
+        "load_ai_memory_history"
       ]
     },
     {
@@ -1767,9 +1529,9 @@
         "PriceIntelligence"
       ],
       "functions": [
-        "_calculate_price_stability_level",
-        "_round_money",
         "_to_decimal",
+        "_round_money",
+        "_calculate_price_stability_level",
         "analyze_product_prices"
       ]
     },
@@ -1777,8 +1539,8 @@
       "path": "engine\\price_snapshot_adapter.py",
       "classes": [],
       "functions": [
-        "_snapshot_id_to_int",
-        "price_snapshots_to_history_records"
+        "price_snapshots_to_history_records",
+        "_snapshot_id_to_int"
       ]
     },
     {
@@ -1787,13 +1549,13 @@
         "PriceTrend"
       ],
       "functions": [
-        "_build_recommendation",
-        "_calculate_percentage_change",
-        "_determine_price_position",
-        "_determine_trend_direction",
-        "_parse_observed_at",
+        "analyze_price_trend",
         "_validate_records",
-        "analyze_price_trend"
+        "_parse_observed_at",
+        "_calculate_percentage_change",
+        "_determine_trend_direction",
+        "_determine_price_position",
+        "_build_recommendation"
       ]
     },
     {
@@ -1802,49 +1564,49 @@
         "AttributeFieldRule"
       ],
       "functions": [
-        "__post_init__",
-        "_compare_single_field",
         "_normalize_comparison_value",
         "_values_are_missing",
+        "_compare_single_field",
         "compare_product_attributes",
         "get_conflict_penalty",
-        "has_identity_conflict"
+        "has_identity_conflict",
+        "__post_init__"
       ]
     },
     {
       "path": "engine\\product_attribute_extractor.py",
       "classes": [],
       "functions": [
-        "_extract_brand",
+        "_normalize_optional_text",
         "_extract_capacity",
-        "_extract_category",
         "_extract_color",
-        "_extract_condition",
-        "_extract_edition",
-        "_extract_model_number",
         "_extract_quantity",
         "_extract_size",
-        "_normalize_optional_text",
-        "extract_attributes_from_product",
-        "extract_product_attributes"
+        "_extract_edition",
+        "_extract_condition",
+        "_extract_brand",
+        "_extract_category",
+        "_extract_model_number",
+        "extract_product_attributes",
+        "extract_attributes_from_product"
       ]
     },
     {
       "path": "engine\\product_attributes.py",
       "classes": [
-        "AttributeComparison",
+        "ProductAttributes",
         "AttributeConflict",
-        "ProductAttributes"
+        "AttributeComparison"
       ],
       "functions": [
-        "__post_init__",
-        "__post_init__",
-        "__post_init__",
         "_normalize_optional_text",
         "_normalize_tokens",
+        "__post_init__",
+        "to_dict",
+        "__post_init__",
+        "__post_init__",
         "has_conflict",
-        "has_high_conflict",
-        "to_dict"
+        "has_high_conflict"
       ]
     },
     {
@@ -1854,12 +1616,12 @@
       ],
       "functions": [
         "__init__",
-        "_build_extended_attributes",
-        "_has_strong_identity",
-        "_has_structured_identity",
-        "_has_weak_identity",
-        "_should_preserve_normalized_title",
         "attribute_extractor",
+        "_has_strong_identity",
+        "_has_weak_identity",
+        "_has_structured_identity",
+        "_should_preserve_normalized_title",
+        "_build_extended_attributes",
         "from_attributes",
         "from_product"
       ]
@@ -1870,16 +1632,16 @@
         "MatchResult"
       ],
       "functions": [
-        "_calculate_sequence_score",
-        "_calculate_token_score",
-        "_compare_extracted_attributes",
+        "normalize_product_title",
         "_get_tokens",
+        "_calculate_token_score",
+        "_calculate_sequence_score",
         "_validate_match_threshold",
+        "_compare_extracted_attributes",
         "compare_product_titles",
         "compare_products",
         "has_conflict",
-        "has_high_conflict",
-        "normalize_product_title"
+        "has_high_conflict"
       ]
     },
     {
@@ -1888,14 +1650,13 @@
         "NormalizedProductTitle"
       ],
       "functions": [
-        "_contains_alias",
-        "_normalize_capacity_units",
-        "_normalize_model_boundaries",
-        "_normalize_quantity",
         "_replace_aliases",
-        "normalize_title",
+        "_normalize_capacity_units",
+        "_normalize_quantity",
+        "_normalize_model_boundaries",
+        "_contains_alias",
         "normalize_title_detailed",
-        "protect_token"
+        "normalize_title"
       ]
     },
     {
@@ -1912,11 +1673,11 @@
         "RecommendationResult"
       ],
       "functions": [
-        "_build_summary",
-        "_estimate_success_probability",
-        "_score_to_grade",
+        "generate_recommendation",
         "_score_to_stars",
-        "generate_recommendation"
+        "_score_to_grade",
+        "_estimate_success_probability",
+        "_build_summary"
       ]
     },
     {
@@ -1925,10 +1686,10 @@
         "FormattedScoreResult"
       ],
       "functions": [
-        "_build_plain_text",
+        "format_explainable_score",
         "_format_contribution_line",
         "_format_number",
-        "format_explainable_score"
+        "_build_plain_text"
       ]
     },
     {
@@ -1937,11 +1698,11 @@
         "SellerAnalysisResult"
       ],
       "functions": [
+        "analyze_seller",
         "_analyze_competition",
         "_analyze_quality",
-        "_build_summary",
         "_determine_risk_level",
-        "analyze_seller"
+        "_build_summary"
       ]
     },
     {
@@ -1966,12 +1727,12 @@
     {
       "path": "market_data\\ebay_catalog_pipeline.py",
       "classes": [
-        "EbayCatalogPipeline",
-        "EbayCatalogPipelineResult"
+        "EbayCatalogPipelineResult",
+        "EbayCatalogPipeline"
       ],
       "functions": [
-        "__init__",
         "__post_init__",
+        "__init__",
         "integration_service",
         "product_searcher",
         "run"
@@ -2013,8 +1774,8 @@
       "functions": [
         "__post_init__",
         "__post_init__",
-        "discount_from_average_rate",
         "price_position_rate",
+        "discount_from_average_rate",
         "to_dict"
       ]
     },
@@ -2039,11 +1800,11 @@
       ],
       "functions": [
         "_build_fake_items",
+        "search_items",
         "get_item_by_id",
         "get_product_by_id",
-        "normalize",
-        "search_items",
-        "search_products"
+        "search_products",
+        "normalize"
       ]
     },
     {
@@ -2053,12 +1814,12 @@
       ],
       "functions": [
         "_build_browse_headers",
-        "ebay_item_to_product",
-        "get_item_by_id",
-        "get_product_by_id",
-        "normalize",
         "search_items",
-        "search_products"
+        "get_item_by_id",
+        "ebay_item_to_product",
+        "get_product_by_id",
+        "search_products",
+        "normalize"
       ]
     },
     {
@@ -2072,49 +1833,49 @@
       "functions": [
         "print_dashboard_result",
         "print_dashboard_results",
-        "print_opportunity_intelligence_results",
-        "print_opportunity_results"
+        "print_opportunity_results",
+        "print_opportunity_intelligence_results"
       ]
     },
     {
       "path": "presentation\\dashboard.py",
       "classes": [],
       "functions": [
-        "_build_ai_partner_evidence",
-        "_build_confidence_evidence",
-        "_build_decision_timeline",
-        "_build_evidence_items",
-        "_build_market_evidence",
-        "_build_object_evidence",
-        "_build_price_trend_evidence",
-        "_build_recommendation_evidence",
-        "_deduplicate_evidence",
-        "_extract_confidence_level",
-        "_extract_decision",
-        "_extract_market_explanations",
-        "_extract_trend_direction",
         "build_dashboard_card",
-        "build_dashboard_cards"
+        "build_dashboard_cards",
+        "_build_decision_timeline",
+        "_build_confidence_evidence",
+        "_build_price_trend_evidence",
+        "_build_market_evidence",
+        "_build_recommendation_evidence",
+        "_build_ai_partner_evidence",
+        "_build_object_evidence",
+        "_build_evidence_items",
+        "_deduplicate_evidence",
+        "_extract_market_explanations",
+        "_extract_confidence_level",
+        "_extract_trend_direction",
+        "_extract_decision"
       ]
     },
     {
       "path": "presentation\\dashboard_components.py",
       "classes": [],
       "functions": [
-        "_build_ai_partner",
-        "_build_memory",
-        "_build_metrics",
         "_build_product",
-        "_build_recommendation"
+        "_build_metrics",
+        "_build_recommendation",
+        "_build_ai_partner",
+        "_build_memory"
       ]
     },
     {
       "path": "presentation\\dashboard_list.py",
       "classes": [],
       "functions": [
-        "_apply_limit",
+        "build_opportunity_list_card",
         "_build_opportunity_list_item",
-        "build_opportunity_list_card"
+        "_apply_limit"
       ]
     },
     {
@@ -2123,8 +1884,8 @@
       "functions": [
         "_analysis_float",
         "_first_text_attribute",
-        "_to_float",
         "_to_text",
+        "_to_float",
         "_to_text_tuple"
       ]
     },
@@ -2132,46 +1893,46 @@
       "path": "presentation\\ebay_catalog_cli.py",
       "classes": [],
       "functions": [
-        "build_argument_parser",
         "build_default_pipeline",
         "format_pipeline_result",
-        "main",
-        "run_pipeline_repeatedly"
+        "run_pipeline_repeatedly",
+        "build_argument_parser",
+        "main"
       ]
     },
     {
       "path": "presentation\\formatter.py",
       "classes": [],
       "functions": [
-        "_collect_hero_reasons",
-        "_decision_icon",
-        "_format_hero_summary",
-        "_format_money_row",
-        "_format_multiline_value",
-        "_format_number_row",
+        "format_dashboard_card",
+        "format_opportunity_list_card",
         "_format_opportunity_list_item",
-        "_format_percentage_row",
+        "_decision_icon",
+        "format_dashboard_cards",
         "_format_row",
+        "_format_money_row",
+        "_format_percentage_row",
+        "_format_number_row",
+        "_format_multiline_value",
+        "_format_hero_summary",
         "_resolve_hero_decision",
         "_resolve_next_action",
-        "format_dashboard_card",
-        "format_dashboard_cards",
-        "format_opportunity_list_card"
+        "_collect_hero_reasons"
       ]
     },
     {
       "path": "presentation\\models.py",
       "classes": [
-        "DashboardAIPartner",
-        "DashboardCard",
-        "DashboardDecisionStep",
-        "DashboardEvidence",
-        "DashboardMemory",
-        "DashboardMetrics",
         "DashboardProduct",
+        "DashboardMetrics",
         "DashboardRecommendation",
-        "OpportunityListCard",
-        "OpportunityListItem"
+        "DashboardAIPartner",
+        "DashboardMemory",
+        "DashboardEvidence",
+        "DashboardDecisionStep",
+        "DashboardCard",
+        "OpportunityListItem",
+        "OpportunityListCard"
       ],
       "functions": [
         "to_dict",
@@ -2203,15 +1964,15 @@
         "CachedExchangeRateProvider"
       ],
       "functions": [
-        "__init__",
         "__post_init__",
-        "_now",
-        "_store",
-        "cache_size",
-        "clear",
+        "is_expired",
+        "__init__",
         "get_rate",
+        "clear",
         "invalidate",
-        "is_expired"
+        "cache_size",
+        "_now",
+        "_store"
       ]
     },
     {
@@ -2230,15 +1991,15 @@
     {
       "path": "services\\currency\\frankfurter_provider.py",
       "classes": [
+        "HTTPSession",
         "ExchangeRateProviderError",
-        "FrankfurterExchangeRateProvider",
-        "HTTPSession"
+        "FrankfurterExchangeRateProvider"
       ],
       "functions": [
-        "__init__",
-        "_parse_response",
         "get",
-        "get_rate"
+        "__init__",
+        "get_rate",
+        "_parse_response"
       ]
     },
     {
@@ -2248,8 +2009,8 @@
       ],
       "functions": [
         "__init__",
-        "get_rate",
-        "set_rate"
+        "set_rate",
+        "get_rate"
       ]
     },
     {
@@ -2258,11 +2019,11 @@
         "ExchangeRate"
       ],
       "functions": [
-        "__post_init__",
-        "inverse",
         "normalize_currency_code",
+        "to_decimal",
+        "__post_init__",
         "pair",
-        "to_decimal"
+        "inverse"
       ]
     },
     {
@@ -2301,24 +2062,24 @@
         "MarketplaceFeeCalculator"
       ],
       "functions": [
-        "_resolve_profile",
+        "calculate_marketplace_fee",
         "calculate",
-        "calculate_marketplace_fee"
+        "_resolve_profile"
       ]
     },
     {
       "path": "services\\fees\\models.py",
       "classes": [
-        "FeeBreakdown",
-        "FeeProfile"
+        "FeeProfile",
+        "FeeBreakdown"
       ],
       "functions": [
-        "__post_init__",
-        "__post_init__",
-        "quantize_money",
         "to_decimal",
-        "to_dict",
-        "total_fee_rate"
+        "quantize_money",
+        "__post_init__",
+        "__post_init__",
+        "total_fee_rate",
+        "to_dict"
       ]
     },
     {
@@ -2340,16 +2101,16 @@
         "ResolvedMarketplaceRule"
       ],
       "functions": [
-        "__post_init__",
-        "__post_init__",
-        "_normalize_optional_money",
-        "_normalize_optional_rate",
-        "_normalize_optional_text",
         "_normalize_text",
-        "has_rule",
-        "matches",
+        "_normalize_optional_text",
+        "_normalize_optional_rate",
+        "_normalize_optional_money",
+        "__post_init__",
         "specificity",
+        "matches",
         "to_fee_overrides",
+        "__post_init__",
+        "has_rule",
         "to_fee_overrides"
       ]
     },
@@ -2359,10 +2120,10 @@
         "MarketplaceRuleResolver"
       ],
       "functions": [
-        "__init__",
-        "resolve",
         "resolve_marketplace_rule",
-        "rules"
+        "__init__",
+        "rules",
+        "resolve"
       ]
     },
     {
@@ -2401,48 +2162,48 @@
     {
       "path": "storage\\opportunity_history.py",
       "classes": [
-        "OpportunityHistoryRepository",
-        "SavedOpportunity"
+        "SavedOpportunity",
+        "OpportunityHistoryRepository"
       ],
       "functions": [
         "__init__",
         "_connect",
-        "_ensure_history_columns",
-        "_row_to_record",
-        "count_records",
-        "get_recent",
         "initialize_database",
+        "_ensure_history_columns",
+        "save_results",
+        "get_recent",
         "load_ai_memory_history",
-        "save_results"
+        "count_records",
+        "_row_to_record"
       ]
     },
     {
       "path": "storage\\price_history.py",
       "classes": [
+        "PriceObservationConflictError",
         "PriceHistoryRecord",
-        "PriceHistoryRepository",
-        "PriceObservationConflictError"
+        "PriceHistoryRepository"
       ],
       "functions": [
         "__init__",
-        "_add_column_if_missing",
         "_connect",
-        "_normalize_observed_at",
+        "initialize_database",
+        "_add_column_if_missing",
         "_normalize_optional_identifier",
-        "_observation_data_from_row",
-        "_query_records",
-        "_row_to_record",
+        "_normalize_observed_at",
         "_validate_product",
+        "save_product_price",
+        "_observation_data_from_row",
+        "save_products",
+        "get_product_history",
+        "get_canonical_history",
+        "get_latest_record",
+        "get_latest_canonical_record",
+        "get_all_records",
+        "_query_records",
         "count_records",
         "delete_all_records",
-        "get_all_records",
-        "get_canonical_history",
-        "get_latest_canonical_record",
-        "get_latest_record",
-        "get_product_history",
-        "initialize_database",
-        "save_product_price",
-        "save_products"
+        "_row_to_record"
       ]
     },
     {
@@ -2456,22 +2217,33 @@
         "AdapterContractCase"
       ],
       "functions": [
-        "_deep_copy_mapping",
         "contract_case",
         "test_adapter_implements_marketplace_adapter_contract",
-        "test_normalize_does_not_mutate_raw_product",
+        "test_normalize_returns_valid_common_product",
         "test_normalize_preserves_required_product_invariants",
-        "test_normalize_returns_valid_common_product"
+        "test_normalize_does_not_mutate_raw_product",
+        "_deep_copy_mapping"
+      ]
+    },
+    {
+      "path": "tests\\test_ai_knowledge_builder.py",
+      "classes": [],
+      "functions": [
+        "build_sample_repository",
+        "test_project_scanner_builds_python_analysis",
+        "test_project_matcher_builds_repository_relationships",
+        "test_graph_builder_builds_and_exports_graph",
+        "test_build_project_map_preserves_serializable_name_lists"
       ]
     },
     {
       "path": "tests\\test_ai_memory.py",
       "classes": [],
       "functions": [
-        "test_analyze_ai_memory_calculates_average_differences",
+        "test_analyze_ai_memory_without_history",
         "test_analyze_ai_memory_calculates_percentiles",
-        "test_analyze_ai_memory_handles_equal_values",
-        "test_analyze_ai_memory_without_history"
+        "test_analyze_ai_memory_calculates_average_differences",
+        "test_analyze_ai_memory_handles_equal_values"
       ]
     },
     {
@@ -2479,83 +2251,83 @@
       "classes": [],
       "functions": [
         "test_amazon_adapter_normalizes_product",
-        "test_get_item_by_id_rejects_empty_asin",
+        "test_search_products_returns_products",
+        "test_search_products_rejects_empty_query",
         "test_get_item_by_id_returns_exact_fake_catalog_item",
         "test_get_item_by_id_returns_none_when_asin_is_unknown",
-        "test_get_product_by_id_returns_none_when_missing",
+        "test_get_item_by_id_rejects_empty_asin",
         "test_get_product_by_id_returns_valid_product",
-        "test_search_products_rejects_empty_query",
-        "test_search_products_returns_products"
+        "test_get_product_by_id_returns_none_when_missing"
       ]
     },
     {
       "path": "tests\\test_cached_currency_provider.py",
       "classes": [
-        "CountingProvider",
-        "MutableClock"
+        "MutableClock",
+        "CountingProvider"
       ],
       "functions": [
-        "__call__",
-        "__init__",
-        "__init__",
-        "advance",
-        "get_rate",
-        "test_cached_provider_clear_removes_all_rates",
-        "test_cached_provider_invalidate_removes_both_directions",
+        "test_cached_provider_reuses_rate_before_expiration",
+        "test_cached_provider_stores_inverse_rate",
         "test_cached_provider_refreshes_expired_rate",
+        "test_cached_provider_invalidate_removes_both_directions",
+        "test_cached_provider_clear_removes_all_rates",
         "test_cached_provider_rejects_non_positive_ttl",
         "test_cached_provider_requires_timezone_aware_clock",
-        "test_cached_provider_reuses_rate_before_expiration",
-        "test_cached_provider_stores_inverse_rate"
+        "__init__",
+        "__call__",
+        "advance",
+        "__init__",
+        "get_rate"
       ]
     },
     {
       "path": "tests\\test_canonical_id_generator.py",
       "classes": [],
       "functions": [
-        "test_concurrent_generation_produces_unique_ids",
-        "test_custom_prefix_is_supported",
-        "test_custom_start_is_supported",
-        "test_custom_width_is_supported",
-        "test_default_generator_starts_at_one",
         "test_generator_implements_interface",
+        "test_default_generator_starts_at_one",
         "test_generator_increments_sequence",
-        "test_invalid_prefix_raises_value_error",
-        "test_next_sequence_does_not_consume_id",
-        "test_non_integer_start_raises_type_error",
-        "test_non_integer_width_raises_type_error",
-        "test_non_positive_start_raises_value_error",
-        "test_non_positive_width_raises_value_error",
-        "test_non_string_prefix_raises_type_error",
-        "test_properties_return_configuration",
+        "test_custom_start_is_supported",
+        "test_custom_prefix_is_supported",
+        "test_custom_width_is_supported",
         "test_sequence_can_exceed_minimum_width",
-        "test_synchronize_accepts_generator_expression",
+        "test_properties_return_configuration",
+        "test_next_sequence_does_not_consume_id",
+        "test_invalid_prefix_raises_value_error",
+        "test_non_string_prefix_raises_type_error",
+        "test_non_positive_start_raises_value_error",
+        "test_non_integer_start_raises_type_error",
+        "test_non_positive_width_raises_value_error",
+        "test_non_integer_width_raises_type_error",
         "test_synchronize_advances_sequence",
-        "test_synchronize_does_not_move_sequence_backward",
         "test_synchronize_ignores_unrelated_ids",
+        "test_synchronize_does_not_move_sequence_backward",
+        "test_synchronize_accepts_generator_expression",
+        "test_synchronize_rejects_single_string",
         "test_synchronize_rejects_non_string_items",
-        "test_synchronize_rejects_single_string"
+        "test_concurrent_generation_produces_unique_ids"
       ]
     },
     {
       "path": "tests\\test_canonical_product.py",
       "classes": [],
       "functions": [
-        "test_attributes_are_copied_from_source",
-        "test_attributes_are_read_only",
-        "test_attributes_are_stored",
-        "test_blank_optional_text_becomes_none",
         "test_canonical_product_can_be_created",
-        "test_created_and_updated_times_are_timezone_aware",
-        "test_identity_summary_contains_available_fields",
-        "test_identity_summary_omits_missing_fields",
         "test_internal_id_can_be_provided",
         "test_internal_id_is_generated_automatically",
         "test_invalid_display_id_raises_value_error",
-        "test_model_is_immutable",
-        "test_naive_datetime_is_rejected",
         "test_optional_text_fields_are_trimmed",
-        "test_updated_at_cannot_be_before_created_at"
+        "test_blank_optional_text_becomes_none",
+        "test_attributes_are_stored",
+        "test_attributes_are_read_only",
+        "test_attributes_are_copied_from_source",
+        "test_model_is_immutable",
+        "test_created_and_updated_times_are_timezone_aware",
+        "test_naive_datetime_is_rejected",
+        "test_updated_at_cannot_be_before_created_at",
+        "test_identity_summary_contains_available_fields",
+        "test_identity_summary_omits_missing_fields"
       ]
     },
     {
@@ -2564,55 +2336,55 @@
       "functions": [
         "make_product",
         "make_service",
-        "test_constructor_rejects_invalid_catalog_manager",
-        "test_constructor_rejects_invalid_draft_factory",
-        "test_different_identity_creates_new_product",
-        "test_integrate_appends_snapshot_when_canonical_product_is_reused",
-        "test_integrate_assigns_display_id",
-        "test_integrate_creates_canonical_product",
-        "test_integrate_maps_product_identity",
-        "test_integrate_rejects_invalid_product",
-        "test_integrate_returns_existing_product_for_same_identity",
-        "test_integrate_saves_canonical_price_snapshot",
-        "test_marketplace_item_id_does_not_define_canonical_identity",
         "test_service_can_be_created",
-        "test_service_can_use_price_history_repository",
         "test_service_uses_default_draft_factory",
         "test_service_uses_injected_dependencies",
-        "test_service_without_price_repository_preserves_previous_behavior",
-        "test_unstructured_product_can_be_integrated"
+        "test_integrate_creates_canonical_product",
+        "test_integrate_assigns_display_id",
+        "test_integrate_maps_product_identity",
+        "test_integrate_returns_existing_product_for_same_identity",
+        "test_marketplace_item_id_does_not_define_canonical_identity",
+        "test_different_identity_creates_new_product",
+        "test_unstructured_product_can_be_integrated",
+        "test_integrate_rejects_invalid_product",
+        "test_constructor_rejects_invalid_catalog_manager",
+        "test_constructor_rejects_invalid_draft_factory",
+        "test_service_can_use_price_history_repository",
+        "test_integrate_saves_canonical_price_snapshot",
+        "test_integrate_appends_snapshot_when_canonical_product_is_reused",
+        "test_service_without_price_repository_preserves_previous_behavior"
       ]
     },
     {
       "path": "tests\\test_catalog_manager.py",
       "classes": [],
       "functions": [
-        "make_iphone_draft",
         "make_manager",
-        "test_attribute_order_does_not_affect_identity",
-        "test_blank_draft_fields_become_none",
-        "test_concurrent_find_or_create_prevents_duplicates",
-        "test_create_always_creates_new_product",
-        "test_create_stores_new_product",
-        "test_different_attributes_are_not_same_product",
-        "test_different_capacity_is_not_same_product",
-        "test_different_color_is_not_same_product",
-        "test_draft_attributes_are_copied",
-        "test_draft_attributes_are_read_only",
+        "make_iphone_draft",
         "test_draft_can_be_created",
-        "test_draft_is_immutable",
         "test_draft_text_fields_are_trimmed",
-        "test_draft_with_attributes_only_is_allowed",
+        "test_blank_draft_fields_become_none",
         "test_empty_draft_is_rejected",
-        "test_find_ignores_case_and_whitespace",
-        "test_find_or_create_creates_when_missing",
-        "test_find_or_create_returns_existing_product",
+        "test_draft_with_attributes_only_is_allowed",
+        "test_draft_attributes_are_read_only",
+        "test_draft_attributes_are_copied",
+        "test_draft_is_immutable",
+        "test_manager_exposes_dependencies",
+        "test_create_stores_new_product",
+        "test_create_always_creates_new_product",
         "test_find_returns_existing_product",
         "test_find_returns_none_when_missing",
+        "test_find_ignores_case_and_whitespace",
         "test_find_uses_product_synonyms",
-        "test_manager_exposes_dependencies",
+        "test_different_capacity_is_not_same_product",
+        "test_different_color_is_not_same_product",
+        "test_different_attributes_are_not_same_product",
+        "test_attribute_order_does_not_affect_identity",
+        "test_find_or_create_creates_when_missing",
+        "test_find_or_create_returns_existing_product",
+        "test_manager_synchronizes_generator_with_repository",
         "test_manager_methods_reject_invalid_draft",
-        "test_manager_synchronizes_generator_with_repository"
+        "test_concurrent_find_or_create_prevents_duplicates"
       ]
     },
     {
@@ -2620,123 +2392,109 @@
       "classes": [],
       "functions": [
         "make_product",
-        "test_clear_removes_all_products",
-        "test_concurrent_creates_store_all_unique_products",
-        "test_create_many_accepts_generator_expression",
-        "test_create_many_is_atomic_for_display_id_duplicates",
-        "test_create_many_is_atomic_for_internal_duplicates",
-        "test_create_many_is_atomic_when_existing_duplicate_found",
-        "test_create_many_rejects_invalid_item",
-        "test_create_many_rejects_single_string",
-        "test_create_many_stores_all_products",
-        "test_create_many_with_empty_collection_returns_empty_tuple",
-        "test_create_rejects_invalid_product",
+        "test_repository_implements_interface",
+        "test_repository_starts_empty",
         "test_create_stores_product",
-        "test_delete_raises_when_product_is_missing",
-        "test_delete_removes_product",
-        "test_display_id_can_be_reused_after_delete",
-        "test_display_id_lookup_trims_whitespace",
-        "test_display_id_methods_reject_blank_values",
-        "test_display_id_methods_reject_non_string_values",
-        "test_duplicate_display_id_is_rejected",
-        "test_duplicate_internal_id_is_rejected",
-        "test_exists_by_display_id_returns_correct_value",
-        "test_exists_by_id_returns_correct_value",
-        "test_failed_duplicate_create_does_not_change_count",
-        "test_find_by_display_id_returns_none_when_missing",
-        "test_find_by_id_returns_none_when_missing",
-        "test_get_by_display_id_raises_when_missing",
-        "test_get_by_display_id_returns_product",
-        "test_get_by_id_raises_when_missing",
         "test_get_by_id_returns_product",
-        "test_id_methods_reject_invalid_product_id",
+        "test_get_by_display_id_returns_product",
+        "test_display_id_lookup_trims_whitespace",
+        "test_find_by_id_returns_none_when_missing",
+        "test_find_by_display_id_returns_none_when_missing",
+        "test_get_by_id_raises_when_missing",
+        "test_get_by_display_id_raises_when_missing",
+        "test_exists_by_id_returns_correct_value",
+        "test_exists_by_display_id_returns_correct_value",
+        "test_duplicate_internal_id_is_rejected",
+        "test_duplicate_display_id_is_rejected",
+        "test_failed_duplicate_create_does_not_change_count",
+        "test_create_many_stores_all_products",
+        "test_create_many_accepts_generator_expression",
+        "test_create_many_is_atomic_when_existing_duplicate_found",
+        "test_create_many_is_atomic_for_internal_duplicates",
+        "test_create_many_is_atomic_for_display_id_duplicates",
+        "test_create_many_with_empty_collection_returns_empty_tuple",
         "test_list_all_preserves_insertion_order",
         "test_list_all_returns_immutable_tuple",
-        "test_repository_implements_interface",
-        "test_repository_starts_empty"
+        "test_delete_removes_product",
+        "test_delete_raises_when_product_is_missing",
+        "test_display_id_can_be_reused_after_delete",
+        "test_clear_removes_all_products",
+        "test_create_rejects_invalid_product",
+        "test_id_methods_reject_invalid_product_id",
+        "test_display_id_methods_reject_non_string_values",
+        "test_display_id_methods_reject_blank_values",
+        "test_create_many_rejects_single_string",
+        "test_create_many_rejects_invalid_item",
+        "test_concurrent_creates_store_all_unique_products"
       ]
     },
     {
       "path": "tests\\test_change_application.py",
-      "classes": [
-        "FailingPublisher",
-        "RecordingPublisher",
-        "RecordingPublisher"
-      ],
+      "classes": [],
       "functions": [
-        "__init__",
-        "__init__",
-        "make_inventory_snapshot",
         "make_price_snapshot",
+        "make_inventory_snapshot",
         "make_seller_snapshot",
-        "publish_many",
-        "publish_many",
-        "publish_many",
-        "test_batch_publisher_receives_all_events_once",
-        "test_empty_input_returns_empty_response",
-        "test_publisher_failure_is_propagated",
-        "test_publisher_is_not_called_without_events",
-        "test_response_filters_events_by_product",
-        "test_response_rejects_blank_product_filter",
         "test_snapshot_pair_accepts_price_snapshots",
-        "test_snapshot_pair_is_immutable",
         "test_snapshot_pair_rejects_different_snapshot_types",
-        "test_unchanged_pair_produces_no_events",
-        "test_use_case_detects_inventory_change",
+        "test_snapshot_pair_is_immutable",
         "test_use_case_detects_price_change",
+        "test_use_case_detects_inventory_change",
         "test_use_case_detects_seller_change",
+        "test_use_case_supports_multiple_snapshot_pairs",
+        "test_unchanged_pair_produces_no_events",
+        "test_empty_input_returns_empty_response",
         "test_use_case_rejects_invalid_pair_item",
-        "test_use_case_supports_multiple_snapshot_pairs"
+        "test_batch_publisher_receives_all_events_once",
+        "test_publisher_is_not_called_without_events",
+        "test_publisher_failure_is_propagated",
+        "test_response_filters_events_by_product",
+        "test_response_rejects_blank_product_filter"
       ]
     },
     {
       "path": "tests\\test_change_detection.py",
       "classes": [],
       "functions": [
-        "make_inventory_snapshot",
         "make_price_snapshot",
+        "make_inventory_snapshot",
         "make_seller_snapshot",
-        "test_detect_inventory_availability_change",
-        "test_detect_inventory_quantity_decrease",
         "test_detect_price_decrease",
         "test_detect_price_increase",
+        "test_price_percentage_is_none_when_previous_price_is_zero",
         "test_detect_price_metadata_changes",
+        "test_identical_price_snapshots_have_no_changes",
+        "test_price_detector_rejects_different_currencies",
+        "test_detect_inventory_availability_change",
+        "test_detect_inventory_quantity_decrease",
+        "test_inventory_quantity_none_transition_is_changed",
         "test_detect_seller_changes",
+        "test_seller_optional_value_transition_is_changed",
         "test_detector_rejects_different_snapshot_identity",
         "test_detector_rejects_reverse_observation_order",
-        "test_detector_rejects_same_snapshot_id",
-        "test_identical_price_snapshots_have_no_changes",
-        "test_inventory_quantity_none_transition_is_changed",
-        "test_price_detector_rejects_different_currencies",
-        "test_price_percentage_is_none_when_previous_price_is_zero",
-        "test_seller_optional_value_transition_is_changed"
+        "test_detector_rejects_same_snapshot_id"
       ]
     },
     {
       "path": "tests\\test_change_events.py",
-      "classes": [
-        "BatchPublisher",
-        "Publisher"
-      ],
+      "classes": [],
       "functions": [
         "make_change_set",
-        "publish",
-        "publish_many",
-        "test_create_change_events_rejects_invalid_input",
-        "test_create_inventory_out_of_stock_event",
-        "test_create_inventory_quantity_event",
-        "test_create_inventory_restocked_event",
-        "test_create_multiple_events_preserves_order",
-        "test_create_price_context_events",
         "test_create_price_dropped_event",
         "test_create_price_increased_event",
-        "test_create_seller_events",
-        "test_empty_change_set_creates_no_events",
-        "test_event_generates_unique_event_id",
-        "test_event_is_immutable",
-        "test_event_metadata_is_immutable",
-        "test_event_rejects_unchanged_direction",
+        "test_create_price_context_events",
+        "test_create_inventory_out_of_stock_event",
+        "test_create_inventory_restocked_event",
+        "test_create_inventory_quantity_event",
         "test_inventory_unknown_quantity_transition",
+        "test_create_seller_events",
+        "test_create_multiple_events_preserves_order",
+        "test_empty_change_set_creates_no_events",
+        "test_create_change_events_rejects_invalid_input",
+        "test_event_generates_unique_event_id",
+        "test_event_metadata_is_immutable",
+        "test_event_is_immutable",
+        "test_event_rejects_unchanged_direction",
         "test_publisher_protocols_support_runtime_check"
       ]
     },
@@ -2745,48 +2503,38 @@
       "classes": [],
       "functions": [
         "make_change_set",
-        "test_change_set_collects_multiple_changes",
-        "test_change_set_converts_changes_to_tuple",
-        "test_change_set_creates_empty_result",
-        "test_change_set_is_immutable",
-        "test_change_set_rejects_current_time_before_previous_time",
-        "test_change_set_rejects_non_change_items",
-        "test_change_set_rejects_same_snapshot_ids",
-        "test_change_set_requires_timezone_aware_datetimes",
-        "test_changed_direction_requires_different_values",
-        "test_decreased_change_rejects_positive_absolute_change",
-        "test_detected_change_accepts_non_numeric_change",
         "test_detected_change_creates_price_decrease",
-        "test_detected_change_is_immutable",
         "test_detected_change_normalizes_field_name",
+        "test_detected_change_accepts_non_numeric_change",
+        "test_detected_change_represents_unchanged_value",
         "test_detected_change_rejects_empty_field_name",
         "test_detected_change_rejects_invalid_change_type",
         "test_detected_change_rejects_invalid_direction",
-        "test_detected_change_represents_unchanged_value",
+        "test_unchanged_direction_requires_equal_values",
+        "test_changed_direction_requires_different_values",
         "test_increased_change_rejects_negative_absolute_change",
-        "test_unchanged_direction_requires_equal_values"
+        "test_decreased_change_rejects_positive_absolute_change",
+        "test_detected_change_is_immutable",
+        "test_change_set_creates_empty_result",
+        "test_change_set_collects_multiple_changes",
+        "test_change_set_converts_changes_to_tuple",
+        "test_change_set_rejects_same_snapshot_ids",
+        "test_change_set_rejects_current_time_before_previous_time",
+        "test_change_set_requires_timezone_aware_datetimes",
+        "test_change_set_rejects_non_change_items",
+        "test_change_set_is_immutable"
       ]
     },
     {
       "path": "tests\\test_cli.py",
-      "classes": [
-        "FakeOpportunityHistoryRepository"
-      ],
+      "classes": [],
       "functions": [
-        "__init__",
-        "fail_search",
-        "fake_evaluate",
-        "fake_find_best_opportunities",
-        "fake_find_best_opportunities",
-        "fake_find_best_opportunities",
-        "fake_find_best_opportunities",
-        "save_results",
-        "test_cli_history_mode_does_not_search",
-        "test_cli_passes_sprint3_cost_options",
-        "test_cli_prints_marketplace_warning",
+        "test_cli_runs_full_search_flow",
         "test_cli_reads_query_interactively",
         "test_cli_rejects_empty_query",
-        "test_cli_runs_full_search_flow",
+        "test_cli_prints_marketplace_warning",
+        "test_cli_history_mode_does_not_search",
+        "test_cli_passes_sprint3_cost_options",
         "test_cli_shares_price_history_repository_with_analysis_and_intelligence"
       ]
     },
@@ -2795,10 +2543,10 @@
       "classes": [],
       "functions": [
         "_make_result",
-        "test_price_history_enables_trend_and_final_recommendation",
-        "test_render_results_handles_empty_results",
+        "test_render_results_uses_dashboard_presentation",
         "test_render_results_respects_top_limit",
-        "test_render_results_uses_dashboard_presentation"
+        "test_render_results_handles_empty_results",
+        "test_price_history_enables_trend_and_final_recommendation"
       ]
     },
     {
@@ -2817,28 +2565,28 @@
       "classes": [],
       "functions": [
         "test_one_sample_has_low_confidence",
-        "test_rejects_invalid_sample_size",
-        "test_six_or_more_samples_have_maximum_confidence",
+        "test_two_samples_have_medium_confidence",
         "test_three_to_five_samples_have_high_confidence",
-        "test_two_samples_have_medium_confidence"
+        "test_six_or_more_samples_have_maximum_confidence",
+        "test_rejects_invalid_sample_size"
       ]
     },
     {
       "path": "tests\\test_currency.py",
       "classes": [],
       "functions": [
-        "test_converter_can_return_unrounded_decimal",
-        "test_converter_converts_and_rounds_money",
-        "test_converter_rejects_invalid_quantum",
-        "test_exchange_rate_can_create_inverse",
         "test_exchange_rate_normalizes_currency_codes",
         "test_exchange_rate_rejects_invalid_code",
         "test_exchange_rate_rejects_non_positive_rate",
         "test_exchange_rate_requires_timezone_aware_timestamp",
-        "test_mock_provider_raises_for_unknown_pair",
-        "test_mock_provider_resolves_inverse_rate",
+        "test_exchange_rate_can_create_inverse",
         "test_mock_provider_returns_configured_rate",
-        "test_mock_provider_returns_identity_rate"
+        "test_mock_provider_resolves_inverse_rate",
+        "test_mock_provider_returns_identity_rate",
+        "test_mock_provider_raises_for_unknown_pair",
+        "test_converter_converts_and_rounds_money",
+        "test_converter_can_return_unrounded_decimal",
+        "test_converter_rejects_invalid_quantum"
       ]
     },
     {
@@ -2846,12 +2594,11 @@
       "classes": [],
       "functions": [
         "_make_product",
-        "fake_search_products",
-        "test_find_best_opportunities_normalizes_before_price_analysis",
-        "test_find_best_opportunities_requires_converter_for_target_currency",
         "test_normalize_product_currency_converts_price_and_shipping",
         "test_normalize_product_currency_returns_same_product_for_same_currency",
-        "test_normalize_products_currency_uses_one_target_currency"
+        "test_normalize_products_currency_uses_one_target_currency",
+        "test_find_best_opportunities_normalizes_before_price_analysis",
+        "test_find_best_opportunities_requires_converter_for_target_currency"
       ]
     },
     {
@@ -2860,9 +2607,9 @@
       "functions": [
         "_make_opportunity_result",
         "test_build_dashboard_card",
-        "test_build_dashboard_card_converts_to_dict",
         "test_build_dashboard_card_without_optional_results",
-        "test_build_dashboard_cards_preserves_order"
+        "test_build_dashboard_cards_preserves_order",
+        "test_build_dashboard_card_converts_to_dict"
       ]
     },
     {
@@ -2870,22 +2617,22 @@
       "classes": [],
       "functions": [
         "_make_dashboard_card",
-        "test_format_dashboard_card_contains_ai_sections",
         "test_format_dashboard_card_contains_core_metrics",
+        "test_format_dashboard_card_contains_ai_sections",
         "test_format_dashboard_card_contains_decision_timeline",
-        "test_format_dashboard_card_contains_hero_summary",
-        "test_format_dashboard_card_hero_supports_missing_ai_data",
         "test_format_dashboard_card_supports_missing_ai_data",
-        "test_format_dashboard_cards_handles_empty_list"
+        "test_format_dashboard_cards_handles_empty_list",
+        "test_format_dashboard_card_contains_hero_summary",
+        "test_format_dashboard_card_hero_supports_missing_ai_data"
       ]
     },
     {
       "path": "tests\\test_dashboard_list.py",
       "classes": [],
       "functions": [
+        "test_build_opportunity_list_card_preserves_order",
         "test_build_opportunity_list_card_applies_limit",
         "test_build_opportunity_list_card_handles_empty_input",
-        "test_build_opportunity_list_card_preserves_order",
         "test_build_opportunity_list_card_rejects_negative_limit",
         "test_opportunity_list_card_converts_to_dict"
       ]
@@ -2895,10 +2642,10 @@
       "classes": [],
       "functions": [
         "_make_recommendation",
-        "test_build_decision_report_accepts_single_string_explanation",
+        "test_build_decision_report_without_market_adjustment",
         "test_build_decision_report_preserves_market_explanations",
         "test_build_decision_report_removes_empty_and_duplicate_explanations",
-        "test_build_decision_report_without_market_adjustment",
+        "test_build_decision_report_accepts_single_string_explanation",
         "test_decision_report_keeps_backward_compatible_default"
       ]
     },
@@ -2910,163 +2657,149 @@
         "InvalidReturnProvider"
       ],
       "functions": [
-        "__init__",
-        "get_latest_for_canonical_product",
-        "get_latest_for_canonical_product",
-        "get_latest_for_listing",
-        "get_latest_for_listing",
         "make_price_snapshot",
-        "test_detects_price_change_against_previous_snapshot",
+        "test_returns_empty_response_when_previous_snapshot_missing",
         "test_queries_previous_snapshot_by_listing_identity",
-        "test_rejects_invalid_change_detector",
-        "test_rejects_missing_provider",
+        "test_detects_price_change_against_previous_snapshot",
+        "test_returns_unchanged_result_when_price_is_same",
+        "test_uses_injected_change_detector",
         "test_rejects_non_price_current_snapshot",
         "test_rejects_provider_with_invalid_return_type",
+        "test_rejects_missing_provider",
         "test_rejects_provider_without_required_methods",
-        "test_returns_empty_response_when_previous_snapshot_missing",
-        "test_returns_unchanged_result_when_price_is_same",
-        "test_uses_injected_change_detector"
+        "test_rejects_invalid_change_detector",
+        "__init__",
+        "get_latest_for_listing",
+        "get_latest_for_canonical_product",
+        "get_latest_for_listing",
+        "get_latest_for_canonical_product"
       ]
     },
     {
       "path": "tests\\test_discovery_application.py",
       "classes": [
-        "FailingGateway",
-        "FakeGateway"
+        "FakeGateway",
+        "FailingGateway"
       ],
       "functions": [
-        "__init__",
-        "discover",
-        "discover",
-        "finder",
         "product",
         "result",
-        "test_orchestrator_gateway_maps_existing_engine_result",
-        "test_orchestrator_gateway_supports_missing_optional_analysis",
-        "test_session_cannot_finish_twice",
-        "test_session_complete_records_terminal_state",
         "test_session_trims_query_and_starts_running",
         "test_session_validates_query_and_limit",
-        "test_use_case_builds_statistics",
+        "test_session_complete_records_terminal_state",
+        "test_session_cannot_finish_twice",
         "test_use_case_calls_gateway_ranks_and_limits_results",
-        "test_use_case_propagates_gateway_failure",
+        "test_use_case_builds_statistics",
         "test_use_case_response_top_validates_count",
-        "test_use_case_validates_threshold_and_result_limit"
+        "test_use_case_validates_threshold_and_result_limit",
+        "test_use_case_propagates_gateway_failure",
+        "test_orchestrator_gateway_maps_existing_engine_result",
+        "test_orchestrator_gateway_supports_missing_optional_analysis",
+        "__init__",
+        "discover",
+        "discover"
       ]
     },
     {
       "path": "tests\\test_discovery_domain.py",
       "classes": [],
       "functions": [
-        "analyzer",
-        "analyzer",
-        "analyzer",
         "product",
         "result",
         "test_discovery_result_is_immutable_and_metadata_is_read_only",
         "test_discovery_result_validates_score",
-        "test_discovery_run_top_validates_count",
-        "test_pipeline_clears_queue_after_unexpected_contract_error",
+        "test_queue_rejects_duplicate_identity",
+        "test_queue_is_fifo_and_allows_requeue_after_dequeue",
+        "test_ranking_orders_by_score_and_assigns_rank",
+        "test_ranking_uses_evidence_count_as_first_tiebreaker",
+        "test_ranking_applies_limit",
         "test_pipeline_deduplicates_analyzes_and_ranks",
         "test_pipeline_isolates_analyzer_failure_and_reports_it",
-        "test_queue_is_fifo_and_allows_requeue_after_dequeue",
-        "test_queue_rejects_duplicate_identity",
-        "test_ranking_applies_limit",
-        "test_ranking_orders_by_score_and_assigns_rank",
-        "test_ranking_uses_evidence_count_as_first_tiebreaker"
+        "test_pipeline_clears_queue_after_unexpected_contract_error",
+        "test_discovery_run_top_validates_count"
       ]
     },
     {
       "path": "tests\\test_discovery_workflow_intelligence.py",
       "classes": [
         "_FakeGateway",
-        "_PartiallyFailingIntelligenceService",
+        "_RecordingPublisher",
         "_RecordingIntelligenceService",
-        "_RecordingPublisher"
+        "_PartiallyFailingIntelligenceService"
       ],
       "functions": [
-        "__init__",
-        "__init__",
-        "__init__",
         "_result",
-        "discover",
-        "evaluate",
-        "evaluate",
-        "publish",
         "test_workflow_evaluates_each_ranked_discovery_result",
         "test_workflow_isolates_unexpected_intelligence_failure_per_result",
-        "test_workflow_without_intelligence_preserves_existing_contract"
+        "test_workflow_without_intelligence_preserves_existing_contract",
+        "__init__",
+        "discover",
+        "__init__",
+        "publish",
+        "__init__",
+        "evaluate",
+        "evaluate"
       ]
     },
     {
       "path": "tests\\test_ebay.py",
       "classes": [
-        "FakeResponse",
-        "FakeSettings",
-        "FakeSettings",
-        "FakeSettings"
+        "FakeResponse"
       ],
       "functions": [
-        "__init__",
-        "fake_get",
-        "fake_search_items",
-        "json",
         "make_raw_item",
         "test_ebay_adapter_implements_marketplace_contract",
         "test_ebay_adapter_normalizes_product",
         "test_ebay_adapter_rejects_invalid_price",
+        "test_legacy_conversion_function_uses_adapter_behavior",
+        "test_search_products_normalizes_all_search_results",
         "test_get_item_by_id_calls_exact_browse_item_endpoint",
+        "test_get_item_by_id_returns_none_for_not_found",
         "test_get_item_by_id_raises_for_non_404_failure",
         "test_get_item_by_id_rejects_empty_item_id",
-        "test_get_item_by_id_returns_none_for_not_found",
         "test_get_product_by_id_normalizes_exact_item",
         "test_get_product_by_id_preserves_not_found",
-        "test_legacy_conversion_function_uses_adapter_behavior",
-        "test_search_products_normalizes_all_search_results"
+        "__init__",
+        "json"
       ]
     },
     {
       "path": "tests\\test_ebay_catalog_cli.py",
       "classes": [],
       "functions": [
-        "fake_product_searcher",
-        "make_pipeline",
         "make_product",
-        "test_argument_parser_custom_values",
-        "test_argument_parser_defaults",
+        "make_pipeline",
         "test_build_default_pipeline",
         "test_format_pipeline_result",
         "test_format_pipeline_result_for_empty_search",
+        "test_repeated_run_reuses_canonical_product",
+        "test_repeated_run_returns_tuple",
+        "test_argument_parser_defaults",
+        "test_argument_parser_custom_values",
         "test_format_rejects_invalid_result",
         "test_format_rejects_invalid_run_number",
-        "test_repeated_run_rejects_empty_query",
         "test_repeated_run_rejects_invalid_repeat",
-        "test_repeated_run_returns_tuple",
-        "test_repeated_run_reuses_canonical_product"
+        "test_repeated_run_rejects_empty_query"
       ]
     },
     {
       "path": "tests\\test_ebay_catalog_pipeline.py",
       "classes": [],
       "functions": [
-        "fake_product_searcher",
-        "fake_product_searcher",
-        "fake_product_searcher",
-        "invalid_product_searcher",
-        "make_pipeline",
         "make_product",
-        "test_constructor_rejects_invalid_searcher",
-        "test_constructor_rejects_invalid_service",
+        "make_pipeline",
         "test_pipeline_can_be_created",
         "test_pipeline_integrates_searched_products",
+        "test_pipeline_reuses_same_canonical_identity",
+        "test_pipeline_returns_empty_result_when_no_products_found",
         "test_pipeline_passes_search_arguments",
+        "test_pipeline_uses_default_marketplace_id",
+        "test_pipeline_respects_limit",
         "test_pipeline_rejects_empty_query",
         "test_pipeline_rejects_invalid_limit",
         "test_pipeline_rejects_invalid_product_result",
-        "test_pipeline_respects_limit",
-        "test_pipeline_returns_empty_result_when_no_products_found",
-        "test_pipeline_reuses_same_canonical_identity",
-        "test_pipeline_uses_default_marketplace_id"
+        "test_constructor_rejects_invalid_service",
+        "test_constructor_rejects_invalid_searcher"
       ]
     },
     {
@@ -3074,11 +2807,11 @@
       "classes": [],
       "functions": [
         "make_trend",
-        "test_builds_negative_score_contributions",
         "test_builds_positive_score_contributions",
-        "test_contribution_order_is_stable",
+        "test_builds_negative_score_contributions",
+        "test_missing_market_data_is_explained",
         "test_final_score_matches_expected_recommendation_score",
-        "test_missing_market_data_is_explained"
+        "test_contribution_order_is_stable"
       ]
     },
     {
@@ -3086,21 +2819,21 @@
       "classes": [],
       "functions": [
         "create_market_adjustment",
-        "test_final_score_includes_market_adjustment",
         "test_market_adjustment_is_added_to_score",
-        "test_market_adjustment_none_keeps_compatibility"
+        "test_market_adjustment_none_keeps_compatibility",
+        "test_final_score_includes_market_adjustment"
       ]
     },
     {
       "path": "tests\\test_fee_efficiency.py",
       "classes": [],
       "functions": [
-        "test_ebay_profile_fee_rate_is_scored_with_fixed_fee_included",
-        "test_fee_breakdown_type_is_required",
-        "test_high_fee_rate_is_capped_at_zero",
         "test_low_effective_fee_rate_receives_full_score",
-        "test_policy_requires_ascending_rate_boundaries",
-        "test_zero_selling_price_returns_zero_score"
+        "test_ebay_profile_fee_rate_is_scored_with_fixed_fee_included",
+        "test_high_fee_rate_is_capped_at_zero",
+        "test_zero_selling_price_returns_zero_score",
+        "test_fee_breakdown_type_is_required",
+        "test_policy_requires_ascending_rate_boundaries"
       ]
     },
     {
@@ -3110,18 +2843,18 @@
         "FakeSession"
       ],
       "functions": [
-        "__init__",
-        "__init__",
-        "get",
-        "json",
-        "raise_for_status",
+        "test_frankfurter_provider_returns_latest_rate",
         "test_frankfurter_provider_identity_rate_skips_network",
         "test_frankfurter_provider_raises_when_pair_is_missing",
+        "test_frankfurter_provider_wraps_network_error",
         "test_frankfurter_provider_rejects_invalid_json",
         "test_frankfurter_provider_rejects_invalid_rate_date",
-        "test_frankfurter_provider_returns_latest_rate",
         "test_frankfurter_provider_validates_configuration",
-        "test_frankfurter_provider_wraps_network_error"
+        "__init__",
+        "raise_for_status",
+        "json",
+        "__init__",
+        "get"
       ]
     },
     {
@@ -3129,10 +2862,10 @@
       "classes": [],
       "functions": [
         "create_snapshot",
-        "test_analyzes_low_inventory",
-        "test_analyzes_missing_inventory_data",
-        "test_analyzes_out_of_stock",
         "test_analyzes_sufficient_inventory",
+        "test_analyzes_low_inventory",
+        "test_analyzes_out_of_stock",
+        "test_analyzes_missing_inventory_data",
         "test_analyzes_unknown_quantity",
         "test_summary_is_generated"
       ]
@@ -3144,39 +2877,37 @@
         "create_snapshot",
         "test_creates_available_inventory_snapshot",
         "test_creates_out_of_stock_snapshot",
-        "test_rejects_available_with_zero_quantity",
         "test_rejects_empty_item_id",
         "test_rejects_negative_quantity",
+        "test_rejects_available_with_zero_quantity",
         "test_snapshot_is_immutable"
       ]
     },
     {
       "path": "tests\\test_listing_lookup_adapter.py",
       "classes": [
-        "FailingReader",
         "FakeReader",
         "InvalidReader",
         "InvalidResultReader"
       ],
       "functions": [
-        "__init__",
-        "get_listing",
-        "get_listing",
-        "get_listing",
         "make_product",
         "test_adapter_satisfies_application_listing_lookup_port",
-        "test_dispatches_to_normalized_marketplace_reader",
         "test_fake_reader_satisfies_reader_contract",
-        "test_propagates_reader_execution_error",
-        "test_rejects_duplicate_normalized_marketplace_registration",
-        "test_rejects_empty_marketplace",
-        "test_rejects_invalid_reader_during_registration",
-        "test_rejects_invalid_reader_result",
-        "test_rejects_lookup_without_item_id_or_url",
-        "test_rejects_non_mapping_reader_registry",
-        "test_rejects_unsupported_marketplace",
+        "test_dispatches_to_normalized_marketplace_reader",
         "test_returns_none_when_reader_cannot_find_listing",
-        "test_supports_url_only_lookup"
+        "test_supports_url_only_lookup",
+        "test_rejects_lookup_without_item_id_or_url",
+        "test_rejects_unsupported_marketplace",
+        "test_propagates_reader_execution_error",
+        "test_rejects_invalid_reader_during_registration",
+        "test_rejects_duplicate_normalized_marketplace_registration",
+        "test_rejects_invalid_reader_result",
+        "test_rejects_empty_marketplace",
+        "test_rejects_non_mapping_reader_registry",
+        "__init__",
+        "get_listing",
+        "get_listing"
       ]
     },
     {
@@ -3184,14 +2915,14 @@
       "classes": [],
       "functions": [
         "create_intelligence",
-        "test_applies_competition_penalty",
-        "test_applies_negative_inventory_adjustment",
         "test_applies_positive_market_adjustment",
+        "test_applies_negative_inventory_adjustment",
+        "test_applies_competition_penalty",
+        "test_handles_missing_intelligence",
         "test_builds_positive_user_explanations",
-        "test_explains_high_seller_competition",
-        "test_explains_missing_market_intelligence",
         "test_explains_unavailable_inventory",
-        "test_handles_missing_intelligence"
+        "test_explains_high_seller_competition",
+        "test_explains_missing_market_intelligence"
       ]
     },
     {
@@ -3201,9 +2932,9 @@
         "make_trend",
         "test_analyzes_favorable_market",
         "test_analyzes_unfavorable_market",
-        "test_builds_market_summary",
-        "test_handles_insufficient_price_history",
         "test_handles_missing_market_data",
+        "test_handles_insufficient_price_history",
+        "test_builds_market_summary",
         "test_rejects_negative_competitor_count"
       ]
     },
@@ -3212,8 +2943,8 @@
       "classes": [],
       "functions": [
         "test_builds_market_intelligence",
-        "test_empty_market_intelligence",
-        "test_market_intelligence_detects_risk"
+        "test_market_intelligence_detects_risk",
+        "test_empty_market_intelligence"
       ]
     },
     {
@@ -3221,35 +2952,33 @@
       "classes": [],
       "functions": [
         "test_market_snapshot_calculations",
+        "test_market_snapshot_rejects_negative_price",
         "test_market_snapshot_rejects_invalid_price_order",
-        "test_market_snapshot_rejects_invalid_rating",
-        "test_market_snapshot_rejects_negative_price"
+        "test_market_snapshot_rejects_invalid_rating"
       ]
     },
     {
       "path": "tests\\test_marketplace_fees.py",
       "classes": [],
       "functions": [
-        "test_calculate_amazon_marketplace_fee",
+        "test_get_ebay_fee_profile",
+        "test_get_amazon_fee_profile",
+        "test_unknown_marketplace_uses_default_profile",
         "test_calculate_ebay_marketplace_fee",
-        "test_calculator_rejects_negative_selling_price",
+        "test_calculate_amazon_marketplace_fee",
         "test_fee_override_replaces_selected_values",
         "test_fee_profile_rejects_invalid_rate",
-        "test_get_amazon_fee_profile",
-        "test_get_ebay_fee_profile",
-        "test_unknown_marketplace_uses_default_profile"
+        "test_calculator_rejects_negative_selling_price"
       ]
     },
     {
       "path": "tests\\test_marketplace_listing_readers.py",
       "classes": [],
       "functions": [
-        "fake_get_product_by_id",
-        "fake_get_product_by_id",
         "make_product",
-        "test_amazon_reader_delegates_to_exact_item_lookup",
-        "test_ebay_reader_delegates_to_exact_item_lookup",
         "test_reader_satisfies_marketplace_listing_contract",
+        "test_ebay_reader_delegates_to_exact_item_lookup",
+        "test_amazon_reader_delegates_to_exact_item_lookup",
         "test_registered_adapter_dispatches_to_ebay_and_amazon"
       ]
     },
@@ -3257,17 +2986,17 @@
       "path": "tests\\test_marketplace_rules.py",
       "classes": [],
       "functions": [
-        "test_disabled_rule_is_not_selected",
-        "test_explicit_fee_override_wins_over_rule",
         "test_get_ebay_marketplace_rules",
-        "test_invalid_country_code_is_rejected",
-        "test_more_specific_rule_wins_over_priority",
-        "test_opportunity_uses_marketplace_category_rule",
+        "test_resolve_default_ebay_rule",
         "test_resolve_category_rule",
         "test_resolve_country_and_category_rule",
-        "test_resolve_default_ebay_rule",
-        "test_rules_are_disabled_by_default",
-        "test_unknown_marketplace_returns_no_rule"
+        "test_more_specific_rule_wins_over_priority",
+        "test_disabled_rule_is_not_selected",
+        "test_unknown_marketplace_returns_no_rule",
+        "test_invalid_country_code_is_rejected",
+        "test_opportunity_uses_marketplace_category_rule",
+        "test_explicit_fee_override_wins_over_rule",
+        "test_rules_are_disabled_by_default"
       ]
     },
     {
@@ -3276,16 +3005,16 @@
         "StubAdapter"
       ],
       "functions": [
-        "__init__",
         "make_product",
-        "normalize",
         "test_normalize_and_validate_rejects_non_dict_raw_product",
+        "test_validate_product_rejects_marketplace_mismatch",
+        "test_validate_product_rejects_missing_item_id",
         "test_parse_price_rejects_non_finite_values",
         "test_parse_rating_rejects_non_finite_value",
         "test_parse_review_count_rejects_boolean",
         "test_real_adapters_reject_missing_marketplace_item_id",
-        "test_validate_product_rejects_marketplace_mismatch",
-        "test_validate_product_rejects_missing_item_id"
+        "__init__",
+        "normalize"
       ]
     },
     {
@@ -3293,12 +3022,12 @@
       "classes": [],
       "functions": [
         "test_calculate_opportunity",
-        "test_calculate_opportunity_includes_all_sprint3_costs",
         "test_calculate_product_opportunity",
+        "test_calculate_opportunity_includes_all_sprint3_costs",
+        "test_profitability_filter_forces_rejection",
         "test_invalid_payment_fee_rate_is_rejected",
-        "test_product_opportunity_can_override_shipping_as_free",
         "test_product_opportunity_uses_marketplace_shipping_by_default",
-        "test_profitability_filter_forces_rejection"
+        "test_product_opportunity_can_override_shipping_as_free"
       ]
     },
     {
@@ -3316,21 +3045,21 @@
       "classes": [],
       "functions": [
         "make_score",
-        "test_balanced_factors_create_explicit_fallback_reason",
-        "test_custom_policy_changes_decision_and_reason_boundaries",
         "test_decision_boundaries",
+        "test_generates_positive_reasons_in_stable_factor_order",
+        "test_generates_negative_reasons_in_stable_factor_order",
+        "test_omits_neutral_factors_and_keeps_mixed_reasons",
+        "test_balanced_factors_create_explicit_fallback_reason",
         "test_evaluated_at_defaults_to_timezone_aware_utc",
+        "test_preserves_explicit_evaluated_at",
+        "test_score_requires_opportunity_score",
         "test_evaluated_at_requires_datetime",
         "test_evaluated_at_requires_timezone_awareness",
-        "test_generates_negative_reasons_in_stable_factor_order",
-        "test_generates_positive_reasons_in_stable_factor_order",
-        "test_omits_neutral_factors_and_keeps_mixed_reasons",
-        "test_policy_decision_thresholds_require_descending_order",
+        "test_custom_policy_changes_decision_and_reason_boundaries",
         "test_policy_fields_require_decimal",
         "test_policy_fields_require_finite_range",
-        "test_policy_reason_thresholds_must_not_overlap",
-        "test_preserves_explicit_evaluated_at",
-        "test_score_requires_opportunity_score"
+        "test_policy_decision_thresholds_require_descending_order",
+        "test_policy_reason_thresholds_must_not_overlap"
       ]
     },
     {
@@ -3339,10 +3068,10 @@
         "CompleteInputAdapter"
       ],
       "functions": [
-        "adapt",
         "make_score",
         "test_builder_creates_structured_decision_report",
-        "test_service_returns_decision_report_for_evaluated_result"
+        "test_service_returns_decision_report_for_evaluated_result",
+        "adapt"
       ]
     },
     {
@@ -3351,42 +3080,42 @@
       "functions": [
         "make_factors",
         "make_score",
+        "test_opportunity_grade_uses_stable_string_values",
+        "test_opportunity_factors_creation",
+        "test_opportunity_score_creation",
         "test_domain_models_are_immutable",
-        "test_factor_scores_accept_boundaries",
-        "test_factor_scores_must_be_finite",
-        "test_factor_scores_must_be_inside_range",
         "test_factor_scores_require_decimal",
+        "test_factor_scores_must_be_inside_range",
+        "test_factor_scores_must_be_finite",
+        "test_factor_scores_accept_boundaries",
+        "test_result_scores_require_decimal",
+        "test_result_scores_must_be_inside_range",
+        "test_result_scores_must_be_finite",
+        "test_result_scores_accept_boundaries",
+        "test_grade_requires_opportunity_grade",
         "test_factors_require_opportunity_factors",
         "test_generated_at_requires_datetime",
-        "test_generated_at_requires_timezone_aware_datetime",
-        "test_grade_requires_opportunity_grade",
-        "test_opportunity_factors_creation",
-        "test_opportunity_grade_uses_stable_string_values",
-        "test_opportunity_score_creation",
-        "test_result_scores_accept_boundaries",
-        "test_result_scores_must_be_finite",
-        "test_result_scores_must_be_inside_range",
-        "test_result_scores_require_decimal"
+        "test_generated_at_requires_timezone_aware_datetime"
       ]
     },
     {
       "path": "tests\\test_opportunity_evaluation.py",
       "classes": [],
       "functions": [
-        "make_evaluation",
         "make_score",
-        "test_decision_requires_opportunity_decision",
+        "make_evaluation",
         "test_decision_uses_stable_string_values",
-        "test_each_reason_requires_opportunity_reason",
-        "test_evaluated_at_requires_datetime",
-        "test_evaluated_at_requires_timezone_aware_datetime",
+        "test_reason_uses_stable_string_values",
         "test_evaluation_creation",
         "test_evaluation_is_immutable",
-        "test_reason_uses_stable_string_values",
-        "test_reasons_reject_duplicates",
-        "test_reasons_require_at_least_one_reason",
+        "test_score_requires_opportunity_score",
+        "test_decision_requires_opportunity_decision",
         "test_reasons_require_tuple",
-        "test_score_requires_opportunity_score"
+        "test_reasons_require_at_least_one_reason",
+        "test_each_reason_requires_opportunity_reason",
+        "test_reasons_reject_duplicates",
+        "test_evaluated_at_requires_datetime",
+        "test_evaluated_at_requires_timezone_aware_datetime"
       ]
     },
     {
@@ -3396,16 +3125,16 @@
         "make_report",
         "make_trend",
         "recommend",
-        "test_buy_decision_remains_buy_with_supporting_signals",
+        "test_strong_buy_requires_all_strong_supporting_signals",
         "test_high_risk_overrides_positive_decision_and_trend",
+        "test_skip_decision_becomes_pass",
         "test_high_risk_trend_caps_recommendation_at_pass",
         "test_low_confidence_caps_recommendation_at_watch",
         "test_medium_risk_caps_recommendation_at_watch",
-        "test_rejects_invalid_input_types",
-        "test_result_requires_at_least_one_reason",
-        "test_skip_decision_becomes_pass",
+        "test_buy_decision_remains_buy_with_supporting_signals",
         "test_strong_buy_decision_is_downgraded_without_very_high_confidence",
-        "test_strong_buy_requires_all_strong_supporting_signals"
+        "test_result_requires_at_least_one_reason",
+        "test_rejects_invalid_input_types"
       ]
     },
     {
@@ -3423,45 +3152,45 @@
         "InvalidInputAdapter"
       ],
       "functions": [
-        "adapt",
-        "adapt",
         "make_result",
-        "test_complete_adapter_runs_score_and_decision_engines",
-        "test_default_adapter_can_run_full_intelligence_when_sources_are_complete",
-        "test_default_discovery_adapter_returns_unavailable_without_defaults",
-        "test_discovery_adapter_accepts_decimal_compatible_confidence",
-        "test_discovery_adapter_builds_complete_factors_from_verified_metadata",
-        "test_discovery_adapter_builds_trend_analysis_from_price_history",
+        "test_orchestrator_result_conversion_supports_intelligence_evaluation",
         "test_discovery_adapter_extracts_confidence_and_reports_missing_factors",
-        "test_discovery_adapter_keeps_trend_optional_without_price_history",
-        "test_discovery_adapter_rejects_invalid_price_history_limit",
-        "test_discovery_adapter_reports_only_the_missing_factor_sources",
+        "test_discovery_adapter_accepts_decimal_compatible_confidence",
+        "test_default_discovery_adapter_returns_unavailable_without_defaults",
+        "test_complete_adapter_runs_score_and_decision_engines",
         "test_invalid_adapter_input_returns_failed_result",
         "test_invalid_confidence_returns_failed_result",
+        "test_discovery_adapter_builds_complete_factors_from_verified_metadata",
+        "test_default_adapter_can_run_full_intelligence_when_sources_are_complete",
+        "test_discovery_adapter_reports_only_the_missing_factor_sources",
         "test_invalid_factor_source_returns_failed_result",
-        "test_legacy_price_score_delegates_to_profitability_score",
-        "test_orchestrator_result_conversion_supports_intelligence_evaluation",
         "test_profitability_score_preserves_existing_roi_mapping",
+        "test_legacy_price_score_delegates_to_profitability_score",
         "test_profitability_score_rejects_non_decimal_roi",
         "test_profitability_score_rejects_non_finite_roi",
-        "test_service_generates_recommendation_from_persisted_price_history"
+        "test_discovery_adapter_builds_trend_analysis_from_price_history",
+        "test_discovery_adapter_keeps_trend_optional_without_price_history",
+        "test_service_generates_recommendation_from_persisted_price_history",
+        "test_discovery_adapter_rejects_invalid_price_history_limit",
+        "adapt",
+        "adapt"
       ]
     },
     {
       "path": "tests\\test_opportunity_intelligence_service_enrichment.py",
       "classes": [
-        "BaseInputAdapter",
-        "EnrichedInputAdapter"
+        "EnrichedInputAdapter",
+        "BaseInputAdapter"
       ],
       "functions": [
-        "adapt",
-        "adapt",
         "make_discovery_result",
         "make_factors",
         "make_strong_trend",
-        "test_input_rejects_invalid_trend_analysis_type",
+        "test_service_returns_full_enriched_result_when_trend_analysis_is_available",
         "test_service_preserves_base_evaluation_when_trend_analysis_is_unavailable",
-        "test_service_returns_full_enriched_result_when_trend_analysis_is_available"
+        "test_input_rejects_invalid_trend_analysis_type",
+        "adapt",
+        "adapt"
       ]
     },
     {
@@ -3477,13 +3206,13 @@
       "path": "tests\\test_opportunity_risk_engine.py",
       "classes": [],
       "functions": [
-        "test_assess_high_risk_below_medium_boundary",
         "test_assess_low_risk_from_high_safety_score",
         "test_assess_medium_risk_at_boundary",
+        "test_assess_high_risk_below_medium_boundary",
         "test_custom_policy_changes_boundaries",
-        "test_policy_requires_ordered_thresholds",
         "test_rejects_invalid_score_range",
-        "test_rejects_non_decimal_score"
+        "test_rejects_non_decimal_score",
+        "test_policy_requires_ordered_thresholds"
       ]
     },
     {
@@ -3491,32 +3220,32 @@
       "classes": [],
       "functions": [
         "make_factors",
-        "test_calculates_default_weighted_score",
-        "test_confidence_must_be_finite_and_inside_range",
-        "test_confidence_requires_decimal",
-        "test_custom_policy_changes_weighted_score_and_grade",
         "test_default_policy_weights_sum_to_one",
-        "test_factors_type_is_validated",
-        "test_fee_and_roi_scores_are_combined_without_double_counting_base",
-        "test_fee_and_roi_weights_cannot_exceed_one_together",
-        "test_fee_score_changes_weighted_opportunity_score",
-        "test_fee_score_must_be_finite_and_inside_range",
-        "test_fee_score_requires_decimal_or_none",
-        "test_fee_weight_requires_decimal",
-        "test_fee_weight_requires_finite_unit_range",
+        "test_calculates_default_weighted_score",
+        "test_grade_boundaries",
+        "test_rounds_weighted_score_half_up_to_two_decimals",
+        "test_custom_policy_changes_weighted_score_and_grade",
         "test_generated_at_defaults_to_timezone_aware_utc",
+        "test_factors_type_is_validated",
+        "test_confidence_requires_decimal",
+        "test_confidence_must_be_finite_and_inside_range",
         "test_generated_at_requires_datetime",
         "test_generated_at_requires_timezone_awareness",
-        "test_grade_boundaries",
         "test_policy_fields_require_decimal",
-        "test_policy_grade_thresholds_require_descending_order",
         "test_policy_weights_must_sum_to_one",
+        "test_policy_grade_thresholds_require_descending_order",
+        "test_fee_score_changes_weighted_opportunity_score",
+        "test_fee_score_requires_decimal_or_none",
+        "test_fee_score_must_be_finite_and_inside_range",
+        "test_fee_weight_requires_decimal",
+        "test_fee_weight_requires_finite_unit_range",
         "test_roi_score_changes_weighted_opportunity_score",
-        "test_roi_score_must_be_finite_and_inside_range",
+        "test_fee_and_roi_scores_are_combined_without_double_counting_base",
         "test_roi_score_requires_decimal_or_none",
+        "test_roi_score_must_be_finite_and_inside_range",
         "test_roi_weight_requires_decimal",
         "test_roi_weight_requires_finite_unit_range",
-        "test_rounds_weighted_score_half_up_to_two_decimals"
+        "test_fee_and_roi_weights_cannot_exceed_one_together"
       ]
     },
     {
@@ -3524,45 +3253,35 @@
       "classes": [],
       "functions": [
         "analysis",
-        "test_assessment_rejects_conflicting_flags",
-        "test_custom_minimum_sample_policy_is_applied",
+        "test_rejects_non_trend_analysis",
+        "test_insufficient_samples_return_watch",
+        "test_up_low_volatility_near_lowest_is_strong_buy_trend",
+        "test_uptrend_with_acceptable_volatility_is_favorable",
+        "test_high_volatility_uptrend_returns_watch",
         "test_downtrend_with_major_risk_signal_is_high_risk",
         "test_downtrend_without_major_risk_signal_returns_watch",
         "test_flat_price_history_is_stable_opportunity",
-        "test_high_volatility_uptrend_returns_watch",
-        "test_insufficient_samples_return_watch",
-        "test_policy_rejects_boolean_sample_count",
-        "test_policy_rejects_sample_count_below_two",
-        "test_rejects_non_trend_analysis",
         "test_stable_low_volatility_is_stable_opportunity",
         "test_stable_trend_with_caution_signal_returns_watch",
-        "test_up_low_volatility_near_lowest_is_strong_buy_trend",
-        "test_uptrend_with_acceptable_volatility_is_favorable"
+        "test_custom_minimum_sample_policy_is_applied",
+        "test_policy_rejects_sample_count_below_two",
+        "test_policy_rejects_boolean_sample_count",
+        "test_assessment_rejects_conflicting_flags"
       ]
     },
     {
       "path": "tests\\test_orchestrator.py",
-      "classes": [
-        "FakeOpportunityHistoryRepository"
-      ],
+      "classes": [],
       "functions": [
-        "__init__",
-        "failing_ebay_search",
-        "failing_search",
-        "fake_search_products",
-        "fake_search_products",
-        "fake_search_products",
-        "load_ai_memory_history",
         "make_product",
-        "successful_amazon_search",
-        "test_empty_query_is_rejected",
-        "test_find_best_opportunities",
-        "test_find_best_opportunities_loads_ai_memory_from_repository",
-        "test_find_best_opportunities_uses_ai_memory",
-        "test_find_best_opportunities_uses_product_shipping_cost",
         "test_group_similar_products",
+        "test_find_best_opportunities",
+        "test_find_best_opportunities_uses_ai_memory",
+        "test_find_best_opportunities_loads_ai_memory_from_repository",
+        "test_empty_query_is_rejected",
         "test_search_products_continues_when_ebay_fails",
-        "test_search_products_raises_when_all_marketplaces_fail"
+        "test_search_products_raises_when_all_marketplaces_fail",
+        "test_find_best_opportunities_uses_product_shipping_cost"
       ]
     },
     {
@@ -3571,8 +3290,8 @@
       "functions": [
         "make_product",
         "test_find_best_opportunities_detects_latest_price_change",
-        "test_find_best_opportunities_skips_change_detection_without_repository",
-        "test_find_best_opportunities_treats_missing_history_as_first_observation"
+        "test_find_best_opportunities_treats_missing_history_as_first_observation",
+        "test_find_best_opportunities_skips_change_detection_without_repository"
       ]
     },
     {
@@ -3580,9 +3299,9 @@
       "classes": [],
       "functions": [
         "make_product",
-        "test_build_price_snapshot_generates_unique_ids",
         "test_build_price_snapshot_maps_product_fields",
-        "test_build_price_snapshot_uses_safe_fallbacks"
+        "test_build_price_snapshot_uses_safe_fallbacks",
+        "test_build_price_snapshot_generates_unique_ids"
       ]
     },
     {
@@ -3591,10 +3310,10 @@
       "functions": [
         "make_product",
         "patch_search",
-        "test_change_detection_runs_before_current_snapshot_save",
         "test_first_observation_is_saved_after_empty_detection",
-        "test_no_repository_means_no_detection_and_no_save",
-        "test_saved_snapshot_becomes_previous_on_next_run"
+        "test_change_detection_runs_before_current_snapshot_save",
+        "test_saved_snapshot_becomes_previous_on_next_run",
+        "test_no_repository_means_no_detection_and_no_save"
       ]
     },
     {
@@ -3603,14 +3322,14 @@
         "_CompleteInputAdapter"
       ],
       "functions": [
-        "_evaluated_intelligence_result",
         "_make_result",
-        "adapt",
+        "_evaluated_intelligence_result",
         "test_print_dashboard_result",
         "test_print_dashboard_results",
         "test_print_dashboard_results_handles_empty_results",
         "test_print_opportunity_intelligence_evaluated_result",
-        "test_print_opportunity_intelligence_reports_non_evaluated_statuses"
+        "test_print_opportunity_intelligence_reports_non_evaluated_statuses",
+        "adapt"
       ]
     },
     {
@@ -3626,8 +3345,8 @@
       "classes": [],
       "functions": [
         "make_product",
-        "run_discovery",
         "set_search_result",
+        "run_discovery",
         "test_price_change_pipeline_end_to_end"
       ]
     },
@@ -3637,23 +3356,22 @@
       "functions": [
         "make_product",
         "make_repository",
-        "save",
-        "test_concurrent_same_observation_is_recorded_once",
         "test_database_is_created",
-        "test_delete_all_records",
-        "test_different_observation_identity_is_appended",
-        "test_existing_database_is_migrated_without_data_loss",
+        "test_save_and_read_product_price",
+        "test_history_is_returned_in_latest_order",
+        "test_save_multiple_products",
         "test_get_latest_record",
         "test_get_latest_record_returns_none",
-        "test_history_is_returned_in_latest_order",
+        "test_delete_all_records",
         "test_rejects_invalid_limit",
-        "test_same_observation_identity_with_different_data_conflicts",
-        "test_same_observation_returns_existing_record_id",
-        "test_same_price_at_different_observation_time_is_appended",
         "test_save_and_read_canonical_price_history",
-        "test_save_and_read_product_price",
-        "test_save_multiple_products",
-        "test_seller_is_preserved_in_price_snapshot"
+        "test_existing_database_is_migrated_without_data_loss",
+        "test_seller_is_preserved_in_price_snapshot",
+        "test_same_observation_returns_existing_record_id",
+        "test_same_observation_identity_with_different_data_conflicts",
+        "test_same_price_at_different_observation_time_is_appended",
+        "test_different_observation_identity_is_appended",
+        "test_concurrent_same_observation_is_recorded_once"
       ]
     },
     {
@@ -3663,20 +3381,20 @@
         "make_product",
         "make_record",
         "make_repository",
-        "test_mapper_accepts_utc_z_suffix",
         "test_mapper_converts_storage_record_to_snapshot",
+        "test_mapper_accepts_utc_z_suffix",
         "test_mapper_normalizes_naive_time_to_utc",
         "test_mapper_rejects_invalid_observed_at",
-        "test_mapper_rejects_wrong_record_type",
         "test_mapper_requires_canonical_product_id",
+        "test_mapper_rejects_wrong_record_type",
         "test_provider_exposes_required_port_methods",
-        "test_provider_rejects_blank_identifiers",
-        "test_provider_rejects_invalid_mapper",
-        "test_provider_rejects_invalid_repository",
-        "test_provider_rejects_mapper_wrong_return_type",
-        "test_provider_returns_latest_canonical_snapshot",
+        "test_provider_returns_none_when_listing_is_missing",
         "test_provider_returns_latest_listing_snapshot",
-        "test_provider_returns_none_when_listing_is_missing"
+        "test_provider_returns_latest_canonical_snapshot",
+        "test_provider_rejects_blank_identifiers",
+        "test_provider_rejects_invalid_repository",
+        "test_provider_rejects_invalid_mapper",
+        "test_provider_rejects_mapper_wrong_return_type"
       ]
     },
     {
@@ -3684,29 +3402,26 @@
       "classes": [],
       "functions": [
         "make_product",
-        "test_accepts_float_fallback_multiplier_safely",
         "test_analyze_multiple_product_prices",
+        "test_single_product_uses_fallback_multiplier",
         "test_calculates_decimal_price_range",
         "test_classifies_stable_prices_as_very_high",
         "test_classifies_volatile_prices_as_very_low",
+        "test_accepts_float_fallback_multiplier_safely",
         "test_rejects_empty_product_list",
-        "test_rejects_invalid_fallback_multiplier",
         "test_rejects_mixed_currencies",
-        "test_single_product_uses_fallback_multiplier"
+        "test_rejects_invalid_fallback_multiplier"
       ]
     },
     {
       "path": "tests\\test_price_observation_recorder.py",
-      "classes": [
-        "FailingPriceHistoryRepository"
-      ],
+      "classes": [],
       "functions": [
         "make_product",
         "make_snapshot",
-        "save_product_price",
         "test_recorder_appends_observation_with_snapshot_metadata",
-        "test_recorder_propagates_repository_error",
-        "test_recorder_returns_existing_id_for_idempotent_retry"
+        "test_recorder_returns_existing_id_for_idempotent_retry",
+        "test_recorder_propagates_repository_error"
       ]
     },
     {
@@ -3715,10 +3430,10 @@
       "functions": [
         "create_price_snapshot",
         "test_price_snapshot_creation",
-        "test_price_snapshot_is_immutable",
         "test_price_snapshot_normalizes_fields",
-        "test_price_snapshot_rejects_negative_price",
-        "test_price_snapshot_required_fields"
+        "test_price_snapshot_is_immutable",
+        "test_price_snapshot_required_fields",
+        "test_price_snapshot_rejects_negative_price"
       ]
     },
     {
@@ -3726,11 +3441,11 @@
       "classes": [],
       "functions": [
         "create_snapshot",
-        "test_price_is_preserved_as_decimal",
         "test_price_snapshots_to_history_records",
+        "test_price_is_preserved_as_decimal",
+        "test_requires_title",
         "test_rejects_empty_snapshots",
-        "test_rejects_invalid_snapshot_type",
-        "test_requires_title"
+        "test_rejects_invalid_snapshot_type"
       ]
     },
     {
@@ -3739,13 +3454,13 @@
       "functions": [
         "make_record",
         "test_detects_falling_price_trend",
-        "test_detects_flat_price_trend",
         "test_detects_rising_price_trend",
-        "test_records_are_sorted_by_observed_time",
-        "test_rejects_different_products",
-        "test_rejects_empty_records",
+        "test_detects_flat_price_trend",
         "test_single_record_requires_more_data",
-        "test_zero_oldest_price_returns_no_percentage"
+        "test_records_are_sorted_by_observed_time",
+        "test_zero_oldest_price_returns_no_percentage",
+        "test_rejects_different_products",
+        "test_rejects_empty_records"
       ]
     },
     {
@@ -3753,22 +3468,22 @@
       "classes": [],
       "functions": [
         "make_analysis",
-        "test_boolean_fields_require_bool",
-        "test_change_rate_accepts_negative_value",
-        "test_decimal_fields_reject_non_decimal_values",
-        "test_lowest_price_cannot_exceed_highest_price",
-        "test_non_negative_price_fields_reject_negative_values",
-        "test_price_range_must_match_high_minus_low",
+        "test_trend_enums_use_stable_string_values",
         "test_price_trend_analysis_creation",
         "test_price_trend_analysis_is_immutable",
+        "test_decimal_fields_reject_non_decimal_values",
+        "test_non_negative_price_fields_reject_negative_values",
+        "test_change_rate_accepts_negative_value",
         "test_rejects_invalid_direction_type",
         "test_rejects_invalid_volatility_type",
-        "test_representative_prices_must_stay_inside_range",
-        "test_sample_count_must_be_positive",
+        "test_boolean_fields_require_bool",
         "test_sample_count_requires_integer",
+        "test_sample_count_must_be_positive",
+        "test_lowest_price_cannot_exceed_highest_price",
+        "test_representative_prices_must_stay_inside_range",
+        "test_price_range_must_match_high_minus_low",
         "test_single_sample_analysis_is_valid",
-        "test_single_sample_requires_stable_consistent_values",
-        "test_trend_enums_use_stable_string_values"
+        "test_single_sample_requires_stable_consistent_values"
       ]
     },
     {
@@ -3780,27 +3495,24 @@
       "path": "tests\\test_product_draft_factory.py",
       "classes": [],
       "functions": [
-        "custom_extractor",
-        "extractor",
-        "invalid_extractor",
         "make_product",
-        "test_accessory_flag_is_stored_only_when_true",
-        "test_attribute_extractor_property_returns_same_callable",
-        "test_bundle_flag_is_stored_only_when_true",
-        "test_custom_extractor_must_return_product_attributes",
-        "test_explicit_product_metadata_has_priority",
         "test_factory_can_be_created",
-        "test_factory_rejects_non_callable_extractor",
-        "test_factory_supports_custom_extractor",
-        "test_from_attributes_maps_core_fields",
-        "test_from_attributes_rejects_invalid_attributes",
         "test_from_attributes_returns_draft",
-        "test_from_product_extracts_attributes",
-        "test_from_product_rejects_invalid_product",
-        "test_quantity_is_stored_as_string",
+        "test_from_attributes_maps_core_fields",
         "test_structured_product_does_not_store_title_identity",
+        "test_unstructured_product_uses_normalized_title_as_fallback",
+        "test_quantity_is_stored_as_string",
+        "test_bundle_flag_is_stored_only_when_true",
+        "test_accessory_flag_is_stored_only_when_true",
         "test_tokens_are_not_stored_in_draft_identity",
-        "test_unstructured_product_uses_normalized_title_as_fallback"
+        "test_from_product_extracts_attributes",
+        "test_explicit_product_metadata_has_priority",
+        "test_factory_supports_custom_extractor",
+        "test_custom_extractor_must_return_product_attributes",
+        "test_from_product_rejects_invalid_product",
+        "test_from_attributes_rejects_invalid_attributes",
+        "test_factory_rejects_non_callable_extractor",
+        "test_attribute_extractor_property_returns_same_callable"
       ]
     },
     {
@@ -3808,16 +3520,16 @@
       "classes": [],
       "functions": [
         "make_product",
+        "test_identity_field_groups_are_explicit",
         "test_category_and_condition_are_weak_identity",
+        "test_weak_identity_preserves_normalized_title",
+        "test_strong_identity_removes_normalized_title",
+        "test_weak_color_or_size_preserves_title",
         "test_different_weak_identity_titles_produce_different_drafts",
+        "test_same_weak_identity_title_produces_same_draft_identity",
         "test_from_product_preserves_title_for_weak_identity_only",
         "test_from_product_removes_title_when_brand_exists",
-        "test_identity_field_groups_are_explicit",
-        "test_same_weak_identity_title_produces_same_draft_identity",
-        "test_strong_identity_removes_normalized_title",
         "test_strong_identity_validation_rejects_invalid_type",
-        "test_weak_color_or_size_preserves_title",
-        "test_weak_identity_preserves_normalized_title",
         "test_weak_identity_validation_rejects_invalid_type"
       ]
     },
@@ -3825,70 +3537,70 @@
       "path": "tests\\test_product_matching.py",
       "classes": [],
       "functions": [
-        "test_compare_product_objects",
-        "test_different_products_are_not_matched",
         "test_normalize_product_title",
-        "test_similar_titles_are_matched"
+        "test_similar_titles_are_matched",
+        "test_different_products_are_not_matched",
+        "test_compare_product_objects"
       ]
     },
     {
       "path": "tests\\test_product_matching_v2.py",
       "classes": [],
       "functions": [
-        "test_accessory_and_main_product_do_not_match",
-        "test_brand_conflict_is_not_match",
-        "test_bundle_and_single_product_are_distinguished",
-        "test_capacity_conflict_is_not_match",
-        "test_capacity_match_is_recorded",
-        "test_color_difference_is_not_high_conflict",
-        "test_identical_titles_receive_perfect_score",
-        "test_invalid_match_threshold_raises_value_error",
-        "test_match_result_contains_v2_fields",
-        "test_model_conflict_is_not_match",
         "test_normalize_product_title_preserves_capacity_token",
         "test_normalize_product_title_preserves_quantity_token",
-        "test_quantity_conflict_is_detected",
-        "test_same_color_is_recorded_as_matched_field",
         "test_same_product_with_formatting_difference_matches",
-        "test_two_similar_accessories_can_match"
+        "test_identical_titles_receive_perfect_score",
+        "test_capacity_conflict_is_not_match",
+        "test_capacity_match_is_recorded",
+        "test_model_conflict_is_not_match",
+        "test_brand_conflict_is_not_match",
+        "test_color_difference_is_not_high_conflict",
+        "test_same_color_is_recorded_as_matched_field",
+        "test_quantity_conflict_is_detected",
+        "test_bundle_and_single_product_are_distinguished",
+        "test_accessory_and_main_product_do_not_match",
+        "test_two_similar_accessories_can_match",
+        "test_match_result_contains_v2_fields",
+        "test_invalid_match_threshold_raises_value_error"
       ]
     },
     {
       "path": "tests\\test_product_model.py",
       "classes": [],
       "functions": [
-        "test_product_rejects_invalid_rating",
+        "test_product_total_cost",
         "test_product_rejects_negative_price",
-        "test_product_total_cost"
+        "test_product_rejects_invalid_rating"
       ]
     },
     {
       "path": "tests\\test_product_synonym_integration.py",
       "classes": [],
       "functions": [
-        "test_korean_accessory_and_main_product_do_not_match",
-        "test_korean_accessory_is_detected",
-        "test_korean_and_english_galaxy_titles_match",
-        "test_korean_and_english_iphone_titles_match",
         "test_korean_and_english_iphone_titles_normalize_equally",
-        "test_korean_capacity_conflict_is_detected"
+        "test_korean_and_english_iphone_titles_match",
+        "test_korean_and_english_galaxy_titles_match",
+        "test_korean_capacity_conflict_is_detected",
+        "test_korean_accessory_is_detected",
+        "test_korean_accessory_and_main_product_do_not_match"
       ]
     },
     {
       "path": "tests\\test_product_synonyms.py",
       "classes": [],
       "functions": [
-        "test_empty_text_raises_value_error",
-        "test_existing_english_terms_remain_unchanged",
-        "test_longer_synonym_is_processed_first",
-        "test_normalizes_accessory_terms",
-        "test_normalizes_korean_apple_products",
         "test_normalizes_korean_iphone_name",
         "test_normalizes_korean_iphone_pro_max",
         "test_normalizes_korean_samsung_galaxy_name",
-        "test_normalizes_product_condition",
+        "test_normalizes_korean_apple_products",
         "test_normalizes_wireless_terms",
-        "test_synonym_mapping_is_read_only"
+        "test_normalizes_accessory_terms",
+        "test_normalizes_product_condition",
+        "test_longer_synonym_is_processed_first",
+        "test_existing_english_terms_remain_unchanged",
+        "test_synonym_mapping_is_read_only",
+        "test_empty_text_raises_value_error"
       ]
     },
     {
@@ -3897,12 +3609,12 @@
       "functions": [
         "make_trend",
         "test_generates_strong_buy_recommendation",
-        "test_highest_and_rising_price_reduces_score",
         "test_loss_product_is_not_recommended",
         "test_low_confidence_reduces_score",
-        "test_rejects_invalid_risk_level",
+        "test_highest_and_rising_price_reduces_score",
         "test_score_is_limited_to_100",
-        "test_success_probability_is_limited"
+        "test_success_probability_is_limited",
+        "test_rejects_invalid_risk_level"
       ]
     },
     {
@@ -3910,14 +3622,14 @@
       "classes": [],
       "functions": [
         "test_calculates_roi_result_from_invested_capital_and_net_profit",
-        "test_custom_policy_changes_score_and_grade",
-        "test_inputs_must_be_finite",
+        "test_roi_score_and_grade_boundaries",
         "test_inputs_require_decimal",
+        "test_inputs_must_be_finite",
         "test_invested_capital_must_be_positive",
+        "test_custom_policy_changes_score_and_grade",
         "test_policy_fields_require_decimal",
-        "test_policy_grade_boundaries_require_descending_order",
         "test_policy_score_boundaries_require_strict_order",
-        "test_roi_score_and_grade_boundaries"
+        "test_policy_grade_boundaries_require_descending_order"
       ]
     },
     {
@@ -3925,11 +3637,11 @@
       "classes": [],
       "functions": [
         "make_trend",
-        "test_builds_plain_text_output",
-        "test_formats_missing_data_warning",
-        "test_formats_negative_adjustments",
         "test_formats_score_summary",
-        "test_formats_strengths_and_warnings"
+        "test_formats_negative_adjustments",
+        "test_formats_strengths_and_warnings",
+        "test_formats_missing_data_warning",
+        "test_builds_plain_text_output"
       ]
     },
     {
@@ -3937,13 +3649,13 @@
       "classes": [],
       "functions": [
         "create_snapshot",
-        "test_analyzes_good_seller_quality",
-        "test_analyzes_high_competition",
         "test_analyzes_low_competition",
         "test_analyzes_medium_competition",
+        "test_analyzes_high_competition",
+        "test_analyzes_good_seller_quality",
         "test_analyzes_risky_seller_quality",
-        "test_creates_summary",
-        "test_handles_missing_seller_data"
+        "test_handles_missing_seller_data",
+        "test_creates_summary"
       ]
     },
     {
@@ -3951,12 +3663,12 @@
       "classes": [],
       "functions": [
         "create_snapshot",
-        "test_allows_missing_seller_id",
         "test_creates_seller_snapshot",
+        "test_allows_missing_seller_id",
         "test_rejects_invalid_rating",
-        "test_rejects_invalid_verified_type",
         "test_rejects_negative_review_count",
         "test_rejects_negative_seller_count",
+        "test_rejects_invalid_verified_type",
         "test_snapshot_is_immutable"
       ]
     },
@@ -3964,11 +3676,11 @@
       "path": "tests\\test_shipping_cost_resolver.py",
       "classes": [],
       "functions": [
+        "test_uses_marketplace_shipping_when_override_is_omitted",
         "test_explicit_override_replaces_marketplace_shipping",
         "test_explicit_zero_override_means_free_shipping",
         "test_marketplace_zero_is_free_shipping",
-        "test_negative_shipping_is_rejected",
-        "test_uses_marketplace_shipping_when_override_is_omitted"
+        "test_negative_shipping_is_rejected"
       ]
     },
     {
@@ -3986,8 +3698,8 @@
       "classes": [],
       "functions": [
         "create_snapshot",
-        "test_snapshot_data_is_preserved",
-        "test_snapshot_to_price_trend_flow"
+        "test_snapshot_to_price_trend_flow",
+        "test_snapshot_data_is_preserved"
       ]
     },
     {
@@ -3995,8 +3707,8 @@
       "classes": [],
       "functions": [
         "create_price_history_record",
-        "test_price_history_price_converted_to_decimal",
-        "test_price_history_to_price_snapshot"
+        "test_price_history_to_price_snapshot",
+        "test_price_history_price_converted_to_decimal"
       ]
     },
     {
@@ -4005,60 +3717,60 @@
       "functions": [
         "make_watch_item",
         "repository",
-        "test_archive_state_is_persisted_after_domain_change",
-        "test_closed_repository_rejects_operations",
-        "test_repository_allows_same_item_id_across_marketplaces",
-        "test_repository_creates_database_schema",
-        "test_repository_deletes_item",
-        "test_repository_exists_checks",
-        "test_repository_finds_item_by_identity",
         "test_repository_implements_application_port",
+        "test_repository_creates_database_schema",
+        "test_repository_saves_and_gets_item",
+        "test_repository_returns_none_for_missing_item",
+        "test_repository_updates_existing_watch_id",
+        "test_repository_finds_item_by_identity",
+        "test_repository_rejects_duplicate_listing_identity",
+        "test_repository_rejects_duplicate_canonical_identity",
+        "test_repository_allows_same_item_id_across_marketplaces",
         "test_repository_lists_items_in_created_order",
         "test_repository_lists_watching_and_archived_items",
+        "test_archive_state_is_persisted_after_domain_change",
+        "test_repository_exists_checks",
+        "test_repository_deletes_item",
         "test_repository_persists_data_across_instances",
-        "test_repository_rejects_duplicate_canonical_identity",
-        "test_repository_rejects_duplicate_listing_identity",
-        "test_repository_returns_none_for_missing_item",
-        "test_repository_saves_and_gets_item",
         "test_repository_supports_in_memory_database",
-        "test_repository_updates_existing_watch_id"
+        "test_closed_repository_rejects_operations"
       ]
     },
     {
       "path": "tests\\test_trend_analysis_engine.py",
       "classes": [],
       "functions": [
-        "analyze_prices",
         "record",
-        "test_all_zero_prices_have_low_volatility",
-        "test_calculates_average_price_with_decimal_precision",
-        "test_calculates_even_sample_median",
-        "test_calculates_highest_lowest_and_range",
-        "test_calculates_odd_sample_median",
-        "test_change_rate_rounds_half_up_to_one_decimal_place",
-        "test_current_price_inside_highest_five_percent_band",
-        "test_current_price_inside_lowest_five_percent_band",
-        "test_current_price_outside_highest_five_percent_band",
-        "test_current_price_outside_lowest_five_percent_band",
-        "test_current_price_uses_latest_observation",
-        "test_custom_policy_changes_direction_threshold",
-        "test_custom_policy_changes_proximity_band",
-        "test_down_direction_below_stable_threshold",
-        "test_high_volatility_above_fifteen_percent",
-        "test_low_volatility_at_five_percent_boundary",
-        "test_medium_volatility_above_five_percent",
-        "test_medium_volatility_at_fifteen_percent_boundary",
-        "test_policy_rejects_inverted_volatility_thresholds",
-        "test_policy_rejects_non_decimal_value",
-        "test_policy_rejects_proximity_band_above_fifty_percent",
-        "test_record_id_breaks_equal_timestamp_tie",
+        "analyze_prices",
         "test_rejects_empty_history",
         "test_rejects_non_record_item",
         "test_single_record_statistics_and_flags",
-        "test_stable_direction_within_inclusive_threshold",
+        "test_calculates_highest_lowest_and_range",
+        "test_calculates_average_price_with_decimal_precision",
+        "test_calculates_odd_sample_median",
+        "test_calculates_even_sample_median",
+        "test_current_price_uses_latest_observation",
+        "test_record_id_breaks_equal_timestamp_tie",
         "test_up_direction_above_stable_threshold",
+        "test_down_direction_below_stable_threshold",
+        "test_stable_direction_within_inclusive_threshold",
+        "test_change_rate_rounds_half_up_to_one_decimal_place",
+        "test_zero_baseline_and_zero_current_are_stable",
         "test_zero_baseline_and_positive_current_use_bounded_up_policy",
-        "test_zero_baseline_and_zero_current_are_stable"
+        "test_low_volatility_at_five_percent_boundary",
+        "test_medium_volatility_above_five_percent",
+        "test_medium_volatility_at_fifteen_percent_boundary",
+        "test_high_volatility_above_fifteen_percent",
+        "test_all_zero_prices_have_low_volatility",
+        "test_current_price_inside_lowest_five_percent_band",
+        "test_current_price_outside_lowest_five_percent_band",
+        "test_current_price_inside_highest_five_percent_band",
+        "test_current_price_outside_highest_five_percent_band",
+        "test_custom_policy_changes_direction_threshold",
+        "test_custom_policy_changes_proximity_band",
+        "test_policy_rejects_inverted_volatility_thresholds",
+        "test_policy_rejects_non_decimal_value",
+        "test_policy_rejects_proximity_band_above_fifty_percent"
       ]
     },
     {
@@ -4066,12 +3778,12 @@
       "classes": [],
       "functions": [
         "make_trend",
+        "test_lowest_and_falling_price_gets_bonus",
         "test_cheaper_than_average_gets_bonus",
         "test_highest_and_rising_price_gets_penalty",
+        "test_unchanged_price_has_no_adjustment",
         "test_insufficient_history_has_no_adjustment",
-        "test_lowest_and_falling_price_gets_bonus",
-        "test_missing_trend_has_no_adjustment",
-        "test_unchanged_price_has_no_adjustment"
+        "test_missing_trend_has_no_adjustment"
       ]
     },
     {
@@ -4080,24 +3792,24 @@
       "functions": [
         "make_product",
         "make_watch_item",
+        "test_watch_item_can_be_created_from_product",
         "test_canonical_product_id_is_strong_identity",
-        "test_different_marketplace_listings_are_not_merged",
         "test_marketplace_item_id_is_listing_identity",
         "test_title_only_identity_is_weak",
+        "test_watch_list_rejects_weak_identity_by_default",
+        "test_watch_list_can_explicitly_allow_weak_identity",
+        "test_watch_list_adds_and_gets_item",
+        "test_watch_list_rejects_duplicate_listing_identity",
+        "test_watch_list_rejects_duplicate_canonical_identity",
+        "test_different_marketplace_listings_are_not_merged",
         "test_watch_item_can_be_archived_and_restored",
-        "test_watch_item_can_be_created_from_product",
+        "test_watch_list_filters_watching_and_archived_items",
+        "test_watch_list_removes_item_and_releases_identity",
+        "test_watch_list_raises_for_missing_item",
+        "test_watch_item_updates_targets_and_note",
         "test_watch_item_records_latest_analysis",
         "test_watch_item_rejects_negative_numbers",
-        "test_watch_item_requires_timezone_aware_datetime",
-        "test_watch_item_updates_targets_and_note",
-        "test_watch_list_adds_and_gets_item",
-        "test_watch_list_can_explicitly_allow_weak_identity",
-        "test_watch_list_filters_watching_and_archived_items",
-        "test_watch_list_raises_for_missing_item",
-        "test_watch_list_rejects_duplicate_canonical_identity",
-        "test_watch_list_rejects_duplicate_listing_identity",
-        "test_watch_list_rejects_weak_identity_by_default",
-        "test_watch_list_removes_item_and_releases_identity"
+        "test_watch_item_requires_timezone_aware_datetime"
       ]
     },
     {
@@ -4105,71 +3817,58 @@
       "classes": [],
       "functions": [
         "make_watch_item",
-        "test_watch_item_from_row_rejects_invalid_status",
-        "test_watch_item_from_row_rejects_naive_datetime",
-        "test_watch_item_mapper_preserves_analysis_time",
+        "test_watch_item_to_record_contains_storage_fields",
         "test_watch_item_mapper_round_trip",
-        "test_watch_item_to_record_contains_storage_fields"
+        "test_watch_item_mapper_preserves_analysis_time",
+        "test_watch_item_from_row_rejects_invalid_status",
+        "test_watch_item_from_row_rejects_naive_datetime"
       ]
     },
     {
       "path": "tests\\test_watchlist_monitor.py",
       "classes": [
-        "FailOnceRepository",
         "FakeChangeResponse",
-        "FakeDetector",
-        "FakeLookup",
-        "FakePriceObservationRecorder",
         "FakeRepository",
-        "OrderedDetector",
-        "OrderedRecorder",
-        "OrderedRepository",
-        "SelectiveFailingRepository",
-        "SelectiveRecorder"
+        "FakeLookup",
+        "FakeDetector",
+        "FakePriceObservationRecorder"
       ],
       "functions": [
-        "__init__",
-        "__init__",
-        "__init__",
-        "__init__",
-        "__init__",
-        "execute",
-        "execute",
-        "get_listing",
-        "list_watching",
         "make_item",
         "make_product",
         "make_use_case",
-        "record_observation",
-        "record_observation",
-        "record_observation",
-        "save",
-        "save",
-        "save",
-        "save",
-        "test_change_detection_failure_is_isolated_and_item_is_not_saved",
-        "test_lookup_failure_is_isolated_from_next_item",
-        "test_monitor_builds_fallback_source_locator_when_urls_are_empty",
-        "test_monitor_calls_detector_recorder_and_repository_in_order",
-        "test_monitor_creates_price_snapshot_for_existing_change_use_case",
+        "test_monitor_returns_empty_result_when_watch_list_is_empty",
         "test_monitor_only_processes_watching_items",
         "test_monitor_passes_watch_identity_to_listing_lookup",
-        "test_monitor_records_observation_after_change_detection",
-        "test_monitor_rejects_currency_change_until_domain_supports_it",
-        "test_monitor_rejects_mismatched_item_id_result",
-        "test_monitor_rejects_mismatched_marketplace_result",
-        "test_monitor_requires_dependencies",
-        "test_monitor_returns_empty_result_when_watch_list_is_empty",
-        "test_monitor_returns_not_found_without_saving_or_detecting",
-        "test_monitor_returns_unchanged_when_detector_has_no_changes",
         "test_monitor_returns_updated_and_records_latest_analysis",
-        "test_monitor_uses_listing_identity_when_canonical_id_is_absent",
-        "test_naive_clock_failure_is_reported_per_item",
-        "test_observation_conflict_does_not_update_watch_item",
+        "test_monitor_returns_unchanged_when_detector_has_no_changes",
+        "test_monitor_records_observation_after_change_detection",
         "test_observation_recording_failure_does_not_update_watch_item",
+        "test_monitor_calls_detector_recorder_and_repository_in_order",
         "test_recorder_failure_is_isolated_from_next_item",
+        "test_watch_item_save_failure_occurs_after_observation_and_is_isolated",
         "test_retry_after_watch_item_save_failure_does_not_duplicate_observation",
-        "test_watch_item_save_failure_occurs_after_observation_and_is_isolated"
+        "test_observation_conflict_does_not_update_watch_item",
+        "test_monitor_creates_price_snapshot_for_existing_change_use_case",
+        "test_monitor_uses_listing_identity_when_canonical_id_is_absent",
+        "test_monitor_returns_not_found_without_saving_or_detecting",
+        "test_lookup_failure_is_isolated_from_next_item",
+        "test_change_detection_failure_is_isolated_and_item_is_not_saved",
+        "test_monitor_rejects_mismatched_marketplace_result",
+        "test_monitor_rejects_mismatched_item_id_result",
+        "test_monitor_rejects_currency_change_until_domain_supports_it",
+        "test_monitor_builds_fallback_source_locator_when_urls_are_empty",
+        "test_naive_clock_failure_is_reported_per_item",
+        "test_monitor_requires_dependencies",
+        "__init__",
+        "list_watching",
+        "save",
+        "__init__",
+        "get_listing",
+        "__init__",
+        "execute",
+        "__init__",
+        "record_observation"
       ]
     },
     {
@@ -4178,26 +3877,23 @@
         "FakeMonitor"
       ],
       "functions": [
-        "__init__",
-        "execute",
-        "fake_create_watchlist_monitor",
         "make_result",
         "test_watch_monitor_cli_executes_factory_and_renders_summary",
         "test_watch_monitor_cli_runs_with_isolated_empty_database",
-        "test_watch_monitor_cli_uses_production_composition"
+        "test_watch_monitor_cli_uses_production_composition",
+        "__init__",
+        "execute"
       ]
     },
     {
       "path": "tests\\test_watchlist_monitor_composition.py",
       "classes": [],
       "functions": [
-        "fail_if_called",
-        "fake_get_product_by_id",
         "make_product",
         "make_watch_item",
-        "test_composed_monitor_records_first_observation",
+        "test_factory_creates_monitor_without_marketplace_call",
         "test_composed_monitor_uses_real_dependencies_and_records_observation",
-        "test_factory_creates_monitor_without_marketplace_call"
+        "test_composed_monitor_records_first_observation"
       ]
     },
     {
@@ -4209,10 +3905,10 @@
       "functions": [
         "make_item",
         "make_product",
-        "now",
-        "save",
         "set_time",
-        "test_production_monitor_end_to_end_release_candidate"
+        "test_production_monitor_end_to_end_release_candidate",
+        "now",
+        "save"
       ]
     },
     {
@@ -4220,22 +3916,22 @@
       "classes": [],
       "functions": [
         "make_result",
-        "test_batch_result_aggregates_all_statuses",
+        "test_monitor_status_values_are_stable",
+        "test_item_result_normalizes_text_fields",
+        "test_updated_result_reports_success_and_changes",
+        "test_unchanged_result_reports_success_without_changes",
+        "test_not_found_result_is_not_successful",
+        "test_failed_result_requires_error_message",
+        "test_non_failed_result_rejects_error_message",
+        "test_completed_result_requires_current_price",
+        "test_completed_result_requires_currency",
+        "test_updated_result_requires_positive_change_count",
+        "test_non_updated_result_rejects_change_count",
+        "test_item_result_rejects_invalid_prices",
         "test_batch_result_converts_items_to_tuple",
         "test_batch_result_rejects_invalid_item",
-        "test_completed_result_requires_currency",
-        "test_completed_result_requires_current_price",
-        "test_empty_batch_result_has_zero_counts",
-        "test_failed_result_requires_error_message",
-        "test_item_result_normalizes_text_fields",
-        "test_item_result_rejects_invalid_prices",
-        "test_monitor_status_values_are_stable",
-        "test_non_failed_result_rejects_error_message",
-        "test_non_updated_result_rejects_change_count",
-        "test_not_found_result_is_not_successful",
-        "test_unchanged_result_reports_success_without_changes",
-        "test_updated_result_reports_success_and_changes",
-        "test_updated_result_requires_positive_change_count"
+        "test_batch_result_aggregates_all_statuses",
+        "test_empty_batch_result_has_zero_counts"
       ]
     },
     {
@@ -4245,68 +3941,64 @@
         "InvalidListingLookup"
       ],
       "functions": [
-        "__init__",
-        "get_listing",
         "make_product",
-        "test_lookup_contract_allows_missing_listing",
-        "test_lookup_contract_returns_product_and_tracks_identity",
+        "test_structural_implementation_satisfies_port",
         "test_object_without_lookup_method_does_not_satisfy_port",
-        "test_structural_implementation_satisfies_port"
+        "test_lookup_contract_returns_product_and_tracks_identity",
+        "test_lookup_contract_allows_missing_listing",
+        "__init__",
+        "get_listing"
       ]
     },
     {
       "path": "tests\\test_web.py",
       "classes": [],
       "functions": [
-        "fail_if_called",
-        "fake_find_best_opportunities",
-        "make_result",
-        "raise_runtime_error",
-        "raise_value_error",
-        "test_health_endpoint",
-        "test_index_contains_api_first_search_controls",
-        "test_index_contains_dashboard_ux_accessibility_contract",
-        "test_index_contains_opportunity_dashboard_contract",
         "test_index_renders_html_landing_page",
-        "test_search_endpoint_maps_runtime_error_to_502",
-        "test_search_endpoint_maps_value_error_to_422",
-        "test_search_endpoint_rejects_blank_query",
+        "test_index_contains_api_first_search_controls",
+        "test_index_contains_opportunity_dashboard_contract",
+        "test_index_contains_dashboard_ux_accessibility_contract",
+        "make_result",
+        "test_health_endpoint",
+        "test_version_endpoint_reports_only_known_information",
         "test_search_endpoint_uses_orchestrator_and_presentation",
-        "test_version_endpoint_reports_only_known_information"
+        "test_search_endpoint_rejects_blank_query",
+        "test_search_endpoint_maps_value_error_to_422",
+        "test_search_endpoint_maps_runtime_error_to_502"
       ]
     },
     {
       "path": "tests\\test_workflow_engine.py",
       "classes": [
-        "BrokenObserver",
+        "SetValueStep",
         "FailingStep",
-        "FakeGateway",
         "RecordingObserver",
-        "RecordingPublisher",
-        "SetValueStep"
+        "BrokenObserver",
+        "FakeGateway",
+        "RecordingPublisher"
       ],
       "functions": [
-        "__init__",
-        "__init__",
-        "__init__",
-        "clock_sequence",
-        "discover",
-        "execute",
-        "execute",
-        "name",
-        "name",
-        "on_event",
-        "on_event",
         "product",
-        "publish",
         "result",
-        "test_discovery_workflow_can_run_without_publisher",
-        "test_discovery_workflow_runs_use_case_and_optional_publisher",
-        "test_observer_failure_is_recorded_without_breaking_workflow",
+        "clock_sequence",
         "test_workflow_context_validates_and_protects_snapshot",
         "test_workflow_runner_executes_steps_and_emits_lifecycle_events",
+        "test_workflow_runner_rejects_invalid_definition",
         "test_workflow_runner_fails_fast_and_exposes_partial_run",
-        "test_workflow_runner_rejects_invalid_definition"
+        "test_observer_failure_is_recorded_without_breaking_workflow",
+        "test_discovery_workflow_runs_use_case_and_optional_publisher",
+        "test_discovery_workflow_can_run_without_publisher",
+        "name",
+        "execute",
+        "name",
+        "execute",
+        "__init__",
+        "on_event",
+        "on_event",
+        "__init__",
+        "discover",
+        "__init__",
+        "publish"
       ]
     },
     {
@@ -4318,12 +4010,12 @@
       "path": "tools\\ai\\build_ai_index.py",
       "classes": [],
       "functions": [
-        "build_project_map",
-        "generate_ai_index",
-        "main",
         "print_summary",
+        "build_project_map",
+        "save_project_map",
+        "generate_ai_index",
         "save_ai_index",
-        "save_project_map"
+        "main"
       ]
     },
     {
@@ -4332,32 +4024,221 @@
       "functions": []
     },
     {
-      "path": "tools\\ai\\models.py",
+      "path": "tools\\ai\\graph_builder.py",
       "classes": [
-        "ConfigFile",
-        "DirectoryNode",
-        "Domain",
-        "EntryPoint",
-        "FileNode",
-        "MarkdownFile",
-        "ProjectModel",
-        "PythonFile"
+        "GraphBuildResult",
+        "GraphBuilder"
       ],
       "functions": [
-        "add_config",
-        "add_directory",
-        "add_domain",
-        "add_entry_point",
-        "add_markdown",
-        "add_python",
-        "name",
+        "build_graph",
+        "export_all",
+        "build_statistics",
+        "export_summary",
+        "to_dict",
+        "__init__",
+        "build",
+        "export_import_graph",
+        "export_test_map",
+        "export_doc_map",
+        "export_ai_context",
+        "_write_json",
+        "save_import_graph",
+        "save_test_map",
+        "save_doc_map",
+        "save_ai_context"
+      ]
+    },
+    {
+      "path": "tools\\ai\\import_graph_builder.py",
+      "classes": [
+        "ImportGraphBuilder"
+      ],
+      "functions": [
+        "__init__",
+        "build",
+        "_build_python_index",
+        "_connect_imports",
+        "resolve_module",
+        "resolve_symbol",
+        "resolve_relative_module"
+      ]
+    },
+    {
+      "path": "tools\\ai\\matcher.py",
+      "classes": [
+        "ProjectMatcher"
+      ],
+      "functions": [
+        "build_knowledge_graph",
+        "build_import_graph",
+        "analyze_project",
+        "__init__",
+        "build",
+        "_build_import_graph",
+        "_resolve_module",
+        "_resolve_symbol",
+        "_resolve_relative_module",
+        "_build_test_mapping",
+        "_connect_tests",
+        "_is_test_file",
+        "_build_document_mapping",
+        "_connect_documents",
+        "import_graph",
+        "knowledge_graph",
+        "relationships",
+        "test_mappings",
+        "documentation_mappings",
+        "find_orphan_python_files",
+        "find_untested_python_files",
+        "find_undocumented_python_files",
+        "graph_statistics"
+      ]
+    },
+    {
+      "path": "tools\\ai\\models.py",
+      "classes": [
+        "FileNode",
+        "PythonFile",
+        "MarkdownFile",
+        "ConfigFile",
+        "EntryPoint",
+        "DirectoryNode",
+        "Domain",
+        "CodeRelationship",
+        "TestMapping",
+        "DocumentationMapping",
+        "ImportGraph",
+        "KnowledgeGraph",
+        "ProjectModel"
+      ],
+      "functions": [
+        "project_to_dict",
+        "project_to_json",
         "name",
         "stem",
-        "total_config",
-        "total_directories",
-        "total_entry_points",
+        "to_dict",
+        "imports",
+        "classes",
+        "functions",
+        "module",
+        "has_analysis",
+        "set_analysis",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "name",
+        "add_child",
+        "add_file",
+        "to_dict",
+        "add_file",
+        "total_files",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "add",
+        "total_relationships",
+        "imports_from",
+        "imported_by",
+        "to_dict",
+        "add_relationship",
+        "add_test_mapping",
+        "add_documentation_mapping",
+        "total_tests",
+        "total_documents",
+        "to_dict",
+        "total_python",
         "total_markdown",
-        "total_python"
+        "total_config",
+        "total_entry_points",
+        "total_directories",
+        "total_domains",
+        "total_files",
+        "add_python",
+        "add_markdown",
+        "add_config",
+        "add_directory",
+        "add_entry_point",
+        "add_domain",
+        "set_knowledge_graph",
+        "find_python",
+        "find_markdown",
+        "find_config",
+        "find_domain",
+        "all_files",
+        "analyzed_python_files",
+        "unanalyzed_python_files",
+        "entry_point_paths",
+        "domain_names",
+        "summary",
+        "iter_python",
+        "iter_markdown",
+        "iter_config",
+        "iter_domains",
+        "iter_directories",
+        "to_dict",
+        "to_json_dict",
+        "__len__",
+        "__contains__",
+        "__repr__"
+      ]
+    },
+    {
+      "path": "tools\\ai\\parser.py",
+      "classes": [
+        "ImportReference",
+        "DecoratorReference",
+        "ArgumentInfo",
+        "FunctionReference",
+        "ClassReference",
+        "ParseIssue",
+        "PythonAnalysis",
+        "PythonSourceParser"
+      ],
+      "functions": [
+        "parse_python_file",
+        "parse_python_files",
+        "is_relative",
+        "dotted_module",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "to_dict",
+        "import_modules",
+        "function_names",
+        "class_names",
+        "has_errors",
+        "iter_classes",
+        "iter_functions",
+        "to_dict",
+        "_iter_nested_classes",
+        "parse_file",
+        "parse_source",
+        "_extract_imports",
+        "_extract_module_functions",
+        "_extract_module_classes",
+        "_build_class_reference",
+        "_build_function_reference",
+        "_extract_arguments",
+        "_extract_raised_exceptions",
+        "_extract_calls",
+        "_extract_module_attributes",
+        "_extract_class_attributes",
+        "_extract_exports",
+        "_build_decorator_reference",
+        "_decorator_name",
+        "_annotation",
+        "_extract_assignment_names",
+        "_literal_string_sequence",
+        "_walk_without_nested_definitions",
+        "_safe_unparse",
+        "_terminal_name",
+        "_visibility",
+        "_count_lines",
+        "_detect_encoding"
       ]
     },
     {
@@ -4366,15 +4247,37 @@
         "ProjectScanner"
       ],
       "functions": [
+        "scan_project",
         "__init__",
-        "_build_domains",
-        "_detect_entry_point",
-        "_ignore",
+        "scan",
+        "_validate_root",
         "_scan_directories",
+        "_iter_directories",
         "_scan_files",
-        "_scan_markdown",
+        "_iter_files",
         "_scan_python",
-        "scan"
+        "_scan_markdown",
+        "_scan_config",
+        "_detect_entry_point",
+        "_entry_point_reason",
+        "_build_domains",
+        "_ignore",
+        "_relative_path",
+        "_safe_file_size"
+      ]
+    },
+    {
+      "path": "tools\\ai\\symbol_index.py",
+      "classes": [
+        "SymbolIndex"
+      ],
+      "functions": [
+        "__init__",
+        "add_file",
+        "find",
+        "contains",
+        "__len__",
+        "to_dict"
       ]
     }
   ],
@@ -4382,6 +4285,54 @@
     {
       "path": "AGENTS.md",
       "title": "HYB Opportunity AI - AGENTS"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\01_PROJECT_BRIEF (1).md",
+      "title": "HYB Opportunity AI — New Chat Start Prompt"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\02_CURRENT_STATUS (1).md",
+      "title": "Project Brief"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\03_NEXT_TASK (1).md",
+      "title": "Current Status"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\04_PROJECT_RULES (1).md",
+      "title": "Next Task"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\05_AI_ROLE (1).md",
+      "title": "Project Rules"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\06_FILE_STRUCTURE (1).md",
+      "title": "AI Role"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\07_DEVELOPMENT_HISTORY (1).md",
+      "title": "File Structure"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\08_ROADMAP (1).md",
+      "title": "Development History"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\09_NEW_CHAT_GUIDE (1).md",
+      "title": "Roadmap"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\10_FOUNDER_PREFERENCES (1).md",
+      "title": "New Chat Guide"
+    },
+    {
+      "path": "HYB_STARTER_PACK_v1.0\\README (1).md",
+      "title": "Founder Preferences"
+    },
+    {
+      "path": "ai_docs\\AI_INDEX.md",
+      "title": "AI_INDEX"
     },
     {
       "path": "ai_docs\\COMMON_COMMANDS.md",
@@ -4400,12 +4351,12 @@
       "title": "PLAYBOOK"
     },
     {
-      "path": "ai_docs\\PR_TEMPLATE.md",
-      "title": "PR TEMPLATE"
-    },
-    {
       "path": "ai_docs\\PROMPT_PATTERNS.md",
       "title": "PROMPT PATTERNS"
+    },
+    {
+      "path": "ai_docs\\PR_TEMPLATE.md",
+      "title": "PR TEMPLATE"
     },
     {
       "path": "ai_docs\\README.md",
@@ -4418,10 +4369,6 @@
     {
       "path": "ai_docs\\WORKING_RULES.md",
       "title": "WORKING RULES"
-    },
-    {
-      "path": "context\\CONTEXT_MANIFEST.md",
-      "title": "Quick Context Files"
     },
     {
       "path": "docs\\00_FOUNDATION\\00_START_HERE.md",
@@ -4584,12 +4531,12 @@
       "title": "HYB Context Pack Guide"
     },
     {
-      "path": "docs\\04_DEVELOPMENT\\DEV_LOG.md",
-      "title": "HYB DEV LOG"
-    },
-    {
       "path": "docs\\04_DEVELOPMENT\\DEVELOPMENT_JOURNAL.md",
       "title": "HYB Development Journal"
+    },
+    {
+      "path": "docs\\04_DEVELOPMENT\\DEV_LOG.md",
+      "title": "HYB DEV LOG"
     },
     {
       "path": "docs\\04_DEVELOPMENT\\SPRINT11_COMPLETION_REPORT.md",
@@ -4764,10 +4711,6 @@
       "title": "AGENTS"
     },
     {
-      "path": "docs\\audit\\SPRINT10_AUDIT.md",
-      "title": "Sprint 10 Audit Report"
-    },
-    {
       "path": "docs\\DOCUMENT_INDEX.md",
       "title": "HYB Documentation Index"
     },
@@ -4808,48 +4751,8 @@
       "title": "HYB Research"
     },
     {
-      "path": "HYB_STARTER_PACK_v1.0\\01_PROJECT_BRIEF (1).md",
-      "title": "HYB Opportunity AI — New Chat Start Prompt"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\02_CURRENT_STATUS (1).md",
-      "title": "Project Brief"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\03_NEXT_TASK (1).md",
-      "title": "Current Status"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\04_PROJECT_RULES (1).md",
-      "title": "Next Task"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\05_AI_ROLE (1).md",
-      "title": "Project Rules"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\06_FILE_STRUCTURE (1).md",
-      "title": "AI Role"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\07_DEVELOPMENT_HISTORY (1).md",
-      "title": "File Structure"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\08_ROADMAP (1).md",
-      "title": "Development History"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\09_NEW_CHAT_GUIDE (1).md",
-      "title": "Roadmap"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\10_FOUNDER_PREFERENCES (1).md",
-      "title": "New Chat Guide"
-    },
-    {
-      "path": "HYB_STARTER_PACK_v1.0\\README (1).md",
-      "title": "Founder Preferences"
+      "path": "docs\\audit\\SPRINT10_AUDIT.md",
+      "title": "Sprint 10 Audit Report"
     }
   ]
 }

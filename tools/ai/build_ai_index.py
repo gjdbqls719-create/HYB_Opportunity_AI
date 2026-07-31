@@ -81,8 +81,18 @@ def build_project_map(model) -> dict:
             "path": str(
                 file.path.relative_to(model.root)
             ),
-            "classes": file.classes,
-            "functions": file.functions,
+            "classes": [
+                class_reference.name
+                for class_reference in file.classes
+            ],
+            "functions": [
+                function_reference.name
+                for function_reference in (
+                    file.analysis.iter_functions()
+                    if file.analysis is not None
+                    else ()
+                )
+            ],
         }
         for file in model.python_files
     ]
