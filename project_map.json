@@ -2,10 +2,10 @@
   "root": "C:\\Users\\user\\Desktop\\유빈\\HYB_Opportunity_AI",
   "statistics": {
     "directories": 66,
-    "python_files": 286,
+    "python_files": 289,
     "markdown_files": 118,
     "config_files": 2,
-    "entry_points": 9
+    "entry_points": 12
   },
   "entry_points": [
     {
@@ -22,6 +22,10 @@
     },
     {
       "path": "presentation\\ebay_catalog_cli.py",
+      "reason": "entry suffix"
+    },
+    {
+      "path": "tests\\test_ai_developer_cli.py",
       "reason": "entry suffix"
     },
     {
@@ -43,6 +47,14 @@
     {
       "path": "tests\\test_watchlist_monitor_cli.py",
       "reason": "entry suffix"
+    },
+    {
+      "path": "tools\\ai\\__main__.py",
+      "reason": "python module entry point"
+    },
+    {
+      "path": "tools\\ai\\cli.py",
+      "reason": "cli module"
     }
   ],
   "domains": {
@@ -2226,6 +2238,19 @@
       ]
     },
     {
+      "path": "tests\\test_ai_developer_cli.py",
+      "classes": [],
+      "functions": [
+        "build_cli_repository",
+        "cli_root",
+        "test_cli_commands_return_structured_json",
+        "test_cli_defaults_to_human_readable_summary",
+        "test_cli_accepts_explicit_summary_option",
+        "test_cli_parser_uses_public_command_name",
+        "test_cli_rejects_invalid_commands_and_missing_arguments"
+      ]
+    },
+    {
       "path": "tests\\test_ai_knowledge_builder.py",
       "classes": [],
       "functions": [
@@ -2241,13 +2266,18 @@
       "classes": [],
       "functions": [
         "build_query_repository",
+        "build_duplicate_symbol_repository",
+        "build_circular_dependency_repository",
         "query_engine",
         "test_symbol_query_returns_definitions_references_and_tests",
         "test_dependency_query_accepts_file_class_and_symbol",
         "test_reverse_dependency_query_returns_direct_dependents",
         "test_impact_analysis_returns_transitive_dependents_and_tests",
         "test_query_results_support_json_and_readable_summary",
-        "test_unknown_and_blank_queries_are_explicit"
+        "test_unknown_and_blank_queries_are_explicit",
+        "test_duplicate_symbol_returns_every_definition_and_aggregates_impact",
+        "test_circular_dependency_impact_terminates_without_readding_target",
+        "test_missing_file_queries_return_explicit_empty_results"
       ]
     },
     {
@@ -4021,6 +4051,11 @@
       "functions": []
     },
     {
+      "path": "tools\\ai\\__main__.py",
+      "classes": [],
+      "functions": []
+    },
+    {
       "path": "tools\\ai\\build_ai_index.py",
       "classes": [],
       "functions": [
@@ -4029,6 +4064,16 @@
         "save_project_map",
         "generate_ai_index",
         "save_ai_index",
+        "main"
+      ]
+    },
+    {
+      "path": "tools\\ai\\cli.py",
+      "classes": [],
+      "functions": [
+        "build_parser",
+        "execute_query",
+        "run_cli",
         "main"
       ]
     },

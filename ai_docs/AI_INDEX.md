@@ -3,7 +3,7 @@
 ## Repository Summary
 
 - Directories : 66
-- Python Files : 286
+- Python Files : 289
 - Markdown Files : 118
 - Config Files : 2
 
@@ -13,11 +13,14 @@
 - `main.py` (well-known entry point)
 - `presentation\cli.py` (cli module)
 - `presentation\ebay_catalog_cli.py` (entry suffix)
+- `tests\test_ai_developer_cli.py` (entry suffix)
 - `tests\test_cli.py` (entry suffix)
 - `tests\test_cli_dashboard_integration.py` (cli module)
 - `tests\test_ebay_catalog_cli.py` (entry suffix)
 - `tests\test_presentation_cli.py` (entry suffix)
 - `tests\test_watchlist_monitor_cli.py` (entry suffix)
+- `tools\ai\__main__.py` (python module entry point)
+- `tools\ai\cli.py` (cli module)
 
 ## Domains
 
