@@ -1,99 +1,196 @@
-# AGENTS.md
+# AGENTS
 
-# HYB Opportunity AI - AI Collaboration Rules
-
-This document defines how AI agents collaborate on the HYB Opportunity AI project.
-
----
-
-# Project Goal
-
-Build a reliable AI-powered Opportunity Intelligence platform for e-commerce.
-
-Business value, correctness, maintainability, and long-term architecture always have higher priority than implementation speed.
+Version: 2.0
+Status: Active
+Owner: HYB AI Team
+Last Updated: 2026-07-31
 
 ---
 
-# Team Roles
+# Purpose
 
-## Product Owner
+This document defines the operational behavior required for AI agents working on the HYB Opportunity AI project.
 
-- Final decision maker
-- Defines business priorities
-- Reviews all major changes
-- Performs Git commit/push
+Unlike AI_CONSTITUTION, this document defines executable working rules.
 
 ---
 
-## ChatGPT
+# Read Order
 
-Responsibilities
+Every AI should understand the project in the following order.
 
-- Architecture
-- Sprint planning
-- Technical design
-- Code review
-- Business reasoning
-- Long-term roadmap
-- Risk analysis
-
-ChatGPT should never claim code was implemented unless it actually was.
-
----
-
-## Codex
-
-Responsibilities
-
-- Read actual project files
-- Implement code
-- Execute tests
-- Refactor safely
-- Report changed files
-- Report actual test results
-
-Codex must never fabricate implementations, tests or files.
+1. PROJECT_FOUNDATION
+2. PROJECT_CONSTITUTION
+3. HYB_DNA
+4. AI_PARTNER
+5. AI_CONSTITUTION
+6. AI_ENGINEERING_GUIDE
+7. SYSTEM_ARCHITECTURE
+8. DEVELOPMENT_PRINCIPLES
+9. AGENTS
 
 ---
 
-# Absolute Rules
+# Working Process
 
-1. Work only from actual project files.
-2. Never assume code exists.
-3. Never fabricate implementations.
-4. Make the smallest safe change.
-5. Preserve existing architecture.
-6. Follow DEVELOPMENT_PRINCIPLES.md.
-7. Run tests after implementation when appropriate.
-8. Report failures honestly.
-9. Keep documentation synchronized with code changes.
-10. Prioritize business value over implementation speed.
+Every task follows the same sequence.
+
+Understand
+
+↓
+
+Analyze
+
+↓
+
+Design
+
+↓
+
+Implement
+
+↓
+
+Test
+
+↓
+
+Document
+
+↓
+
+Review
+
+↓
+
+Report
+
+Never skip steps.
 
 ---
 
-# Standard Workflow
+# Implementation Rules
 
-1. ChatGPT designs.
-2. Codex implements.
-3. Codex executes tests.
-4. ChatGPT reviews.
-5. Product Owner approves.
-6. Git Commit / Push.
+Always implement the approved design.
+
+Do not redesign architecture unless requested.
+
+Keep PRs small.
+
+Avoid unrelated changes.
+
+Never remove existing functionality without approval.
 
 ---
 
-# Required Output
+# Testing
 
-Every implementation should include:
+Run feature-specific tests first.
 
-- Summary
-- Changed files
-- Test results
-- Risks
-- Next recommended step
+Run full regression before completion.
 
-Never hide failures.
+Never report completion without passing tests.
 
-Never fabricate results.
+---
 
-If something cannot be verified, explicitly say so.
+# Documentation
+
+Documentation is mandatory.
+
+Update documentation together with implementation.
+
+Explain architectural changes.
+
+Keep project history clear.
+
+---
+
+# Communication
+
+Report facts.
+
+Separate facts from assumptions.
+
+State uncertainty clearly.
+
+Provide implementation summaries.
+
+Provide test summaries.
+
+---
+
+# Review Checklist
+
+Before requesting approval verify:
+
+Architecture consistency
+
+Code quality
+
+Naming consistency
+
+Test completion
+
+Documentation updates
+
+No unrelated changes
+
+---
+
+# Git Workflow
+
+AI prepares changes.
+
+Product Owner performs commit and push.
+
+Never assume repository state.
+
+---
+
+# Quality Standard
+
+Prioritize:
+
+Correctness
+
+↓
+
+Stability
+
+↓
+
+Maintainability
+
+↓
+
+Scalability
+
+↓
+
+Readability
+
+↓
+
+Performance
+
+↓
+
+Speed
+
+---
+
+# Completion
+
+Work is complete only when:
+
+Implementation finished.
+
+Tests passed.
+
+Documentation updated.
+
+Review completed.
+
+Product Owner approves.
+
+---
