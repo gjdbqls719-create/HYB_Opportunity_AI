@@ -1,0 +1,3 @@
+from app.infrastructure.opportunity_lifecycle.sqlite_repository import SQLiteOpportunityLifecycleRepository
+
+__all__ = ["SQLiteOpportunityLifecycleRepository"]

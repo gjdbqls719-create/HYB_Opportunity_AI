@@ -1,5 +1,30 @@
 # HYB Changelog
 
+## PR14-A.1 — Lifecycle Contract Hardening
+
+- Lifecycle status, version, identity, timestamp를 외부에서 직접 대입할 수 없도록 캡슐화
+- SQLite 복원을 전용 internal reconstruction path로 분리
+- transition 저장 전 previous/new status, version, timestamp, action 및 event completeness 검증
+- semantic validation 실패 시 current state와 append-only history를 그대로 보존
+
+---
+
+## PR14-A — Opportunity Lifecycle Foundation
+
+### Added
+
+- Validation Queue에 명시적으로 저장된 Opportunity만 관리하는 별도 Lifecycle Aggregate
+- Founder Approve/Reject 결정을 AI Recommendation과 분리한 불변 Domain Contract
+- 허용 상태 전이, SOLD terminal, archive/restore metadata 및 optimistic version 규칙
+- 현재 상태와 append-only 전이 이력을 원자적으로 저장하는 additive SQLite repository
+
+### Compatibility
+
+- 기존 OpportunityResult, RecommendationResult 및 opportunity_history는 변경하지 않음
+- Discovery, CLI, FastAPI, Dashboard에 자동 Lifecycle 생성 또는 출력 변경을 추가하지 않음
+
+---
+
 이 문서는 Sprint 및 PR별 주요 변경사항을 최신 항목부터 기록합니다.
 
 ---

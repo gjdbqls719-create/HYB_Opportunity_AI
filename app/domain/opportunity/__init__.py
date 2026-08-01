@@ -18,15 +18,33 @@ from app.domain.opportunity.models import (
 from app.domain.opportunity.reasons import OpportunityReason
 
 
+from app.domain.opportunity.founder_decision import FounderDecision, FounderDecisionType
+from app.domain.opportunity.lifecycle import (
+    ArchivedLifecycleError,
+    InvalidLifecycleTransitionError,
+    OpportunityLifecycle,
+    OpportunityLifecycleAction,
+    OpportunityLifecycleStatus,
+    OpportunityLifecycleTransition,
+)
+
 __all__ = [
-    "OpportunityDecision",
+    "ArchivedLifecycleError",
     "EconomicEvidence",
     "EconomicsCalculation",
     "EvidenceStatus",
+    "FounderDecision",
+    "FounderDecisionType",
+    "InvalidLifecycleTransitionError",
     "MoneyInput",
+    "OpportunityDecision",
     "OpportunityEvaluation",
     "OpportunityFactors",
     "OpportunityGrade",
+    "OpportunityLifecycle",
+    "OpportunityLifecycleAction",
+    "OpportunityLifecycleStatus",
+    "OpportunityLifecycleTransition",
     "OpportunityReason",
     "OpportunityScore",
     "RateInput",
