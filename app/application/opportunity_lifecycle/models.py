@@ -58,6 +58,10 @@ class Restore(LifecycleCommand):
     pass
 
 
+class ReturnToReview(LifecycleCommand):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class LifecycleOperationResult:
     lifecycle: OpportunityLifecycle

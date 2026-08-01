@@ -10,6 +10,7 @@ from app.application.opportunity_lifecycle.models import (
     Purchase,
     Reject,
     Restore,
+    ReturnToReview,
     Sell,
     StartReview,
 )
@@ -65,6 +66,9 @@ class OpportunityLifecycleService:
 
     def restore(self, command: Restore) -> LifecycleOperationResult:
         return self._change(command, "restore")
+
+    def return_to_review(self, command: ReturnToReview) -> LifecycleOperationResult:
+        return self._change(command, "return_to_review")
 
     def _load(self, command: LifecycleCommand) -> OpportunityLifecycle:
         lifecycle = self._repository.get(command.opportunity_id)

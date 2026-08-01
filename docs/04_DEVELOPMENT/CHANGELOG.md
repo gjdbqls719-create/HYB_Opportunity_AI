@@ -1,5 +1,24 @@
 # HYB Changelog
 
+## PR14-B.1 — Validation Queue Contract Hardening
+
+- Discovery reference를 trim/lowercase/stable `:` separator 형식으로 canonicalize
+- non-archived Lifecycle 전체에 canonical discovery reference uniqueness 적용
+- archive 후 동일 reference 재등록은 허용하되 restore/return 충돌은 명시적 duplicate conflict로 반환
+- 기존 Queue/Lifecycle/Snapshot reference를 transaction migration에서 canonical 형식으로 정규화
+
+---
+
+## PR14-B — Founder Validation MVP
+
+- OpportunityLifecycle 기반 Validation Queue read model과 immutable admission snapshot projection 추가
+- 선택한 Opportunity만 명시적으로 등록하는 `AddToValidationQueue` 및 조회/Review/Approve/Reject/ReturnToReview use case 추가
+- Lifecycle current state, CREATE history, admission snapshot을 하나의 SQLite transaction으로 저장
+- active Queue discovery reference에 대한 동시 중복 등록 방지
+- 기존 Search, CLI, Dashboard DTO를 유지하는 additive Validation Queue FastAPI 추가
+
+---
+
 ## PR14-A.1 — Lifecycle Contract Hardening
 
 - Lifecycle status, version, identity, timestamp를 외부에서 직접 대입할 수 없도록 캡슐화

@@ -7,6 +7,7 @@ from app.application.opportunity_lifecycle.models import (
     Purchase,
     Reject,
     Restore,
+    ReturnToReview,
     Sell,
     StartReview,
 )
@@ -24,5 +25,5 @@ __all__ = [
     "LifecycleNotFoundError", "LifecycleOperationResult", "LifecycleSemanticError",
     "LifecycleVersionConflictError",
     "List", "OpportunityLifecycleRepository", "OpportunityLifecycleService", "Purchase",
-    "Reject", "Restore", "Sell", "StartReview",
+    "Reject", "Restore", "ReturnToReview", "Sell", "StartReview",
 ]
