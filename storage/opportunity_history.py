@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -49,6 +50,10 @@ class SavedOpportunity:
     tax_cost: float = 0.0
     other_cost: float = 0.0
     passes_profitability_filter: bool = True
+    safety_status: str = "NOT_EVALUATED"
+    safety_reasons: tuple[str, ...] = ()
+    original_grade: str = ""
+    effective_grade: str = ""
 
 
 class OpportunityHistoryRepository:
@@ -114,7 +119,11 @@ class OpportunityHistoryRepository:
                     payment_fee REAL NOT NULL DEFAULT 0,
                     tax_cost REAL NOT NULL DEFAULT 0,
                     other_cost REAL NOT NULL DEFAULT 0,
-                    passes_profitability_filter INTEGER NOT NULL DEFAULT 1
+                    passes_profitability_filter INTEGER NOT NULL DEFAULT 1,
+                    safety_status TEXT NOT NULL DEFAULT 'NOT_EVALUATED',
+                    safety_reasons TEXT NOT NULL DEFAULT '[]',
+                    original_grade TEXT NOT NULL DEFAULT '',
+                    effective_grade TEXT NOT NULL DEFAULT ''
                 )
                 """
             )
@@ -188,6 +197,10 @@ class OpportunityHistoryRepository:
             "passes_profitability_filter": (
                 "INTEGER NOT NULL DEFAULT 1"
             ),
+            "safety_status": "TEXT NOT NULL DEFAULT 'NOT_EVALUATED'",
+            "safety_reasons": "TEXT NOT NULL DEFAULT '[]'",
+            "original_grade": "TEXT NOT NULL DEFAULT ''",
+            "effective_grade": "TEXT NOT NULL DEFAULT ''",
         }
 
         for column_name, column_definition in (
@@ -328,6 +341,10 @@ class OpportunityHistoryRepository:
                         "passes_profitability_filter",
                         True,
                     ))),
+                    recommendation.safety_status if recommendation else "NOT_EVALUATED",
+                    json.dumps(list(recommendation.safety_reasons)) if recommendation else "[]",
+                    recommendation.original_grade if recommendation else "",
+                    recommendation.effective_grade if recommendation else "",
                 )
             )
 
@@ -363,12 +380,17 @@ class OpportunityHistoryRepository:
                     payment_fee,
                     tax_cost,
                     other_cost,
-                    passes_profitability_filter
+                    passes_profitability_filter,
+                    safety_status,
+                    safety_reasons,
+                    original_grade,
+                    effective_grade
                 )
                 VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?
                 )
                 """,
                 rows,
@@ -533,4 +555,8 @@ class OpportunityHistoryRepository:
             passes_profitability_filter=bool(
                 row["passes_profitability_filter"]
             ),
+            safety_status=str(row["safety_status"]),
+            safety_reasons=tuple(json.loads(row["safety_reasons"])),
+            original_grade=str(row["original_grade"]),
+            effective_grade=str(row["effective_grade"]),
         )

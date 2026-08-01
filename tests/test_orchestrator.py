@@ -1,4 +1,6 @@
-from app.models import Product
+import pytest
+
+from app.models import Product, ProductDataSource
 from engine.ai_memory import HistoricalOpportunity
 from engine.orchestrator import (
     find_best_opportunities,
@@ -283,14 +285,9 @@ def test_empty_query_is_rejected() -> None:
         )
 
 
-def test_search_products_continues_when_ebay_fails(
+def test_search_products_does_not_fall_back_to_demo_amazon(
     monkeypatch,
 ) -> None:
-    amazon_product = make_product(
-        "amazon-1",
-        "Amazon Product",
-        50.0,
-    )
     warnings: list[tuple[str, str]] = []
 
     def failing_ebay_search(**kwargs):
@@ -298,31 +295,24 @@ def test_search_products_continues_when_ebay_fails(
             "missing eBay credentials"
         )
 
-    def successful_amazon_search(**kwargs):
-        return [amazon_product]
-
     monkeypatch.setattr(
         "engine.orchestrator.search_ebay_products",
         failing_ebay_search,
     )
-    monkeypatch.setattr(
-        "engine.orchestrator.search_amazon_products",
-        successful_amazon_search,
-    )
 
     from engine.orchestrator import search_products
 
-    products = search_products(
-        "mouse",
-        error_handler=lambda marketplace, error: warnings.append(
-            (
-                marketplace,
-                str(error),
-            )
-        ),
-    )
+    with pytest.raises(RuntimeError):
+        search_products(
+            "mouse",
+            error_handler=lambda marketplace, error: warnings.append(
+                (
+                    marketplace,
+                    str(error),
+                )
+            ),
+        )
 
-    assert products == [amazon_product]
     assert warnings == [
         (
             "ebay",
@@ -341,10 +331,6 @@ def test_search_products_raises_when_all_marketplaces_fail(
         "engine.orchestrator.search_ebay_products",
         failing_search,
     )
-    monkeypatch.setattr(
-        "engine.orchestrator.search_amazon_products",
-        failing_search,
-    )
 
     from engine.orchestrator import search_products
 
@@ -358,7 +344,6 @@ def test_search_products_raises_when_all_marketplaces_fail(
             in message
         )
         assert "ebay" in message
-        assert "amazon" in message
     else:
         raise AssertionError(
             "모든 마켓 실패 시 "
@@ -390,3 +375,103 @@ def test_find_best_opportunities_uses_product_shipping_cost(
     assert result.analysis["shipping_cost"] == 7.0
     assert result.analysis["shipping_cost_source"] == "marketplace"
     assert result.analysis["is_free_shipping"] is False
+
+
+def test_production_safety_gate_allows_complete_buy_without_changing_score(
+    monkeypatch,
+) -> None:
+    products = [
+        Product(
+            marketplace="ebay",
+            item_id="safe-1",
+            title="Safety Gate Product",
+            price=50.0,
+            currency="USD",
+            data_source=ProductDataSource.PRODUCTION,
+        ),
+        Product(
+            marketplace="ebay",
+            item_id="safe-2",
+            title="Safety Gate Product",
+            price=100.0,
+            currency="USD",
+            data_source=ProductDataSource.PRODUCTION,
+        ),
+    ]
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        lambda query, limit: products,
+    )
+
+    result = find_best_opportunities(
+        "safe",
+        shipping_cost=5.0,
+        marketplace_fee_known=True,
+        payment_fee_known=True,
+        fixed_fee=0.0,
+        fixed_fee_known=True,
+        estimated_monthly_sales=500,
+        competitor_count=1,
+        risk_level="low",
+    )[0]
+
+    assert result.ai_recommendation is not None
+    assert result.ai_recommendation.grade in {"BUY", "STRONG_BUY"}
+    assert result.ai_recommendation.safety_status == "READY"
+    assert result.analysis["production_safety_status"] == "READY"
+
+
+def test_production_safety_gate_downgrades_buy_when_shipping_is_unknown(
+    monkeypatch,
+) -> None:
+    products = [
+        Product(
+            marketplace="ebay",
+            item_id="unsafe-1",
+            title="Safety Gate Product",
+            price=50.0,
+            currency="USD",
+            data_source=ProductDataSource.PRODUCTION,
+        ),
+        Product(
+            marketplace="ebay",
+            item_id="unsafe-2",
+            title="Safety Gate Product",
+            price=100.0,
+            currency="USD",
+            data_source=ProductDataSource.PRODUCTION,
+        ),
+    ]
+    monkeypatch.setattr(
+        "engine.orchestrator.search_products",
+        lambda query, limit: products,
+    )
+
+    result = find_best_opportunities(
+        "unsafe",
+        estimated_monthly_sales=500,
+        competitor_count=1,
+        risk_level="low",
+    )[0]
+
+    assert result.ai_recommendation is not None
+    assert result.ai_recommendation.grade == "WATCH"
+    assert result.ai_recommendation.safety_status == "INSUFFICIENT_DATA"
+    assert any(
+        "shipping_cost" in reason
+        for reason in result.ai_recommendation.safety_reasons
+    )
+
+
+def test_new_and_used_products_do_not_form_a_comparable_sample(monkeypatch) -> None:
+    products = [
+        Product(marketplace="ebay", item_id="new", title="Same Camera", price=50, currency="USD", condition="New", shipping_cost=0),
+        Product(marketplace="ebay", item_id="used", title="Same Camera", price=80, currency="USD", condition="Used", shipping_cost=0),
+    ]
+    monkeypatch.setattr("engine.orchestrator.search_products", lambda query, limit: products)
+
+    results = find_best_opportunities("camera")
+
+    assert len(results) == 2
+    assert all(result.price_intelligence.sample_size == 1 for result in results)
+    assert all(result.ai_recommendation.safety_status == "INSUFFICIENT_DATA" for result in results)

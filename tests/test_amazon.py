@@ -4,6 +4,7 @@ from marketplaces.amazon import (
     AmazonAdapter,
     search_products,
 )
+from app.models import ProductDataSource
 
 
 def test_amazon_adapter_normalizes_product() -> None:
@@ -25,6 +26,7 @@ def test_amazon_adapter_normalizes_product() -> None:
     assert product.title == "Test Product"
     assert product.price == 49.99
     assert product.currency == "USD"
+    assert product.data_source is ProductDataSource.DEMO
 
 
 def test_search_products_returns_products() -> None:

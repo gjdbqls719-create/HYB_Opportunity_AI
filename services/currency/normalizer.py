@@ -21,10 +21,14 @@ def normalize_product_currency(
         return product
 
     converted_price = converter.convert(product.price, source, target)
-    converted_shipping_cost = converter.convert(
-        product.shipping_cost,
-        source,
-        target,
+    converted_shipping_cost = (
+        converter.convert(
+            product.shipping_cost,
+            source,
+            target,
+        )
+        if product.shipping_cost_known
+        else None
     )
 
     return Product(
@@ -38,12 +42,17 @@ def normalize_product_currency(
         brand=product.brand,
         model_number=product.model_number,
         category=product.category,
-        shipping_cost=float(converted_shipping_cost),
+        shipping_cost=(
+            float(converted_shipping_cost)
+            if converted_shipping_cost is not None
+            else None
+        ),
         seller=product.seller,
         image_url=product.image_url,
         rating=product.rating,
         review_count=product.review_count,
         in_stock=product.in_stock,
+        data_source=product.data_source,
     )
 
 

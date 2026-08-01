@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from typing import Any
+
+
+class ProductDataSource(StrEnum):
+    """상품 데이터가 생성된 실행 환경을 명시한다."""
+
+    PRODUCTION = "production"
+    TEST = "test"
+    DEMO = "demo"
+    UNSPECIFIED = "unspecified"
 
 
 @dataclass(slots=True, init=False)
@@ -31,6 +41,8 @@ class Product:
     rating: float | None
     review_count: int | None
     in_stock: bool
+    data_source: ProductDataSource
+    shipping_cost_known: bool
 
     def __init__(
         self,
@@ -47,12 +59,15 @@ class Product:
         brand: str = "",
         model_number: str = "",
         category: str = "",
-        shipping_cost: float = 0.0,
+        shipping_cost: float | None = None,
         seller: str = "",
         image_url: str = "",
         rating: float | None = None,
         review_count: int | None = None,
         in_stock: bool = True,
+        data_source: ProductDataSource | str = (
+            ProductDataSource.UNSPECIFIED
+        ),
     ) -> None:
         resolved_title = title if title is not None else name
         resolved_url = url if url is not None else product_url
@@ -71,7 +86,8 @@ class Product:
         self.brand = brand.strip()
         self.model_number = model_number.strip()
         self.category = category.strip()
-        self.shipping_cost = float(shipping_cost)
+        self.shipping_cost_known = shipping_cost is not None
+        self.shipping_cost = float(shipping_cost or 0.0)
         self.seller = seller.strip()
         self.image_url = image_url.strip()
         self.rating = float(rating) if rating is not None else None
@@ -79,6 +95,12 @@ class Product:
             int(review_count) if review_count is not None else None
         )
         self.in_stock = bool(in_stock)
+        try:
+            self.data_source = ProductDataSource(data_source)
+        except ValueError as error:
+            raise ValueError(
+                "data_source는 production, test, demo, unspecified 중 하나여야 합니다."
+            ) from error
 
         self._validate()
 

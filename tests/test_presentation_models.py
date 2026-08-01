@@ -47,6 +47,10 @@ def test_dashboard_card_converts_to_dict() -> None:
         warnings=(
             "배송비를 최종 확인해야 합니다.",
         ),
+        safety_status="INSUFFICIENT_DATA",
+        safety_reasons=("shipping_cost",),
+        original_grade="BUY",
+        effective_grade="WATCH",
     )
 
     ai_partner = DashboardAIPartner(
@@ -94,6 +98,10 @@ def test_dashboard_card_converts_to_dict() -> None:
         "예상 수익성이 양호합니다.",
         "과거 기록 대비 점수가 높습니다.",
     ]
+    assert data["recommendation"]["safety_status"] == "INSUFFICIENT_DATA"
+    assert data["recommendation"]["safety_reasons"] == ["shipping_cost"]
+    assert data["recommendation"]["original_grade"] == "BUY"
+    assert data["recommendation"]["effective_grade"] == "WATCH"
 
     assert data["ai_partner"] is not None
     assert (

@@ -50,6 +50,10 @@ def make_result() -> OpportunityResult:
         reasons=("good",),
         warnings=(),
         summary="good",
+        safety_status="PROFITABILITY_FAILED",
+        safety_reasons=("profitability criteria failed",),
+        original_grade="STRONG_BUY",
+        effective_grade="WATCH",
     )
     return OpportunityResult(
         product=product,
@@ -99,3 +103,7 @@ def test_save_and_read_opportunity_results(
     assert records[0].title == "Gaming Mouse"
     assert records[0].recommended_selling_price == 35
     assert records[0].recommendation_grade == "A"
+    assert records[0].safety_status == "PROFITABILITY_FAILED"
+    assert records[0].safety_reasons == ("profitability criteria failed",)
+    assert records[0].original_grade == "STRONG_BUY"
+    assert records[0].effective_grade == "WATCH"

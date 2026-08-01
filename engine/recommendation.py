@@ -34,6 +34,10 @@ class RecommendationResult:
     warnings: tuple[str, ...]
 
     summary: str
+    safety_status: str = "NOT_EVALUATED"
+    safety_reasons: tuple[str, ...] = ()
+    original_grade: str = ""
+    effective_grade: str = ""
 
 
 def generate_recommendation(

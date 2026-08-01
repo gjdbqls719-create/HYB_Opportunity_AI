@@ -192,8 +192,17 @@ def format_dashboard_card(
                     "Summary",
                     recommendation.summary,
                 ),
+                _format_row(
+                    "Safety Status",
+                    recommendation.safety_status or "NOT_EVALUATED",
+                ),
             ]
         )
+
+        if recommendation.safety_reasons:
+            lines.append("Safety Reasons")
+            for reason in recommendation.safety_reasons:
+                lines.append(f"  - {reason}")
 
         if recommendation.reasons:
             lines.append("Reasons")
@@ -610,4 +619,3 @@ def _collect_hero_reasons(
             break
 
     return tuple(unique_reasons)
-

@@ -70,11 +70,16 @@ class DashboardRecommendation:
     summary: str
     reasons: tuple[str, ...]
     warnings: tuple[str, ...]
+    safety_status: str = "NOT_EVALUATED"
+    safety_reasons: tuple[str, ...] = ()
+    original_grade: str = ""
+    effective_grade: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["reasons"] = list(self.reasons)
         data["warnings"] = list(self.warnings)
+        data["safety_reasons"] = list(self.safety_reasons)
         return data
 
 

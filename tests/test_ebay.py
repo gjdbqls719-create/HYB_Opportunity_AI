@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from app.models import Product
+from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter
 from marketplaces import ebay
 from marketplaces.ebay import EbayAdapter, ebay_item_to_product
+from engine.opportunity import calculate_product_opportunity
 
 
 def make_raw_item() -> dict[str, object]:
@@ -39,6 +40,18 @@ def test_ebay_adapter_normalizes_product() -> None:
     assert product.currency == "USD"
     assert product.condition == "New"
     assert product.url == "https://www.ebay.com/itm/123456789"
+    assert product.data_source is ProductDataSource.PRODUCTION
+
+
+def test_missing_ebay_shipping_remains_unknown_downstream() -> None:
+    product = EbayAdapter().normalize(make_raw_item())
+
+    result = calculate_product_opportunity(product, selling_price=1200)
+
+    assert product.shipping_cost_known is False
+    assert result["shipping_cost_known"] is False
+    assert result["shipping_cost_source"] == "unknown"
+    assert result["is_free_shipping"] is False
 
 
 @pytest.mark.parametrize(

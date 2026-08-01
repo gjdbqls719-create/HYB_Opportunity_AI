@@ -165,6 +165,15 @@ def calculate_opportunity(
             False,
         )
     )
+    marketplace_fee_known = bool(
+        product.get("marketplace_fee_known", False)
+    )
+    payment_fee_known = bool(
+        product.get("payment_fee_known", False)
+    )
+    fixed_fee_known = bool(
+        product.get("fixed_fee_known", False)
+    )
 
     for value, name in (
         (purchase_price, "구매가"),
@@ -567,6 +576,9 @@ def calculate_opportunity(
             "fee_source": (
                 fee_breakdown.source
             ),
+            "marketplace_fee_known": marketplace_fee_known,
+            "payment_fee_known": payment_fee_known,
+            "fixed_fee_known": fixed_fee_known,
             "use_fee_profile": (
                 use_fee_profile
             ),
@@ -647,6 +659,9 @@ def calculate_product_opportunity(
     marketplace_fee_rate: float | None = None,
     payment_fee_rate: float | None = None,
     fixed_fee: float | None = None,
+    marketplace_fee_known: bool = False,
+    payment_fee_known: bool = False,
+    fixed_fee_known: bool = False,
     tax_rate: float = 0,
     other_cost: float = 0,
     minimum_net_profit: float = 0,
@@ -672,6 +687,7 @@ def calculate_product_opportunity(
     shipping = resolve_shipping_cost(
         product.shipping_cost,
         shipping_cost,
+        marketplace_shipping_cost_known=product.shipping_cost_known,
     )
 
     opportunity_input: dict[str, Any] = {
@@ -691,6 +707,7 @@ def calculate_product_opportunity(
         "is_free_shipping": (
             shipping.is_free_shipping
         ),
+        "shipping_cost_known": shipping.source != "unknown",
         "other_cost": other_cost,
         "minimum_net_profit": (
             minimum_net_profit
@@ -717,16 +734,19 @@ def calculate_product_opportunity(
         opportunity_input[
             "marketplace_fee_rate"
         ] = marketplace_fee_rate
+    opportunity_input["marketplace_fee_known"] = marketplace_fee_known
 
     if payment_fee_rate is not None:
         opportunity_input[
             "payment_fee_rate"
         ] = payment_fee_rate
+    opportunity_input["payment_fee_known"] = payment_fee_known
 
     if fixed_fee is not None:
         opportunity_input[
             "fixed_fee"
         ] = fixed_fee
+    opportunity_input["fixed_fee_known"] = fixed_fee_known
 
     return calculate_opportunity(
         opportunity_input

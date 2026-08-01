@@ -542,3 +542,34 @@
 ### Validation
 
 - Full regression at Sprint 6 completion: **853 passed**
+
+## PR13-B — Production Safety Gate
+
+### Added
+
+- Explicit `production`, `test`, `demo`, and `unspecified` product data sources.
+- A post-score Safety Gate that preserves scores while preventing incomplete
+  `BUY` and `STRONG_BUY` recommendations.
+- `INSUFFICIENT_DATA` safety status with explicit missing-field reasons.
+- `PROFITABILITY_FAILED` as a distinct hard-gate status, plus original and
+  effective recommendation grades.
+- Shipping-cost provenance so an omitted cost is distinct from confirmed free
+  shipping.
+- Per-component verification metadata for marketplace, payment, and fixed fees.
+- Structured Safety Gate fields in Dashboard/API output and opportunity history.
+
+### Changed
+
+- The fixed Amazon catalog remains available for demo and tests but is no
+  longer part of production opportunity discovery.
+- A production BUY now requires a production source, purchase price, currency,
+  known shipping cost, at least two price observations, fee inputs, net profit,
+  and ROI.
+- Known New and Used conditions are treated as a high comparable conflict.
+
+### Compatibility
+
+- Opportunity scores, weights, thresholds, ROI formulas, and trend formulas
+  are unchanged.
+- Existing non-BUY recommendations are not upgraded or recalculated by the
+  Safety Gate.

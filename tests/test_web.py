@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.models import Product
 from app.web import app
 from engine.orchestrator import OpportunityResult
+from engine.recommendation import RecommendationResult
 
 
 client = TestClient(app)
@@ -84,6 +85,13 @@ def make_result(
         price_intelligence=SimpleNamespace(),
         adjusted_opportunity_score=67.0,
         final_opportunity_score=score,
+        ai_recommendation=RecommendationResult(
+            score=int(score), stars=3, star_display="", grade="WATCH",
+            action="review", success_probability=50, reasons=(), warnings=(),
+            summary="safety downgrade", safety_status="INSUFFICIENT_DATA",
+            safety_reasons=("shipping_cost",), original_grade="BUY",
+            effective_grade="WATCH",
+        ),
     )
 
 
@@ -155,6 +163,11 @@ def test_search_endpoint_uses_orchestrator_and_presentation(
     assert payload["dashboard_cards"][0]["metrics"][
         "final_opportunity_score"
     ] == 80.0
+    recommendation = payload["dashboard_cards"][0]["recommendation"]
+    assert recommendation["safety_status"] == "INSUFFICIENT_DATA"
+    assert recommendation["safety_reasons"] == ["shipping_cost"]
+    assert recommendation["original_grade"] == "BUY"
+    assert recommendation["effective_grade"] == "WATCH"
 
 
 def test_search_endpoint_rejects_blank_query(

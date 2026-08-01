@@ -157,6 +157,18 @@ def _build_recommendation(
         warnings=_to_text_tuple(
             getattr(recommendation, "warnings", ())
         ),
+        safety_status=_to_text(
+            getattr(recommendation, "safety_status", "NOT_EVALUATED")
+        ),
+        safety_reasons=_to_text_tuple(
+            getattr(recommendation, "safety_reasons", ())
+        ),
+        original_grade=_to_text(
+            getattr(recommendation, "original_grade", "")
+        ),
+        effective_grade=_to_text(
+            getattr(recommendation, "effective_grade", "")
+        ),
     )
 
 

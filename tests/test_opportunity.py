@@ -118,6 +118,23 @@ def test_invalid_payment_fee_rate_is_rejected() -> None:
         raise AssertionError("ValueError가 발생해야 합니다.")
 
 
+def test_fee_known_metadata_distinguishes_omitted_and_verified_values() -> None:
+    omitted = calculate_opportunity({"purchase_price": 10, "selling_price": 20})
+    verified_zero = calculate_opportunity({
+        "purchase_price": 10, "selling_price": 20,
+        "marketplace_fee_rate": 0, "payment_fee_rate": 0, "fixed_fee": 0,
+        "marketplace_fee_known": True, "payment_fee_known": True, "fixed_fee_known": True,
+    })
+    verified_positive = calculate_opportunity({
+        "purchase_price": 10, "selling_price": 20,
+        "marketplace_fee_rate": 0.1, "payment_fee_rate": 0.03, "fixed_fee": 0.3,
+        "marketplace_fee_known": True, "payment_fee_known": True, "fixed_fee_known": True,
+    })
+
+    assert (omitted["marketplace_fee_known"], omitted["payment_fee_known"], omitted["fixed_fee_known"]) == (False, False, False)
+    assert (verified_zero["marketplace_fee_known"], verified_zero["payment_fee_known"], verified_zero["fixed_fee_known"]) == (True, True, True)
+    assert (verified_zero["marketplace_fee_rate"], verified_zero["payment_fee_rate"], verified_zero["fixed_fee"]) == (0, 0, 0)
+    assert (verified_positive["marketplace_fee_rate"], verified_positive["payment_fee_rate"], verified_positive["fixed_fee"]) == (0.1, 0.03, 0.3)
 def test_product_opportunity_uses_marketplace_shipping_by_default() -> None:
     product = Product(
         marketplace="ebay",

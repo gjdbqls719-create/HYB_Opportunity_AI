@@ -131,7 +131,7 @@ DEFAULT_ATTRIBUTE_RULES: tuple[
     ),
     AttributeFieldRule(
         field_name="condition",
-        severity="low",
+        severity="high",
     ),
     AttributeFieldRule(
         field_name="quantity",

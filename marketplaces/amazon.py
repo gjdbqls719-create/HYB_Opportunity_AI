@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.models import Product
+from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter, parse_price
 
 
@@ -51,6 +51,7 @@ class AmazonAdapter(MarketplaceAdapter):
             currency=str(raw_product.get("currency", "USD")).strip(),
             condition=str(raw_product.get("condition", "New")).strip(),
             url=str(raw_product.get("url", "")).strip(),
+            data_source=ProductDataSource.DEMO,
         )
 
 

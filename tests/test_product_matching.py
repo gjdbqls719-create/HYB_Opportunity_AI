@@ -64,3 +64,13 @@ def test_compare_product_objects() -> None:
 
     assert result.is_match is True
     assert result.score >= 75
+
+
+def test_known_new_and_used_condition_is_high_conflict() -> None:
+    new = Product(marketplace="ebay", item_id="new", title="Same Camera", price=50, currency="USD", condition="New")
+    used = Product(marketplace="ebay", item_id="used", title="Same Camera", price=40, currency="USD", condition="Used")
+
+    result = compare_products(new, used)
+
+    assert result.is_match is False
+    assert any(conflict.field_name == "condition" and conflict.severity == "high" for conflict in result.conflicts)

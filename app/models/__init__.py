@@ -1,3 +1,3 @@
-from app.models.product import Product
+from app.models.product import Product, ProductDataSource
 
-__all__ = ["Product"]
+__all__ = ["Product", "ProductDataSource"]

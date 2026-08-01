@@ -27,12 +27,21 @@ def _normalize_cost(value: Any, field_name: str) -> float:
 def resolve_shipping_cost(
     marketplace_shipping_cost: Any,
     override_shipping_cost: Any | None = None,
+    *,
+    marketplace_shipping_cost_known: bool = True,
 ) -> ShippingCostResolution:
     """마켓 수집 배송비와 사용자 재정의 값 중 분석 배송비를 결정한다.
 
     override_shipping_cost가 None이면 수집된 상품 배송비를 사용한다.
     0을 명시하면 무료배송으로 재정의한 것으로 처리한다.
     """
+    if override_shipping_cost is None and not marketplace_shipping_cost_known:
+        return ShippingCostResolution(
+            cost=0.0,
+            source="unknown",
+            is_free_shipping=False,
+        )
+
     if override_shipping_cost is None:
         cost = _normalize_cost(
             marketplace_shipping_cost,

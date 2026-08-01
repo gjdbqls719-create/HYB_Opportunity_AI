@@ -50,6 +50,10 @@ def _make_dashboard_card() -> DashboardCard:
             warnings=(
                 "배송비를 최종 확인해야 합니다.",
             ),
+            safety_status="INSUFFICIENT_DATA",
+            safety_reasons=("shipping_cost",),
+            original_grade="BUY",
+            effective_grade="WATCH",
         ),
         ai_partner=DashboardAIPartner(
             title="HYB AI Partner Report - BUY",
@@ -115,6 +119,8 @@ def test_format_dashboard_card_contains_ai_sections() -> None:
     assert "AI MEMORY" in output
 
     assert "BUY" in output
+    assert "Safety Status : INSUFFICIENT_DATA" in output
+    assert "shipping_cost" in output
     assert "소량 테스트 매입을 권장합니다." in output
     assert "과거 기록 대비 상위권입니다." in output
     assert "85.00%" in output
@@ -210,4 +216,3 @@ def test_format_dashboard_card_hero_supports_missing_ai_data() -> None:
     assert "Decision      : UNDECIDED" in output
     assert "Success Chance" not in output
     assert "추가 데이터를 확인한 뒤 다시 분석하세요." in output
-

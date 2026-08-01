@@ -45,6 +45,10 @@ from engine.price_trend import (
     PriceTrend,
     analyze_price_trend,
 )
+from engine.production_safety import (
+    apply_production_safety_gate,
+    assess_production_safety,
+)
 from engine.product_matching import compare_products
 from engine.recommendation import (
     RecommendationResult,
@@ -82,9 +86,6 @@ from market_data.price_snapshot import (
 
 from market_data.seller_snapshot import (
     SellerSnapshot,
-)
-from marketplaces.amazon import (
-    search_products as search_amazon_products,
 )
 from marketplaces.ebay import (
     search_products as search_ebay_products,
@@ -186,7 +187,6 @@ def search_products(
     """
     marketplace_searches = (
         ("ebay", search_ebay_products),
-        ("amazon", search_amazon_products),
     )
 
     products: list[Product] = []
@@ -383,6 +383,10 @@ def find_best_opportunities(
     shipping_cost: float | None = None,
     marketplace_fee_rate: float = 0.15,
     payment_fee_rate: float = 0,
+    fixed_fee: float | None = None,
+    marketplace_fee_known: bool = False,
+    payment_fee_known: bool = False,
+    fixed_fee_known: bool = False,
     tax_rate: float = 0,
     other_cost: float = 0,
     minimum_net_profit: float = 0,
@@ -518,6 +522,10 @@ def find_best_opportunities(
                 marketplace_fee_rate
             ),
             payment_fee_rate=payment_fee_rate,
+            fixed_fee=fixed_fee,
+            marketplace_fee_known=marketplace_fee_known,
+            payment_fee_known=payment_fee_known,
+            fixed_fee_known=fixed_fee_known,
             tax_rate=tax_rate,
             other_cost=other_cost,
             minimum_net_profit=minimum_net_profit,
@@ -680,6 +688,16 @@ def find_best_opportunities(
             market_adjustment=market_adjustment,
         )
 
+        safety_assessment = assess_production_safety(
+            product=representative,
+            analysis=analysis,
+            price_intelligence=price_info,
+        )
+        ai_recommendation = apply_production_safety_gate(
+            ai_recommendation,
+            safety_assessment,
+        )
+
         decision_report = build_decision_report(
             recommendation=ai_recommendation,
             confidence=confidence,
@@ -771,6 +789,14 @@ def find_best_opportunities(
 
         analysis["recommendation_summary"] = (
             ai_recommendation.summary
+        )
+
+        analysis["production_safety_status"] = (
+            ai_recommendation.safety_status
+        )
+
+        analysis["production_safety_reasons"] = (
+            ai_recommendation.safety_reasons
         )
 
         analysis["decision_report_strengths"] = (

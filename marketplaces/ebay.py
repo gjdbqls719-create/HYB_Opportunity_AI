@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 import requests
 
-from app.models import Product
+from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter, parse_price
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
@@ -35,6 +35,7 @@ class EbayAdapter(MarketplaceAdapter):
                 raw_product.get("condition", "상태 정보 없음")
             ).strip(),
             url=str(raw_product.get("itemWebUrl", "")).strip(),
+            data_source=ProductDataSource.PRODUCTION,
         )
 
 
