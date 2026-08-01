@@ -189,7 +189,6 @@ A feature is complete only when:
 - Implementation is finished.
 - Tests pass.
 - Documentation is updated.
-- Context Packs are refreshed when project state changes.
 - Code review is completed.
 - Git history is clean.
 
@@ -292,3 +291,140 @@ Future references:
 - CODE_REVIEW_GUIDE.md
 - DOCUMENTATION_GUIDE.md
 - GIT_WORKFLOW.md
+
+# 16. AI Collaboration Principles
+
+HYB Opportunity AI is designed as a long-term collaboration between human engineers and AI assistants.
+
+AI is expected to act as an engineering partner rather than a code generator.
+
+The following principles define how AI should participate in the project.
+
+---
+
+## 16.1 Repository First
+
+Before making implementation decisions, AI should understand the current repository.
+
+Implementation should never ignore the existing project structure.
+
+---
+
+## 16.2 Documentation First
+
+Before changing architecture or behavior, AI should review the related documentation.
+
+If documentation is unavailable or outdated, the latest version should be requested before making changes.
+
+AI should never guess documentation.
+
+---
+
+## 16.3 Architecture Awareness
+
+AI should understand:
+
+- Existing Domains
+- Existing Workflows
+- Existing ADRs
+- Existing Engineering Principles
+
+before introducing new abstractions.
+
+---
+
+## 16.4 Incremental Development
+
+Large refactoring should be avoided unless clearly justified.
+
+Small, reviewable improvements are preferred.
+
+---
+
+## 16.5 Explain Engineering Decisions
+
+AI should explain:
+
+- Why a change is necessary
+- Expected benefits
+- Possible trade-offs
+- Potential risks
+
+Engineering reasoning is considered part of the implementation.
+
+---
+
+## 16.6 Preserve Project Continuity
+
+AI should preserve previous engineering decisions whenever possible.
+
+New ideas should extend the existing architecture rather than replace it.
+
+---
+
+## 16.7 Documentation Synchronization
+
+Documentation is part of development.
+
+When implementation changes:
+
+- Related documents should be reviewed.
+- Related documents should be updated.
+- Related references should remain valid.
+
+---
+
+## 16.8 Sprint Awareness
+
+AI should understand the current Sprint before proposing work.
+
+Recommendations should align with the current Sprint goal.
+
+Large future ideas should be recorded instead of interrupting the current Sprint.
+
+---
+
+## 16.9 Engineering Partner Mindset
+
+AI should behave as:
+
+- Software Engineer
+- Architect
+- Reviewer
+- Documentation Maintainer
+- Quality Engineer
+
+AI should prioritize the long-term success of the project over short-term implementation convenience.
+
+## 검증 중심 PR 완료 절차
+
+핵심 도메인, 경제성 계산, 운영 상태, 영속성처럼
+실제 사업 결과와 데이터 무결성에 영향을 주는 변경은
+단순한 테스트 통과만으로 완료하지 않는다.
+
+기본 절차는 다음과 같다.
+
+1. 아키텍처 및 설계 검토
+2. 작은 PR 범위 확정
+3. 구현
+4. 기능별 테스트
+5. 전체 회귀 테스트
+6. 계약 감사
+7. 발견된 결함 보강
+8. 필요한 경우 최종 계약 감사
+9. 문서 최신화
+10. 커밋 및 Push
+
+계약 감사에서는 다음을 중점적으로 확인한다.
+
+- 도메인 불변식이 외부에서 우회되지 않는가
+- Legacy와 신규 계약의 결과가 일치하는가
+- 계층 및 도메인 경계가 유지되는가
+- 영속화와 복원 과정에서 정보가 손실되지 않는가
+- 트랜잭션 실패 시 부분 저장이 발생하지 않는가
+- 외부 API, CLI, Dashboard 및 History 계약이 의도치 않게 변경되지 않는가
+
+모든 PR에 동일한 수준의 감사를 강제하지는 않는다.
+실제 금전, 운영 상태, 데이터 무결성 또는 장기 핵심 아키텍처에
+영향을 주는 변경일수록 더 강한 감사 절차를 적용한다.
+
