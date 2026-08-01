@@ -17,6 +17,7 @@ from app.infrastructure.change import (
     PriceHistorySnapshotProvider,
 )
 from app.models import Product
+from app.domain.opportunity import EconomicsCalculation
 from engine.ai_partner import (
     AIPartnerReport,
     build_ai_partner_report,
@@ -35,7 +36,8 @@ from engine.decision_report import (
     build_decision_report,
 )
 from engine.opportunity import (
-    calculate_product_opportunity,
+    build_verified_economics_input,
+    calculate_verified_economics,
 )
 from engine.price_intelligence import (
     PriceIntelligence,
@@ -126,6 +128,7 @@ class OpportunityResult:
     analysis: dict[str, Any]
     matched_product_count: int
     price_intelligence: PriceIntelligence
+    economics: EconomicsCalculation | None = None
 
     price_snapshot: PriceSnapshot | None = None
     price_change_detection: (
@@ -514,7 +517,7 @@ def find_best_opportunities(
             price_info.recommended_selling_price
         )
 
-        analysis = calculate_product_opportunity(
+        economics_input = build_verified_economics_input(
             product=representative,
             selling_price=selling_price,
             shipping_cost=shipping_cost,
@@ -528,14 +531,35 @@ def find_best_opportunities(
             fixed_fee_known=fixed_fee_known,
             tax_rate=tax_rate,
             other_cost=other_cost,
+        )
+        economics = calculate_verified_economics(
+            marketplace=representative.marketplace,
+            economics=economics_input,
             minimum_net_profit=minimum_net_profit,
             minimum_roi=minimum_roi,
-            estimated_monthly_sales=(
-                estimated_monthly_sales
-            ),
+            estimated_monthly_sales=estimated_monthly_sales,
             competitor_count=competitor_count,
             risk_level=risk_level,
+            context={
+                "item_id": representative.item_id,
+                "name": representative.title,
+                "url": representative.url,
+                "condition": representative.condition,
+                "currency": representative.currency,
+                "shipping_cost_source": (
+                    economics_input.shipping_cost.evidence.source
+                ),
+                "shipping_cost_known": (
+                    economics_input.shipping_cost.amount is not None
+                ),
+                "is_free_shipping": (
+                    economics_input.shipping_cost.amount == Decimal("0")
+                    if economics_input.shipping_cost.amount is not None
+                    else False
+                ),
+            },
         )
+        analysis = dict(economics.analysis)
 
         raw_opportunity_score = float(
             analysis["opportunity_score"]
@@ -692,6 +716,7 @@ def find_best_opportunities(
             product=representative,
             analysis=analysis,
             price_intelligence=price_info,
+            economics=economics,
         )
         ai_recommendation = apply_production_safety_gate(
             ai_recommendation,
@@ -853,6 +878,7 @@ def find_best_opportunities(
                     group.products
                 ),
                 price_intelligence=price_info,
+                economics=economics,
 
                 price_snapshot=price_snapshot,
 

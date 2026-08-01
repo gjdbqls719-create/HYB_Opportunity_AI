@@ -4,6 +4,32 @@
 
 ---
 
+## PR13-C — Verified Economics Contract
+
+### Added
+
+- Opportunity Domain의 경제 입력 provenance 계약
+- `verified`, `estimated`, `default`, `calculated`, `missing`,
+  `unsupported` evidence 상태
+- 기존 Product와 orchestrator 인자를 contract로 조립하는 mapper
+- 기존 `calculate_opportunity(dict)` 결과를 typed calculation으로 감싸는
+  호환 wrapper
+- Safety Gate의 contract 우선 평가 및 기존 `*_known` fallback
+
+### Compatibility
+
+- 기존 Opportunity, ROI, score, trend, recommendation 공식은 변경하지 않음
+- CLI, Dashboard, FastAPI, opportunity history 외부 계약은 변경하지 않음
+- 기존 `calculate_opportunity(dict)` 및 `calculate_product_opportunity()` 유지
+
+### Validation
+
+- PR13-C Domain/Opportunity/Safety feature tests: `32 passed`
+- Full pytest: `1203 passed`
+- Warning: 기존 FastAPI TestClient `StarletteDeprecationWarning` 1건
+
+---
+
 ## Sprint 11 PR5 — Release Candidate and Sprint Completion
 
 ### Added
@@ -573,3 +599,17 @@
   are unchanged.
 - Existing non-BUY recommendations are not upgraded or recalculated by the
   Safety Gate.
+
+Sprint 13
+
+PR13-B
+- Production Safety Gate
+- Provenance
+- Profitability Hard Gate
+- Founder Validation Safety
+
+PR13-C
+- Verified Economics Contract
+- Economics Domain Model
+- Legacy Wrapper
+- Typed Economics Contract

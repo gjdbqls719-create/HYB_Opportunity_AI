@@ -6,6 +6,7 @@ from math import isfinite
 from typing import Mapping
 
 from app.models import Product, ProductDataSource
+from app.domain.opportunity import EconomicsCalculation
 from engine.price_intelligence import PriceIntelligence
 from engine.recommendation import RecommendationResult
 
@@ -32,23 +33,28 @@ def assess_production_safety(
     product: Product,
     analysis: Mapping[str, object],
     price_intelligence: PriceIntelligence,
+    economics: EconomicsCalculation | None = None,
 ) -> ProductionSafetyAssessment:
     """BUY 추천에 필요한 최소 운영 출처와 경제 데이터를 확인한다."""
     missing: list[str] = []
 
     if product.data_source is not ProductDataSource.PRODUCTION:
         missing.append("production_source")
-    if not _is_positive_number(product.price):
+    if economics is None:
+        if not _is_positive_number(product.price):
+            missing.append("purchase_price")
+    elif not _is_positive_number(economics.inputs.purchase_cost.amount):
         missing.append("purchase_price")
     if not product.currency.strip():
         missing.append("currency")
 
-    shipping_is_known = (
-        product.shipping_cost_known
-        or analysis.get("shipping_cost_source") == "override"
-    )
-    if not shipping_is_known:
-        missing.append("shipping_cost")
+    if economics is None:
+        shipping_is_known = (
+            product.shipping_cost_known
+            or analysis.get("shipping_cost_source") == "override"
+        )
+        if not shipping_is_known:
+            missing.append("shipping_cost")
 
     if (
         price_intelligence.sample_size < 2
@@ -58,21 +64,34 @@ def assess_production_safety(
     ):
         missing.append("expected_selling_price")
 
-    fee_fields = (
-        ("marketplace_fee_rate", "marketplace_fee_known"),
-        ("payment_fee_rate", "payment_fee_known"),
-        ("fixed_fee", "fixed_fee_known"),
-    )
-    for value_field, known_field in fee_fields:
-        if (
-            analysis.get(known_field) is not True
-            or not _is_non_negative_number(analysis.get(value_field))
-        ):
-            missing.append(value_field)
+    if economics is None:
+        fee_fields = (
+            ("marketplace_fee_rate", "marketplace_fee_known"),
+            ("payment_fee_rate", "payment_fee_known"),
+            ("fixed_fee", "fixed_fee_known"),
+        )
+        for value_field, known_field in fee_fields:
+            if (
+                analysis.get(known_field) is not True
+                or not _is_non_negative_number(analysis.get(value_field))
+            ):
+                missing.append(value_field)
+    else:
+        missing.extend(economics.inputs.readiness_missing_fields)
 
+    economic_results = (
+        {
+            "net_profit": economics.net_profit.amount,
+            "roi": economics.roi,
+        }
+        if economics is not None
+        else analysis
+    )
     for field_name in ("net_profit", "roi"):
-        if not _is_number(analysis.get(field_name)):
+        if not _is_number(economic_results.get(field_name)):
             missing.append(field_name)
+
+    missing = list(dict.fromkeys(missing))
 
     failed_checks = (
         ()

@@ -4,6 +4,14 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 from app.models import Product
+from app.domain.opportunity import (
+    EconomicEvidence,
+    EconomicsCalculation,
+    EvidenceStatus,
+    MoneyInput,
+    RateInput,
+    VerifiedEconomicsInput,
+)
 from services.fees import calculate_marketplace_fee
 from services.marketplace_rules import resolve_marketplace_rule
 from services.shipping import resolve_shipping_cost
@@ -750,4 +758,187 @@ def calculate_product_opportunity(
 
     return calculate_opportunity(
         opportunity_input
+    )
+
+
+def build_verified_economics_input(
+    *,
+    product: Product,
+    selling_price: float,
+    shipping_cost: float | None = None,
+    marketplace_fee_rate: float = 0.15,
+    payment_fee_rate: float = 0.0,
+    fixed_fee: float | None = None,
+    marketplace_fee_known: bool = False,
+    payment_fee_known: bool = False,
+    fixed_fee_known: bool = False,
+    tax_rate: float = 0.0,
+    other_cost: float = 0.0,
+) -> VerifiedEconomicsInput:
+    """기존 Product와 orchestrator 경제 인자를 Domain Contract로 조립한다."""
+    currency = product.currency
+    shipping = resolve_shipping_cost(
+        product.shipping_cost,
+        shipping_cost,
+        marketplace_shipping_cost_known=product.shipping_cost_known,
+    )
+
+    def evidence(status: EvidenceStatus, source: str) -> EconomicEvidence:
+        return EconomicEvidence(status=status, source=source)
+
+    shipping_status = (
+        EvidenceStatus.VERIFIED
+        if shipping.source != "unknown"
+        else EvidenceStatus.MISSING
+    )
+    fixed_fee_value = 0.0 if fixed_fee is None else fixed_fee
+
+    return VerifiedEconomicsInput(
+        purchase_cost=MoneyInput(
+            amount=Decimal(str(product.price)),
+            currency=currency,
+            evidence=evidence(
+                EvidenceStatus.ESTIMATED,
+                f"{product.marketplace}_listing",
+            ),
+        ),
+        shipping_cost=MoneyInput(
+            amount=(
+                Decimal(str(shipping.cost))
+                if shipping_status is not EvidenceStatus.MISSING
+                else None
+            ),
+            currency=currency,
+            evidence=evidence(shipping_status, shipping.source),
+        ),
+        marketplace_fee_rate=RateInput(
+            rate=Decimal(str(marketplace_fee_rate)),
+            evidence=evidence(
+                EvidenceStatus.VERIFIED
+                if marketplace_fee_known
+                else EvidenceStatus.DEFAULT,
+                "orchestrator_input" if marketplace_fee_known else "legacy_default",
+            ),
+        ),
+        payment_fee_rate=RateInput(
+            rate=Decimal(str(payment_fee_rate)),
+            evidence=evidence(
+                EvidenceStatus.VERIFIED
+                if payment_fee_known
+                else EvidenceStatus.DEFAULT,
+                "orchestrator_input" if payment_fee_known else "legacy_default",
+            ),
+        ),
+        fixed_fee=MoneyInput(
+            amount=Decimal(str(fixed_fee_value)),
+            currency=currency,
+            evidence=evidence(
+                EvidenceStatus.VERIFIED
+                if fixed_fee_known
+                else EvidenceStatus.DEFAULT,
+                "orchestrator_input" if fixed_fee_known else "legacy_default",
+            ),
+        ),
+        tax_rate=RateInput(
+            rate=Decimal(str(tax_rate)),
+            evidence=evidence(
+                EvidenceStatus.ESTIMATED if tax_rate else EvidenceStatus.DEFAULT,
+                "orchestrator_input" if tax_rate else "legacy_default",
+            ),
+        ),
+        duty_cost=MoneyInput(
+            amount=None,
+            currency=currency,
+            evidence=evidence(EvidenceStatus.UNSUPPORTED, "legacy_calculator"),
+        ),
+        other_cost=MoneyInput(
+            amount=Decimal(str(other_cost)),
+            currency=currency,
+            evidence=evidence(
+                EvidenceStatus.ESTIMATED if other_cost else EvidenceStatus.DEFAULT,
+                "orchestrator_input" if other_cost else "legacy_default",
+            ),
+        ),
+        expected_sale_price=MoneyInput(
+            amount=Decimal(str(selling_price)),
+            currency=currency,
+            evidence=evidence(EvidenceStatus.ESTIMATED, "price_intelligence"),
+        ),
+    )
+
+
+def calculate_verified_economics(
+    *,
+    marketplace: str,
+    economics: VerifiedEconomicsInput,
+    minimum_net_profit: float = 0.0,
+    minimum_roi: float = 0.0,
+    estimated_monthly_sales: int = 0,
+    competitor_count: int = 0,
+    risk_level: str = "medium",
+    context: dict[str, Any] | None = None,
+) -> EconomicsCalculation:
+    """Verified Contract를 기존 dict calculator에 투영하고 결과를 감싼다."""
+    values = {
+        "purchase_price": economics.purchase_cost.amount,
+        "selling_price": economics.expected_sale_price.amount,
+        "shipping_cost": economics.shipping_cost.amount or Decimal("0"),
+        "marketplace_fee_rate": economics.marketplace_fee_rate.rate,
+        "payment_fee_rate": economics.payment_fee_rate.rate,
+        "fixed_fee": economics.fixed_fee.amount,
+        "tax_rate": economics.tax_rate.rate,
+        "other_cost": economics.other_cost.amount,
+    }
+    if values["purchase_price"] is None or values["selling_price"] is None:
+        raise ValueError("구매가와 예상 판매가는 계산에 필요합니다.")
+
+    analysis = calculate_opportunity(
+        {
+            **(context or {}),
+            "marketplace": marketplace,
+            **values,
+            "minimum_net_profit": minimum_net_profit,
+            "minimum_roi": minimum_roi,
+            "estimated_monthly_sales": estimated_monthly_sales,
+            "competitor_count": competitor_count,
+            "risk_level": risk_level,
+            "marketplace_fee_known": (
+                economics.marketplace_fee_rate.evidence.status
+                is EvidenceStatus.VERIFIED
+            ),
+            "payment_fee_known": (
+                economics.payment_fee_rate.evidence.status
+                is EvidenceStatus.VERIFIED
+            ),
+            "fixed_fee_known": (
+                economics.fixed_fee.evidence.status is EvidenceStatus.VERIFIED
+            ),
+        }
+    )
+
+    calculated = EconomicEvidence(
+        status=EvidenceStatus.CALCULATED,
+        source="calculate_opportunity",
+    )
+
+    def money(field_name: str) -> MoneyInput:
+        return MoneyInput(
+            amount=Decimal(str(analysis[field_name])),
+            currency=economics.currency,
+            evidence=calculated,
+        )
+
+    return EconomicsCalculation(
+        inputs=economics,
+        marketplace_fee=money("marketplace_fee"),
+        payment_fee=money("payment_fee"),
+        tax_cost=money("tax_cost"),
+        landed_cost=money("landed_cost"),
+        selling_cost=money("selling_cost"),
+        total_cost=money("total_cost"),
+        net_profit=money("net_profit"),
+        roi=Decimal(str(analysis["roi"])),
+        landed_cost_roi=Decimal(str(analysis["landed_cost_roi"])),
+        margin_rate=Decimal(str(analysis["margin_rate"])),
+        analysis=analysis,
     )

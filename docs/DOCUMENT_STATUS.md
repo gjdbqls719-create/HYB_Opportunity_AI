@@ -95,3 +95,12 @@
 - 예상 테스트 수
 
 실행하지 않은 테스트는 통과했다고 기록하지 않습니다.
+
+Last Updated
+
+Sprint 13
+
+Added
+
+Verified Economics Domain
+Production Safety Documentation
