@@ -1,6 +1,13 @@
 """Opportunity domain models and evaluation values."""
 
 from app.domain.opportunity.decision import OpportunityDecision
+from app.domain.opportunity.actual_economics import (
+    ActualEconomics,
+    ActualEconomicsAction,
+    ActualEconomicsEvent,
+    ActualEconomicsStatus,
+    InvalidActualEconomicsTransitionError,
+)
 from app.domain.opportunity.evaluation import OpportunityEvaluation
 from app.domain.opportunity.economics import (
     EconomicEvidence,
@@ -29,6 +36,10 @@ from app.domain.opportunity.lifecycle import (
 )
 
 __all__ = [
+    "ActualEconomics",
+    "ActualEconomicsAction",
+    "ActualEconomicsEvent",
+    "ActualEconomicsStatus",
     "ArchivedLifecycleError",
     "EconomicEvidence",
     "EconomicsCalculation",
@@ -36,6 +47,7 @@ __all__ = [
     "FounderDecision",
     "FounderDecisionType",
     "InvalidLifecycleTransitionError",
+    "InvalidActualEconomicsTransitionError",
     "MoneyInput",
     "OpportunityDecision",
     "OpportunityEvaluation",

@@ -1,5 +1,33 @@
 # HYB Changelog
 
+## PR15-A.2 — Actual Economics Ledger Final Hardening
+
+- 최초 Purchase event에 currency를 기록하고 Aggregate currency와의 binding 검증 추가
+- Event history currency를 보존하는 additive SQLite column migration 추가
+- malformed event version은 semantic error, 실제 persisted version 충돌은 optimistic conflict로 분리
+
+---
+
+## PR15-A.1 — Actual Economics Ledger Contract Hardening
+
+- Purchase, Sale, Settlement event의 action별 필수/금지 fact 검증 추가
+- Event fact를 Aggregate 및 기존 persisted state와 대조해 current/history 불일치 차단
+- 숫자 0을 유효한 actual fact로 보존하고 `None`만 누락으로 처리
+- `EMPTY`/version 0을 DB row가 없는 transient-only 상태로 명시
+- sale price는 fee 차감 전 gross 값이며 settlement는 계산에 사용하지 않는 보존 사실임을 명시
+
+---
+
+## PR15-A — Actual Economics Foundation
+
+- Verified Economics의 예상값과 분리된 Actual Economics Aggregate 추가
+- Purchase, Sale, Settlement 실제 사실과 계산된 actual profit/ROI 계약 추가
+- Lifecycle 상태를 읽기 사전조건으로만 사용하는 Application use case 추가
+- current state와 append-only event history를 원자적으로 저장하는 additive SQLite repository 추가
+- 기존 Recommendation, Lifecycle, Validation Queue 및 Presentation 계약은 변경하지 않음
+
+---
+
 ## PR14-B.1 — Validation Queue Contract Hardening
 
 - Discovery reference를 trim/lowercase/stable `:` separator 형식으로 canonicalize
