@@ -12,6 +12,8 @@ from app.application.opportunity_validation import (
 )
 from app.application.opportunity_lifecycle import LifecycleVersionConflictError
 from app.domain.opportunity import OpportunityLifecycle, OpportunityLifecycleStatus, OpportunityLifecycleTransition
+from app.domain.opportunity import EstimatedEconomicsSnapshot
+from app.infrastructure.economics_variance import SQLiteEstimatedEconomicsSnapshotRepository
 from app.infrastructure.opportunity_lifecycle import SQLiteOpportunityLifecycleRepository
 
 
@@ -55,6 +57,7 @@ class SQLiteValidationQueueRepository:
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._lifecycles = SQLiteOpportunityLifecycleRepository(connection=connection)
+        self._economics = SQLiteEstimatedEconomicsSnapshotRepository(connection=connection)
         with self._connection:
             self._connection.execute(_SNAPSHOT_TABLE)
             self._migrate_canonical_references()
@@ -70,38 +73,74 @@ class SQLiteValidationQueueRepository:
         transition: OpportunityLifecycleTransition,
         snapshot: ValidationAdmissionSnapshot,
     ) -> None:
+        self._validate_admission(lifecycle, transition, snapshot)
+        try:
+            with self._connection:
+                self._lifecycles._insert_current(lifecycle)
+                self._lifecycles._insert_transition(transition)
+                self._insert_admission_snapshot(snapshot)
+        except sqlite3.IntegrityError as error:
+            if self._non_archived_reference_exists(snapshot.discovery_reference):
+                raise DuplicateValidationConflictError(snapshot.discovery_reference) from error
+            raise
+
+    def admit_with_economics(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        economics: EstimatedEconomicsSnapshot,
+    ) -> None:
+        self._validate_admission(lifecycle, transition, snapshot)
+        if economics.opportunity_id != lifecycle.opportunity_id:
+            raise ValueError("economics opportunity_id does not match lifecycle")
+        if economics.currency != snapshot.currency:
+            raise ValueError("economics currency does not match admission snapshot")
+        if economics.baseline_kind != "admission":
+            raise ValueError("validation admission requires an admission baseline")
+        try:
+            with self._connection:
+                self._lifecycles._insert_current(lifecycle)
+                self._lifecycles._insert_transition(transition)
+                self._insert_admission_snapshot(snapshot)
+                self._economics._insert(economics)
+        except sqlite3.IntegrityError as error:
+            if self._non_archived_reference_exists(snapshot.discovery_reference):
+                raise DuplicateValidationConflictError(snapshot.discovery_reference) from error
+            raise
+
+    def _validate_admission(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+    ) -> None:
         if snapshot.opportunity_id != lifecycle.opportunity_id:
             raise ValueError("snapshot opportunity_id does not match lifecycle")
         if snapshot.discovery_reference != lifecycle.discovery_reference:
             raise ValueError("snapshot discovery_reference does not match lifecycle")
         self._lifecycles._validate_creation(lifecycle, transition)
-        try:
-            with self._connection:
-                self._lifecycles._insert_current(lifecycle)
-                self._lifecycles._insert_transition(transition)
-                self._connection.execute(
-                    """INSERT INTO validation_queue_admission_snapshots (
-                        opportunity_id, discovery_reference, marketplace, title,
-                        admission_recommendation, admission_score, admission_roi,
-                        currency, admission_safety_status, captured_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        snapshot.opportunity_id,
-                        snapshot.discovery_reference,
-                        snapshot.marketplace,
-                        snapshot.title,
-                        snapshot.admission_recommendation,
-                        snapshot.admission_score,
-                        snapshot.admission_roi,
-                        snapshot.currency,
-                        snapshot.admission_safety_status,
-                        snapshot.captured_at.isoformat(),
-                    ),
-                )
-        except sqlite3.IntegrityError as error:
-            if self._non_archived_reference_exists(snapshot.discovery_reference):
-                raise DuplicateValidationConflictError(snapshot.discovery_reference) from error
-            raise
+
+    def _insert_admission_snapshot(self, snapshot: ValidationAdmissionSnapshot) -> None:
+        self._connection.execute(
+            """INSERT INTO validation_queue_admission_snapshots (
+                opportunity_id, discovery_reference, marketplace, title,
+                admission_recommendation, admission_score, admission_roi,
+                currency, admission_safety_status, captured_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                snapshot.opportunity_id,
+                snapshot.discovery_reference,
+                snapshot.marketplace,
+                snapshot.title,
+                snapshot.admission_recommendation,
+                snapshot.admission_score,
+                snapshot.admission_roi,
+                snapshot.currency,
+                snapshot.admission_safety_status,
+                snapshot.captured_at.isoformat(),
+            ),
+        )
 
     def list_queue(
         self,

@@ -22,6 +22,14 @@ from app.domain.opportunity.models import (
     OpportunityGrade,
     OpportunityScore,
 )
+from app.domain.opportunity.variance import (
+    EconomicsVariance,
+    EstimatedEconomicsSnapshot,
+    MetricVariance,
+    SnapshotValidationError,
+    VarianceAvailability,
+    calculate_economics_variance,
+)
 from app.domain.opportunity.reasons import OpportunityReason
 
 
@@ -43,12 +51,15 @@ __all__ = [
     "ArchivedLifecycleError",
     "EconomicEvidence",
     "EconomicsCalculation",
+    "EconomicsVariance",
+    "EstimatedEconomicsSnapshot",
     "EvidenceStatus",
     "FounderDecision",
     "FounderDecisionType",
     "InvalidLifecycleTransitionError",
     "InvalidActualEconomicsTransitionError",
     "MoneyInput",
+    "MetricVariance",
     "OpportunityDecision",
     "OpportunityEvaluation",
     "OpportunityFactors",
@@ -60,5 +71,8 @@ __all__ = [
     "OpportunityReason",
     "OpportunityScore",
     "RateInput",
+    "SnapshotValidationError",
     "VerifiedEconomicsInput",
+    "VarianceAvailability",
+    "calculate_economics_variance",
 ]

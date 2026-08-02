@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from app.application.economics_variance import (
+    CaptureEstimatedEconomicsBaseline,
+    EconomicsVarianceService,
+)
 from app.application.opportunity_lifecycle import (
     Approve,
     OpportunityLifecycleRepository,
@@ -19,7 +23,7 @@ from app.application.opportunity_validation.models import (
 )
 from app.application.opportunity_validation.ports import ValidationQueueRepository
 from app.application.opportunity_validation.reference import canonicalize_discovery_reference
-from app.domain.opportunity import OpportunityLifecycle
+from app.domain.opportunity import EconomicsCalculation, OpportunityLifecycle
 
 
 class OpportunityValidationService:
@@ -33,6 +37,30 @@ class OpportunityValidationService:
         self._lifecycle_service = OpportunityLifecycleService(lifecycle_repository)
 
     def add(self, command: AddToValidationQueueCommand) -> ValidationQueueItem:
+        lifecycle, transition, snapshot = self._build_admission(command)
+        self._queue_repository.admit(lifecycle, transition, snapshot)
+        return self._load_admitted(lifecycle.opportunity_id)
+
+    def add_with_economics(
+        self,
+        command: AddToValidationQueueCommand,
+        economics: EconomicsCalculation,
+    ) -> ValidationQueueItem:
+        """Variance-ready admission without changing the existing add/API contract."""
+        lifecycle, transition, snapshot = self._build_admission(command)
+        baseline = EconomicsVarianceService.build_snapshot(
+            CaptureEstimatedEconomicsBaseline(
+                opportunity_id=lifecycle.opportunity_id,
+                economics=economics,
+                captured_at=command.captured_at,
+            )
+        )
+        self._queue_repository.admit_with_economics(
+            lifecycle, transition, snapshot, baseline
+        )
+        return self._load_admitted(lifecycle.opportunity_id)
+
+    def _build_admission(self, command: AddToValidationQueueCommand):
         opportunity_id = command.opportunity_id or uuid4().hex
         discovery_reference = canonicalize_discovery_reference(command.discovery_reference)
         lifecycle = OpportunityLifecycle(
@@ -58,7 +86,9 @@ class OpportunityValidationService:
             admission_safety_status=command.admission_safety_status,
             captured_at=command.captured_at,
         )
-        self._queue_repository.admit(lifecycle, transition, snapshot)
+        return lifecycle, transition, snapshot
+
+    def _load_admitted(self, opportunity_id: str) -> ValidationQueueItem:
         item = self._queue_repository.get_queue_item(opportunity_id)
         if item is None:
             raise RuntimeError("admitted validation queue item could not be loaded")

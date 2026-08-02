@@ -1,5 +1,23 @@
 # HYB Changelog
 
+## PR16-A.1 - Variance Snapshot Contract Hardening
+
+- Preserve original tax-rate evidence separately from calculated tax-cost evidence.
+- Require complete economic evidence metadata when an estimated snapshot is created.
+- Preserve required evidence keys through SQLite baseline round trips.
+
+---
+
+## PR16-A — Estimated vs Actual Variance Foundation
+
+- immutable Estimated Economics admission baseline과 evidence/version 보존 추가
+- Actual Economics와 baseline을 비교하는 side-effect-free Variance Domain 계산 추가
+- signed/absolute/relative difference, ROI percentage-point 및 comparability 상태 구현
+- Lifecycle, admission snapshot, estimated baseline의 SQLite atomic admission 경로 추가
+- Variance 결과는 저장하지 않고 source version으로 조회 시 계산
+
+---
+
 ## PR15-A.2 — Actual Economics Ledger Final Hardening
 
 - 최초 Purchase event에 currency를 기록하고 Aggregate currency와의 binding 검증 추가

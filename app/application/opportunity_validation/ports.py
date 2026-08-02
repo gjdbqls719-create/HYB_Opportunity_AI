@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from app.application.opportunity_validation.models import ValidationAdmissionSnapshot, ValidationQueueItem
-from app.domain.opportunity import OpportunityLifecycle, OpportunityLifecycleStatus, OpportunityLifecycleTransition
+from app.domain.opportunity import (
+    EstimatedEconomicsSnapshot,
+    OpportunityLifecycle,
+    OpportunityLifecycleStatus,
+    OpportunityLifecycleTransition,
+)
 
 
 class DuplicateActiveValidationError(ValueError):
@@ -23,6 +28,14 @@ class ValidationQueueRepository(Protocol):
         lifecycle: OpportunityLifecycle,
         transition: OpportunityLifecycleTransition,
         snapshot: ValidationAdmissionSnapshot,
+    ) -> None: ...
+
+    def admit_with_economics(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        economics: EstimatedEconomicsSnapshot,
     ) -> None: ...
 
     def list_queue(
