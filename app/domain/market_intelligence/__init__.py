@@ -1,5 +1,10 @@
 """Common Market Intelligence evidence and observation identity contracts."""
 
+from app.domain.market_intelligence.artifact import (
+    ArtifactOrigin,
+    ArtifactReference,
+    ArtifactType,
+)
 from app.domain.market_intelligence.evidence import MarketEvidence, MarketEvidenceStatus
 from app.domain.market_intelligence.competition import CompetitionObservation
 from app.domain.market_intelligence.competition_analysis import (
@@ -29,8 +34,13 @@ from app.domain.market_intelligence.identity import (
     MarketObservationIdentity,
     MarketObservationScope,
 )
+from app.domain.market_intelligence.ocr_candidate import OCRCandidate, OCRField
+from app.domain.market_intelligence.verification import HumanVerification
 
 __all__ = [
+    "ArtifactOrigin",
+    "ArtifactReference",
+    "ArtifactType",
     "MarketEvidence",
     "MarketEvidenceStatus",
     "CompetitionObservation",
@@ -47,10 +57,13 @@ __all__ = [
     "ExternalSignalSourceType",
     "MarketObservationIdentity",
     "MarketObservationScope",
+    "OCRCandidate",
+    "OCRField",
     "PricePressure",
     "PopularityLevel",
     "ReviewQuality",
     "RocketCompetitionLevel",
+    "HumanVerification",
     "analyze_competition",
     "analyze_demand",
 ]

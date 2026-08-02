@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR19-A - External Signal Trust Foundation
+
+- Add immutable artifact, unverified OCR candidate, and human verification facts.
+- Enforce an explicit human-verification boundary before external signal creation.
+- Keep OCR engines, persistence, recommendation, and decision behavior out of scope.
+
+---
+
 ## PR18-B.1 - Demand Availability Contract Hardening
 
 - Assess available demand evidence independently instead of requiring all five proxies.
