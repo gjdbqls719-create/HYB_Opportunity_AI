@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR20-A - OCR Adapter Contract Foundation
+
+- Add provider-neutral immutable OCR result and field-result contracts.
+- Add an ExtractText adapter port and deterministic no-I/O dummy adapter.
+- Convert OCR results into unverified OCR candidates without implementing an OCR engine.
+
+---
+
 ## PR19-B - External Signal Ledger Foundation
 
 - Persist OCR candidates and human verifications as append-only SQLite facts.

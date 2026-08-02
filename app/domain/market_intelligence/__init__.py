@@ -35,6 +35,11 @@ from app.domain.market_intelligence.identity import (
     MarketObservationScope,
 )
 from app.domain.market_intelligence.ocr_candidate import OCRCandidate, OCRField
+from app.domain.market_intelligence.ocr_result import (
+    OCRFieldResult,
+    OCRProvider,
+    OCRResult,
+)
 from app.domain.market_intelligence.verification import HumanVerification
 
 __all__ = [
@@ -59,6 +64,9 @@ __all__ = [
     "MarketObservationScope",
     "OCRCandidate",
     "OCRField",
+    "OCRFieldResult",
+    "OCRProvider",
+    "OCRResult",
     "PricePressure",
     "PopularityLevel",
     "ReviewQuality",
