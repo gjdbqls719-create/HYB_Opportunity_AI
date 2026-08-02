@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR19-B - External Signal Ledger Foundation
+
+- Persist OCR candidates and human verifications as append-only SQLite facts.
+- Maintain non-regressing latest projections atomically with history insertion.
+- Reject provenance fingerprints duplicated across candidate or verification history.
+
+---
+
 ## PR19-A - External Signal Trust Foundation
 
 - Add immutable artifact, unverified OCR candidate, and human verification facts.
