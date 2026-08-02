@@ -11,6 +11,15 @@ from app.domain.market_intelligence.competition_analysis import (
     analyze_competition,
 )
 from app.domain.market_intelligence.demand import DemandObservation
+from app.domain.market_intelligence.demand_analysis import (
+    DemandAssessment,
+    DemandAssessmentAvailability,
+    DemandEvidenceUnavailableError,
+    DemandLevel,
+    PopularityLevel,
+    ReviewQuality,
+    analyze_demand,
+)
 from app.domain.market_intelligence.external_signal import (
     ExternalMarketSignal,
     ExternalSignalDirection,
@@ -29,12 +38,19 @@ __all__ = [
     "CompetitionEvidenceUnavailableError",
     "CompetitionLevel",
     "DemandObservation",
+    "DemandAssessment",
+    "DemandAssessmentAvailability",
+    "DemandEvidenceUnavailableError",
+    "DemandLevel",
     "ExternalMarketSignal",
     "ExternalSignalDirection",
     "ExternalSignalSourceType",
     "MarketObservationIdentity",
     "MarketObservationScope",
     "PricePressure",
+    "PopularityLevel",
+    "ReviewQuality",
     "RocketCompetitionLevel",
     "analyze_competition",
+    "analyze_demand",
 ]

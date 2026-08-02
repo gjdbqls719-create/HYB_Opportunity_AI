@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR18-B.1 - Demand Availability Contract Hardening
+
+- Assess available demand evidence independently instead of requiring all five proxies.
+- Add complete/partial availability metadata and average confidence only across usable evidence.
+- Remove the misspelled demand/competition balance field before it becomes a public contract.
+
+---
+
+## PR18-B - Demand Intelligence Foundation
+
+- Add immutable demand-only assessments with explicit search, review, and rating thresholds.
+- Preserve ranking signals as independent demand proxies and exact Decimal confidence evidence.
+- Reuse the PR17 observation repository without adding recommendation or decision behavior.
+
+---
+
 ## PR18-A - Competition Intelligence Foundation
 
 - Add immutable competition-only assessments and explicit MVP threshold policies.
