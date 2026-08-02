@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from typing import Any
+
+from app.domain.market_intelligence import (
+    ExternalSignalDirection,
+    MarketObservationIdentity,
+    OCRCandidate,
+    ReviewSession,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class CreateReviewSession:
+    session_id: str
+    artifact_id: str
+    candidate_ids: tuple[str, ...]
+    operator_id: str
+    created_at: datetime
+    schema_version: str = "review-session-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class StartReview:
+    session: ReviewSession
+    operator_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompleteReview:
+    session: ReviewSession
+    operator_id: str
+    completed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CancelReview:
+    session: ReviewSession
+    operator_id: str
+    cancelled_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ApproveCandidate:
+    session: ReviewSession
+    candidate: OCRCandidate
+    verification_id: str
+    operator_id: str
+    verified_at: datetime
+    identity: MarketObservationIdentity
+    signal_id: str
+    signal_name: str
+    signal_direction: ExternalSignalDirection
+    comment: str | None = None
+    confidence: Decimal = Decimal("1")
+    verification_schema_version: str = "human-verification-v1"
+    signal_schema_version: str = "external-signal-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class CorrectCandidate:
+    session: ReviewSession
+    candidate: OCRCandidate
+    corrected_value: Any
+    verification_id: str
+    operator_id: str
+    verified_at: datetime
+    identity: MarketObservationIdentity
+    signal_id: str
+    signal_name: str
+    signal_direction: ExternalSignalDirection
+    comment: str | None = None
+    confidence: Decimal = Decimal("1")
+    verification_schema_version: str = "human-verification-v1"
+    signal_schema_version: str = "external-signal-v1"

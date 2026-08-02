@@ -41,6 +41,11 @@ from app.domain.market_intelligence.ocr_result import (
     OCRResult,
 )
 from app.domain.market_intelligence.verification import HumanVerification
+from app.domain.market_intelligence.review_session import (
+    InvalidReviewSessionTransitionError,
+    ReviewSession,
+    ReviewSessionStatus,
+)
 
 __all__ = [
     "ArtifactOrigin",
@@ -72,6 +77,9 @@ __all__ = [
     "ReviewQuality",
     "RocketCompetitionLevel",
     "HumanVerification",
+    "InvalidReviewSessionTransitionError",
+    "ReviewSession",
+    "ReviewSessionStatus",
     "analyze_competition",
     "analyze_demand",
 ]

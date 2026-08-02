@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR20-B - Human Review Workflow
+
+- Add an immutable OCR review-session aggregate with explicit terminal transitions.
+- Approve or correct persisted candidates into verification ledger facts and verified signals.
+- Reject missing, mismatched, duplicate, and terminal-session candidate reviews.
+
+---
+
 ## PR20-A - OCR Adapter Contract Foundation
 
 - Add provider-neutral immutable OCR result and field-result contracts.
