@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR18-A - Competition Intelligence Foundation
+
+- Add immutable competition-only assessments and explicit MVP threshold policies.
+- Calculate price pressure from relative price spread and preserve Decimal confidence averages.
+- Reuse the PR17 observation repository without adding scoring or recommendation behavior.
+
+---
+
 ## PR17-3 - Market Observation Repository Foundation
 
 - Add application use cases and a common repository port for immutable market observations.
