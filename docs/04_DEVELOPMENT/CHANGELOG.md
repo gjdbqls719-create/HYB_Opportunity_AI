@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR17-2 - Market Observation Contracts
+
+- Add immutable Competition and Demand observation snapshots with strict metric validation.
+- Add immutable external reference signals with human-verification and artifact provenance rules.
+- Keep scoring, recommendation, persistence, collectors, OCR, and presentation unchanged.
+
+---
+
 ## PR17-1 - Market Evidence Contract
 
 - Add immutable market evidence status and provenance contract.
