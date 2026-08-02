@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR17-3 - Market Observation Repository Foundation
+
+- Add application use cases and a common repository port for immutable market observations.
+- Persist append-only SQLite history and update a separate latest-observation projection atomically.
+- Reject duplicate provenance fingerprints and calculate freshness only at query time.
+
+---
+
 ## PR17-2 - Market Observation Contracts
 
 - Add immutable Competition and Demand observation snapshots with strict metric validation.
