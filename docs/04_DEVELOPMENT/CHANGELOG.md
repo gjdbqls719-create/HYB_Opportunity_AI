@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR17-1 - Market Evidence Contract
+
+- Add immutable market evidence status and provenance contract.
+- Add scope-aware market observation identity and time-window validation.
+- Keep Competition, Demand, External Signal, persistence, and presentation out of scope.
+
+---
+
 ## PR16-A.1 - Variance Snapshot Contract Hardening
 
 - Preserve original tax-rate evidence separately from calculated tax-cost evidence.
