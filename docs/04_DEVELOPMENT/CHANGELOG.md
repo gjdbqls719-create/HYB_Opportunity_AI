@@ -1,5 +1,14 @@
 # HYB Changelog
 
+## PR22-B - FastAPI Dashboard Decision Endpoint
+
+- Add `GET /api/v1/opportunities/{opportunity_id}/decision-dashboard` as a read-only Presentation adapter returning `DashboardResponseDTO.to_dict()`.
+- Preserve exact Decimal strings, stable enum values, timezone-aware ISO 8601 timestamps, and schema, policy, and read-model versions.
+- Treat INVEST, REVIEW, REJECT, and INSUFFICIENT_EVIDENCE as valid HTTP 200 business outcomes.
+- Map missing sources to 404, identity/state conflicts to 409, invalid input to 422, and unavailable composition or infrastructure to 503.
+- Add an injectable Application query/provider boundary that verifies the HYB opportunity identity before DTO assembly.
+- Leave production query composition explicitly unconfigured until persisted Decision inputs/results can be reconstructed without fabricated facts.
+
 ## PR22-A - Dashboard API DTO Foundation
 
 - Add immutable Dashboard summary, action, warning, evidence, metadata, and response DTO contracts.

@@ -15,6 +15,13 @@ from app.application.opportunity_lifecycle import (
     LifecycleNotFoundError,
     LifecycleVersionConflictError,
 )
+from app.application.dashboard_api import (
+    DashboardDecisionConflictError,
+    DashboardDecisionNotFoundError,
+    DashboardDecisionUnavailableError,
+    GetOpportunityDecisionDashboard,
+    UnconfiguredOpportunityDecisionDashboardProvider,
+)
 from app.application.opportunity_validation import (
     AddToValidationQueueCommand,
     DuplicateActiveValidationError,
@@ -79,6 +86,10 @@ def get_validation_queue_repository():
         yield repository
     finally:
         repository.close()
+
+
+def get_opportunity_decision_dashboard_provider():
+    return UnconfiguredOpportunityDecisionDashboardProvider()
 
 
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:
@@ -200,6 +211,24 @@ def search_opportunities(
             for card in dashboard_cards
         ],
     }
+
+
+@app.get("/api/v1/opportunities/{opportunity_id}/decision-dashboard")
+def get_opportunity_decision_dashboard(
+    opportunity_id: str,
+    provider=Depends(get_opportunity_decision_dashboard_provider),
+) -> dict[str, object]:
+    try:
+        response = GetOpportunityDecisionDashboard(provider).execute(opportunity_id)
+    except DashboardDecisionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except DashboardDecisionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except DashboardDecisionUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return response.to_dict()
 
 
 @app.post("/api/v1/validation-queue", status_code=status.HTTP_201_CREATED)

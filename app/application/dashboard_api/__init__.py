@@ -10,6 +10,15 @@ from app.application.dashboard_api.models import (
     DashboardSummaryDTO,
     DashboardWarningDTO,
 )
+from app.application.dashboard_api.query import (
+    DashboardDecisionConflictError,
+    DashboardDecisionNotFoundError,
+    DashboardDecisionUnavailableError,
+    GetOpportunityDecisionDashboard,
+    OpportunityDecisionDashboardProvider,
+    OpportunityDecisionDashboardSource,
+    UnconfiguredOpportunityDecisionDashboardProvider,
+)
 
 __all__ = [
     "DASHBOARD_READ_MODEL_VERSION",
@@ -20,4 +29,11 @@ __all__ = [
     "DashboardResponseDTO",
     "DashboardSummaryDTO",
     "DashboardWarningDTO",
+    "DashboardDecisionConflictError",
+    "DashboardDecisionNotFoundError",
+    "DashboardDecisionUnavailableError",
+    "GetOpportunityDecisionDashboard",
+    "OpportunityDecisionDashboardProvider",
+    "OpportunityDecisionDashboardSource",
+    "UnconfiguredOpportunityDecisionDashboardProvider",
 ]
