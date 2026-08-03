@@ -1,5 +1,15 @@
 # HYB Changelog
 
+## PR22-D - Dashboard UI Foundation
+
+- Add browser routes `GET /dashboard/decision` and `GET /dashboard/opportunities/{opportunity_id}/decision` using the existing FastAPI/Jinja and vanilla JavaScript presentation stack.
+- Provide an explicit operator flow: load the persisted Decision Dashboard, show a truthful not-finalized state, finalize through the existing POST API only after user action, then reload the existing GET Dashboard API.
+- Render DashboardResponseDTO Summary, Action, Warnings, Evidence, and Metadata fields without recalculating or reordering Decision facts.
+- Support default latest, explicit none, and explicit External Signal ID selection while rejecting blank or duplicate explicit IDs before submission; server validation remains authoritative.
+- Present 404/409/422/503 states without treating REJECT or INSUFFICIENT_EVIDENCE as errors.
+- Add semantic headings, labels, keyboard focus, live status regions, responsive cards, visible availability/severity text, Jinja escaping, and textContent-only API rendering.
+- Keep page load GET-only, add no authentication system, perform no direct persistence access, and preserve every existing API and Decision contract.
+
 ## PR22-C.5 - Decision Composition Finalization API
 
 - Add `POST /api/v1/opportunities/{opportunity_id}/decision-compositions` as a thin command adapter over the existing `FinalizeDecisionComposition` use case; successful immutable version creation returns HTTP 201.

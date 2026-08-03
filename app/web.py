@@ -207,6 +207,24 @@ def index(request: Request):
     )
 
 
+@app.get("/dashboard/decision")
+def decision_dashboard_entry(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="decision_dashboard.html",
+        context={"opportunity_id": ""},
+    )
+
+
+@app.get("/dashboard/opportunities/{opportunity_id}/decision")
+def decision_dashboard_page(request: Request, opportunity_id: str):
+    return templates.TemplateResponse(
+        request=request,
+        name="decision_dashboard.html",
+        context={"opportunity_id": opportunity_id},
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}

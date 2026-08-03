@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Dashboard · HYB Opportunity AI</title>
+  <style>
+    :root { color-scheme: light; --border:#d7dce2; --muted:#5d6875; --surface:#f7f8fa; --positive:#176b3a; --warning:#8a5700; --critical:#a12622; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:16px/1.5 system-ui,sans-serif; color:#17202a; background:#fff; }
+    main { width:min(72rem,100%); margin:auto; padding:1.25rem; }
+    h1,h2,h3 { line-height:1.2; }
+    form,.card,.state { border:1px solid var(--border); border-radius:.5rem; padding:1rem; background:#fff; }
+    form { display:grid; gap:.85rem; }
+    label,legend { font-weight:650; }
+    input,textarea,button { font:inherit; }
+    input,textarea { width:100%; padding:.55rem; border:1px solid #8994a0; border-radius:.3rem; }
+    button { width:max-content; padding:.6rem 1rem; border:0; border-radius:.3rem; background:#173f66; color:#fff; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    :focus-visible { outline:3px solid #1685d1; outline-offset:2px; }
+    fieldset { border:0; padding:0; margin:0; display:grid; gap:.35rem; }
+    .choice { display:flex; gap:.5rem; align-items:center; font-weight:400; }
+    .choice input { width:auto; }
+    .toolbar,.grid { display:grid; gap:1rem; }
+    .toolbar { grid-template-columns:minmax(14rem,1fr) auto; align-items:end; }
+    .grid { grid-template-columns:repeat(auto-fit,minmax(16rem,1fr)); }
+    .state { margin:1rem 0; background:var(--surface); }
+    .state[data-kind="error"] { border-left:5px solid var(--critical); }
+    .state[data-kind="warning"] { border-left:5px solid var(--warning); }
+    .card dl { display:grid; grid-template-columns:max-content 1fr; gap:.4rem .8rem; margin:0; }
+    dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; }
+    .outcome-invest { border-top:5px solid var(--positive); }
+    .outcome-review { border-top:5px solid var(--warning); }
+    .outcome-reject { border-top:5px solid var(--critical); }
+    .outcome-insufficient_evidence { border-top:5px solid var(--muted); }
+    .severity-critical { border-left:5px solid var(--critical); }
+    .severity-warning { border-left:5px solid var(--warning); }
+    .severity-info { border-left:5px solid #176b8a; }
+    [hidden] { display:none !important; }
+    @media (max-width:38rem) { .toolbar { grid-template-columns:1fr; } main { padding:.75rem; } .card dl { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body data-initial-opportunity-id="{{ opportunity_id | e }}">
+<main>
+  <header><h1>Decision Dashboard</h1><p>Inspect the persisted production decision and explicitly finalize its composition when required.</p></header>
+
+  <section aria-labelledby="lookup-title">
+    <h2 id="lookup-title">Opportunity</h2>
+    <form id="lookup-form">
+      <div class="toolbar">
+        <div><label for="opportunity-id">Opportunity ID</label><input id="opportunity-id" name="opportunity_id" required autocomplete="off" value="{{ opportunity_id | e }}"></div>
+        <button type="submit">Load dashboard</button>
+      </div>
+    </form>
+  </section>
+
+  <div id="status" class="state" role="status" aria-live="polite">Enter an opportunity ID to load its Decision Dashboard.</div>
+
+  <section id="finalization" aria-labelledby="finalization-title" hidden>
+    <h2 id="finalization-title">Finalize Decision Composition</h2>
+    <form id="finalization-form">
+      <fieldset><legend>External Signal selection</legend>
+        <label class="choice"><input type="radio" name="selection" value="default" checked> Use latest HUMAN_VERIFIED signals</label>
+        <label class="choice"><input type="radio" name="selection" value="none"> Use no External Signals</label>
+        <label class="choice"><input type="radio" name="selection" value="explicit"> Select Signal IDs explicitly</label>
+      </fieldset>
+      <div id="signal-input" hidden><label for="external-signal-ids">External Signal IDs</label><textarea id="external-signal-ids" rows="3" placeholder="One ID per line or comma-separated"></textarea></div>
+      <div><label for="requested-by">Requested by (not persisted)</label><input id="requested-by" autocomplete="off"></div>
+      <button id="finalize-button" type="submit">Finalize composition</button>
+    </form>
+  </section>
+
+  <section id="dashboard" hidden aria-labelledby="dashboard-title">
+    <h2 id="dashboard-title">Decision Result</h2>
+    <div class="grid">
+      <article id="summary-card" class="card"><h3>Summary</h3><dl></dl></article>
+      <article id="action-card" class="card"><h3>Action</h3><dl></dl></article>
+    </div>
+    <h2>Warnings</h2><div id="warnings" class="grid"></div>
+    <h2>Evidence</h2><div id="evidence" class="grid"></div>
+    <h2>Metadata</h2><article id="metadata-card" class="card"><dl></dl></article>
+  </section>
+</main>
+<script>
+(() => {
+  "use strict";
+  const byId = id => document.getElementById(id);
+  const statusBox = byId("status");
+  const dashboard = byId("dashboard");
+  const finalization = byId("finalization");
+  const opportunityInput = byId("opportunity-id");
+
+  function setStatus(message, kind = "info") { statusBox.textContent = message; statusBox.dataset.kind = kind; }
+  function valueText(value) { return value === null || value === undefined ? "Unknown" : String(value); }
+  function addRows(list, rows) {
+    list.replaceChildren();
+    rows.forEach(([label, value]) => { const dt=document.createElement("dt"); dt.textContent=label; const dd=document.createElement("dd"); dd.textContent=valueText(value); list.append(dt,dd); });
+  }
+  function makeCard(title, rows, className = "") {
+    const card=document.createElement("article"); card.className=`card ${className}`.trim(); const heading=document.createElement("h3"); heading.textContent=title; const list=document.createElement("dl"); addRows(list,rows); card.append(heading,list); return card;
+  }
+  function outcomeClass(value) { return ["invest","review","reject","insufficient_evidence"].includes(value) ? `outcome-${value}` : ""; }
+  function severityClass(value) { return ["info","warning","critical"].includes(value) ? `severity-${value}` : ""; }
+  async function api(url, options) {
+    const response=await fetch(url,options); let payload={}; try { payload=await response.json(); } catch (_) { payload={detail:"The server returned an unreadable response."}; }
+    if (!response.ok) { const error=new Error(valueText(payload.detail)); error.status=response.status; throw error; } return payload;
+  }
+  function currentId() { return opportunityInput.value.trim(); }
+  function endpoint(kind) { const id=encodeURIComponent(currentId()); return `/api/v1/opportunities/${id}/${kind}`; }
+  function render(data) {
+    dashboard.hidden=false; finalization.hidden=true;
+    const summary=byId("summary-card"); summary.className=`card ${outcomeClass(data.summary.outcome)}`.trim();
+    addRows(summary.querySelector("dl"),[["Outcome",data.summary.outcome],["Confidence",data.summary.confidence],["Summary code",data.summary.summary_code],["Summary",data.summary.summary_text]]);
+    addRows(byId("action-card").querySelector("dl"),[["Primary action",data.action.primary_action],["Secondary action",data.action.secondary_action]]);
+    const warnings=byId("warnings"); warnings.replaceChildren(); data.warnings.forEach(item => warnings.append(makeCard(item.dimension,[["Severity",item.severity],["Reason code",item.reason_code],["Text",item.text]],severityClass(item.severity))));
+    if (!data.warnings.length) warnings.append(makeCard("No warnings",[["Status","No warning facts were returned."]]));
+    const evidence=byId("evidence"); evidence.replaceChildren(); data.evidence.forEach(item => evidence.append(makeCard(item.dimension,[["Availability",item.availability],["Confidence",item.confidence],["Freshness",item.freshness],["Severity",item.severity]],severityClass(item.severity))));
+    addRows(byId("metadata-card").querySelector("dl"),[["Generated at",data.metadata.generated_at],["Schema version",data.metadata.schema_version],["Policy version",data.metadata.policy_version],["Read model version",data.metadata.read_model_version]]);
+    setStatus("Decision Dashboard loaded.");
+  }
+  async function loadDashboard() {
+    if (!currentId()) { setStatus("Opportunity ID is required.","error"); return; }
+    dashboard.hidden=true; finalization.hidden=true; setStatus("Loading Decision Dashboard…");
+    try { render(await api(endpoint("decision-dashboard"))); }
+    catch (error) { const notFinalized=error.status===503 && error.message.toLowerCase().includes("composition"); finalization.hidden=!notFinalized ? true : false; setStatus(notFinalized ? "Decision composition not finalized. Use the explicit Finalize action below." : `Dashboard request failed (${error.status || "network"}): ${error.message}`, notFinalized ? "warning" : "error"); }
+  }
+  function selectedIds() {
+    const mode=document.querySelector('input[name="selection"]:checked').value;
+    if (mode === "default") return undefined;
+    if (mode === "none") return [];
+    const values=byId("external-signal-ids").value.split(/[\n,]/).map(value=>value.trim()).filter(Boolean);
+    if (!values.length) throw new Error("Enter at least one External Signal ID.");
+    if (new Set(values).size !== values.length) throw new Error("External Signal IDs cannot contain duplicates.");
+    return values;
+  }
+  byId("lookup-form").addEventListener("submit", event => { event.preventDefault(); history.replaceState(null,"",`/dashboard/opportunities/${encodeURIComponent(currentId())}/decision`); loadDashboard(); });
+  document.querySelectorAll('input[name="selection"]').forEach(input => input.addEventListener("change", () => { byId("signal-input").hidden=input.value !== "explicit" || !input.checked; }));
+  byId("finalization-form").addEventListener("submit", async event => {
+    event.preventDefault(); const button=byId("finalize-button");
+    try { const ids=selectedIds(); const payload={}; if (ids !== undefined) payload.external_signal_ids=ids; const requestedBy=byId("requested-by").value.trim(); if (requestedBy) payload.requested_by=requestedBy; button.disabled=true; setStatus("Finalizing Decision Composition…"); await api(endpoint("decision-compositions"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}); await loadDashboard(); }
+    catch (error) { setStatus(`Finalization failed (${error.status || "input"}): ${error.message}`,"error"); }
+    finally { button.disabled=false; }
+  });
+  if (document.body.dataset.initialOpportunityId) loadDashboard();
+})();
+</script>
+</body>
+</html>
