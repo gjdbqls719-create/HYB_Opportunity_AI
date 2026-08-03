@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR22-A - Dashboard API DTO Foundation
+
+- Add immutable Dashboard summary, action, warning, evidence, metadata, and response DTO contracts.
+- Map the existing DashboardReadModel into deterministic serialization-only DTOs without executing Decision or explanation behavior.
+- Add an explicit `to_dict()` JSON boundary with stable enum values, timezone-aware ISO 8601 timestamps, and exact Decimal-as-string serialization.
+- Preserve warning/evidence ordering and source values while identifying the DTO serialization contract with read-model version `1.0`.
+- Keep FastAPI endpoints, routing, UI rendering, repositories, Decision Policy, and Dashboard business contracts unchanged.
+
 ## PR21-E - Dashboard Read Model Foundation
 
 - Add immutable, UI-independent summary, action, warning, and per-dimension evidence cards for Decision Engine V2.
