@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from app.application.review.models import ReviewCommandContext
 from app.domain.market_intelligence import (
     ExternalSignalDirection,
     MarketObservationIdentity,
@@ -22,6 +23,7 @@ class CreateReviewSession:
     created_at: datetime
     schema_version: str = "review-session-v1"
     command_id: str | None = None
+    contexts: tuple[ReviewCommandContext, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)

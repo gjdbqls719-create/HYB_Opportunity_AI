@@ -96,7 +96,7 @@ class SQLiteVerifiedSignalPersistence:
                 partial_completion=False,
             ) from error
 
-    def create_session(self, session, metadata, receipt=None) -> None:
+    def create_session(self, session, metadata, receipt=None, *, contexts=()) -> None:
         try:
             self._connection.execute("BEGIN IMMEDIATE")
             if receipt is not None:
@@ -104,6 +104,8 @@ class SQLiteVerifiedSignalPersistence:
                     receipt, metadata.command_fingerprint, _manage_transaction=False
                 )
             self.sessions.create(session, metadata, _manage_transaction=False)
+            for context in contexts:
+                self.sessions.save_context(context, _manage_transaction=False)
             self._connection.commit()
         except (
             ReviewPersistenceError,

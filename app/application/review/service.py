@@ -76,6 +76,23 @@ class ReviewWorkflowService:
         self._sessions = session_repository or getattr(persistence, "sessions", None)
 
     def create_session(self, command: CreateReviewSession) -> ReviewSession:
+        if command.contexts is not None:
+            context_candidate_ids = tuple(
+                context.candidate_id for context in command.contexts
+            )
+            if (
+                len(set(context_candidate_ids)) != len(context_candidate_ids)
+                or set(context_candidate_ids) != set(command.candidate_ids)
+                or any(
+                    context.session_id != command.session_id
+                    for context in command.contexts
+                )
+            ):
+                from app.application.review.models import ReviewCommandConflictError
+
+                raise ReviewCommandConflictError(
+                    "trusted review contexts must match every session candidate"
+                )
         session = ReviewSession(
             session_id=command.session_id,
             artifact_id=command.artifact_id,
@@ -91,7 +108,7 @@ class ReviewWorkflowService:
             receipt = self._receipt(command, session, "create", command.created_at)
             create = getattr(self._persistence, "create_session", None)
             if create is not None:
-                create(session, metadata, receipt)
+                create(session, metadata, receipt, contexts=command.contexts or ())
             else:
                 self._sessions.create(session, metadata)
         return session
@@ -153,6 +170,12 @@ class ReviewWorkflowService:
     def approve_candidate(
         self, command: ApproveCandidate | ApproveCandidateCommand
     ) -> CandidateReviewResult:
+        if (
+            isinstance(command, ApproveCandidateCommand)
+            and self._sessions is not None
+            and self._sessions.get(command.session_id) is None
+        ):
+            raise ReviewSessionNotFoundError(command.session_id)
         command = self._with_context(command)
         candidate = self._command_candidate(command)
         return self._review_candidate(command, candidate, candidate.normalized_value)
@@ -160,6 +183,12 @@ class ReviewWorkflowService:
     def correct_candidate(
         self, command: CorrectCandidate | CorrectCandidateCommand
     ) -> CandidateReviewResult:
+        if (
+            isinstance(command, CorrectCandidateCommand)
+            and self._sessions is not None
+            and self._sessions.get(command.session_id) is None
+        ):
+            raise ReviewSessionNotFoundError(command.session_id)
         command = self._with_context(command)
         return self._review_candidate(
             command, self._command_candidate(command), command.corrected_value
@@ -375,7 +404,9 @@ class ReviewWorkflowService:
         )
         if context is None:
             if command.identity is None or command.signal_name is None or command.signal_direction is None:
-                raise ReviewSessionNotFoundError(
+                from app.application.review.models import ReviewCommandConflictError
+
+                raise ReviewCommandConflictError(
                     f"review command context not found: {command.session_id}/{command.candidate_id}"
                 )
             return command

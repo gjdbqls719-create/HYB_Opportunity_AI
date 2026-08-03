@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from datetime import datetime, timezone
+from decimal import Decimal
 import sqlite3
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.templating import Jinja2Templates
@@ -49,20 +51,47 @@ from app.application.opportunity_validation import (
     ValidationQueueQuery,
 )
 from app.application.review import (
+    ApproveCandidateCommand,
+    CancelReviewCommand,
+    CompleteReviewCommand,
+    CorrectCandidateCommand,
+    CreateReviewSession,
+    DuplicateCandidateReviewError,
+    DuplicateReviewSessionError,
     GetReviewSession,
     ListReviewSessions,
+    PendingCandidatesError,
+    ReviewArtifactMismatchError,
+    ReviewCandidateMembershipError,
+    ReviewCandidateNotFoundError,
+    ReviewCommandConflictError,
+    ReviewCommandContext,
+    ReviewOperatorMismatchError,
     ReviewPersistenceError,
     ReviewSessionNotFoundError,
     ReviewSessionQueryService,
+    ReviewSessionVersionConflictError,
+    ReviewWorkflowService,
+    SkipCandidateCommand,
+    StartReviewCommand,
 )
 from app.application.review_api import (
     ReviewSessionListResponseDTO,
     ReviewSessionResponseDTO,
 )
+from app.domain.market_intelligence import (
+    ExternalSignalDirection,
+    InvalidReviewSessionTransitionError,
+    MarketObservationIdentity,
+    MarketObservationScope,
+)
 from app.domain.opportunity import InvalidLifecycleTransitionError, OpportunityLifecycleStatus
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
-from app.infrastructure.review import SQLiteReviewSessionRepository
+from app.infrastructure.review import (
+    SQLiteReviewSessionRepository,
+    SQLiteVerifiedSignalPersistence,
+)
 from storage.price_history import DEFAULT_DATABASE_PATH
 
 
@@ -112,6 +141,102 @@ class DecisionCompositionFinalizationRequest(BaseModel):
     external_signal_ids: tuple[str, ...] | None = None
     generated_at: datetime | None = None
     requested_by: str | None = Field(default=None, min_length=1)
+
+
+class StartReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    started_at: datetime
+
+
+class CancelReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    cancelled_at: datetime
+
+
+class MarketObservationIdentityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: MarketObservationScope
+    market: str = Field(min_length=1)
+    marketplace: str = Field(min_length=1)
+    canonical_product_id: str | None = None
+    marketplace_item_id: str | None = None
+    normalized_query: str | None = None
+    category: str | None = None
+    variant_identity: str | None = None
+    condition: str | None = None
+    window_started_at: datetime
+    window_ended_at: datetime
+
+
+class ReviewCommandContextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_id: str = Field(min_length=1)
+    market_observation_identity: MarketObservationIdentityRequest
+    signal_name: str = Field(min_length=1)
+    signal_direction: ExternalSignalDirection
+    artifact_identity: str = Field(min_length=1)
+    created_at: datetime
+
+
+class CreateTrustedReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str = Field(min_length=1)
+    artifact_id: str = Field(min_length=1)
+    candidate_ids: tuple[str, ...] = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    created_at: datetime
+    command_id: str = Field(min_length=1)
+    contexts: tuple[ReviewCommandContextRequest, ...] = Field(min_length=1)
+
+
+class ApproveCandidateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_id: str = Field(min_length=1)
+    expected_revision: int = Field(ge=1)
+    command_id: str = Field(min_length=1)
+    verification_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    verified_at: datetime
+    signal_id: str = Field(min_length=1)
+    comment: str | None = None
+    confidence: Decimal = Field(default=Decimal("1"), ge=0, le=1)
+
+
+class CorrectCandidateRequest(ApproveCandidateRequest):
+    corrected_value: Any
+
+
+class SkipCandidateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    candidate_id: str = Field(min_length=1)
+    expected_revision: int = Field(ge=1)
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    skipped_at: datetime
+
+
+class CompleteReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    completed_at: datetime
 
 
 app = FastAPI(title=PROJECT_NAME)
@@ -164,6 +289,17 @@ def get_review_session_query_service():
         yield ReviewSessionQueryService(repository)
     finally:
         repository.close()
+
+
+def get_review_workflow_service():
+    persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
+    try:
+        yield ReviewWorkflowService(
+            persistence.ledger,
+            persistence=persistence,
+        )
+    finally:
+        persistence.close()
 
 
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:
@@ -349,6 +485,207 @@ def get_review_session(
         raise HTTPException(status_code=503, detail=str(error)) from error
 
 
+def _execute_review_transition(operation, command) -> dict[str, object]:
+    try:
+        result = operation(command)
+        session = getattr(result, "session", result)
+        return ReviewSessionResponseDTO.from_session(session).to_dict()
+    except ReviewSessionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DuplicateReviewSessionError,
+        DuplicateCandidateReviewError,
+        PendingCandidatesError,
+        ReviewArtifactMismatchError,
+        ReviewCandidateMembershipError,
+        ReviewCandidateNotFoundError,
+        ReviewSessionVersionConflictError,
+        ReviewCommandConflictError,
+        ReviewOperatorMismatchError,
+        InvalidReviewSessionTransitionError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ReviewPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="review persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+def _review_context(
+    session_id: str,
+    request: ReviewCommandContextRequest,
+) -> ReviewCommandContext:
+    identity = request.market_observation_identity
+    return ReviewCommandContext(
+        session_id=session_id,
+        candidate_id=request.candidate_id,
+        market_observation_identity=MarketObservationIdentity(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        signal_name=request.signal_name,
+        signal_direction=request.signal_direction,
+        artifact_identity=request.artifact_identity,
+        created_at=request.created_at,
+    )
+
+
+@app.post("/api/v1/reviews", status_code=status.HTTP_201_CREATED)
+def create_trusted_review_session(
+    request: CreateTrustedReviewRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    command = CreateReviewSession(
+        session_id=request.session_id,
+        artifact_id=request.artifact_id,
+        candidate_ids=request.candidate_ids,
+        operator_id=request.operator_id,
+        created_at=request.created_at,
+        command_id=request.command_id,
+        contexts=tuple(
+            _review_context(request.session_id, context)
+            for context in request.contexts
+        ),
+    )
+    return _execute_review_transition(workflow.create_session, command)
+
+
+@app.post("/api/v1/reviews/{session_id}/start")
+def start_review_session(
+    session_id: str,
+    request: StartReviewRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.start_review,
+        StartReviewCommand(
+            session_id=session_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            operator_id=request.operator_id,
+            started_at=request.started_at,
+        ),
+    )
+
+
+@app.post("/api/v1/reviews/{session_id}/cancel")
+def cancel_review_session(
+    session_id: str,
+    request: CancelReviewRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.cancel_review,
+        CancelReviewCommand(
+            session_id=session_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            operator_id=request.operator_id,
+            reason=request.reason,
+            cancelled_at=request.cancelled_at,
+        ),
+    )
+
+
+@app.post("/api/v1/reviews/{session_id}/approve")
+def approve_review_candidate(
+    session_id: str,
+    request: ApproveCandidateRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.approve_candidate,
+        ApproveCandidateCommand(
+            session_id=session_id,
+            candidate_id=request.candidate_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            verification_id=request.verification_id,
+            operator_id=request.operator_id,
+            verified_at=request.verified_at,
+            signal_id=request.signal_id,
+            comment=request.comment,
+            confidence=request.confidence,
+        ),
+    )
+
+
+@app.post("/api/v1/reviews/{session_id}/correct")
+def correct_review_candidate(
+    session_id: str,
+    request: CorrectCandidateRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.correct_candidate,
+        CorrectCandidateCommand(
+            session_id=session_id,
+            candidate_id=request.candidate_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            verification_id=request.verification_id,
+            operator_id=request.operator_id,
+            verified_at=request.verified_at,
+            signal_id=request.signal_id,
+            comment=request.comment,
+            confidence=request.confidence,
+            corrected_value=request.corrected_value,
+        ),
+    )
+
+
+@app.post("/api/v1/reviews/{session_id}/skip")
+def skip_review_candidate(
+    session_id: str,
+    request: SkipCandidateRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.skip_candidate,
+        SkipCandidateCommand(
+            session_id=session_id,
+            candidate_id=request.candidate_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            operator_id=request.operator_id,
+            reason=request.reason,
+            skipped_at=request.skipped_at,
+        ),
+    )
+
+
+@app.post("/api/v1/reviews/{session_id}/complete")
+def complete_review_session(
+    session_id: str,
+    request: CompleteReviewRequest,
+    workflow: ReviewWorkflowService = Depends(get_review_workflow_service),
+) -> dict[str, object]:
+    return _execute_review_transition(
+        workflow.complete_review,
+        CompleteReviewCommand(
+            session_id=session_id,
+            expected_revision=request.expected_revision,
+            command_id=request.command_id,
+            operator_id=request.operator_id,
+            completed_at=request.completed_at,
+        ),
+    )
+
+
 @app.post(
     "/api/v1/opportunities/{opportunity_id}/decision-compositions",
     status_code=status.HTTP_201_CREATED,
@@ -453,3 +790,7 @@ def reject_validation_opportunity(opportunity_id: str, request: ValidationQueueA
 def return_validation_opportunity_to_review(opportunity_id: str, request: ValidationQueueActionRequest, repository: SQLiteValidationQueueRepository = Depends(get_validation_queue_repository)):
     service = _validation_service(repository)
     return _execute_validation_action(service.return_to_review, _action_command(opportunity_id, request))
+    PendingCandidatesError,
+    ReviewArtifactMismatchError,
+    ReviewCandidateMembershipError,
+    ReviewCandidateNotFoundError,

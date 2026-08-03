@@ -321,7 +321,13 @@ class SQLiteReviewSessionRepository(ReviewSessionRepository):
             existing = self.get_context(context.session_id, context.candidate_id)
             if existing == context:
                 return existing
-            raise ReviewCommandConflictError("review command context already exists") from error
+            if existing is not None:
+                raise ReviewCommandConflictError(
+                    "review command context already exists"
+                ) from error
+            raise ReviewSessionHistoryError(
+                "review command context insert failed"
+            ) from error
         except Exception as error:
             if _manage_transaction:
                 self._connection.rollback()

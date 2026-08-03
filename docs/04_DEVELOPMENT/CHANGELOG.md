@@ -1,5 +1,30 @@
 # HYB Changelog
 
+## PR23-A-3 - Founder Review Write API
+
+- Add Founder Review Approve, Correct, Skip, and Complete HTTP 200 command endpoints over `ReviewWorkflowService`.
+- Resolve Approve/Correct market identity and signal semantics exclusively from persisted `ReviewCommandContext`, then atomically persist Verification, External Signal, Receipt, and Session transition through the existing workflow.
+- Keep Skip free of Verification and External Signal writes and reuse existing Skip metadata, Receipt, and Session persistence.
+- Preserve the existing pending-Candidate completion rule and restart-safe exact command replay.
+- Map missing Sessions to 404, workflow conflicts to 409, malformed input to 422, and persistence failures to 503 without exposing raw SQLite errors.
+
+## PR23-A-2B - Trusted Review Create API
+
+- Add `POST /api/v1/reviews` for trusted ReviewSession admission with complete immutable Candidate Command Contexts.
+- Reuse `CreateReviewSession`, `ReviewCommandContext`, `ReviewCommandReceipt`, `ReviewWorkflowService`, and the existing Session response DTO.
+- Commit the Create Receipt, Session history/current, and every Context history/current row in one restart-safe SQLite transaction.
+- Require the Context Candidate set to match the Session Candidate set and retain existing repository checks for Candidate existence, membership, and artifact identity.
+- Replay identical commands without additional writes; map conflicts to 409, malformed input to 422, and persistence failures to 503.
+
+## PR23-A-2A - Founder Review Start / Cancel API
+
+- Add `POST /api/v1/reviews/{session_id}/start` and `POST /api/v1/reviews/{session_id}/cancel` as thin FastAPI adapters over the existing authoritative `ReviewWorkflowService` command boundary.
+- Require expected revision, command ID, operator ID, and explicit timezone-aware transition timestamps; Cancel also preserves a non-empty immutable audit reason.
+- Reuse the existing `ReviewSessionResponseDTO` for successful commands and restart-safe identical Receipt replay without exposing the ReviewSession aggregate.
+- Map missing Sessions to 404, revision/command/operator/transition conflicts to 409, malformed input to 422, and persistence/projection/commit/SQLite failures to 503.
+- Restrict Start writes to Session history/current plus Receipt and Cancel writes to those facts plus Cancel metadata; Verification, External Signal, Lifecycle, Decision, and Dashboard facts remain unchanged.
+- Keep Review Session creation out of scope until Session creation and every authoritative Candidate Command Context can be persisted atomically.
+
 ## PR23-A-1 - Founder Review Read API
 
 - Add read-only `GET /api/v1/reviews` and `GET /api/v1/reviews/{session_id}` endpoints over the existing `ReviewSessionQueryService` boundary.
