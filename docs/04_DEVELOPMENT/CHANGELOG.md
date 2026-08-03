@@ -1,5 +1,14 @@
 # HYB Changelog
 
+## PR22-C.5 - Decision Composition Finalization API
+
+- Add `POST /api/v1/opportunities/{opportunity_id}/decision-compositions` as a thin command adapter over the existing `FinalizeDecisionComposition` use case; successful immutable version creation returns HTTP 201.
+- Accept only optional `external_signal_ids`, timezone-aware `generated_at`, and non-persisted audit hint `requested_by`; unknown client-supplied assessment, metadata, confidence, freshness, availability, and outcome fields are rejected.
+- Preserve External Signal selection semantics: omitted/null uses latest HUMAN_VERIFIED series, an explicit empty list selects none, and a non-empty list selects exactly those IDs.
+- Return an immutable finalization DTO with stable ISO datetime and tuple-to-list serialization; no Dashboard result is returned from POST.
+- Map opportunity/selected-signal absence to 404, duplicate/version/identity/version-support conflicts to 409, request errors to 422, and persistence/corruption/missing authoritative source failures to 503.
+- Repeated identical POST returns 409 without advancing history/current; changed provenance creates the next version. POST writes only composition history/current and Dashboard GET remains read-only.
+
 ## PR22-C.3.7 - Production Composition Contract Hardening
 
 - Replace synthetic Economics and Safety confidence with explicit unknown confidence and derive freshness from authoritative timestamps using the versioned 30-day `decision-composition-metadata-v1` window.

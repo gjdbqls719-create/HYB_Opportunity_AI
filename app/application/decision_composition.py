@@ -7,7 +7,11 @@ from typing import Protocol
 from uuid import uuid4
 
 from app.application.assessment_snapshot import AssessmentSnapshotRepository
-from app.application.opportunity_market_identity import GetOpportunityMarketIdentity
+from app.application.opportunity_market_identity import (
+    GetOpportunityMarketIdentity,
+    OpportunityMarketIdentityBindingNotFoundError,
+    OpportunityMarketIdentityConflictError,
+)
 from app.domain.decision_engine import (
     DecisionDimension,
     DecisionEvidenceAvailability,
@@ -41,6 +45,8 @@ class MalformedDecisionCompositionError(DecisionCompositionError): pass
 class UnsupportedDecisionCompositionVersionError(DecisionCompositionError): pass
 class MissingDecisionCompositionSourceError(DecisionCompositionProvenanceError): pass
 class DecisionCompositionIdentityConflictError(DecisionCompositionProvenanceError): pass
+class DecisionCompositionOpportunityNotFoundError(DecisionCompositionNotFoundError): pass
+class SelectedExternalSignalNotFoundError(DecisionCompositionNotFoundError): pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,9 +98,14 @@ class FinalizeDecisionComposition:
     def execute(self, opportunity_id: str, *, generated_at: datetime, schema_version: str, policy_version: str, external_signal_ids: tuple[str, ...] | None = None):
         self._validate_requested_versions(schema_version, policy_version)
         item = self._sources.get_queue_item(opportunity_id)
-        if item is None: raise DecisionCompositionProvenanceError("opportunity subject not found")
+        if item is None: raise DecisionCompositionOpportunityNotFoundError("opportunity subject not found")
         opportunity = OpportunityIdentity(item.opportunity_id, item.discovery_reference)
-        market_identity = GetOpportunityMarketIdentity(self._sources).execute(opportunity_id)
+        try:
+            market_identity = GetOpportunityMarketIdentity(self._sources).execute(opportunity_id)
+        except OpportunityMarketIdentityBindingNotFoundError as error:
+            raise MissingDecisionCompositionSourceError("market identity binding not found") from error
+        except OpportunityMarketIdentityConflictError as error:
+            raise DecisionCompositionIdentityConflictError(str(error)) from error
         try:
             economics = self._sources.get_verified_economics_snapshot(opportunity_id)
             safety = self._sources.get_production_safety_snapshot(opportunity_id)
@@ -119,7 +130,7 @@ class FinalizeDecisionComposition:
                 market_identity, external_signal_ids
             )
             if tuple(signal.signal_id for signal in signals) != external_signal_ids:
-                raise MissingDecisionCompositionSourceError("selected external signal not found")
+                raise SelectedExternalSignalNotFoundError("selected external signal not found")
         for signal in signals:
             if signal.schema_version != EXTERNAL_SIGNAL_SCHEMA_VERSION:
                 raise UnsupportedDecisionCompositionVersionError("unsupported external signal schema version")

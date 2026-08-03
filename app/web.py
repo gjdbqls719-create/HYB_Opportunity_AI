@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from datetime import datetime
+from datetime import datetime, timezone
+import sqlite3
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
@@ -21,6 +22,24 @@ from app.application.dashboard_api import (
     DashboardDecisionUnavailableError,
     GetOpportunityDecisionDashboard,
     ProductionOpportunityDecisionDashboardProvider,
+)
+from app.application.decision_composition import (
+    DecisionCompositionCommitError,
+    DecisionCompositionIdentityConflictError,
+    DecisionCompositionNotFoundError,
+    DecisionCompositionPersistenceError,
+    DecisionCompositionProjectionError,
+    DecisionCompositionProvenanceError,
+    DecisionCompositionVersionConflictError,
+    DuplicateDecisionCompositionError,
+    MalformedDecisionCompositionError,
+    MissingDecisionCompositionSourceError,
+    UnsupportedDecisionCompositionVersionError,
+    FinalizeDecisionComposition,
+)
+from app.application.decision_composition_api import (
+    FinalizeOpportunityDecisionComposition,
+    FinalizeOpportunityDecisionCompositionCommand,
 )
 from app.application.opportunity_validation import (
     AddToValidationQueueCommand,
@@ -75,6 +94,14 @@ class ValidationQueueActionRequest(BaseModel):
     note: str | None = None
 
 
+class DecisionCompositionFinalizationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    external_signal_ids: tuple[str, ...] | None = None
+    generated_at: datetime | None = None
+    requested_by: str | None = Field(default=None, min_length=1)
+
+
 app = FastAPI(title=PROJECT_NAME)
 templates = Jinja2Templates(
     directory=str(TEMPLATE_DIRECTORY)
@@ -96,6 +123,23 @@ def get_opportunity_decision_dashboard_provider():
         yield ProductionOpportunityDecisionDashboardProvider(
             repository,
             assessment_repository=market_repository,
+        )
+    finally:
+        market_repository.close()
+        repository.close()
+
+
+def get_decision_composition_finalizer():
+    repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    market_repository = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield FinalizeOpportunityDecisionComposition(
+            FinalizeDecisionComposition(
+                source_repository=repository,
+                assessment_repository=market_repository,
+                composition_repository=repository,
+            ),
+            clock=lambda: datetime.now(timezone.utc),
         )
     finally:
         market_repository.close()
@@ -238,6 +282,51 @@ def get_opportunity_decision_dashboard(
         raise HTTPException(status_code=422, detail=str(error)) from error
     except DashboardDecisionUnavailableError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    return response.to_dict()
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/decision-compositions",
+    status_code=status.HTTP_201_CREATED,
+)
+def finalize_opportunity_decision_composition(
+    opportunity_id: str,
+    request: DecisionCompositionFinalizationRequest,
+    use_case: FinalizeOpportunityDecisionComposition = Depends(
+        get_decision_composition_finalizer
+    ),
+) -> dict[str, object]:
+    try:
+        response = use_case.execute(
+            FinalizeOpportunityDecisionCompositionCommand(
+                opportunity_id=opportunity_id,
+                external_signal_ids=request.external_signal_ids,
+                generated_at=request.generated_at,
+                requested_by=request.requested_by,
+            )
+        )
+    except DecisionCompositionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DuplicateDecisionCompositionError,
+        DecisionCompositionVersionConflictError,
+        DecisionCompositionIdentityConflictError,
+        UnsupportedDecisionCompositionVersionError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        MissingDecisionCompositionSourceError,
+        MalformedDecisionCompositionError,
+        DecisionCompositionPersistenceError,
+        DecisionCompositionProjectionError,
+        DecisionCompositionCommitError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except DecisionCompositionProvenanceError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     return response.to_dict()
 
 
