@@ -71,6 +71,8 @@ class ExternalMarketSignal:
     verified_at: datetime | None = None
     operator_id: str | None = None
     artifact_reference: str | None = None
+    candidate_id: str | None = None
+    verification_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.identity, MarketObservationIdentity):
@@ -91,6 +93,8 @@ class ExternalMarketSignal:
         verified_at = _aware_optional(self.verified_at, "verified_at")
         operator_id = _optional_text(self.operator_id, "operator_id")
         artifact_reference = _optional_text(self.artifact_reference, "artifact_reference")
+        candidate_id = _optional_text(self.candidate_id, "candidate_id")
+        verification_id = _optional_text(self.verification_id, "verification_id")
 
         if self.evidence.market != self.identity.market:
             raise ValueError("evidence market must match observation identity")
@@ -117,3 +121,5 @@ class ExternalMarketSignal:
         object.__setattr__(self, "verified_at", verified_at)
         object.__setattr__(self, "operator_id", operator_id)
         object.__setattr__(self, "artifact_reference", artifact_reference)
+        object.__setattr__(self, "candidate_id", candidate_id)
+        object.__setattr__(self, "verification_id", verification_id)

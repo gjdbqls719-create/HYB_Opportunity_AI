@@ -77,9 +77,22 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
         with self._connection:
             self._connection.execute(_HISTORY_TABLE)
             self._connection.execute(_CURRENT_TABLE)
+            self._migrate_external_current_series()
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_market_observation_history_lookup "
                 "ON market_observation_history(observation_type, identity_key, observed_at DESC, sequence_id DESC)"
+            )
+            self._connection.execute(
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_external_signal_candidate
+                ON market_observation_history(json_extract(payload_json, '$.candidate_id'))
+                WHERE observation_type = 'external_signal'
+                  AND json_extract(payload_json, '$.candidate_id') IS NOT NULL"""
+            )
+            self._connection.execute(
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_external_signal_verification
+                ON market_observation_history(json_extract(payload_json, '$.verification_id'))
+                WHERE observation_type = 'external_signal'
+                  AND json_extract(payload_json, '$.verification_id') IS NOT NULL"""
             )
             self._connection.execute(
                 """CREATE TRIGGER IF NOT EXISTS trg_market_observation_history_no_update
@@ -92,9 +105,15 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 BEGIN SELECT RAISE(ABORT, 'market observation history is append-only'); END"""
             )
 
-    def save(self, observation: MarketObservation) -> None:
+    def save(
+        self,
+        observation: MarketObservation,
+        *,
+        _manage_transaction: bool = True,
+    ) -> None:
         observation_type = MarketObservationType.from_observation(observation)
         identity_key = self._identity_key(observation.identity)
+        current_identity_key = self._current_identity_key(observation, observation_type)
         fingerprint = self._fingerprint(observation, observation_type)
         observed_at = self._observation_time(observation)
         payload = self._payload_json(observation, observation_type)
@@ -102,7 +121,8 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
         now = datetime.now(timezone.utc).isoformat()
 
         try:
-            self._connection.execute("BEGIN IMMEDIATE")
+            if _manage_transaction:
+                self._connection.execute("BEGIN IMMEDIATE")
             self._connection.execute(
                 """INSERT INTO market_observation_history (
                 observation_id, observation_type, identity_key, fingerprint,
@@ -132,7 +152,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 WHERE excluded.observed_at >= market_observation_current.observed_at""",
                 (
                     observation_type.value,
-                    identity_key,
+                    current_identity_key,
                     observation_id,
                     fingerprint,
                     self._iso(observed_at),
@@ -140,26 +160,53 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                     now,
                 ),
             )
-            self._connection.commit()
+            if _manage_transaction:
+                self._connection.commit()
         except sqlite3.IntegrityError as error:
-            self._connection.rollback()
-            if self._fingerprint_exists(fingerprint) or self._observation_id_exists(observation_id):
+            if _manage_transaction:
+                self._connection.rollback()
+            if (
+                self._fingerprint_exists(fingerprint)
+                or self._observation_id_exists(observation_id)
+                or self._external_provenance_exists(observation)
+            ):
                 raise DuplicateMarketObservationError(fingerprint) from error
             raise
         except Exception:
-            self._connection.rollback()
+            if _manage_transaction:
+                self._connection.rollback()
             raise
 
     def get_latest(
         self,
         observation_type: MarketObservationType,
         identity: MarketObservationIdentity,
+        *,
+        signal_name: str | None = None,
     ) -> MarketObservation | None:
         resolved_type = MarketObservationType(observation_type)
+        if signal_name is not None and resolved_type is not MarketObservationType.EXTERNAL_SIGNAL:
+            raise ValueError("signal_name is only valid for external signals")
+        if resolved_type is MarketObservationType.EXTERNAL_SIGNAL and signal_name is None:
+            rows = self._connection.execute(
+                "SELECT payload_json FROM market_observation_current "
+                "WHERE observation_type = ? ORDER BY observed_at DESC, rowid DESC",
+                (resolved_type.value,),
+            ).fetchall()
+            for row in rows:
+                observation = self._from_payload(row["payload_json"])
+                if self._identity_key(observation.identity) == self._identity_key(identity):
+                    return observation
+            return None
+        identity_key = (
+            self._external_series_key(identity, signal_name)
+            if signal_name is not None
+            else self._identity_key(identity)
+        )
         row = self._connection.execute(
             "SELECT payload_json FROM market_observation_current "
             "WHERE observation_type = ? AND identity_key = ?",
-            (resolved_type.value, self._identity_key(identity)),
+            (resolved_type.value, identity_key),
         ).fetchone()
         return self._from_payload(row["payload_json"]) if row is not None else None
 
@@ -203,6 +250,39 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             (observation_id,),
         ).fetchone() is not None
 
+    def _external_provenance_exists(self, observation: MarketObservation) -> bool:
+        if not isinstance(observation, ExternalMarketSignal):
+            return False
+        for field_name, value in (
+            ("candidate_id", observation.candidate_id),
+            ("verification_id", observation.verification_id),
+        ):
+            if value is not None and self._connection.execute(
+                "SELECT 1 FROM market_observation_history "
+                "WHERE observation_type = 'external_signal' "
+                f"AND json_extract(payload_json, '$.{field_name}') = ?",
+                (value,),
+            ).fetchone() is not None:
+                return True
+        return False
+
+    def _migrate_external_current_series(self) -> None:
+        rows = self._connection.execute(
+            "SELECT rowid, identity_key, payload_json "
+            "FROM market_observation_current WHERE observation_type = 'external_signal'"
+        ).fetchall()
+        for row in rows:
+            observation = self._from_payload(row["payload_json"])
+            assert isinstance(observation, ExternalMarketSignal)
+            series_key = self._external_series_key(
+                observation.identity, observation.signal_name
+            )
+            if series_key != row["identity_key"]:
+                self._connection.execute(
+                    "UPDATE market_observation_current SET identity_key = ? WHERE rowid = ?",
+                    (series_key, row["rowid"]),
+                )
+
     @classmethod
     def _fingerprint(
         cls,
@@ -210,7 +290,16 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
         observation_type: MarketObservationType,
     ) -> str:
         if isinstance(observation, ExternalMarketSignal):
-            provenance = [(observation.evidence.source, observation.evidence.reference)]
+            provenance = {
+                "candidate_id": observation.candidate_id,
+                "verification_id": observation.verification_id,
+                "signal_name": observation.signal_name,
+                "artifact_reference": observation.artifact_reference,
+                "evidence": (
+                    observation.evidence.source,
+                    observation.evidence.reference,
+                ),
+            }
         else:
             provenance = [
                 (name, item.source, item.reference)
@@ -228,6 +317,29 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
     def _identity_key(cls, identity: MarketObservationIdentity) -> str:
         value = cls._canonical_json(cls._identity_data(identity, include_window=False))
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def _external_series_key(
+        cls,
+        identity: MarketObservationIdentity,
+        signal_name: str,
+    ) -> str:
+        value = {
+            "identity": cls._identity_data(identity, include_window=False),
+            "signal_name": signal_name,
+        }
+        return hashlib.sha256(cls._canonical_json(value).encode("utf-8")).hexdigest()
+
+    @classmethod
+    def _current_identity_key(
+        cls,
+        observation: MarketObservation,
+        observation_type: MarketObservationType,
+    ) -> str:
+        if observation_type is MarketObservationType.EXTERNAL_SIGNAL:
+            assert isinstance(observation, ExternalMarketSignal)
+            return cls._external_series_key(observation.identity, observation.signal_name)
+        return cls._identity_key(observation.identity)
 
     @staticmethod
     def _observation_id(observation: MarketObservation) -> str:
@@ -259,6 +371,8 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 "verified_at": cls._iso(observation.verified_at),
                 "operator_id": observation.operator_id,
                 "artifact_reference": observation.artifact_reference,
+                "candidate_id": observation.candidate_id,
+                "verification_id": observation.verification_id,
             })
         else:
             common.update({
@@ -288,6 +402,8 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 verified_at=cls._datetime(data["verified_at"]),
                 operator_id=data["operator_id"],
                 artifact_reference=data["artifact_reference"],
+                candidate_id=data.get("candidate_id"),
+                verification_id=data.get("verification_id"),
                 schema_version=data["schema_version"],
             )
         observation_class = (

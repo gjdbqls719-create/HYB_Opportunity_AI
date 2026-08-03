@@ -177,14 +177,20 @@ class SQLiteExternalSignalLedgerRepository(ExternalSignalLedgerRepository):
             self._connection.rollback()
             raise
 
-    def save_verification(self, verification: HumanVerification) -> None:
+    def save_verification(
+        self,
+        verification: HumanVerification,
+        *,
+        _manage_transaction: bool = True,
+    ) -> None:
         if not isinstance(verification, HumanVerification):
             raise TypeError("verification must be HumanVerification")
         fingerprint = self._verification_fingerprint(verification)
         payload = self._verification_payload(verification)
         now = datetime.now(timezone.utc).isoformat()
         try:
-            self._connection.execute("BEGIN IMMEDIATE")
+            if _manage_transaction:
+                self._connection.execute("BEGIN IMMEDIATE")
             self._connection.execute(
                 """INSERT INTO human_verification_history (
                 verification_id, candidate_id, fingerprint, verified_at,
@@ -220,14 +226,17 @@ class SQLiteExternalSignalLedgerRepository(ExternalSignalLedgerRepository):
                     now,
                 ),
             )
-            self._connection.commit()
+            if _manage_transaction:
+                self._connection.commit()
         except sqlite3.IntegrityError as error:
-            self._connection.rollback()
+            if _manage_transaction:
+                self._connection.rollback()
             if self._verification_duplicate(verification.verification_id, fingerprint):
                 raise DuplicateExternalSignalLedgerError(fingerprint) from error
             raise
         except Exception:
-            self._connection.rollback()
+            if _manage_transaction:
+                self._connection.rollback()
             raise
 
     def get_latest_candidate(

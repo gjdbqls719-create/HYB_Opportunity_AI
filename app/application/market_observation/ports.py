@@ -21,6 +21,8 @@ class MarketObservationRepository(Protocol):
         self,
         observation_type: MarketObservationType,
         identity: MarketObservationIdentity,
+        *,
+        signal_name: str | None = None,
     ) -> MarketObservation | None: ...
 
     def get_history(

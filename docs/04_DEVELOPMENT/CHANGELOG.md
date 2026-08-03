@@ -1,5 +1,23 @@
 # HYB Changelog
 
+## PR20-C.1 - Multi-Candidate Provenance Hardening
+
+- Distinguish verified external signals by candidate, verification, signal name, artifact, and evidence provenance.
+- Reject reused candidate IDs, verification IDs, observation IDs, and identical signal provenance.
+- Maintain independent external-signal current projections per logical identity and signal name.
+- Migrate legacy external current projections to deterministic per-signal series keys.
+- Require SkipCandidate to validate the full persisted candidate and its artifact against the review session.
+- Preserve PR20-C verification-and-signal SQLite atomicity and leave Competition/Demand projections unchanged.
+
+## PR20-C - Verified Signal Persistence and Review Completion
+
+- Persist approved and corrected external signals as `EXTERNAL_SIGNAL` market observations.
+- Preserve candidate, verification, artifact, operator, capture, verification, and reviewed-value provenance through SQLite round trips.
+- Store verification ledger facts and verified signal history/current projections in one SQLite transaction.
+- Track immutable per-candidate pending, approved, corrected, and skipped review states.
+- Reject review completion while any candidate remains pending and add candidate skipping without verification or signal creation.
+- Keep OCR providers, Decision Engine, Recommendation, Competition, Demand, Economics, Lifecycle, Dashboard, and FastAPI unchanged.
+
 ## PR20-B - Human Review Workflow
 
 - Add an immutable OCR review-session aggregate with explicit terminal transitions.

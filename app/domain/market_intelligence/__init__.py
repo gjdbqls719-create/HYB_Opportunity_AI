@@ -42,12 +42,16 @@ from app.domain.market_intelligence.ocr_result import (
 )
 from app.domain.market_intelligence.verification import HumanVerification
 from app.domain.market_intelligence.review_session import (
+    CandidateSkipRecord,
+    CandidateReviewStatus,
     InvalidReviewSessionTransitionError,
     ReviewSession,
     ReviewSessionStatus,
 )
 
 __all__ = [
+    "CandidateSkipRecord",
+    "CandidateReviewStatus",
     "ArtifactOrigin",
     "ArtifactReference",
     "ArtifactType",

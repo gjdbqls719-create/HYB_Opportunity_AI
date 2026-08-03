@@ -87,4 +87,6 @@ class ExternalSignalTrustService:
             verified_at=verification.verified_at,
             operator_id=verification.operator_id,
             artifact_reference=artifact.artifact_id,
+            candidate_id=command.candidate.candidate_id,
+            verification_id=verification.verification_id,
         )

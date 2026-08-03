@@ -76,3 +76,12 @@ class CorrectCandidate:
     confidence: Decimal = Decimal("1")
     verification_schema_version: str = "human-verification-v1"
     signal_schema_version: str = "external-signal-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class SkipCandidate:
+    session: ReviewSession
+    candidate: OCRCandidate
+    operator_id: str
+    reason: str
+    skipped_at: datetime
