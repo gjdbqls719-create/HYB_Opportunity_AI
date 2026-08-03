@@ -32,6 +32,16 @@ from app.application.production_safety_snapshot import (
     ProductionSafetySnapshotNotFoundError,
     ProductionSafetySnapshotRepository,
 )
+from app.application.assessment_snapshot import AssessmentSnapshotRepository
+from app.application.decision_composition import (
+    DecisionCompositionError,
+    DecisionCompositionIdentityConflictError,
+    DecisionCompositionNotFoundError,
+    GetLatestDecisionComposition,
+)
+from app.application.decision_engine import DecisionExplanationService, DecisionMatrix
+from app.application.dashboard import DashboardReadModelAssembler
+from app.domain.decision_engine import DecisionInput
 
 
 MISSING_MARKET_IDENTITY_LINK = (
@@ -68,6 +78,8 @@ class ProductionOpportunityDecisionDashboardProvider:
         market_identity_repository: OpportunityMarketIdentityRepository | None = None,
         verified_economics_repository: VerifiedEconomicsSnapshotRepository | None = None,
         production_safety_repository: ProductionSafetySnapshotRepository | None = None,
+        assessment_repository: AssessmentSnapshotRepository | None = None,
+        composition_repository=None,
     ) -> None:
         self._validation_repository = validation_repository
         self._market_identity_repository = (
@@ -79,6 +91,8 @@ class ProductionOpportunityDecisionDashboardProvider:
         self._production_safety_repository = (
             production_safety_repository or validation_repository
         )
+        self._assessment_repository = assessment_repository
+        self._composition_repository = composition_repository or validation_repository
 
     def get(self, opportunity_id: str) -> OpportunityDecisionDashboardSource:
         try:
@@ -96,47 +110,72 @@ class ProductionOpportunityDecisionDashboardProvider:
                 "persisted opportunity identity does not match request"
             )
 
-        # Validate the persisted HYB subject independently from market evidence.
-        OpportunityIdentity(
+        opportunity_identity = OpportunityIdentity(
             opportunity_id=item.opportunity_id,
             discovery_reference=item.discovery_reference,
         )
         try:
-            GetOpportunityMarketIdentity(
-                self._market_identity_repository
+            composition = GetLatestDecisionComposition(
+                self._composition_repository
             ).execute(opportunity_id)
-        except OpportunityMarketIdentityBindingNotFoundError as error:
+        except DecisionCompositionNotFoundError as error:
             raise DashboardCompositionUnavailableError(
-                MISSING_MARKET_IDENTITY_LINK
+                "finalized decision composition not found"
             ) from error
-        except OpportunityMarketIdentityConflictError as error:
+        except DecisionCompositionIdentityConflictError as error:
             raise DashboardIdentityConflictError(str(error)) from error
-        except MalformedOpportunityMarketIdentityBindingError as error:
+        except DecisionCompositionError as error:
             raise DashboardCompositionUnavailableError(str(error)) from error
+        if composition.opportunity_identity != opportunity_identity:
+            raise DashboardIdentityConflictError("composition opportunity identity mismatch")
         try:
-            GetVerifiedEconomicsSnapshot(
-                self._verified_economics_repository
-            ).execute(opportunity_id)
-        except VerifiedEconomicsSnapshotNotFoundError as error:
+            economics = self._verified_economics_repository.get_verified_economics_snapshot(
+                composition.verified_economics_snapshot_id
+            )
+            safety = self._production_safety_repository.get_production_safety_snapshot(
+                composition.production_safety_snapshot_id
+            )
+        except (MalformedVerifiedEconomicsSnapshotError, MalformedProductionSafetySnapshotError) as error:
             raise DashboardCompositionUnavailableError(
-                MISSING_VERIFIED_ECONOMICS
+                "finalized composition source is malformed"
             ) from error
-        except VerifiedEconomicsSnapshotIdentityConflictError as error:
-            raise DashboardIdentityConflictError(str(error)) from error
-        except MalformedVerifiedEconomicsSnapshotError as error:
-            raise DashboardCompositionUnavailableError(str(error)) from error
+        if economics is None or safety is None or self._assessment_repository is None:
+            raise DashboardCompositionUnavailableError("finalized composition source missing")
         try:
-            GetProductionSafetySnapshot(
-                self._production_safety_repository
-            ).execute(opportunity_id)
-        except ProductionSafetySnapshotNotFoundError as error:
+            competition = self._assessment_repository.get_competition_assessment_snapshot(
+                composition.competition_assessment_snapshot_id
+            )
+            demand = self._assessment_repository.get_demand_assessment_snapshot(
+                composition.demand_assessment_snapshot_id
+            )
+            selected = self._assessment_repository.get_human_verified_external_signals_by_ids(
+                composition.market_observation_identity,
+                composition.external_signal_ids,
+            )
+        except (KeyError, TypeError, ValueError) as error:
             raise DashboardCompositionUnavailableError(
-                MISSING_PRODUCTION_SAFETY
+                "finalized composition source is malformed"
             ) from error
-        except ProductionSafetySnapshotIdentityConflictError as error:
-            raise DashboardIdentityConflictError(str(error)) from error
-        except MalformedProductionSafetySnapshotError as error:
-            raise DashboardCompositionUnavailableError(str(error)) from error
-        raise DashboardCompositionUnavailableError(
-            MISSING_MARKET_EVIDENCE_COMPOSITION
+        if competition is None or competition.snapshot_id != composition.competition_assessment_snapshot_id:
+            raise DashboardCompositionUnavailableError("competition composition source mismatch")
+        if demand is None or demand.snapshot_id != composition.demand_assessment_snapshot_id:
+            raise DashboardCompositionUnavailableError("demand composition source mismatch")
+        if tuple(signal.signal_id for signal in selected) != composition.external_signal_ids:
+            raise DashboardCompositionUnavailableError("external composition source mismatch")
+        decision_input = DecisionInput(
+            opportunity_identity=opportunity_identity,
+            market_observation_identity=composition.market_observation_identity,
+            verified_economics=economics.inputs,
+            production_safety=safety.assessment,
+            competition_assessment=competition.assessment,
+            demand_assessment=demand.assessment,
+            external_signals=selected,
+            evidence_metadata=composition.evidence_metadata,
+            generated_at=composition.generated_at,
+            schema_version=composition.schema_version,
+            policy_version=composition.policy_version,
         )
+        result = DecisionMatrix().evaluate(decision_input)
+        explanation = DecisionExplanationService().explain(result)
+        read_model = DashboardReadModelAssembler().assemble(result, explanation)
+        return OpportunityDecisionDashboardSource(opportunity_identity, read_model)

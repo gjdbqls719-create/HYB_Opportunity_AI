@@ -216,11 +216,11 @@ def test_dashboard_provider_uses_binding_and_advances_to_next_gap() -> None:
 
     with pytest.raises(
         DashboardCompositionUnavailableError,
-        match="no authoritative VerifiedEconomicsInput source",
+        match="finalized decision composition not found",
     ) as error:
         ProductionOpportunityDecisionDashboardProvider(repository).get("opp-bound")
 
-    assert str(error.value) == MISSING_VERIFIED_ECONOMICS
+    assert str(error.value) == "finalized decision composition not found"
     repository.close()
 
 

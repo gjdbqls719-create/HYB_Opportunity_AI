@@ -5,7 +5,6 @@ import pytest
 
 from app.application.dashboard_api import (
     DashboardCompositionUnavailableError,
-    MISSING_MARKET_EVIDENCE_COMPOSITION,
     ProductionOpportunityDecisionDashboardProvider,
 )
 from app.application.production_safety_snapshot import (
@@ -154,11 +153,11 @@ def test_dashboard_provider_loads_safety_without_recomputation() -> None:
 
     with pytest.raises(
         DashboardCompositionUnavailableError,
-        match="Competition and Demand evidence sources",
+        match="finalized decision composition not found",
     ) as error:
         ProductionOpportunityDecisionDashboardProvider(repository).get("opp-bound")
 
-    assert str(error.value) == MISSING_MARKET_EVIDENCE_COMPOSITION
+    assert str(error.value) == "finalized decision composition not found"
     repository.close()
 
 

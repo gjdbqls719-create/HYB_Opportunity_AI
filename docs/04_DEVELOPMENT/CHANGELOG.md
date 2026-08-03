@@ -1,5 +1,23 @@
 # HYB Changelog
 
+## PR22-C.3.7 - Production Composition Contract Hardening
+
+- Replace synthetic Economics and Safety confidence with explicit unknown confidence and derive freshness from authoritative timestamps using the versioned 30-day `decision-composition-metadata-v1` window.
+- Derive External Reference confidence from the minimum selected HUMAN_VERIFIED signal confidence and aggregate freshness as FRESH only when every selected signal is fresh; explicit signal ID selection supports additions and omissions across composition versions.
+- Validate supported Decision, composition, metadata, snapshot, assessment-policy, Safety-rule, and External Signal versions.
+- Separate duplicate, version conflict, history persistence, current projection, commit, malformed persistence, missing-source, unsupported-version, and identity-conflict errors.
+- Preserve exact history-ID reconstruction and make available-but-unknown evidence confidence an additive Domain/API contract.
+- Expand versioning, selection, stale metadata, malformed persistence, projection rollback, deterministic response, and full read-only persistence-state tests.
+
+## PR22-C.3.6 - Immutable Decision Composition Finalization
+
+- Add explicit, append-only Decision Composition finalization after admission, market assessment, and optional Human Review.
+- Persist versioned composition history and an atomic latest projection with exact source snapshot IDs, external signal series IDs, five Decision evidence metadata values, and Decision schema/policy versions.
+- Centralize versioned metadata policy `decision-composition-metadata-v1`; external absence is explicitly UNAVAILABLE with no fabricated signal.
+- Reject identical provenance, stale composition versions, missing source rows, identity mismatches, and non-human-verified external provenance.
+- Keep prior admission and assessment transactions unchanged when finalization fails; Dashboard GET remains read-only and never finalizes.
+- Reconstruct DecisionInput from the latest finalized composition and run the existing Decision Matrix, explanation, Dashboard read-model, and API DTO pipeline.
+
 ## PR22-C.3.5 - Assessment Snapshot Foundation
 
 - Add immutable Competition and Demand assessment snapshot contracts preserving bound market identity, source observation ID, availability, exact Decimal confidence, freshness, generated time, schema version, and policy version.

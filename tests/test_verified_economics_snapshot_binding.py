@@ -158,11 +158,11 @@ def test_dashboard_provider_loads_snapshot_and_advances_to_safety_gap() -> None:
 
     with pytest.raises(
         DashboardCompositionUnavailableError,
-        match="no authoritative ProductionSafetyAssessment source",
+        match="finalized decision composition not found",
     ) as error:
         ProductionOpportunityDecisionDashboardProvider(repository).get("opp-bound")
 
-    assert str(error.value) == MISSING_PRODUCTION_SAFETY
+    assert str(error.value) == "finalized decision composition not found"
     repository.close()
 
 

@@ -133,6 +133,7 @@ class DefaultDecisionPolicy:
             value
             for value in dimension_results
             if value.availability is not DecisionEvidenceAvailability.UNAVAILABLE
+            and value.confidence is not None
         )
         missing = tuple(
             value.dimension

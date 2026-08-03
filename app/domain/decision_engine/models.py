@@ -198,9 +198,7 @@ class DecisionEvidenceMetadata:
         if self.availability is DecisionEvidenceAvailability.UNAVAILABLE:
             if self.confidence is not None:
                 raise ValueError("unavailable evidence confidence must be None")
-        elif self.confidence is None:
-            raise ValueError("available evidence requires confidence")
-        else:
+        elif self.confidence is not None:
             object.__setattr__(
                 self,
                 "confidence",
@@ -236,9 +234,7 @@ class DecisionDimensionResult:
         if self.availability is DecisionEvidenceAvailability.UNAVAILABLE:
             if self.confidence is not None:
                 raise ValueError("unavailable dimension confidence must be None")
-        elif self.confidence is None:
-            raise ValueError("available dimension requires confidence")
-        else:
+        elif self.confidence is not None:
             object.__setattr__(self, "confidence", _confidence(self.confidence, "confidence"))
         object.__setattr__(self, "reason_codes", _reasons(self.reason_codes, "reason_codes"))
         object.__setattr__(self, "generated_at", _aware(self.generated_at, "generated_at"))

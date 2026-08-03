@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import json
+import hashlib
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -16,6 +17,28 @@ from app.application.opportunity_lifecycle import LifecycleVersionConflictError
 from app.domain.opportunity import OpportunityLifecycle, OpportunityLifecycleStatus, OpportunityLifecycleTransition
 from app.domain.opportunity import EstimatedEconomicsSnapshot
 from app.domain.market_intelligence import MarketObservationIdentity, MarketObservationScope
+from app.domain.decision_engine import (
+    DecisionDimension,
+    DecisionEvidenceAvailability,
+    DecisionEvidenceMetadata,
+    DecisionFreshness,
+    OpportunityIdentity,
+)
+from app.application.decision_composition import (
+    DecisionCompositionSnapshot,
+    COMPOSITION_SCHEMA_VERSION,
+    METADATA_POLICY_VERSION,
+    DecisionCompositionCommitError,
+    DecisionCompositionIdentityConflictError,
+    DecisionCompositionPersistenceError,
+    DecisionCompositionProjectionError,
+    DecisionCompositionProvenanceError,
+    DecisionCompositionVersionConflictError,
+    DuplicateDecisionCompositionError,
+    MalformedDecisionCompositionError,
+    MissingDecisionCompositionSourceError,
+    UnsupportedDecisionCompositionVersionError,
+)
 from app.application.opportunity_market_identity import (
     DuplicateOpportunityMarketIdentityBindingError,
     MalformedOpportunityMarketIdentityBindingError,
@@ -120,6 +143,27 @@ CREATE TABLE IF NOT EXISTS production_safety_snapshots (
 )
 """
 
+_DECISION_COMPOSITION_HISTORY = """
+CREATE TABLE IF NOT EXISTS decision_composition_history (
+    composition_id TEXT PRIMARY KEY,
+    opportunity_id TEXT NOT NULL,
+    composition_version INTEGER NOT NULL,
+    provenance_fingerprint TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    UNIQUE (opportunity_id, composition_version),
+    UNIQUE (opportunity_id, provenance_fingerprint)
+)
+"""
+
+_DECISION_COMPOSITION_CURRENT = """
+CREATE TABLE IF NOT EXISTS decision_composition_current (
+    opportunity_id TEXT PRIMARY KEY,
+    composition_id TEXT NOT NULL,
+    composition_version INTEGER NOT NULL,
+    payload_json TEXT NOT NULL
+)
+"""
+
 
 class SQLiteValidationQueueRepository:
     def __init__(
@@ -144,6 +188,8 @@ class SQLiteValidationQueueRepository:
             self._connection.execute(_MARKET_IDENTITY_BINDING_TABLE)
             self._connection.execute(_VERIFIED_ECONOMICS_TABLE)
             self._connection.execute(_PRODUCTION_SAFETY_TABLE)
+            self._connection.execute(_DECISION_COMPOSITION_HISTORY)
+            self._connection.execute(_DECISION_COMPOSITION_CURRENT)
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_opportunity_market_binding_reference "
                 "ON opportunity_market_identity_bindings(discovery_reference)"
@@ -177,6 +223,16 @@ class SQLiteValidationQueueRepository:
                 """CREATE TRIGGER IF NOT EXISTS trg_production_safety_no_delete
                 BEFORE DELETE ON production_safety_snapshots
                 BEGIN SELECT RAISE(ABORT, 'production safety snapshot is immutable'); END"""
+            )
+            self._connection.execute(
+                """CREATE TRIGGER IF NOT EXISTS trg_decision_composition_no_update
+                BEFORE UPDATE ON decision_composition_history
+                BEGIN SELECT RAISE(ABORT, 'decision composition history is immutable'); END"""
+            )
+            self._connection.execute(
+                """CREATE TRIGGER IF NOT EXISTS trg_decision_composition_no_delete
+                BEFORE DELETE ON decision_composition_history
+                BEGIN SELECT RAISE(ABORT, 'decision composition history is immutable'); END"""
             )
             self._migrate_canonical_references()
             self._connection.execute(_NON_ARCHIVED_REFERENCE_INDEX)
@@ -672,6 +728,260 @@ class SQLiteValidationQueueRepository:
             raise MalformedProductionSafetySnapshotError(
                 "persisted production safety snapshot is malformed"
             ) from error
+
+    def finalize_decision_composition(self, snapshot):
+        if not isinstance(snapshot, DecisionCompositionSnapshot):
+            raise TypeError("snapshot must be DecisionCompositionSnapshot")
+        if snapshot.composition_schema_version != COMPOSITION_SCHEMA_VERSION:
+            raise UnsupportedDecisionCompositionVersionError(
+                "unsupported decision composition schema version"
+            )
+        if snapshot.metadata_policy_version != METADATA_POLICY_VERSION:
+            raise UnsupportedDecisionCompositionVersionError(
+                "unsupported decision composition metadata policy version"
+            )
+        payload = self._composition_payload(snapshot)
+        fingerprint_data = {
+            "market_identity": self._composition_identity(snapshot.market_observation_identity),
+            "verified": snapshot.verified_economics_snapshot_id,
+            "safety": snapshot.production_safety_snapshot_id,
+            "competition": snapshot.competition_assessment_snapshot_id,
+            "demand": snapshot.demand_assessment_snapshot_id,
+            "external": snapshot.external_signal_ids,
+            "metadata": json.loads(payload)["evidence_metadata"],
+            "schema_version": snapshot.schema_version,
+            "policy_version": snapshot.policy_version,
+            "composition_schema_version": snapshot.composition_schema_version,
+            "metadata_policy_version": snapshot.metadata_policy_version,
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(fingerprint_data, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            latest = self._connection.execute(
+                "SELECT composition_version FROM decision_composition_current WHERE opportunity_id=?",
+                (snapshot.opportunity_identity.opportunity_id,),
+            ).fetchone()
+            expected = 1 if latest is None else latest["composition_version"] + 1
+            if snapshot.composition_version != expected:
+                raise DecisionCompositionVersionConflictError(
+                    f"expected composition version {expected}"
+                )
+            if self._connection.execute(
+                "SELECT 1 FROM decision_composition_history "
+                "WHERE opportunity_id=? AND provenance_fingerprint=?",
+                (snapshot.opportunity_identity.opportunity_id, fingerprint),
+            ).fetchone() is not None:
+                raise DuplicateDecisionCompositionError(
+                    "identical decision composition provenance already finalized"
+                )
+            self._validate_composition_sources(snapshot)
+            try:
+                self._connection.execute(
+                    """INSERT INTO decision_composition_history
+                    (composition_id, opportunity_id, composition_version, provenance_fingerprint, payload_json)
+                    VALUES (?, ?, ?, ?, ?)""",
+                    (snapshot.composition_id, snapshot.opportunity_identity.opportunity_id,
+                     snapshot.composition_version, fingerprint, payload),
+                )
+            except sqlite3.Error as error:
+                raise DecisionCompositionPersistenceError(
+                    "decision composition history insert failed"
+                ) from error
+            try:
+                self._connection.execute(
+                    """INSERT INTO decision_composition_current
+                    (opportunity_id, composition_id, composition_version, payload_json)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(opportunity_id) DO UPDATE SET
+                        composition_id=excluded.composition_id,
+                        composition_version=excluded.composition_version,
+                        payload_json=excluded.payload_json
+                    WHERE excluded.composition_version > decision_composition_current.composition_version""",
+                    (snapshot.opportunity_identity.opportunity_id, snapshot.composition_id,
+                     snapshot.composition_version, payload),
+                )
+            except sqlite3.Error as error:
+                raise DecisionCompositionProjectionError(
+                    "decision composition current projection failed"
+                ) from error
+            try:
+                self._connection.commit()
+            except sqlite3.Error as error:
+                raise DecisionCompositionCommitError(
+                    "decision composition commit failed"
+                ) from error
+            return snapshot
+        except (DecisionCompositionVersionConflictError, DuplicateDecisionCompositionError):
+            self._connection.rollback()
+            raise
+        except Exception:
+            self._connection.rollback()
+            raise
+
+    def _validate_composition_sources(self, snapshot):
+        opportunity_id = snapshot.opportunity_identity.opportunity_id
+        item = self.get_queue_item(opportunity_id)
+        if item is None or item.discovery_reference != snapshot.opportunity_identity.discovery_reference:
+            raise DecisionCompositionIdentityConflictError("opportunity identity mismatch")
+        binding = self.get_market_identity_binding(opportunity_id)
+        if binding is None or binding.market_observation_identity != snapshot.market_observation_identity:
+            raise DecisionCompositionIdentityConflictError("market identity mismatch")
+        economics = self.get_verified_economics_snapshot(
+            snapshot.verified_economics_snapshot_id
+        )
+        if economics is None or economics.opportunity_id != opportunity_id:
+            raise MissingDecisionCompositionSourceError("verified economics provenance missing")
+        safety = self.get_production_safety_snapshot(
+            snapshot.production_safety_snapshot_id
+        )
+        if safety is None or safety.opportunity_id != opportunity_id:
+            raise MissingDecisionCompositionSourceError("production safety provenance missing")
+        for snapshot_id, assessment_type in (
+            (snapshot.competition_assessment_snapshot_id, "competition"),
+            (snapshot.demand_assessment_snapshot_id, "demand"),
+        ):
+            row = self._connection.execute(
+                "SELECT payload_json FROM market_assessment_snapshot_history "
+                "WHERE snapshot_id=? AND assessment_type=?",
+                (snapshot_id, assessment_type),
+            ).fetchone()
+            if row is None:
+                raise MissingDecisionCompositionSourceError(
+                    f"{assessment_type} assessment provenance missing"
+                )
+            if json.loads(row["payload_json"])["identity"] != self._composition_identity(
+                snapshot.market_observation_identity
+            ):
+                raise DecisionCompositionIdentityConflictError(
+                    f"{assessment_type} assessment identity mismatch"
+                )
+        for signal_id in snapshot.external_signal_ids:
+            row = self._connection.execute(
+                "SELECT payload_json FROM market_observation_history "
+                "WHERE observation_id=? AND observation_type='external_signal'",
+                (signal_id,),
+            ).fetchone()
+            if row is None or json.loads(row["payload_json"])["evidence"]["status"] != "human_verified":
+                raise MissingDecisionCompositionSourceError(
+                    "external signal provenance missing or not human verified"
+                )
+            if json.loads(row["payload_json"])["identity"] != self._composition_identity(
+                snapshot.market_observation_identity
+            ):
+                raise DecisionCompositionIdentityConflictError(
+                    "external signal identity mismatch"
+                )
+
+    def get_latest_decision_composition(self, opportunity_id):
+        row = self._connection.execute(
+            "SELECT payload_json FROM decision_composition_current WHERE opportunity_id=?",
+            (opportunity_id,),
+        ).fetchone()
+        return self._safe_composition_from_payload(row["payload_json"]) if row else None
+
+    def get_decision_composition(self, composition_id):
+        row = self._connection.execute(
+            "SELECT payload_json FROM decision_composition_history WHERE composition_id=?",
+            (composition_id,),
+        ).fetchone()
+        return self._safe_composition_from_payload(row["payload_json"]) if row else None
+
+    def get_decision_composition_history(self, opportunity_id):
+        rows = self._connection.execute(
+            "SELECT payload_json FROM decision_composition_history WHERE opportunity_id=? "
+            "ORDER BY composition_version DESC",
+            (opportunity_id,),
+        ).fetchall()
+        return tuple(self._safe_composition_from_payload(row["payload_json"]) for row in rows)
+
+    @classmethod
+    def _safe_composition_from_payload(cls, payload):
+        try:
+            value = cls._composition_from_payload(payload)
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError, InvalidOperation) as error:
+            raise MalformedDecisionCompositionError(
+                "persisted decision composition is malformed"
+            ) from error
+        if value.composition_schema_version != COMPOSITION_SCHEMA_VERSION:
+            raise UnsupportedDecisionCompositionVersionError(
+                "unsupported decision composition schema version"
+            )
+        if value.metadata_policy_version != METADATA_POLICY_VERSION:
+            raise UnsupportedDecisionCompositionVersionError(
+                "unsupported decision composition metadata policy version"
+            )
+        return value
+
+    @staticmethod
+    def _composition_identity(identity):
+        return {
+            "scope": identity.scope.value, "market": identity.market,
+            "marketplace": identity.marketplace,
+            "canonical_product_id": identity.canonical_product_id,
+            "marketplace_item_id": identity.marketplace_item_id,
+            "normalized_query": identity.normalized_query, "category": identity.category,
+            "variant_identity": identity.variant_identity, "condition": identity.condition,
+            "window_started_at": identity.window_started_at.isoformat(),
+            "window_ended_at": identity.window_ended_at.isoformat(),
+        }
+
+    @classmethod
+    def _composition_payload(cls, value):
+        return json.dumps({
+            "composition_id": value.composition_id,
+            "composition_version": value.composition_version,
+            "opportunity_identity": {
+                "opportunity_id": value.opportunity_identity.opportunity_id,
+                "discovery_reference": value.opportunity_identity.discovery_reference,
+            },
+            "market_observation_identity": cls._composition_identity(value.market_observation_identity),
+            "verified_economics_snapshot_id": value.verified_economics_snapshot_id,
+            "production_safety_snapshot_id": value.production_safety_snapshot_id,
+            "competition_assessment_snapshot_id": value.competition_assessment_snapshot_id,
+            "demand_assessment_snapshot_id": value.demand_assessment_snapshot_id,
+            "external_signal_ids": list(value.external_signal_ids),
+            "evidence_metadata": [
+                {"dimension": item.dimension.value, "availability": item.availability.value,
+                 "confidence": str(item.confidence) if item.confidence is not None else None,
+                 "freshness": item.freshness.value}
+                for item in value.evidence_metadata
+            ],
+            "generated_at": value.generated_at.isoformat(),
+            "schema_version": value.schema_version,
+            "policy_version": value.policy_version,
+            "composition_schema_version": value.composition_schema_version,
+            "metadata_policy_version": value.metadata_policy_version,
+        }, sort_keys=True)
+
+    @classmethod
+    def _composition_from_payload(cls, payload):
+        data = json.loads(payload)
+        identity = data["market_observation_identity"]
+        return DecisionCompositionSnapshot(
+            composition_id=data["composition_id"], composition_version=data["composition_version"],
+            opportunity_identity=OpportunityIdentity(**data["opportunity_identity"]),
+            market_observation_identity=MarketObservationIdentity(
+                scope=MarketObservationScope(identity["scope"]), market=identity["market"],
+                marketplace=identity["marketplace"], canonical_product_id=identity["canonical_product_id"],
+                marketplace_item_id=identity["marketplace_item_id"], normalized_query=identity["normalized_query"],
+                category=identity["category"], variant_identity=identity["variant_identity"],
+                condition=identity["condition"], window_started_at=datetime.fromisoformat(identity["window_started_at"]),
+                window_ended_at=datetime.fromisoformat(identity["window_ended_at"])),
+            verified_economics_snapshot_id=data["verified_economics_snapshot_id"],
+            production_safety_snapshot_id=data["production_safety_snapshot_id"],
+            competition_assessment_snapshot_id=data["competition_assessment_snapshot_id"],
+            demand_assessment_snapshot_id=data["demand_assessment_snapshot_id"],
+            external_signal_ids=tuple(data["external_signal_ids"]),
+            evidence_metadata=tuple(DecisionEvidenceMetadata(
+                DecisionDimension(item["dimension"]), DecisionEvidenceAvailability(item["availability"]),
+                Decimal(item["confidence"]) if item["confidence"] is not None else None,
+                DecisionFreshness(item["freshness"])) for item in data["evidence_metadata"]),
+            generated_at=datetime.fromisoformat(data["generated_at"]),
+            schema_version=data["schema_version"], policy_version=data["policy_version"],
+            composition_schema_version=data["composition_schema_version"],
+            metadata_policy_version=data["metadata_policy_version"])
 
     def list_queue(
         self,

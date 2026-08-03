@@ -146,6 +146,8 @@ class DecisionEvidenceSummary:
         if self.availability is DecisionEvidenceAvailability.UNAVAILABLE:
             if self.confidence is not None:
                 raise ValueError("unavailable evidence confidence must be None")
+        elif self.confidence is None:
+            pass
         elif not isinstance(self.confidence, Decimal):
             raise TypeError("available evidence confidence must be Decimal")
         elif (

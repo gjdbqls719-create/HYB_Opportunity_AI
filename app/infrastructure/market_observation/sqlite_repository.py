@@ -341,6 +341,20 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
     def get_latest_demand_assessment_snapshot(self, identity):
         return self._get_latest_assessment("demand", identity)
 
+    def get_competition_assessment_snapshot(self, snapshot_id):
+        return self._get_assessment("competition", snapshot_id)
+
+    def get_demand_assessment_snapshot(self, snapshot_id):
+        return self._get_assessment("demand", snapshot_id)
+
+    def _get_assessment(self, assessment_type, snapshot_id):
+        row = self._connection.execute(
+            "SELECT payload_json FROM market_assessment_snapshot_history "
+            "WHERE assessment_type = ? AND snapshot_id = ?",
+            (assessment_type, snapshot_id),
+        ).fetchone()
+        return self._assessment_from_payload(row["payload_json"]) if row else None
+
     def _get_latest_assessment(self, assessment_type, identity):
         row = self._connection.execute(
             "SELECT payload_json FROM market_assessment_snapshot_current "
@@ -365,6 +379,28 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             ):
                 signals.append(signal)
         return tuple(sorted(signals, key=lambda value: value.signal_name))
+
+    def get_human_verified_external_signals_by_ids(self, identity, signal_ids):
+        if not isinstance(signal_ids, tuple):
+            raise TypeError("signal_ids must be tuple")
+        expected_key = self._identity_key(identity)
+        signals = []
+        for signal_id in signal_ids:
+            row = self._connection.execute(
+                "SELECT payload_json FROM market_observation_history "
+                "WHERE observation_type = 'external_signal' AND observation_id = ?",
+                (signal_id,),
+            ).fetchone()
+            if row is None:
+                continue
+            signal = self._from_payload(row["payload_json"])
+            if (
+                isinstance(signal, ExternalMarketSignal)
+                and self._identity_key(signal.identity) == expected_key
+                and signal.evidence.status is MarketEvidenceStatus.HUMAN_VERIFIED
+            ):
+                signals.append(signal)
+        return tuple(signals)
 
     def close(self) -> None:
         if self._owns_connection:

@@ -10,7 +10,6 @@ from app.application.dashboard_api import (
     DashboardCompositionUnavailableError,
     DashboardIdentityConflictError,
     DashboardOpportunityNotFoundError,
-    MISSING_MARKET_IDENTITY_LINK,
     ProductionOpportunityDecisionDashboardProvider,
 )
 from app.application.opportunity_validation import (
@@ -69,7 +68,7 @@ def test_persisted_subject_detects_missing_market_identity_without_fabrication()
     try:
         with pytest.raises(
             DashboardCompositionUnavailableError,
-            match="no explicit MarketObservationIdentity link",
+            match="finalized decision composition not found",
         ):
             provider.get("opp-production")
     finally:
@@ -93,7 +92,7 @@ def test_persistence_gap_maps_to_http_503_and_query_is_read_only() -> None:
         repository.close()
 
     assert response.status_code == 503
-    assert response.json()["detail"] == MISSING_MARKET_IDENTITY_LINK
+    assert response.json()["detail"] == "finalized decision composition not found"
     assert after == before
 
 
@@ -154,7 +153,7 @@ def test_gap_detection_is_deterministic_and_does_not_mutate_source() -> None:
             with pytest.raises(DashboardCompositionUnavailableError) as error:
                 provider.get("opp-production")
             messages.append(str(error.value))
-        assert messages == [MISSING_MARKET_IDENTITY_LINK] * 2
+        assert messages == ["finalized decision composition not found"] * 2
         assert repository.get_queue_item("opp-production") == item_before
     finally:
         repository.close()
@@ -170,6 +169,5 @@ def test_production_provider_contains_no_formula_threshold_or_dummy_facts() -> N
         "VerifiedEconomicsInput(",
         "ProductionSafetyAssessment(",
         "MarketObservationIdentity(",
-        "DecisionMatrix(",
     ):
         assert forbidden not in source

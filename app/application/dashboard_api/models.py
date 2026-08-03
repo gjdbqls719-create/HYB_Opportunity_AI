@@ -127,8 +127,6 @@ class DashboardEvidenceDTO:
         if self.availability is DecisionEvidenceAvailability.UNAVAILABLE:
             if confidence is not None:
                 raise ValueError("unavailable evidence confidence must be None")
-        elif confidence is None:
-            raise ValueError("available evidence requires confidence")
         object.__setattr__(self, "confidence", confidence)
         object.__setattr__(
             self,

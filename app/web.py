@@ -31,6 +31,7 @@ from app.application.opportunity_validation import (
 )
 from app.domain.opportunity import InvalidLifecycleTransitionError, OpportunityLifecycleStatus
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
+from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from storage.price_history import DEFAULT_DATABASE_PATH
 
 
@@ -90,9 +91,14 @@ def get_validation_queue_repository():
 
 def get_opportunity_decision_dashboard_provider():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    market_repository = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
     try:
-        yield ProductionOpportunityDecisionDashboardProvider(repository)
+        yield ProductionOpportunityDecisionDashboardProvider(
+            repository,
+            assessment_repository=market_repository,
+        )
     finally:
+        market_repository.close()
         repository.close()
 
 
