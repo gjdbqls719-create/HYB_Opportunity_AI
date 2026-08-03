@@ -104,6 +104,11 @@ def metadata() -> tuple[DecisionEvidenceMetadata, ...]:
                 if dimension in {DecisionDimension.ECONOMICS, DecisionDimension.SAFETY}
                 else DecisionEvidenceAvailability.UNAVAILABLE
             ),
+            confidence=(
+                Decimal("1")
+                if dimension in {DecisionDimension.ECONOMICS, DecisionDimension.SAFETY}
+                else None
+            ),
             freshness=(
                 DecisionFreshness.FRESH
                 if dimension in {DecisionDimension.ECONOMICS, DecisionDimension.SAFETY}
@@ -308,6 +313,7 @@ def test_decision_input_requires_complete_unique_evidence_metadata() -> None:
     inconsistent[2] = DecisionEvidenceMetadata(
         DecisionDimension.COMPETITION,
         DecisionEvidenceAvailability.COMPLETE,
+        Decimal("1"),
         DecisionFreshness.FRESH,
     )
     with pytest.raises(ValueError, match="competition availability"):
@@ -425,6 +431,7 @@ def test_decision_input_rejects_mutable_external_signal_value() -> None:
     evidence[-1] = DecisionEvidenceMetadata(
         DecisionDimension.EXTERNAL_REFERENCE,
         DecisionEvidenceAvailability.COMPLETE,
+        Decimal("1"),
         DecisionFreshness.FRESH,
     )
 

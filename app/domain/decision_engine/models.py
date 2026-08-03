@@ -185,6 +185,7 @@ class DecisionConfidence:
 class DecisionEvidenceMetadata:
     dimension: DecisionDimension
     availability: DecisionEvidenceAvailability
+    confidence: Decimal | None
     freshness: DecisionFreshness
 
     def __post_init__(self) -> None:
@@ -194,6 +195,17 @@ class DecisionEvidenceMetadata:
             raise TypeError("availability must be DecisionEvidenceAvailability")
         if not isinstance(self.freshness, DecisionFreshness):
             raise TypeError("freshness must be DecisionFreshness")
+        if self.availability is DecisionEvidenceAvailability.UNAVAILABLE:
+            if self.confidence is not None:
+                raise ValueError("unavailable evidence confidence must be None")
+        elif self.confidence is None:
+            raise ValueError("available evidence requires confidence")
+        else:
+            object.__setattr__(
+                self,
+                "confidence",
+                _confidence(self.confidence, "confidence"),
+            )
 
 
 @dataclass(frozen=True, slots=True)

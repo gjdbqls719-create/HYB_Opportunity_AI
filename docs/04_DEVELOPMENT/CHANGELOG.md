@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR21-C - Decision Matrix Foundation
+
+- Add a policy protocol and default MVP policy that combines only immutable dimension results.
+- Produce INVEST, REVIEW, REJECT, and INSUFFICIENT_EVIDENCE outcomes without recalculating Economics, Safety, Competition, Demand, or External signals.
+- Aggregate exact Decimal confidence across available dimensions while preserving missing-dimension availability.
+- Resolve dimension facts into blocking, supporting, and uncertainty reason categories.
+- Keep External signals outcome-neutral and preserve existing Recommendation, Founder Decision, formulas, and thresholds.
+
+## PR21-B - Decision Dimension Evaluation
+
+- Add independent Economics, Safety, Competition, Demand, and External Reference dimension evaluators.
+- Pass explicit availability, Decimal confidence, and freshness metadata into immutable dimension results without calculating a Decision outcome.
+- Orchestrate the five evaluators in a stable order through an Application service and evaluator port.
+- Reuse existing Competition, Demand, and Production Safety classifications without changing thresholds or formulas.
+- Keep Decision Matrix, DecisionResult construction, Recommendation, Dashboard, and Founder Decision unchanged.
+
 ## PR21-A.1 - Decision Domain Contract Hardening
 
 - Separate immutable Opportunity identity from Market Observation evidence identity.
