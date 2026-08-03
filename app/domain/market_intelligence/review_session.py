@@ -53,6 +53,8 @@ class ReviewSession:
     schema_version: str
     candidate_statuses: tuple[tuple[str, CandidateReviewStatus], ...] = ()
     skip_records: tuple[CandidateSkipRecord, ...] = ()
+    started_at: datetime | None = None
+    revision: int = 1
 
     def __post_init__(self) -> None:
         try:
@@ -88,6 +90,16 @@ class ReviewSession:
         if {record.candidate_id for record in skip_records} != skipped_ids:
             raise ValueError("skip records must match skipped candidate statuses")
         created_at = _aware(self.created_at, "created_at")
+        started_at = self.started_at
+        if status in (ReviewSessionStatus.OPEN, ReviewSessionStatus.CANCELLED):
+            if started_at is not None:
+                raise ValueError("unstarted review session cannot have started_at")
+        else:
+            if started_at is None:
+                raise ValueError("started review session requires started_at")
+            _aware(started_at, "started_at")
+            if started_at < created_at:
+                raise ValueError("started_at cannot precede created_at")
         completed_at = self.completed_at
         if status in (ReviewSessionStatus.OPEN, ReviewSessionStatus.IN_PROGRESS):
             if completed_at is not None:
@@ -105,14 +117,22 @@ class ReviewSession:
         object.__setattr__(self, "candidate_statuses", candidate_statuses)
         object.__setattr__(self, "skip_records", skip_records)
         object.__setattr__(self, "created_at", created_at)
+        object.__setattr__(self, "started_at", started_at)
+        if not isinstance(self.revision, int) or isinstance(self.revision, bool) or self.revision < 1:
+            raise ValueError("revision must be a positive integer")
         object.__setattr__(self, "operator_id", _required_text(self.operator_id, "operator_id"))
         object.__setattr__(self, "schema_version", _required_text(self.schema_version, "schema_version"))
 
-    def start(self, *, operator_id: str) -> ReviewSession:
+    def start(self, *, operator_id: str, started_at: datetime | None = None) -> ReviewSession:
         self._require_operator(operator_id)
         if self.status is not ReviewSessionStatus.OPEN:
             raise InvalidReviewSessionTransitionError("only open review can be started")
-        return replace(self, status=ReviewSessionStatus.IN_PROGRESS)
+        return replace(
+            self,
+            status=ReviewSessionStatus.IN_PROGRESS,
+            started_at=_aware(started_at or self.created_at, "started_at"),
+            revision=self.revision + 1,
+        )
 
     def complete(self, *, operator_id: str, completed_at: datetime) -> ReviewSession:
         self._require_operator(operator_id)
@@ -126,6 +146,7 @@ class ReviewSession:
             self,
             status=ReviewSessionStatus.COMPLETED,
             completed_at=_aware(completed_at, "completed_at"),
+            revision=self.revision + 1,
         )
 
     def cancel(self, *, operator_id: str, cancelled_at: datetime) -> ReviewSession:
@@ -136,6 +157,7 @@ class ReviewSession:
             self,
             status=ReviewSessionStatus.CANCELLED,
             completed_at=_aware(cancelled_at, "cancelled_at"),
+            revision=self.revision + 1,
         )
 
     def require_reviewable(self, *, operator_id: str) -> None:
@@ -181,6 +203,7 @@ class ReviewSession:
                 if skip_record is not None
                 else self.skip_records
             ),
+            revision=self.revision + 1,
         )
 
     def _require_operator(self, operator_id: str) -> None:

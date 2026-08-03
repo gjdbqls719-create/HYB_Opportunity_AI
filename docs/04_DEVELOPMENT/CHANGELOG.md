@@ -1,5 +1,42 @@
 # HYB Changelog
 
+## PR23-A-1 - Founder Review Read API
+
+- Add read-only `GET /api/v1/reviews` and `GET /api/v1/reviews/{session_id}` endpoints over the existing `ReviewSessionQueryService` boundary.
+- Return immutable API DTOs containing Session status/revision, Candidate aggregate counts, lifecycle timestamps, and schema version without exposing the ReviewSession aggregate.
+- Map missing Sessions to HTTP 404 and persistence/SQLite failures to HTTP 503 while successful deterministic reads return HTTP 200.
+- Verify repeated GET equality, zero open write transactions, and unchanged ReviewSession, Verification, External Signal, Receipt, and Lifecycle table state.
+- Keep SQL, repositories, Domain transitions, and business rules outside the FastAPI handlers.
+
+## PR23-A.0 - Review Command Context & Receipt Foundation
+
+- Persist immutable Review Command Context history/current facts so Approve and Correct can load authoritative market identity, signal, and artifact provenance without client reconstruction.
+- Persist one immutable Review Command Receipt per command with exact resulting revision, Verification/External Signal IDs, and committed timestamps for restart-safe response replay.
+- Persist immutable Cancel audit metadata with reason, operator, cancellation time, revision, and schema version.
+- Add deterministic, read-only Application queries for Context, Receipt, and Cancel metadata with explicit malformed and unsupported-version errors.
+- Insert Approve/Correct receipts after Verification and External Signal projections but before ReviewSession history/current in the same `BEGIN IMMEDIATE` transaction; receipt failure rolls back every fact.
+- Keep Founder Review HTTP API/UI and new Review business rules out of scope.
+
+## PR23-P.1 - ReviewSession Persistence Hardening
+
+- Add production command DTOs carrying only session ID, Candidate ID, expected revision, command ID, operator, and action input; services reload authoritative Session and OCR Candidate facts before every transition.
+- Preserve distinct ReviewSession history, current projection, commit, version, command, operator, membership, malformed-persistence, and unsupported-version errors through the Application boundary.
+- Add deterministic current-projection rebuild from the latest immutable history revision while preserving complete aggregate value equality.
+- Verify Approve and Correct rollback at Verification history/current, Signal history/current, Session history/current, and commit boundaries.
+- Verify create, start, skip, complete, and cancel history/current/commit rollback without revision advancement or open transactions.
+- Add response-loss replay and changed-payload conflict coverage for every transition, exact Verification/Signal replay, read-only table-state comparison, terminal restart round-trips, and real multi-connection concurrency races.
+- Retain the prior PR20 aggregate-based commands as compatibility adapters; persisted current and ledger facts remain authoritative.
+
+## PR23-P - ReviewSession Persistence Foundation
+
+- Persist immutable `ReviewSession` transition snapshots in append-only `review_session_history` with an atomic `review_session_current` projection.
+- Preserve Candidate order/statuses, immutable Skip records, lifecycle timestamps, schema version, and a revision starting at 1 and advancing exactly once per transition.
+- Reject stale aggregate writes across SQLite connections and persist explicit event IDs, command IDs, transition types, prior/resulting status, timestamps, and command fingerprints.
+- Make explicit command retries deterministic: an identical command ID and payload reconstitutes the committed state, while changed payload conflicts and stale revisions do not create rows.
+- Extend verified-signal persistence so approve/correct stores ReviewSession, HumanVerification, and ExternalMarketSignal history/current in one `BEGIN IMMEDIATE` transaction.
+- Add read-only get/list/history application queries and restart-safe reconstitution without inferring sessions from legacy ledger facts.
+- Keep Founder Review HTTP/UI out of scope; legacy ledger-only workflows receive no automatic ReviewSession backfill.
+
 ## PR22-D - Dashboard UI Foundation
 
 - Add browser routes `GET /dashboard/decision` and `GET /dashboard/opportunities/{opportunity_id}/decision` using the existing FastAPI/Jinja and vanilla JavaScript presentation stack.

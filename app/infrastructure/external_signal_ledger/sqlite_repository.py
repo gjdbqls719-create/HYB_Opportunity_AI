@@ -248,6 +248,13 @@ class SQLiteExternalSignalLedgerRepository(ExternalSignalLedgerRepository):
         ).fetchone()
         return self._candidate_from_payload(row["payload_json"]) if row else None
 
+    def get_candidate(self, candidate_id: str) -> OCRCandidate | None:
+        row = self._connection.execute(
+            "SELECT payload_json FROM ocr_candidate_history WHERE candidate_id = ?",
+            (candidate_id,),
+        ).fetchone()
+        return self._candidate_from_payload(row["payload_json"]) if row else None
+
     def get_candidate_history(
         self, artifact_id: str, field_name: OCRField, *, limit: int | None = None
     ) -> tuple[OCRCandidate, ...]:

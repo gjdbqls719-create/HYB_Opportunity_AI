@@ -48,9 +48,21 @@ from app.application.opportunity_validation import (
     ValidationActionCommand,
     ValidationQueueQuery,
 )
+from app.application.review import (
+    GetReviewSession,
+    ListReviewSessions,
+    ReviewPersistenceError,
+    ReviewSessionNotFoundError,
+    ReviewSessionQueryService,
+)
+from app.application.review_api import (
+    ReviewSessionListResponseDTO,
+    ReviewSessionResponseDTO,
+)
 from app.domain.opportunity import InvalidLifecycleTransitionError, OpportunityLifecycleStatus
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
+from app.infrastructure.review import SQLiteReviewSessionRepository
 from storage.price_history import DEFAULT_DATABASE_PATH
 
 
@@ -143,6 +155,14 @@ def get_decision_composition_finalizer():
         )
     finally:
         market_repository.close()
+        repository.close()
+
+
+def get_review_session_query_service():
+    repository = SQLiteReviewSessionRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield ReviewSessionQueryService(repository)
+    finally:
         repository.close()
 
 
@@ -301,6 +321,32 @@ def get_opportunity_decision_dashboard(
     except DashboardDecisionUnavailableError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     return response.to_dict()
+
+
+@app.get("/api/v1/reviews")
+def list_review_sessions(
+    query_service: ReviewSessionQueryService = Depends(get_review_session_query_service),
+) -> dict[str, object]:
+    try:
+        sessions = query_service.list(ListReviewSessions())
+        items = tuple(ReviewSessionResponseDTO.from_session(value) for value in sessions)
+        return ReviewSessionListResponseDTO(items, len(items)).to_dict()
+    except (ReviewPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.get("/api/v1/reviews/{session_id}")
+def get_review_session(
+    session_id: str,
+    query_service: ReviewSessionQueryService = Depends(get_review_session_query_service),
+) -> dict[str, object]:
+    try:
+        session = query_service.get(GetReviewSession(session_id))
+        return ReviewSessionResponseDTO.from_session(session).to_dict()
+    except ReviewSessionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (ReviewPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.post(
