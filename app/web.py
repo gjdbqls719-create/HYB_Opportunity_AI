@@ -20,7 +20,7 @@ from app.application.dashboard_api import (
     DashboardDecisionNotFoundError,
     DashboardDecisionUnavailableError,
     GetOpportunityDecisionDashboard,
-    UnconfiguredOpportunityDecisionDashboardProvider,
+    ProductionOpportunityDecisionDashboardProvider,
 )
 from app.application.opportunity_validation import (
     AddToValidationQueueCommand,
@@ -89,7 +89,11 @@ def get_validation_queue_repository():
 
 
 def get_opportunity_decision_dashboard_provider():
-    return UnconfiguredOpportunityDecisionDashboardProvider()
+    repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield ProductionOpportunityDecisionDashboardProvider(repository)
+    finally:
+        repository.close()
 
 
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:

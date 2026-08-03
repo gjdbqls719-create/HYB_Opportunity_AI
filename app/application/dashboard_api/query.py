@@ -21,6 +21,26 @@ class DashboardDecisionUnavailableError(RuntimeError):
     pass
 
 
+class DashboardOpportunityNotFoundError(DashboardDecisionNotFoundError):
+    pass
+
+
+class DashboardSourceNotFoundError(DashboardDecisionNotFoundError):
+    pass
+
+
+class DashboardIdentityConflictError(DashboardDecisionConflictError):
+    pass
+
+
+class DashboardCompositionUnavailableError(DashboardDecisionUnavailableError):
+    pass
+
+
+class InvalidDashboardQueryError(ValueError):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class OpportunityDecisionDashboardSource:
     opportunity_identity: OpportunityIdentity
@@ -49,7 +69,9 @@ class GetOpportunityDecisionDashboard:
 
     def execute(self, opportunity_id: str) -> DashboardResponseDTO:
         if not isinstance(opportunity_id, str) or not opportunity_id.strip():
-            raise ValueError("opportunity_id must be non-empty text")
+            raise InvalidDashboardQueryError(
+                "opportunity_id must be non-empty text"
+            )
         normalized_id = opportunity_id.strip()
         source = self._provider.get(normalized_id)
         if not isinstance(source, OpportunityDecisionDashboardSource):
@@ -61,10 +83,3 @@ class GetOpportunityDecisionDashboard:
                 "dashboard opportunity identity does not match request"
             )
         return self._assembler.assemble(source.read_model)
-
-
-class UnconfiguredOpportunityDecisionDashboardProvider:
-    def get(self, opportunity_id: str) -> OpportunityDecisionDashboardSource:
-        raise DashboardDecisionUnavailableError(
-            "decision dashboard production composition is unavailable"
-        )

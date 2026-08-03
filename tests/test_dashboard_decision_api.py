@@ -160,8 +160,8 @@ def test_default_provider_fails_explicitly_without_fabricated_facts() -> None:
         "/api/v1/opportunities/opp-api/decision-dashboard"
     )
 
-    assert response.status_code == 503
-    assert "production composition" in response.json()["detail"]
+    assert response.status_code == 404
+    assert response.json()["detail"] == "dashboard opportunity not found"
 
 
 def test_repeated_requests_are_deterministic(client_and_provider) -> None:

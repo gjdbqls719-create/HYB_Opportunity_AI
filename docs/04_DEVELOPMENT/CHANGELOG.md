@@ -1,5 +1,14 @@
 # HYB Changelog
 
+## PR22-C - Production Decision Dashboard Query Composition
+
+- Wire the decision-dashboard endpoint to a production provider that resolves the authoritative Validation Queue/Lifecycle subject by HYB `opportunity_id`.
+- Keep OpportunityIdentity separate from MarketObservationIdentity and reject mismatched persisted subjects.
+- Detect the current persistence gap explicitly: admission/lifecycle storage has no listing/canonical MarketObservationIdentity link, so Competition, Demand, External Signal, verified economics, and safety composition cannot truthfully proceed.
+- Return 404 for an absent Opportunity subject and 503 for the unsupported composition boundary or SQLite infrastructure failure; no evidence values are fabricated.
+- Preserve the read-only query contract with no lifecycle, validation, economics, market observation, review, or decision writes.
+- Leave all Decision, explanation, Dashboard, economics, safety, Competition, and Demand rules unchanged.
+
 ## PR22-B - FastAPI Dashboard Decision Endpoint
 
 - Add `GET /api/v1/opportunities/{opportunity_id}/decision-dashboard` as a read-only Presentation adapter returning `DashboardResponseDTO.to_dict()`.

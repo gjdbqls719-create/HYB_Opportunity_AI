@@ -11,13 +11,22 @@ from app.application.dashboard_api.models import (
     DashboardWarningDTO,
 )
 from app.application.dashboard_api.query import (
+    DashboardCompositionUnavailableError,
     DashboardDecisionConflictError,
     DashboardDecisionNotFoundError,
     DashboardDecisionUnavailableError,
+    DashboardIdentityConflictError,
+    DashboardOpportunityNotFoundError,
+    DashboardSourceNotFoundError,
     GetOpportunityDecisionDashboard,
     OpportunityDecisionDashboardProvider,
     OpportunityDecisionDashboardSource,
-    UnconfiguredOpportunityDecisionDashboardProvider,
+    InvalidDashboardQueryError,
+)
+from app.application.dashboard_api.production_provider import (
+    MISSING_MARKET_IDENTITY_LINK,
+    ProductionOpportunityDecisionDashboardProvider,
+    ValidationQueueItemReader,
 )
 
 __all__ = [
@@ -29,11 +38,18 @@ __all__ = [
     "DashboardResponseDTO",
     "DashboardSummaryDTO",
     "DashboardWarningDTO",
+    "DashboardCompositionUnavailableError",
     "DashboardDecisionConflictError",
     "DashboardDecisionNotFoundError",
     "DashboardDecisionUnavailableError",
+    "DashboardIdentityConflictError",
+    "DashboardOpportunityNotFoundError",
+    "DashboardSourceNotFoundError",
     "GetOpportunityDecisionDashboard",
     "OpportunityDecisionDashboardProvider",
     "OpportunityDecisionDashboardSource",
-    "UnconfiguredOpportunityDecisionDashboardProvider",
+    "InvalidDashboardQueryError",
+    "MISSING_MARKET_IDENTITY_LINK",
+    "ProductionOpportunityDecisionDashboardProvider",
+    "ValidationQueueItemReader",
 ]
