@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR21-E - Dashboard Read Model Foundation
+
+- Add immutable, UI-independent summary, action, warning, and per-dimension evidence cards for Decision Engine V2.
+- Assemble deterministic Dashboard read models from matching DecisionResult and DecisionExplanation inputs without recomputing policy, confidence, or explanations.
+- Preserve generated time, schema version, policy version, explanation items, and dimension evidence values.
+- Provide presentation-only primary action labels and fixed evidence/warning display order without introducing Recommendation semantics.
+- Keep FastAPI, REST, CLI, HTML, CSS, JavaScript, charts, and Dashboard rendering unchanged.
+
 ## PR21-D - Deterministic Decision Explanation
 
 - Add immutable Decision summary, explanation sections/items, and per-dimension evidence summaries.
