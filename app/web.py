@@ -58,6 +58,7 @@ from app.application.review import (
     CreateReviewSession,
     DuplicateCandidateReviewError,
     DuplicateReviewSessionError,
+    GetReviewSessionDetail,
     GetReviewSession,
     ListReviewSessions,
     PendingCandidatesError,
@@ -76,6 +77,7 @@ from app.application.review import (
     StartReviewCommand,
 )
 from app.application.review_api import (
+    ReviewSessionDetailResponseDTO,
     ReviewSessionListResponseDTO,
     ReviewSessionResponseDTO,
 )
@@ -284,11 +286,14 @@ def get_decision_composition_finalizer():
 
 
 def get_review_session_query_service():
-    repository = SQLiteReviewSessionRepository(DEFAULT_DATABASE_PATH)
+    persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
     try:
-        yield ReviewSessionQueryService(repository)
+        yield ReviewSessionQueryService(
+            persistence.sessions,
+            persistence.ledger,
+        )
     finally:
-        repository.close()
+        persistence.close()
 
 
 def get_review_workflow_service():
@@ -381,6 +386,23 @@ def decision_dashboard_page(request: Request, opportunity_id: str):
     )
 
 
+@app.get("/reviews")
+def review_queue_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="review_queue.html",
+    )
+
+
+@app.get("/reviews/{session_id}")
+def review_detail_page(request: Request, session_id: str):
+    return templates.TemplateResponse(
+        request=request,
+        name="review_detail.html",
+        context={"session_id": session_id},
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -467,8 +489,10 @@ def list_review_sessions(
         sessions = query_service.list(ListReviewSessions())
         items = tuple(ReviewSessionResponseDTO.from_session(value) for value in sessions)
         return ReviewSessionListResponseDTO(items, len(items)).to_dict()
-    except (ReviewPersistenceError, sqlite3.Error) as error:
+    except ReviewPersistenceError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="review persistence unavailable") from error
 
 
 @app.get("/api/v1/reviews/{session_id}")
@@ -481,8 +505,26 @@ def get_review_session(
         return ReviewSessionResponseDTO.from_session(session).to_dict()
     except ReviewSessionNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    except (ReviewPersistenceError, sqlite3.Error) as error:
+    except ReviewPersistenceError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="review persistence unavailable") from error
+
+
+@app.get("/api/v1/reviews/{session_id}/detail")
+def get_review_session_detail(
+    session_id: str,
+    query_service: ReviewSessionQueryService = Depends(get_review_session_query_service),
+) -> dict[str, object]:
+    try:
+        detail = query_service.detail(GetReviewSessionDetail(session_id))
+        return ReviewSessionDetailResponseDTO(detail).to_dict()
+    except ReviewSessionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ReviewPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="review persistence unavailable") from error
 
 
 def _execute_review_transition(operation, command) -> dict[str, object]:

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Founder Review Detail · HYB Opportunity AI</title>
+  <style>
+    :root { color-scheme:light; --ink:#17202a; --muted:#5d6875; --border:#d7dce2; --surface:#f7f8fa; --accent:#173f66; --warning:#8a5700; --error:#a12622; --success:#176b3a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:16px/1.5 system-ui,sans-serif; color:var(--ink); background:#fff; }
+    main { width:min(78rem,100%); margin:auto; padding:1.25rem; }
+    h1,h2,h3,h4 { line-height:1.2; }
+    a { color:#135b91; }
+    :focus-visible { outline:3px solid #1685d1; outline-offset:3px; }
+    .state,.panel,.candidate,form { border:1px solid var(--border); border-radius:.5rem; padding:1rem; background:#fff; }
+    .state { border-left:5px solid var(--accent); background:var(--surface); margin:1rem 0; }
+    .state[data-kind="error"] { border-left-color:var(--error); }
+    .state[data-kind="warning"] { border-left-color:var(--warning); }
+    .grid,.actions,.candidate-grid { display:grid; gap:1rem; }
+    .grid { grid-template-columns:repeat(auto-fit,minmax(16rem,1fr)); }
+    .candidate-grid { grid-template-columns:repeat(auto-fit,minmax(20rem,1fr)); }
+    .actions { grid-template-columns:repeat(auto-fit,minmax(17rem,1fr)); margin-top:1rem; }
+    dl { display:grid; grid-template-columns:max-content 1fr; gap:.35rem .8rem; margin:0; }
+    dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; }
+    form { display:grid; gap:.65rem; align-content:start; }
+    label { font-weight:650; }
+    input,textarea,button { font:inherit; }
+    input,textarea { width:100%; padding:.5rem; border:1px solid #8994a0; border-radius:.3rem; }
+    button { width:max-content; padding:.55rem .9rem; color:#fff; background:var(--accent); border:0; border-radius:.3rem; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .danger { background:var(--error); }
+    .status-label { font-weight:750; }
+    .preview { padding:.75rem; border:1px dashed var(--muted); background:var(--surface); }
+    [hidden] { display:none !important; }
+    @media (max-width:42rem) { main { padding:.75rem; } dl { grid-template-columns:1fr; } .actions,.candidate-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body data-session-id="{{ session_id | e }}">
+<main>
+  <nav aria-label="Review navigation"><a href="/reviews">← Review queue</a></nav>
+  <header><h1>Founder Review Detail</h1><p>Review persisted OCR Candidates and run explicit workflow commands.</p></header>
+  <div id="status" class="state" role="status" aria-live="polite">Loading authoritative review details…</div>
+
+  <section id="session-section" aria-labelledby="session-title" hidden>
+    <h2 id="session-title">Session</h2>
+    <article class="panel"><dl id="session-facts"></dl></article>
+    <div class="actions">
+      <form id="start-form" data-action="start"><h3>Start review</h3><label for="start-operator">Operator ID</label><input id="start-operator" name="operator_id" required autocomplete="username"><button type="submit">Start</button><button type="button" data-reset-retry>Reset retry</button></form>
+      <form id="complete-form" data-action="complete"><h3>Complete review</h3><label for="complete-operator">Operator ID</label><input id="complete-operator" name="operator_id" required autocomplete="username"><button type="submit">Complete</button><button type="button" data-reset-retry>Reset retry</button></form>
+      <form id="cancel-form" data-action="cancel"><h3>Cancel review</h3><label for="cancel-operator">Operator ID</label><input id="cancel-operator" name="operator_id" required autocomplete="username"><label for="cancel-reason">Reason</label><textarea id="cancel-reason" name="reason" required></textarea><button class="danger" type="submit">Cancel</button><button type="button" data-reset-retry>Reset retry</button></form>
+    </div>
+  </section>
+
+  <section id="candidate-section" aria-labelledby="candidate-title" hidden>
+    <h2 id="candidate-title">Candidates</h2>
+    <div id="candidates" class="candidate-grid"></div>
+  </section>
+</main>
+<script>
+(() => {
+  "use strict";
+  const sessionId=document.body.dataset.sessionId;
+  const statusBox=document.getElementById("status");
+  const sessionSection=document.getElementById("session-section");
+  const candidateSection=document.getElementById("candidate-section");
+  const candidateBox=document.getElementById("candidates");
+  const retryState=new Map();
+  let authoritative=null;
+  const valueText=value => value === null || value === undefined ? "Unavailable" : String(value);
+  function setStatus(message,kind="info") { statusBox.textContent=message; statusBox.dataset.kind=kind; }
+  function addFacts(list,rows) { list.replaceChildren(); rows.forEach(([label,value]) => { const dt=document.createElement("dt"); dt.textContent=label; const dd=document.createElement("dd"); dd.textContent=valueText(value); list.append(dt,dd); }); }
+  function facts(rows) { const list=document.createElement("dl"); addFacts(list,rows); return list; }
+  function heading(level,text) { const node=document.createElement(`h${level}`); node.textContent=text; return node; }
+  function labelledInput(form,id,labelText,name,kind="input") { const label=document.createElement("label"); label.htmlFor=id; label.textContent=labelText; const input=document.createElement(kind); input.id=id; input.name=name; input.required=true; if (kind === "textarea") input.rows=2; form.append(label,input); return input; }
+  function commandForm(action,candidate) {
+    const form=document.createElement("form"); form.dataset.action=action; form.dataset.candidateId=candidate.candidate_id; form.append(heading(4,action === "correct" ? "Correct" : action === "skip" ? "Skip" : "Approve"));
+    labelledInput(form,`${action}-${candidate.candidate_id}-operator`,"Operator ID","operator_id");
+    if (action === "correct") labelledInput(form,`${action}-${candidate.candidate_id}-value`,"Corrected value","corrected_value");
+    if (action === "skip") labelledInput(form,`${action}-${candidate.candidate_id}-reason`,"Skip reason","reason","textarea");
+    if (action !== "skip") { const comment=labelledInput(form,`${action}-${candidate.candidate_id}-comment`,"Comment","comment","textarea"); comment.required=false; }
+    const button=document.createElement("button"); button.type="submit"; button.textContent=action === "correct" ? "Correct candidate" : action === "skip" ? "Skip candidate" : "Approve candidate"; const reset=document.createElement("button"); reset.type="button"; reset.dataset.resetRetry=""; reset.textContent="Reset retry"; form.append(button,reset); return form;
+  }
+  function renderCandidate(candidate) {
+    const article=document.createElement("article"); article.className="candidate"; article.append(heading(3,`Candidate ${candidate.candidate_id}`));
+    const status=document.createElement("p"); status.className="status-label"; status.textContent=`Status: ${valueText(candidate.status)}`; article.append(status);
+    article.append(heading(4,"OCR value"),facts([["Field",candidate.field_name],["Raw text",candidate.raw_text],["Normalized value",candidate.normalized_value],["Confidence",candidate.confidence],["Captured at",candidate.captured_at]]));
+    article.append(heading(4,"Artifact metadata"),facts([["Artifact ID",candidate.artifact.artifact_id],["Origin",candidate.artifact.origin],["Source type",candidate.artifact.source_type],["MIME type",candidate.artifact.mime_type],["Dimensions",`${candidate.artifact.width} × ${candidate.artifact.height}`],["Captured at",candidate.artifact.captured_at]]));
+    const preview=document.createElement("p"); preview.className="preview"; preview.textContent="Artifact preview unavailable: no binary retrieval route is configured."; article.append(preview);
+    article.append(heading(4,"Persisted signal context"));
+    if (candidate.context) article.append(facts([["Signal name",candidate.context.signal_name],["Direction",candidate.context.signal_direction],["Scope",candidate.context.market_observation_identity.scope],["Market",candidate.context.market_observation_identity.market],["Marketplace",candidate.context.market_observation_identity.marketplace],["Query",candidate.context.market_observation_identity.normalized_query],["Category",candidate.context.market_observation_identity.category],["Window start",candidate.context.market_observation_identity.window_started_at],["Window end",candidate.context.market_observation_identity.window_ended_at]]));
+    else { const unavailable=document.createElement("p"); unavailable.textContent="Persisted signal context unavailable."; article.append(unavailable); }
+    if (candidate.skip) article.append(heading(4,"Skip metadata"),facts([["Operator",candidate.skip.operator_id],["Reason",candidate.skip.reason],["Skipped at",candidate.skip.skipped_at]]));
+    const controls=document.createElement("div"); controls.className="actions"; ["approve","correct","skip"].forEach(action => controls.append(commandForm(action,candidate))); article.append(controls); return article;
+  }
+  function render(data) {
+    authoritative=data; sessionSection.hidden=false; candidateSection.hidden=false;
+    addFacts(document.getElementById("session-facts"),[["Session ID",data.session_id],["Status",data.status],["Revision",data.revision],["Operator",data.operator_id],["Artifact ID",data.artifact_id],["Candidates",data.candidate_count],["Pending",data.pending_count],["Completed",data.completed_count],["Created",data.created_at],["Started",data.started_at],["Completed at",data.completed_at]]);
+    ["start","complete","cancel"].forEach(action => { const input=document.querySelector(`#${action}-form [name="operator_id"]`); if (!input.value) input.value=data.operator_id; });
+    candidateBox.replaceChildren(); data.candidates.forEach(candidate => candidateBox.append(renderCandidate(candidate)));
+  }
+  function errorMessage(status) {
+    if (status === 404) return "The review session or Candidate was not found.";
+    if (status === 409) return "The command conflicts with authoritative state. The latest Session was reloaded; verify the revision and retry explicitly.";
+    if (status === 422) return "The command input is invalid. Check every required value and timezone.";
+    if (status === 503) return "Review persistence is unavailable. Retry the same command when service is restored.";
+    return "The review request failed. No local state was changed.";
+  }
+  async function api(url,options) { const response=await fetch(url,options); if (!response.ok) { const error=new Error("review request failed"); error.status=response.status; throw error; } return response.json(); }
+  async function loadDetail(message="Authoritative review details loaded.") {
+    try { const data=await api(`/api/v1/reviews/${encodeURIComponent(sessionId)}/detail`); render(data); setStatus(message); }
+    catch (error) { sessionSection.hidden=true; candidateSection.hidden=true; setStatus(errorMessage(error.status),"error"); }
+  }
+  function uuid() { return globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+  function retryKey(form) { return `${form.dataset.action}:${form.dataset.candidateId || "session"}`; }
+  function buildCommand(form) {
+    const action=form.dataset.action; const data=new FormData(form); const body={expected_revision:authoritative.revision,command_id:uuid(),operator_id:String(data.get("operator_id") || "").trim()}; const timestamp=new Date().toISOString();
+    if (["approve","correct"].includes(action)) { body.candidate_id=form.dataset.candidateId; body.verification_id=uuid(); body.verified_at=timestamp; body.signal_id=uuid(); const comment=String(data.get("comment") || "").trim(); if (comment) body.comment=comment; if (action === "correct") body.corrected_value=String(data.get("corrected_value") || ""); }
+    if (action === "skip") { body.candidate_id=form.dataset.candidateId; body.reason=String(data.get("reason") || "").trim(); body.skipped_at=timestamp; }
+    if (action === "start") body.started_at=timestamp;
+    if (action === "complete") body.completed_at=timestamp;
+    if (action === "cancel") { body.reason=String(data.get("reason") || "").trim(); body.cancelled_at=timestamp; }
+    return body;
+  }
+  async function submitCommand(form) {
+    if (!authoritative) return; const action=form.dataset.action; const key=retryKey(form); const pending=retryState.get(key) || buildCommand(form); retryState.set(key,pending); const button=form.querySelector('button[type="submit"]'); button.disabled=true; setStatus(`Submitting ${action} command…`);
+    try { await api(`/api/v1/reviews/${encodeURIComponent(sessionId)}/${action}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(pending)}); retryState.delete(key); await loadDetail(`${action} command committed. Authoritative Session reloaded.`); }
+    catch (error) { setStatus(errorMessage(error.status),error.status===409 ? "warning" : "error"); if (error.status===409) await loadDetail("Conflict detected. Authoritative Session reloaded; retry metadata remains stable."); }
+    finally { button.disabled=false; }
+  }
+  document.addEventListener("submit",event => { const form=event.target.closest("form[data-action]"); if (!form) return; event.preventDefault(); submitCommand(form); });
+  document.addEventListener("click",event => { const reset=event.target.closest("button[data-reset-retry]"); if (!reset) return; const form=reset.closest("form[data-action]"); retryState.delete(retryKey(form)); setStatus("Retry metadata reset. The next explicit submission will create a new command."); });
+  loadDetail();
+})();
+</script>
+</body>
+</html>

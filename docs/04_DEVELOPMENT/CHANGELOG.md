@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR23-B - Founder Review UI
+
+- Add responsive, accessible Jinja and vanilla JavaScript pages at `/reviews` and `/reviews/{session_id}` for Queue and operational Review Detail workflows.
+- Add a read-only detail query/DTO that joins the authoritative ReviewSession, ordered OCR Candidates, Candidate statuses, persisted Review Command Contexts, Skip metadata, and Artifact metadata without adding Domain behavior.
+- Support explicit Start, Approve, Correct, Skip, Complete, and Cancel forms with authoritative revision use, stable retry identities/timestamps, no optimistic state, and post-success refetch.
+- Render all API values through `textContent`, provide status-specific bounded error UX, and avoid exposing raw SQLite details or stack traces.
+- Keep artifact preview explicitly unavailable because no artifact-binary retrieval route exists.
+
 ## PR23-A-3 - Founder Review Write API
 
 - Add Founder Review Approve, Correct, Skip, and Complete HTTP 200 command endpoints over `ReviewWorkflowService`.

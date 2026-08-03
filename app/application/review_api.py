@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.application.review import ReviewSessionDetail
 from app.domain.market_intelligence import CandidateReviewStatus, ReviewSession
 
 
@@ -78,4 +79,85 @@ class ReviewSessionListResponseDTO:
         }
 
 
-__all__ = ["ReviewSessionListResponseDTO", "ReviewSessionResponseDTO"]
+@dataclass(frozen=True, slots=True)
+class ReviewSessionDetailResponseDTO:
+    detail: ReviewSessionDetail
+
+    def to_dict(self) -> dict[str, object]:
+        session = ReviewSessionResponseDTO.from_session(self.detail.session).to_dict()
+        session["artifact_id"] = self.detail.session.artifact_id
+        session["operator_id"] = self.detail.session.operator_id
+        session["candidates"] = [
+            self._candidate(value) for value in self.detail.candidates
+        ]
+        return session
+
+    @staticmethod
+    def _candidate(value) -> dict[str, object]:
+        candidate = value.candidate
+        artifact = candidate.artifact
+        context = value.context
+        skip = value.skip_record
+        return {
+            "candidate_id": candidate.candidate_id,
+            "status": value.status.value,
+            "field_name": candidate.field_name.value,
+            "raw_text": candidate.raw_text,
+            "normalized_value": candidate.normalized_value,
+            "confidence": str(candidate.confidence),
+            "captured_at": candidate.captured_at.isoformat(),
+            "schema_version": candidate.schema_version,
+            "artifact": {
+                "artifact_id": artifact.artifact_id,
+                "artifact_type": artifact.artifact_type.value,
+                "origin": artifact.artifact_origin.value,
+                "source_type": artifact.source_type.value,
+                "mime_type": artifact.mime_type,
+                "width": artifact.width,
+                "height": artifact.height,
+                "file_size": artifact.file_size,
+                "captured_at": artifact.captured_at.isoformat(),
+                "schema_version": artifact.schema_version,
+                "preview_available": False,
+            },
+            "context": (
+                {
+                    "signal_name": context.signal_name,
+                    "signal_direction": context.signal_direction.value,
+                    "artifact_identity": context.artifact_identity,
+                    "created_at": context.created_at.isoformat(),
+                    "schema_version": context.schema_version,
+                    "market_observation_identity": {
+                        "scope": context.market_observation_identity.scope.value,
+                        "market": context.market_observation_identity.market,
+                        "marketplace": context.market_observation_identity.marketplace,
+                        "canonical_product_id": context.market_observation_identity.canonical_product_id,
+                        "marketplace_item_id": context.market_observation_identity.marketplace_item_id,
+                        "normalized_query": context.market_observation_identity.normalized_query,
+                        "category": context.market_observation_identity.category,
+                        "variant_identity": context.market_observation_identity.variant_identity,
+                        "condition": context.market_observation_identity.condition,
+                        "window_started_at": context.market_observation_identity.window_started_at.isoformat(),
+                        "window_ended_at": context.market_observation_identity.window_ended_at.isoformat(),
+                    },
+                }
+                if context is not None
+                else None
+            ),
+            "skip": (
+                {
+                    "operator_id": skip.operator_id,
+                    "reason": skip.reason,
+                    "skipped_at": skip.skipped_at.isoformat(),
+                }
+                if skip is not None
+                else None
+            ),
+        }
+
+
+__all__ = [
+    "ReviewSessionDetailResponseDTO",
+    "ReviewSessionListResponseDTO",
+    "ReviewSessionResponseDTO",
+]

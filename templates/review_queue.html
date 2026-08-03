@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Founder Review Queue · HYB Opportunity AI</title>
+  <style>
+    :root { color-scheme:light; --ink:#17202a; --muted:#5d6875; --border:#d7dce2; --surface:#f7f8fa; --accent:#173f66; --error:#a12622; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:16px/1.5 system-ui,sans-serif; color:var(--ink); background:#fff; }
+    main { width:min(76rem,100%); margin:auto; padding:1.25rem; }
+    h1,h2 { line-height:1.2; }
+    a { color:#135b91; }
+    a:focus-visible,button:focus-visible { outline:3px solid #1685d1; outline-offset:3px; }
+    .state { padding:1rem; border:1px solid var(--border); border-left:5px solid var(--accent); border-radius:.45rem; background:var(--surface); margin:1rem 0; }
+    .state[data-kind="error"] { border-left-color:var(--error); }
+    .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:.5rem; }
+    table { width:100%; border-collapse:collapse; min-width:64rem; }
+    th,td { padding:.75rem; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; }
+    th { background:var(--surface); }
+    .status { font-weight:700; }
+    button { font:inherit; padding:.55rem .9rem; color:#fff; background:var(--accent); border:0; border-radius:.3rem; cursor:pointer; }
+    [hidden] { display:none !important; }
+    @media (max-width:42rem) { main { padding:.75rem; } .table-wrap { border:0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Founder Review Queue</h1>
+    <p>Open a persisted review session. Loading this page never runs a workflow command.</p>
+    <button id="refresh" type="button">Refresh queue</button>
+  </header>
+  <div id="status" class="state" role="status" aria-live="polite">Loading review queue…</div>
+  <section aria-labelledby="queue-title">
+    <h2 id="queue-title">Review sessions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Session ID</th><th>Status</th><th>Revision</th><th>Candidates</th><th>Pending</th><th>Completed</th><th>Created</th><th>Started</th><th>Completed at</th><th>Action</th></tr></thead>
+        <tbody id="review-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  "use strict";
+  const rows=document.getElementById("review-rows");
+  const statusBox=document.getElementById("status");
+  const text=value => value === null || value === undefined ? "Not set" : String(value);
+  function setStatus(message,kind="info") { statusBox.textContent=message; statusBox.dataset.kind=kind; }
+  function cell(value,className="") { const td=document.createElement("td"); td.textContent=text(value); td.className=className; return td; }
+  function render(items) {
+    rows.replaceChildren();
+    items.forEach(item => {
+      const row=document.createElement("tr");
+      row.append(cell(item.session_id),cell(item.status,"status"),cell(item.revision),cell(item.candidate_count),cell(item.pending_count),cell(item.completed_count),cell(item.created_at),cell(item.started_at),cell(item.completed_at));
+      const action=document.createElement("td"); const link=document.createElement("a"); link.href=`/reviews/${encodeURIComponent(item.session_id)}`; link.textContent="Open details"; action.append(link); row.append(action); rows.append(row);
+    });
+    if (!items.length) { const row=document.createElement("tr"); const empty=cell("No review sessions are available."); empty.colSpan=10; row.append(empty); rows.append(row); }
+  }
+  async function loadQueue() {
+    setStatus("Loading review queue…");
+    try {
+      const response=await fetch("/api/v1/reviews");
+      if (!response.ok) throw new Error(String(response.status));
+      const data=await response.json(); render(data.items); setStatus(`Loaded ${data.total_count} review sessions.`);
+    } catch (_) { rows.replaceChildren(); setStatus("Review persistence is unavailable. Try refreshing the queue.","error"); }
+  }
+  document.getElementById("refresh").addEventListener("click",loadQueue);
+  loadQueue();
+})();
+</script>
+</body>
+</html>
