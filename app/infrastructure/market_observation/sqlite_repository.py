@@ -15,7 +15,12 @@ from app.application.market_observation import (
     MarketObservationType,
 )
 from app.domain.market_intelligence import (
+    CompetitionAssessment,
+    CompetitionLevel,
     CompetitionObservation,
+    DemandAssessment,
+    DemandAssessmentAvailability,
+    DemandLevel,
     DemandObservation,
     ExternalMarketSignal,
     ExternalSignalDirection,
@@ -24,6 +29,18 @@ from app.domain.market_intelligence import (
     MarketEvidenceStatus,
     MarketObservationIdentity,
     MarketObservationScope,
+    PopularityLevel,
+    PricePressure,
+    ReviewQuality,
+    RocketCompetitionLevel,
+)
+from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
+from app.application.assessment_snapshot import (
+    AssessmentSnapshot,
+    AssessmentSnapshotProvenanceError,
+    CompetitionAssessmentSnapshot,
+    DemandAssessmentSnapshot,
+    DuplicateAssessmentSnapshotError,
 )
 
 
@@ -55,6 +72,29 @@ CREATE TABLE IF NOT EXISTS market_observation_current (
 )
 """
 
+_ASSESSMENT_HISTORY_TABLE = """
+CREATE TABLE IF NOT EXISTS market_assessment_snapshot_history (
+    sequence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id TEXT NOT NULL UNIQUE,
+    assessment_type TEXT NOT NULL CHECK (assessment_type IN ('competition','demand')),
+    identity_key TEXT NOT NULL,
+    source_observation_id TEXT NOT NULL UNIQUE,
+    generated_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL
+)
+"""
+
+_ASSESSMENT_CURRENT_TABLE = """
+CREATE TABLE IF NOT EXISTS market_assessment_snapshot_current (
+    assessment_type TEXT NOT NULL,
+    identity_key TEXT NOT NULL,
+    snapshot_id TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (assessment_type, identity_key)
+)
+"""
+
 
 class SQLiteMarketObservationRepository(MarketObservationRepository):
     """Append-only observation history with a replaceable latest projection."""
@@ -77,6 +117,8 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
         with self._connection:
             self._connection.execute(_HISTORY_TABLE)
             self._connection.execute(_CURRENT_TABLE)
+            self._connection.execute(_ASSESSMENT_HISTORY_TABLE)
+            self._connection.execute(_ASSESSMENT_CURRENT_TABLE)
             self._migrate_external_current_series()
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_market_observation_history_lookup "
@@ -103,6 +145,16 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 """CREATE TRIGGER IF NOT EXISTS trg_market_observation_history_no_delete
                 BEFORE DELETE ON market_observation_history
                 BEGIN SELECT RAISE(ABORT, 'market observation history is append-only'); END"""
+            )
+            self._connection.execute(
+                """CREATE TRIGGER IF NOT EXISTS trg_market_assessment_history_no_update
+                BEFORE UPDATE ON market_assessment_snapshot_history
+                BEGIN SELECT RAISE(ABORT, 'market assessment snapshot is immutable'); END"""
+            )
+            self._connection.execute(
+                """CREATE TRIGGER IF NOT EXISTS trg_market_assessment_history_no_delete
+                BEFORE DELETE ON market_assessment_snapshot_history
+                BEGIN SELECT RAISE(ABORT, 'market assessment snapshot is immutable'); END"""
             )
 
     def save(
@@ -233,6 +285,86 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             parameters.append(limit)
         rows = self._connection.execute(query, tuple(parameters)).fetchall()
         return tuple(self._from_payload(row["payload_json"]) for row in rows)
+
+    def save_assessment_snapshot(
+        self, observation: MarketObservation, snapshot: AssessmentSnapshot
+    ) -> None:
+        competition = isinstance(snapshot, CompetitionAssessmentSnapshot)
+        if not competition and not isinstance(snapshot, DemandAssessmentSnapshot):
+            raise TypeError("snapshot must be an assessment snapshot")
+        expected = CompetitionObservation if competition else DemandObservation
+        if not isinstance(observation, expected):
+            raise AssessmentSnapshotProvenanceError("assessment type does not match observation")
+        if observation.observation_id != snapshot.source_observation_id:
+            raise AssessmentSnapshotProvenanceError("source observation id does not match")
+        if observation.identity != snapshot.identity:
+            raise AssessmentSnapshotProvenanceError("source observation identity does not match")
+        assessment_type = "competition" if competition else "demand"
+        identity_key = self._identity_key(snapshot.identity)
+        payload = self._assessment_payload(snapshot)
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self.save(observation, _manage_transaction=False)
+            self._connection.execute(
+                """INSERT INTO market_assessment_snapshot_history
+                (snapshot_id, assessment_type, identity_key, source_observation_id,
+                 generated_at, payload_json) VALUES (?, ?, ?, ?, ?, ?)""",
+                (snapshot.snapshot_id, assessment_type, identity_key,
+                 snapshot.source_observation_id, snapshot.generated_at.isoformat(), payload),
+            )
+            self._connection.execute(
+                """INSERT INTO market_assessment_snapshot_current
+                (assessment_type, identity_key, snapshot_id, generated_at, payload_json)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(assessment_type, identity_key) DO UPDATE SET
+                    snapshot_id=excluded.snapshot_id,
+                    generated_at=excluded.generated_at,
+                    payload_json=excluded.payload_json
+                WHERE excluded.generated_at >= market_assessment_snapshot_current.generated_at""",
+                (assessment_type, identity_key, snapshot.snapshot_id,
+                 snapshot.generated_at.isoformat(), payload),
+            )
+            self._connection.commit()
+        except DuplicateMarketObservationError as error:
+            self._connection.rollback()
+            raise DuplicateAssessmentSnapshotError(snapshot.snapshot_id) from error
+        except sqlite3.IntegrityError as error:
+            self._connection.rollback()
+            raise DuplicateAssessmentSnapshotError(snapshot.snapshot_id) from error
+        except Exception:
+            self._connection.rollback()
+            raise
+
+    def get_latest_competition_assessment_snapshot(self, identity):
+        return self._get_latest_assessment("competition", identity)
+
+    def get_latest_demand_assessment_snapshot(self, identity):
+        return self._get_latest_assessment("demand", identity)
+
+    def _get_latest_assessment(self, assessment_type, identity):
+        row = self._connection.execute(
+            "SELECT payload_json FROM market_assessment_snapshot_current "
+            "WHERE assessment_type = ? AND identity_key = ?",
+            (assessment_type, self._identity_key(identity)),
+        ).fetchone()
+        return self._assessment_from_payload(row["payload_json"]) if row else None
+
+    def get_latest_human_verified_external_signals(self, identity):
+        rows = self._connection.execute(
+            "SELECT payload_json FROM market_observation_current "
+            "WHERE observation_type = 'external_signal' ORDER BY identity_key"
+        ).fetchall()
+        expected_key = self._identity_key(identity)
+        signals = []
+        for row in rows:
+            signal = self._from_payload(row["payload_json"])
+            if (
+                isinstance(signal, ExternalMarketSignal)
+                and self._identity_key(signal.identity) == expected_key
+                and signal.evidence.status is MarketEvidenceStatus.HUMAN_VERIFIED
+            ):
+                signals.append(signal)
+        return tuple(sorted(signals, key=lambda value: value.signal_name))
 
     def close(self) -> None:
         if self._owns_connection:
@@ -384,6 +516,93 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 },
             })
         return cls._canonical_json(common)
+
+    @classmethod
+    def _assessment_payload(cls, snapshot: AssessmentSnapshot) -> str:
+        assessment = snapshot.assessment
+        common = {
+            "snapshot_id": snapshot.snapshot_id,
+            "identity": cls._identity_data(snapshot.identity, include_window=True),
+            "source_observation_id": snapshot.source_observation_id,
+            "availability": snapshot.availability.value,
+            "confidence": str(snapshot.confidence),
+            "freshness": snapshot.freshness.value,
+            "generated_at": snapshot.generated_at.isoformat(),
+            "schema_version": snapshot.schema_version,
+            "policy_version": snapshot.policy_version,
+        }
+        if isinstance(snapshot, CompetitionAssessmentSnapshot):
+            common["assessment_type"] = "competition"
+            common["assessment"] = {
+                "competition_level": assessment.competition_level.value,
+                "price_pressure": assessment.price_pressure.value,
+                "rocket_competition": assessment.rocket_competition.value,
+                "market_concentration": str(assessment.market_concentration),
+                "confidence": str(assessment.confidence),
+                "summary": assessment.summary,
+                "generated_at": assessment.generated_at.isoformat(),
+                "schema_version": assessment.schema_version,
+            }
+        else:
+            common["assessment_type"] = "demand"
+            common["assessment"] = {
+                "demand_level": assessment.demand_level.value if assessment.demand_level else None,
+                "popularity_level": assessment.popularity_level.value if assessment.popularity_level else None,
+                "review_quality": assessment.review_quality.value,
+                "availability": assessment.availability.value,
+                "available_metrics": list(assessment.available_metrics),
+                "missing_metrics": list(assessment.missing_metrics),
+                "reasons": list(assessment.reasons),
+                "confidence": str(assessment.confidence),
+                "summary": assessment.summary,
+                "generated_at": assessment.generated_at.isoformat(),
+                "schema_version": assessment.schema_version,
+            }
+        return cls._canonical_json(common)
+
+    @classmethod
+    def _assessment_from_payload(cls, payload):
+        data = json.loads(payload)
+        value = data["assessment"]
+        if data["assessment_type"] == "competition":
+            assessment = CompetitionAssessment(
+                competition_level=CompetitionLevel(value["competition_level"]),
+                price_pressure=PricePressure(value["price_pressure"]),
+                rocket_competition=RocketCompetitionLevel(value["rocket_competition"]),
+                market_concentration=Decimal(value["market_concentration"]),
+                confidence=Decimal(value["confidence"]),
+                summary=value["summary"],
+                generated_at=cls._datetime(value["generated_at"]),
+                schema_version=value["schema_version"],
+            )
+            snapshot_class = CompetitionAssessmentSnapshot
+        else:
+            assessment = DemandAssessment(
+                demand_level=DemandLevel(value["demand_level"]) if value["demand_level"] else None,
+                popularity_level=PopularityLevel(value["popularity_level"]) if value["popularity_level"] else None,
+                review_quality=ReviewQuality(value["review_quality"]),
+                availability=DemandAssessmentAvailability(value["availability"]),
+                available_metrics=tuple(value["available_metrics"]),
+                missing_metrics=tuple(value["missing_metrics"]),
+                reasons=tuple(value["reasons"]),
+                confidence=Decimal(value["confidence"]),
+                summary=value["summary"],
+                generated_at=cls._datetime(value["generated_at"]),
+                schema_version=value["schema_version"],
+            )
+            snapshot_class = DemandAssessmentSnapshot
+        return snapshot_class(
+            snapshot_id=data["snapshot_id"],
+            identity=cls._identity_from_data(data["identity"]),
+            source_observation_id=data["source_observation_id"],
+            assessment=assessment,
+            availability=DecisionEvidenceAvailability(data["availability"]),
+            confidence=Decimal(data["confidence"]),
+            freshness=DecisionFreshness(data["freshness"]),
+            generated_at=cls._datetime(data["generated_at"]),
+            schema_version=data["schema_version"],
+            policy_version=data["policy_version"],
+        )
 
     @classmethod
     def _from_payload(cls, payload_json: str) -> MarketObservation:

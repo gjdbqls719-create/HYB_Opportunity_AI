@@ -25,6 +25,9 @@ from app.application.dashboard_api.query import (
 )
 from app.application.dashboard_api.production_provider import (
     MISSING_MARKET_IDENTITY_LINK,
+    MISSING_VERIFIED_ECONOMICS,
+    MISSING_PRODUCTION_SAFETY,
+    MISSING_MARKET_EVIDENCE_COMPOSITION,
     ProductionOpportunityDecisionDashboardProvider,
     ValidationQueueItemReader,
 )
@@ -50,6 +53,9 @@ __all__ = [
     "OpportunityDecisionDashboardSource",
     "InvalidDashboardQueryError",
     "MISSING_MARKET_IDENTITY_LINK",
+    "MISSING_VERIFIED_ECONOMICS",
+    "MISSING_PRODUCTION_SAFETY",
+    "MISSING_MARKET_EVIDENCE_COMPOSITION",
     "ProductionOpportunityDecisionDashboardProvider",
     "ValidationQueueItemReader",
 ]

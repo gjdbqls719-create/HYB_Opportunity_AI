@@ -9,6 +9,9 @@ from app.domain.opportunity import (
     OpportunityLifecycleStatus,
     OpportunityLifecycleTransition,
 )
+from app.application.opportunity_market_identity import OpportunityMarketIdentityBinding
+from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
+from app.application.production_safety_snapshot import ProductionSafetySnapshot
 
 
 class DuplicateActiveValidationError(ValueError):
@@ -36,6 +39,44 @@ class ValidationQueueRepository(Protocol):
         transition: OpportunityLifecycleTransition,
         snapshot: ValidationAdmissionSnapshot,
         economics: EstimatedEconomicsSnapshot,
+    ) -> None: ...
+
+    def admit_with_market_identity(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        binding: OpportunityMarketIdentityBinding,
+    ) -> None: ...
+
+    def admit_with_economics_and_market_identity(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        economics: EstimatedEconomicsSnapshot,
+        binding: OpportunityMarketIdentityBinding,
+    ) -> None: ...
+
+    def admit_with_decision_sources(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        binding: OpportunityMarketIdentityBinding,
+        verified_economics: VerifiedEconomicsSnapshot,
+        production_safety: ProductionSafetySnapshot | None = None,
+    ) -> None: ...
+
+    def admit_with_economics_and_decision_sources(
+        self,
+        lifecycle: OpportunityLifecycle,
+        transition: OpportunityLifecycleTransition,
+        snapshot: ValidationAdmissionSnapshot,
+        economics: EstimatedEconomicsSnapshot,
+        binding: OpportunityMarketIdentityBinding,
+        verified_economics: VerifiedEconomicsSnapshot,
+        production_safety: ProductionSafetySnapshot | None = None,
     ) -> None: ...
 
     def list_queue(

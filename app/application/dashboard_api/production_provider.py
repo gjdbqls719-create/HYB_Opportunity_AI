@@ -11,10 +11,40 @@ from app.application.dashboard_api.query import (
 )
 from app.application.opportunity_validation import ValidationQueueItem
 from app.domain.decision_engine import OpportunityIdentity
+from app.application.opportunity_market_identity import (
+    GetOpportunityMarketIdentity,
+    MalformedOpportunityMarketIdentityBindingError,
+    OpportunityMarketIdentityBindingNotFoundError,
+    OpportunityMarketIdentityConflictError,
+    OpportunityMarketIdentityRepository,
+)
+from app.application.verified_economics_snapshot import (
+    GetVerifiedEconomicsSnapshot,
+    MalformedVerifiedEconomicsSnapshotError,
+    VerifiedEconomicsSnapshotIdentityConflictError,
+    VerifiedEconomicsSnapshotNotFoundError,
+    VerifiedEconomicsSnapshotRepository,
+)
+from app.application.production_safety_snapshot import (
+    GetProductionSafetySnapshot,
+    MalformedProductionSafetySnapshotError,
+    ProductionSafetySnapshotIdentityConflictError,
+    ProductionSafetySnapshotNotFoundError,
+    ProductionSafetySnapshotRepository,
+)
 
 
 MISSING_MARKET_IDENTITY_LINK = (
     "persisted opportunity has no explicit MarketObservationIdentity link"
+)
+MISSING_VERIFIED_ECONOMICS = (
+    "persisted opportunity has no authoritative VerifiedEconomicsInput source"
+)
+MISSING_PRODUCTION_SAFETY = (
+    "persisted opportunity has no authoritative ProductionSafetyAssessment source"
+)
+MISSING_MARKET_EVIDENCE_COMPOSITION = (
+    "production dashboard composition has no connected Competition and Demand evidence sources"
 )
 
 
@@ -32,8 +62,23 @@ class ProductionOpportunityDecisionDashboardProvider:
     discovery-reference string.
     """
 
-    def __init__(self, validation_repository: ValidationQueueItemReader) -> None:
+    def __init__(
+        self,
+        validation_repository: ValidationQueueItemReader,
+        market_identity_repository: OpportunityMarketIdentityRepository | None = None,
+        verified_economics_repository: VerifiedEconomicsSnapshotRepository | None = None,
+        production_safety_repository: ProductionSafetySnapshotRepository | None = None,
+    ) -> None:
         self._validation_repository = validation_repository
+        self._market_identity_repository = (
+            market_identity_repository or validation_repository
+        )
+        self._verified_economics_repository = (
+            verified_economics_repository or validation_repository
+        )
+        self._production_safety_repository = (
+            production_safety_repository or validation_repository
+        )
 
     def get(self, opportunity_id: str) -> OpportunityDecisionDashboardSource:
         try:
@@ -56,4 +101,42 @@ class ProductionOpportunityDecisionDashboardProvider:
             opportunity_id=item.opportunity_id,
             discovery_reference=item.discovery_reference,
         )
-        raise DashboardCompositionUnavailableError(MISSING_MARKET_IDENTITY_LINK)
+        try:
+            GetOpportunityMarketIdentity(
+                self._market_identity_repository
+            ).execute(opportunity_id)
+        except OpportunityMarketIdentityBindingNotFoundError as error:
+            raise DashboardCompositionUnavailableError(
+                MISSING_MARKET_IDENTITY_LINK
+            ) from error
+        except OpportunityMarketIdentityConflictError as error:
+            raise DashboardIdentityConflictError(str(error)) from error
+        except MalformedOpportunityMarketIdentityBindingError as error:
+            raise DashboardCompositionUnavailableError(str(error)) from error
+        try:
+            GetVerifiedEconomicsSnapshot(
+                self._verified_economics_repository
+            ).execute(opportunity_id)
+        except VerifiedEconomicsSnapshotNotFoundError as error:
+            raise DashboardCompositionUnavailableError(
+                MISSING_VERIFIED_ECONOMICS
+            ) from error
+        except VerifiedEconomicsSnapshotIdentityConflictError as error:
+            raise DashboardIdentityConflictError(str(error)) from error
+        except MalformedVerifiedEconomicsSnapshotError as error:
+            raise DashboardCompositionUnavailableError(str(error)) from error
+        try:
+            GetProductionSafetySnapshot(
+                self._production_safety_repository
+            ).execute(opportunity_id)
+        except ProductionSafetySnapshotNotFoundError as error:
+            raise DashboardCompositionUnavailableError(
+                MISSING_PRODUCTION_SAFETY
+            ) from error
+        except ProductionSafetySnapshotIdentityConflictError as error:
+            raise DashboardIdentityConflictError(str(error)) from error
+        except MalformedProductionSafetySnapshotError as error:
+            raise DashboardCompositionUnavailableError(str(error)) from error
+        raise DashboardCompositionUnavailableError(
+            MISSING_MARKET_EVIDENCE_COMPOSITION
+        )

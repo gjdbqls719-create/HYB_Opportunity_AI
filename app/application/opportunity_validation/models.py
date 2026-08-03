@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
 
-from app.domain.opportunity import OpportunityLifecycleStatus
+from app.domain.opportunity import (
+    OpportunityLifecycleStatus,
+    ProductionSafetyAssessment,
+    VerifiedEconomicsInput,
+)
+from app.domain.market_intelligence import MarketObservationIdentity
 from app.application.opportunity_validation.reference import canonicalize_discovery_reference
 
 
@@ -109,6 +114,53 @@ class AddToValidationQueueCommand:
     captured_at: datetime
     opportunity_id: str | None = None
     note: str | None = None
+    market_observation_identity: MarketObservationIdentity | None = None
+    verified_economics: VerifiedEconomicsInput | None = None
+    production_safety: ProductionSafetyAssessment | None = None
+    production_safety_rule_version: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.market_observation_identity is not None and not isinstance(
+            self.market_observation_identity, MarketObservationIdentity
+        ):
+            raise TypeError(
+                "market_observation_identity must be MarketObservationIdentity or None"
+            )
+        if self.verified_economics is not None and not isinstance(
+            self.verified_economics, VerifiedEconomicsInput
+        ):
+            raise TypeError(
+                "verified_economics must be VerifiedEconomicsInput or None"
+            )
+        if (
+            self.verified_economics is not None
+            and self.market_observation_identity is None
+        ):
+            raise ValueError(
+                "verified_economics requires an explicit market_observation_identity"
+            )
+        if self.production_safety is not None and not isinstance(
+            self.production_safety, ProductionSafetyAssessment
+        ):
+            raise TypeError(
+                "production_safety must be ProductionSafetyAssessment or None"
+            )
+        if self.production_safety is not None and self.verified_economics is None:
+            raise ValueError(
+                "production_safety requires authoritative verified_economics"
+            )
+        if self.production_safety is None:
+            if self.production_safety_rule_version is not None:
+                raise ValueError(
+                    "production_safety_rule_version requires production_safety"
+                )
+        elif (
+            not isinstance(self.production_safety_rule_version, str)
+            or not self.production_safety_rule_version.strip()
+        ):
+            raise ValueError(
+                "production_safety requires a non-empty rule version"
+            )
 
 
 @dataclass(frozen=True, slots=True)

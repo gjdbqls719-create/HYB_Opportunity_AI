@@ -1,5 +1,41 @@
 # HYB Changelog
 
+## PR22-C.3.5 - Assessment Snapshot Foundation
+
+- Add immutable Competition and Demand assessment snapshot contracts preserving bound market identity, source observation ID, availability, exact Decimal confidence, freshness, generated time, schema version, and policy version.
+- Persist observation history/current and assessment snapshot history/current in one SQLite transaction with provenance identity/type validation and full rollback on snapshot failure.
+- Add deterministic latest persisted Competition and Demand assessment queries without rerunning intelligence analysis.
+- Add an identity-scoped query returning every latest per-signal HUMAN_VERIFIED External Market Signal without requiring callers to know signal names or returning superseded series values.
+- Block duplicate assessment provenance and UPDATE/DELETE of immutable assessment history while retaining a replaceable latest projection.
+- Keep Competition/Demand formulas, thresholds, Decision policy, Dashboard contracts, and existing Market Observation history semantics unchanged.
+
+## PR22-C.3 - Production Safety Snapshot Binding
+
+- Add an immutable authoritative `ProductionSafetyAssessment` snapshot bound during Founder Validation admission, preserving status and tuple-based missing/failed facts.
+- Preserve explicit snapshot time, Safety rule version, and snapshot schema version without recalculating Safety.
+- Store Safety atomically with lifecycle current/history, admission snapshot, market identity, verified economics, and the estimated baseline on the variance-ready path.
+- Block duplicate rows, UPDATE, DELETE, malformed snapshots, and Opportunity identity mismatches.
+- Add `GetProductionSafetySnapshot` and use it from Dashboard production composition through the application boundary.
+- Preserve legacy missing-snapshot failure and advance fully bound composition to the next explicit blocker: Competition and Demand evidence sources are not connected to the provider.
+
+## PR22-C.2 - Verified Economics Snapshot Binding
+
+- Add an immutable authoritative `VerifiedEconomicsInput` snapshot bound to the admitted Opportunity, preserving all Decimal values and per-field evidence provenance.
+- Store the snapshot atomically with lifecycle current/history, admission snapshot, market identity binding, and the estimated baseline on the variance-ready path.
+- Reject identity mismatches and verified-economics admission without an explicit market identity; block duplicate rows, UPDATE, and DELETE.
+- Add `GetVerifiedEconomicsSnapshot` for deterministic, read-only reconstruction without using Estimated Economics, Actual Economics, or admission ROI.
+- Preserve legacy missing-snapshot behavior as an explicit Dashboard composition failure with no backfill or fabricated values.
+- Advance a fully bound Dashboard composition to the next truthful blocker: no authoritative `ProductionSafetyAssessment` source.
+
+## PR22-C.1 - Opportunity Market Identity Binding
+
+- Add an immutable, explicit Opportunity-to-MarketObservationIdentity binding with complete LISTING/CANONICAL_PRODUCT identity fields, timezone-aware observation windows, binding time, and schema version.
+- Insert the binding atomically with lifecycle current/history and the Validation admission snapshot, including the variance-ready estimated-economics baseline path.
+- Reject SEARCH_QUERY/CATEGORY scopes, mismatched opportunity/reference identities, duplicates, updates, and deletes.
+- Preserve legacy admission without guessing a binding; legacy Dashboard queries continue to return the explicit composition-gap 503.
+- Resolve bindings through `GetOpportunityMarketIdentity`; a valid binding advances Dashboard composition to the next truthful blocker: no authoritative persisted `VerifiedEconomicsInput` source.
+- Keep admission rollback semantics, Decision rules, formulas, thresholds, and all evidence contracts unchanged.
+
 ## PR22-C - Production Decision Dashboard Query Composition
 
 - Wire the decision-dashboard endpoint to a production provider that resolves the authoritative Validation Queue/Lifecycle subject by HYB `opportunity_id`.

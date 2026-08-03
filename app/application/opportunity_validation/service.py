@@ -24,6 +24,9 @@ from app.application.opportunity_validation.models import (
 from app.application.opportunity_validation.ports import ValidationQueueRepository
 from app.application.opportunity_validation.reference import canonicalize_discovery_reference
 from app.domain.opportunity import EconomicsCalculation, OpportunityLifecycle
+from app.application.opportunity_market_identity import OpportunityMarketIdentityBinding
+from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
+from app.application.production_safety_snapshot import ProductionSafetySnapshot
 
 
 class OpportunityValidationService:
@@ -38,7 +41,24 @@ class OpportunityValidationService:
 
     def add(self, command: AddToValidationQueueCommand) -> ValidationQueueItem:
         lifecycle, transition, snapshot = self._build_admission(command)
-        self._queue_repository.admit(lifecycle, transition, snapshot)
+        if command.market_observation_identity is None:
+            self._queue_repository.admit(lifecycle, transition, snapshot)
+        elif command.verified_economics is not None:
+            self._queue_repository.admit_with_decision_sources(
+                lifecycle,
+                transition,
+                snapshot,
+                self._binding(command, lifecycle),
+                self._verified_economics(command, lifecycle),
+                self._production_safety(command, lifecycle),
+            )
+        else:
+            self._queue_repository.admit_with_market_identity(
+                lifecycle,
+                transition,
+                snapshot,
+                self._binding(command, lifecycle),
+            )
         return self._load_admitted(lifecycle.opportunity_id)
 
     def add_with_economics(
@@ -55,9 +75,28 @@ class OpportunityValidationService:
                 captured_at=command.captured_at,
             )
         )
-        self._queue_repository.admit_with_economics(
-            lifecycle, transition, snapshot, baseline
-        )
+        if command.market_observation_identity is None:
+            self._queue_repository.admit_with_economics(
+                lifecycle, transition, snapshot, baseline
+            )
+        elif command.verified_economics is not None:
+            self._queue_repository.admit_with_economics_and_decision_sources(
+                lifecycle,
+                transition,
+                snapshot,
+                baseline,
+                self._binding(command, lifecycle),
+                self._verified_economics(command, lifecycle),
+                self._production_safety(command, lifecycle),
+            )
+        else:
+            self._queue_repository.admit_with_economics_and_market_identity(
+                lifecycle,
+                transition,
+                snapshot,
+                baseline,
+                self._binding(command, lifecycle),
+            )
         return self._load_admitted(lifecycle.opportunity_id)
 
     def _build_admission(self, command: AddToValidationQueueCommand):
@@ -87,6 +126,34 @@ class OpportunityValidationService:
             captured_at=command.captured_at,
         )
         return lifecycle, transition, snapshot
+
+    @staticmethod
+    def _binding(command, lifecycle) -> OpportunityMarketIdentityBinding:
+        return OpportunityMarketIdentityBinding(
+            opportunity_id=lifecycle.opportunity_id,
+            discovery_reference=lifecycle.discovery_reference,
+            market_observation_identity=command.market_observation_identity,
+            bound_at=command.captured_at,
+        )
+
+    @staticmethod
+    def _verified_economics(command, lifecycle) -> VerifiedEconomicsSnapshot:
+        return VerifiedEconomicsSnapshot(
+            opportunity_id=lifecycle.opportunity_id,
+            inputs=command.verified_economics,
+            snapshot_at=command.captured_at,
+        )
+
+    @staticmethod
+    def _production_safety(command, lifecycle) -> ProductionSafetySnapshot | None:
+        if command.production_safety is None:
+            return None
+        return ProductionSafetySnapshot(
+            opportunity_id=lifecycle.opportunity_id,
+            assessment=command.production_safety,
+            snapshot_at=command.captured_at,
+            rule_version=command.production_safety_rule_version,
+        )
 
     def _load_admitted(self, opportunity_id: str) -> ValidationQueueItem:
         item = self._queue_repository.get_queue_item(opportunity_id)
