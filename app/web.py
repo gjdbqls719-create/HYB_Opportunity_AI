@@ -7,7 +7,7 @@ from decimal import Decimal
 import sqlite3
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -50,6 +50,16 @@ from app.application.opportunity_validation import (
     ValidationActionCommand,
     ValidationQueueQuery,
 )
+from app.application.opportunity_review_binding import OpportunityReviewBindingConflictError, OpportunityReviewBindingNotFoundError, OpportunityReviewBindingPersistenceError
+from app.application.opportunity_review_ui import OpportunityReviewUIQueryService
+from app.application.decision_readiness import DecisionReadinessNotFoundError, DecisionReadinessService
+from app.application.verified_economics_admission import (
+    FinalizeVerifiedEconomicsAdmission,
+    FinalizeVerifiedEconomicsAdmissionCommand,
+    VerifiedEconomicsAdmissionConflictError,
+    VerifiedEconomicsAdmissionNotFoundError,
+    VerifiedEconomicsAdmissionPersistenceError,
+)
 from app.application.review import (
     ApproveCandidateCommand,
     CancelReviewCommand,
@@ -87,7 +97,15 @@ from app.domain.market_intelligence import (
     MarketObservationIdentity,
     MarketObservationScope,
 )
-from app.domain.opportunity import InvalidLifecycleTransitionError, OpportunityLifecycleStatus
+from app.domain.opportunity import (
+    EconomicEvidence,
+    EvidenceStatus,
+    InvalidLifecycleTransitionError,
+    MoneyInput,
+    OpportunityLifecycleStatus,
+    RateInput,
+    VerifiedEconomicsInput,
+)
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review import (
@@ -143,6 +161,43 @@ class DecisionCompositionFinalizationRequest(BaseModel):
     external_signal_ids: tuple[str, ...] | None = None
     generated_at: datetime | None = None
     requested_by: str | None = Field(default=None, min_length=1)
+
+
+class EconomicEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: EvidenceStatus
+    source: str = Field(min_length=1)
+    observed_at: datetime | None = None
+    reference: str | None = None
+
+
+class MoneyInputRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    amount: str | None
+    currency: str = Field(min_length=3, max_length=3)
+    evidence: EconomicEvidenceRequest
+
+
+class RateInputRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    rate: str | None
+    evidence: EconomicEvidenceRequest
+
+
+class VerifiedEconomicsAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    snapshot_at: datetime
+    purchase_cost: MoneyInputRequest
+    shipping_cost: MoneyInputRequest
+    marketplace_fee_rate: RateInputRequest
+    payment_fee_rate: RateInputRequest
+    fixed_fee: MoneyInputRequest
+    tax_rate: RateInputRequest
+    duty_cost: MoneyInputRequest
+    other_cost: MoneyInputRequest
+    expected_sale_price: MoneyInputRequest
 
 
 class StartReviewRequest(BaseModel):
@@ -201,6 +256,7 @@ class CreateTrustedReviewRequest(BaseModel):
     created_at: datetime
     command_id: str = Field(min_length=1)
     contexts: tuple[ReviewCommandContextRequest, ...] = Field(min_length=1)
+    opportunity_id: str | None = Field(default=None, min_length=1)
 
 
 class ApproveCandidateRequest(BaseModel):
@@ -307,6 +363,30 @@ def get_review_workflow_service():
         persistence.close()
 
 
+def get_opportunity_review_ui_query_service():
+    persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
+    try:
+        yield OpportunityReviewUIQueryService(persistence.opportunities, persistence.sessions, persistence.ledger)
+    finally:
+        persistence.close()
+
+
+def get_decision_readiness_service():
+    persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
+    try:
+        yield DecisionReadinessService(persistence.opportunities, persistence.observations, persistence.sessions)
+    finally:
+        persistence.close()
+
+
+def get_verified_economics_admission_service():
+    repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield FinalizeVerifiedEconomicsAdmission(repository)
+    finally:
+        repository.close()
+
+
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:
     return OpportunityValidationService(
         queue_repository=repository,
@@ -392,6 +472,16 @@ def review_queue_page(request: Request):
         request=request,
         name="review_queue.html",
     )
+
+
+@app.get("/opportunities")
+def opportunity_list_page(request: Request):
+    return templates.TemplateResponse(request=request, name="opportunity_list.html", context={})
+
+
+@app.get("/opportunities/{opportunity_id}")
+def opportunity_detail_page(request: Request, opportunity_id: str):
+    return templates.TemplateResponse(request=request, name="opportunity_detail.html", context={"opportunity_id": opportunity_id})
 
 
 @app.get("/reviews/{session_id}")
@@ -495,6 +585,106 @@ def list_review_sessions(
         raise HTTPException(status_code=503, detail="review persistence unavailable") from error
 
 
+@app.get("/api/v1/opportunities")
+def list_operational_opportunities(query: OpportunityReviewUIQueryService = Depends(get_opportunity_review_ui_query_service)):
+    try: return query.list()
+    except (sqlite3.Error, ValueError) as error:
+        raise HTTPException(status_code=503, detail="opportunity persistence unavailable") from error
+
+
+@app.get("/api/v1/opportunities/{opportunity_id}/review-detail")
+def get_operational_opportunity_detail(opportunity_id: str, query: OpportunityReviewUIQueryService = Depends(get_opportunity_review_ui_query_service)):
+    try: result = query.detail(opportunity_id)
+    except (sqlite3.Error, ValueError) as error:
+        raise HTTPException(status_code=503, detail="opportunity persistence unavailable") from error
+    if result is None: raise HTTPException(status_code=404, detail="opportunity not found")
+    return result
+
+
+@app.get("/api/v1/opportunities/{opportunity_id}/decision-readiness")
+def get_decision_readiness(opportunity_id: str, service: DecisionReadinessService = Depends(get_decision_readiness_service)):
+    try: return service.execute(opportunity_id)
+    except DecisionReadinessNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="decision readiness unavailable") from error
+
+
+def _economics_evidence(value: EconomicEvidenceRequest) -> EconomicEvidence:
+    return EconomicEvidence(value.status, value.source, value.observed_at, value.reference)
+
+
+def _money_input(value: MoneyInputRequest) -> MoneyInput:
+    return MoneyInput(
+        Decimal(value.amount) if value.amount is not None else None,
+        value.currency,
+        _economics_evidence(value.evidence),
+    )
+
+
+def _rate_input(value: RateInputRequest) -> RateInput:
+    return RateInput(
+        Decimal(value.rate) if value.rate is not None else None,
+        _economics_evidence(value.evidence),
+    )
+
+
+def _verified_economics_payload(snapshot) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "opportunity_id": snapshot.opportunity_id,
+        "snapshot_at": snapshot.snapshot_at.isoformat(),
+        "schema_version": snapshot.schema_version,
+    }
+    for name in ("purchase_cost", "shipping_cost", "marketplace_fee_rate",
+                 "payment_fee_rate", "fixed_fee", "tax_rate", "duty_cost",
+                 "other_cost", "expected_sale_price"):
+        item = getattr(snapshot.inputs, name)
+        number = getattr(item, "amount", getattr(item, "rate", None))
+        evidence = item.evidence
+        payload[name] = {
+            "amount" if hasattr(item, "amount") else "rate": str(number) if number is not None else None,
+            **({"currency": item.currency} if hasattr(item, "currency") else {}),
+            "evidence": {"status": evidence.status.value, "source": evidence.source,
+                         "observed_at": evidence.observed_at.isoformat() if evidence.observed_at else None,
+                         "reference": evidence.reference},
+        }
+    return payload
+
+
+@app.post("/api/v1/opportunities/{opportunity_id}/verified-economics", status_code=201)
+def finalize_verified_economics_admission(
+    opportunity_id: str,
+    request: VerifiedEconomicsAdmissionRequest,
+    response: Response,
+    service: FinalizeVerifiedEconomicsAdmission = Depends(get_verified_economics_admission_service),
+):
+    try:
+        inputs = VerifiedEconomicsInput(
+            purchase_cost=_money_input(request.purchase_cost),
+            shipping_cost=_money_input(request.shipping_cost),
+            marketplace_fee_rate=_rate_input(request.marketplace_fee_rate),
+            payment_fee_rate=_rate_input(request.payment_fee_rate),
+            fixed_fee=_money_input(request.fixed_fee),
+            tax_rate=_rate_input(request.tax_rate),
+            duty_cost=_money_input(request.duty_cost),
+            other_cost=_money_input(request.other_cost),
+            expected_sale_price=_money_input(request.expected_sale_price),
+        )
+        result = service.execute(FinalizeVerifiedEconomicsAdmissionCommand(
+            opportunity_id, request.command_id, request.operator_id, inputs, request.snapshot_at
+        ))
+        response.status_code = 200 if result.replayed else 201
+        return _verified_economics_payload(result.snapshot)
+    except VerifiedEconomicsAdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except VerifiedEconomicsAdmissionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (VerifiedEconomicsAdmissionPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="verified economics persistence unavailable") from error
+
+
 @app.get("/api/v1/reviews/{session_id}")
 def get_review_session(
     session_id: str,
@@ -504,6 +694,8 @@ def get_review_session(
         session = query_service.get(GetReviewSession(session_id))
         return ReviewSessionResponseDTO.from_session(session).to_dict()
     except ReviewSessionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except OpportunityReviewBindingNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except ReviewPersistenceError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
@@ -545,9 +737,10 @@ def _execute_review_transition(operation, command) -> dict[str, object]:
         ReviewCommandConflictError,
         ReviewOperatorMismatchError,
         InvalidReviewSessionTransitionError,
+        OpportunityReviewBindingConflictError,
     ) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
-    except ReviewPersistenceError as error:
+    except (ReviewPersistenceError, OpportunityReviewBindingPersistenceError) as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except sqlite3.Error as error:
         raise HTTPException(
@@ -602,6 +795,7 @@ def create_trusted_review_session(
             _review_context(request.session_id, context)
             for context in request.contexts
         ),
+        opportunity_id=request.opportunity_id,
     )
     return _execute_review_transition(workflow.create_session, command)
 

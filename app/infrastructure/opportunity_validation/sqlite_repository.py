@@ -51,6 +51,10 @@ from app.application.verified_economics_snapshot import (
     VerifiedEconomicsSnapshot,
     VerifiedEconomicsSnapshotIdentityConflictError,
 )
+from app.application.verified_economics_admission import (
+    VerifiedEconomicsAdmissionConflictError,
+    VerifiedEconomicsAdmissionPersistenceError,
+)
 from app.application.production_safety_snapshot import (
     DuplicateProductionSafetySnapshotError,
     MalformedProductionSafetySnapshotError,
@@ -163,6 +167,18 @@ CREATE TABLE IF NOT EXISTS decision_composition_current (
     payload_json TEXT NOT NULL
 )
 """
+_VERIFIED_ECONOMICS_RECEIPTS = """
+CREATE TABLE IF NOT EXISTS verified_economics_admission_receipts (
+ command_id TEXT PRIMARY KEY, command_fingerprint TEXT NOT NULL,
+ opportunity_id TEXT NOT NULL UNIQUE, operator_id TEXT NOT NULL,
+ snapshot_at TEXT NOT NULL, schema_version TEXT NOT NULL,
+ FOREIGN KEY(opportunity_id) REFERENCES verified_economics_snapshots(opportunity_id))
+"""
+_OPPORTUNITY_REVIEW_BINDING_CURRENT = """
+CREATE TABLE IF NOT EXISTS opportunity_review_binding_current (
+ session_id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL, binding_id TEXT NOT NULL UNIQUE,
+ payload_json TEXT NOT NULL, projected_at TEXT NOT NULL)
+"""
 
 
 class SQLiteValidationQueueRepository:
@@ -187,9 +203,11 @@ class SQLiteValidationQueueRepository:
             self._connection.execute(_SNAPSHOT_TABLE)
             self._connection.execute(_MARKET_IDENTITY_BINDING_TABLE)
             self._connection.execute(_VERIFIED_ECONOMICS_TABLE)
+            self._connection.execute(_VERIFIED_ECONOMICS_RECEIPTS)
             self._connection.execute(_PRODUCTION_SAFETY_TABLE)
             self._connection.execute(_DECISION_COMPOSITION_HISTORY)
             self._connection.execute(_DECISION_COMPOSITION_CURRENT)
+            self._connection.execute(_OPPORTUNITY_REVIEW_BINDING_CURRENT)
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_opportunity_market_binding_reference "
                 "ON opportunity_market_identity_bindings(discovery_reference)"
@@ -214,6 +232,10 @@ class SQLiteValidationQueueRepository:
                 BEFORE DELETE ON verified_economics_snapshots
                 BEGIN SELECT RAISE(ABORT, 'verified economics snapshot is immutable'); END"""
             )
+            for operation in ("UPDATE","DELETE"):
+                self._connection.execute(f"""CREATE TRIGGER IF NOT EXISTS trg_verified_economics_receipts_no_{operation.lower()}
+                BEFORE {operation} ON verified_economics_admission_receipts
+                BEGIN SELECT RAISE(ABORT, 'verified economics admission receipt is immutable'); END""")
             self._connection.execute(
                 """CREATE TRIGGER IF NOT EXISTS trg_production_safety_no_update
                 BEFORE UPDATE ON production_safety_snapshots
@@ -642,6 +664,23 @@ class SQLiteValidationQueueRepository:
                 "persisted opportunity market identity binding is malformed"
             ) from error
 
+    def get_bound_review_external_signal_ids(self, opportunity_id: str) -> tuple[str, ...] | None:
+        count = self._connection.execute(
+            "SELECT COUNT(*) FROM opportunity_review_binding_current WHERE opportunity_id = ?", (opportunity_id,)
+        ).fetchone()[0]
+        if count == 0:
+            return None
+        rows = self._connection.execute(
+            """SELECT receipts.payload_json FROM opportunity_review_binding_current AS bindings
+            JOIN review_command_receipts AS receipts ON receipts.session_id = bindings.session_id
+            WHERE bindings.opportunity_id = ? ORDER BY receipts.inserted_at, receipts.command_id""",
+            (opportunity_id,),
+        ).fetchall()
+        return tuple(
+            signal_id for row in rows
+            if (signal_id := json.loads(row["payload_json"]).get("external_signal_id")) is not None
+        )
+
     def get_verified_economics_snapshot(
         self, opportunity_id: str
     ) -> VerifiedEconomicsSnapshot | None:
@@ -698,6 +737,52 @@ class SQLiteValidationQueueRepository:
         ) as error:
             raise MalformedVerifiedEconomicsSnapshotError(
                 "persisted verified economics snapshot is malformed"
+            ) from error
+
+    def get_verified_economics_admission_receipt(self, command_id: str):
+        try:
+            row = self._connection.execute(
+                """SELECT command_fingerprint, opportunity_id, operator_id,
+                snapshot_at, schema_version FROM verified_economics_admission_receipts
+                WHERE command_id = ?""",
+                (command_id,),
+            ).fetchone()
+        except sqlite3.Error as error:
+            raise VerifiedEconomicsAdmissionPersistenceError(
+                "verified economics receipt is unavailable"
+            ) from error
+        if row is None:
+            return None
+        if row["schema_version"] != "verified-economics-admission-receipt-v1":
+            raise VerifiedEconomicsAdmissionPersistenceError(
+                "unsupported verified economics receipt version"
+            )
+        return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
+                "operator_id": row["operator_id"], "snapshot_at": row["snapshot_at"]}
+
+    def finalize_verified_economics_admission(self, snapshot, command_id, fingerprint, operator_id):
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self._insert_verified_economics_snapshot(snapshot)
+            self._connection.execute("INSERT INTO verified_economics_admission_receipts (command_id,command_fingerprint,opportunity_id,operator_id,snapshot_at,schema_version) VALUES (?,?,?,?,?,?)",(command_id,fingerprint,snapshot.opportunity_id,operator_id,snapshot.snapshot_at.isoformat(),"verified-economics-admission-receipt-v1"))
+            self._connection.commit()
+            return snapshot
+        except sqlite3.IntegrityError as error:
+            self._connection.rollback()
+            receipt=self.get_verified_economics_admission_receipt(command_id)
+            if receipt is not None and receipt["fingerprint"]==fingerprint:
+                existing=self.get_verified_economics_snapshot(snapshot.opportunity_id)
+                if existing is not None:
+                    return existing
+            if receipt is not None:
+                raise VerifiedEconomicsAdmissionConflictError("verified economics command conflict") from error
+            if self.get_verified_economics_snapshot(snapshot.opportunity_id) is not None:
+                raise VerifiedEconomicsAdmissionConflictError("verified economics snapshot already exists") from error
+            raise VerifiedEconomicsAdmissionPersistenceError("verified economics admission failed") from error
+        except Exception as error:
+            self._connection.rollback()
+            raise VerifiedEconomicsAdmissionPersistenceError(
+                "verified economics admission transaction failed"
             ) from error
 
     def get_production_safety_snapshot(

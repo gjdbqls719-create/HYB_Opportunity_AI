@@ -1,5 +1,32 @@
 # HYB Changelog
 
+## PR25-B - Decision Readiness and Finalization Experience
+
+- Add a read-only Decision Readiness Application service and API that validates persisted source existence, authoritative identity, and approved schema/policy versions without rerunning any formula or assessment.
+- Extend Opportunity Detail with per-source status, blocking reasons, latest composition version, Dashboard navigation, and an explicit Finalize action enabled only when required sources are ready.
+- Refetch authoritative readiness and Dashboard state after successful finalization and provide bounded 404/409/422/503 UX without automatic finalization or raw persistence errors.
+- Keep missing Verified Economics, Production Safety, Competition, and Demand operational entry points visible as blockers instead of fabricating READY/COMPLETE sources.
+
+## PR25-A - Opportunity Detail and Review Create UI
+
+- Add responsive, accessible `/opportunities` and `/opportunities/{id}` Jinja/vanilla JavaScript pages over minimal read-only operational Opportunity APIs.
+- Compose Opportunity, Market identity, existing Review binding/status, and authoritative OCR Candidate ledger records without adding Candidate identity inference.
+- Add explicit Candidate selection and trusted bound Review creation, redirect successful creation to the Review Queue, and link an already-bound Opportunity directly to Review Detail.
+- Reject a second Opportunity-bound Review while retaining restart-safe replay for the original Create command.
+
+## PR24-A - Opportunity–Review Authoritative Binding Foundation
+
+- Add immutable `OpportunityReviewBinding` history/current persistence with complete Opportunity, ReviewSession, discovery, Market identity, command, timestamp, and schema provenance.
+- Atomically validate and persist an optional trusted Review Create `opportunity_id` alongside Receipt, Session, and Candidate Contexts without changing Review Domain transitions.
+- Restrict Decision external-signal selection to receipt-backed Signals from explicitly bound ReviewSessions when an Opportunity has Review bindings; reject explicitly selected unbound Signals.
+- Prevent title, query, artifact ID, or Market identity inference and retain legacy behavior for explicitly unbound pre-foundation Reviews and Opportunities.
+
+## PR23-C - MVP Operational E2E
+
+- Add an explicit local-only Founder Review validation harness backed by a required new, non-default SQLite file.
+- Reuse the authoritative Candidate ledger, Review Command Context, ReviewWorkflowService, receipts, Verification, and External Signal persistence with deterministic, visibly demo-labelled provenance.
+- Provide a prepare-only mode for browser-driven workflow validation and report the missing authoritative Review-to-Opportunity identity as a Decision connectivity blocker instead of inferring a link.
+
 ## PR23-B - Founder Review UI
 
 - Add responsive, accessible Jinja and vanilla JavaScript pages at `/reviews` and `/reviews/{session_id}` for Queue and operational Review Detail workflows.
@@ -1018,3 +1045,11 @@ PR13-C
 - Economics Domain Model
 - Legacy Wrapper
 - Typed Economics Contract
+## PR26-A - Verified Economics Operational Admission
+
+- Added an explicit post-admission Application/API boundary for the existing immutable
+  Verified Economics snapshot contract.
+- Added atomic, immutable command receipts for exact restart-safe replay without reusing
+  Founder Review receipts.
+- Extended Opportunity Detail with explicit immutable economics admission, provenance
+  fields, read-only saved summary, and authoritative readiness refetch.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import hashlib
 from pathlib import Path
 
 from app.application.review import (
@@ -15,6 +16,8 @@ from app.domain.market_intelligence import ExternalMarketSignal, HumanVerificati
 from app.infrastructure.external_signal_ledger import SQLiteExternalSignalLedgerRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review.sqlite_session_repository import SQLiteReviewSessionRepository
+from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
+from app.application.opportunity_review_binding import OpportunityReviewBinding, OpportunityReviewBindingConflictError, OpportunityReviewBindingNotFoundError, OpportunityReviewBindingPersistenceError
 
 
 class SQLiteVerifiedSignalPersistence:
@@ -29,6 +32,7 @@ class SQLiteVerifiedSignalPersistence:
         self.ledger = SQLiteExternalSignalLedgerRepository(connection=self._connection)
         self.observations = SQLiteMarketObservationRepository(connection=self._connection)
         self.sessions = SQLiteReviewSessionRepository(connection=self._connection)
+        self.opportunities = SQLiteValidationQueueRepository(connection=self._connection)
 
     def save(
         self,
@@ -96,9 +100,24 @@ class SQLiteVerifiedSignalPersistence:
                 partial_completion=False,
             ) from error
 
-    def create_session(self, session, metadata, receipt=None, *, contexts=()) -> None:
+    def create_session(self, session, metadata, receipt=None, *, contexts=(), opportunity_id=None) -> None:
         try:
             self._connection.execute("BEGIN IMMEDIATE")
+            binding = None
+            if opportunity_id is not None:
+                item = self.opportunities.get_queue_item(opportunity_id)
+                market_binding = self.opportunities.get_market_identity_binding(opportunity_id)
+                if item is None or market_binding is None:
+                    raise OpportunityReviewBindingNotFoundError("authoritative opportunity binding source not found")
+                if any(context.market_observation_identity != market_binding.market_observation_identity for context in contexts):
+                    raise OpportunityReviewBindingConflictError("review context market identity does not match opportunity")
+                binding = OpportunityReviewBinding(
+                    binding_id="opportunity-review-" + hashlib.sha256(f"{opportunity_id}\0{session.session_id}".encode()).hexdigest(),
+                    opportunity_id=opportunity_id, session_id=session.session_id,
+                    discovery_reference=item.discovery_reference,
+                    market_observation_identity=market_binding.market_observation_identity,
+                    command_id=metadata.command_id, bound_at=session.created_at,
+                )
             if receipt is not None:
                 self.sessions.save_receipt(
                     receipt, metadata.command_fingerprint, _manage_transaction=False
@@ -106,11 +125,16 @@ class SQLiteVerifiedSignalPersistence:
             self.sessions.create(session, metadata, _manage_transaction=False)
             for context in contexts:
                 self.sessions.save_context(context, _manage_transaction=False)
+            if binding is not None:
+                self.sessions.save_opportunity_binding(binding, _manage_transaction=False)
             self._connection.commit()
         except (
             ReviewPersistenceError,
             ReviewCommandConflictError,
             ReviewSessionVersionConflictError,
+            OpportunityReviewBindingConflictError,
+            OpportunityReviewBindingNotFoundError,
+            OpportunityReviewBindingPersistenceError,
         ):
             self._connection.rollback()
             raise

@@ -22,6 +22,7 @@ from app.application.review.models import (
     UnsupportedReviewSessionVersionError,
 )
 from app.application.review.ports import ReviewSessionRepository
+from app.application.opportunity_review_binding import OpportunityReviewBinding, OpportunityReviewBindingConflictError, OpportunityReviewBindingPersistenceError
 from app.domain.market_intelligence import (
     CandidateReviewStatus,
     CandidateSkipRecord,
@@ -106,6 +107,21 @@ CREATE TABLE IF NOT EXISTS review_cancel_metadata (
 )
 """
 
+_BINDING_HISTORY = """
+CREATE TABLE IF NOT EXISTS opportunity_review_binding_history (
+ sequence_id INTEGER PRIMARY KEY AUTOINCREMENT, binding_id TEXT NOT NULL UNIQUE,
+ opportunity_id TEXT NOT NULL, session_id TEXT NOT NULL UNIQUE,
+ command_id TEXT NOT NULL UNIQUE, payload_json TEXT NOT NULL, bound_at TEXT NOT NULL,
+ FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id),
+ FOREIGN KEY(session_id) REFERENCES review_session_current(session_id))
+"""
+_BINDING_CURRENT = """
+CREATE TABLE IF NOT EXISTS opportunity_review_binding_current (
+ session_id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL, binding_id TEXT NOT NULL UNIQUE,
+ payload_json TEXT NOT NULL, projected_at TEXT NOT NULL,
+ FOREIGN KEY(binding_id) REFERENCES opportunity_review_binding_history(binding_id))
+"""
+
 
 class SQLiteReviewSessionRepository(ReviewSessionRepository):
     def __init__(
@@ -131,6 +147,8 @@ class SQLiteReviewSessionRepository(ReviewSessionRepository):
                 _CONTEXT_CURRENT,
                 _RECEIPTS,
                 _CANCEL_METADATA,
+                _BINDING_HISTORY,
+                _BINDING_CURRENT,
             ):
                 self._connection.execute(statement)
             self._connection.execute(
@@ -148,6 +166,8 @@ class SQLiteReviewSessionRepository(ReviewSessionRepository):
                 "review_command_context_current",
                 "review_command_receipts",
                 "review_cancel_metadata",
+                "opportunity_review_binding_history",
+                "opportunity_review_binding_current",
             ):
                 for operation in ("UPDATE", "DELETE"):
                     self._connection.execute(
@@ -155,6 +175,42 @@ class SQLiteReviewSessionRepository(ReviewSessionRepository):
                         BEFORE {operation} ON {table}
                         BEGIN SELECT RAISE(ABORT, '{table} is immutable'); END"""
                     )
+            self._connection.execute("CREATE INDEX IF NOT EXISTS idx_opportunity_review_binding_opportunity ON opportunity_review_binding_current(opportunity_id)")
+
+    def save_opportunity_binding(self, value: OpportunityReviewBinding, *, _manage_transaction: bool = True) -> OpportunityReviewBinding:
+        existing = self.get_opportunity_binding(value.session_id)
+        if existing is not None:
+            if existing == value: return existing
+            raise OpportunityReviewBindingConflictError("review session already has an opportunity binding")
+        if self.list_opportunity_bindings(value.opportunity_id):
+            raise OpportunityReviewBindingConflictError("opportunity already has a review binding")
+        payload = self._opportunity_binding_payload(value)
+        try:
+            if _manage_transaction: self._connection.execute("BEGIN IMMEDIATE")
+            self._connection.execute("INSERT INTO opportunity_review_binding_history (binding_id, opportunity_id, session_id, command_id, payload_json, bound_at) VALUES (?,?,?,?,?,?)", (value.binding_id, value.opportunity_id, value.session_id, value.command_id, payload, self._iso(value.bound_at)))
+            self._connection.execute("INSERT INTO opportunity_review_binding_current (session_id, opportunity_id, binding_id, payload_json, projected_at) VALUES (?,?,?,?,?)", (value.session_id, value.opportunity_id, value.binding_id, payload, self._iso(value.bound_at)))
+            if _manage_transaction: self._connection.commit()
+            return value
+        except OpportunityReviewBindingConflictError:
+            if _manage_transaction: self._connection.rollback()
+            raise
+        except sqlite3.IntegrityError as error:
+            if _manage_transaction: self._connection.rollback()
+            existing = self.get_opportunity_binding(value.session_id)
+            if existing is not None:
+                raise OpportunityReviewBindingConflictError("duplicate opportunity review binding") from error
+            raise OpportunityReviewBindingPersistenceError("opportunity review binding projection failed") from error
+        except Exception as error:
+            if _manage_transaction: self._connection.rollback()
+            raise OpportunityReviewBindingPersistenceError("opportunity review binding persistence failed") from error
+
+    def get_opportunity_binding(self, session_id: str) -> OpportunityReviewBinding | None:
+        row = self._connection.execute("SELECT payload_json FROM opportunity_review_binding_current WHERE session_id=?", (session_id,)).fetchone()
+        return self._opportunity_binding_from_payload(row["payload_json"]) if row else None
+
+    def list_opportunity_bindings(self, opportunity_id: str) -> tuple[OpportunityReviewBinding, ...]:
+        rows = self._connection.execute("SELECT payload_json FROM opportunity_review_binding_current WHERE opportunity_id=? ORDER BY session_id", (opportunity_id,)).fetchall()
+        return tuple(self._opportunity_binding_from_payload(row["payload_json"]) for row in rows)
 
     def create(
         self,
@@ -677,6 +733,34 @@ class SQLiteReviewSessionRepository(ReviewSessionRepository):
             raise
         except Exception as error:
             raise MalformedReviewSessionError("malformed review command context") from error
+
+    @staticmethod
+    def _identity_dict(identity: MarketObservationIdentity) -> dict[str, object]:
+        return {"scope": identity.scope.value, "market": identity.market, "marketplace": identity.marketplace,
+                "canonical_product_id": identity.canonical_product_id, "marketplace_item_id": identity.marketplace_item_id,
+                "normalized_query": identity.normalized_query, "category": identity.category,
+                "variant_identity": identity.variant_identity, "condition": identity.condition,
+                "window_started_at": identity.window_started_at.isoformat(), "window_ended_at": identity.window_ended_at.isoformat()}
+
+    @classmethod
+    def _opportunity_binding_payload(cls, value: OpportunityReviewBinding) -> str:
+        return json.dumps({"binding_id": value.binding_id, "opportunity_id": value.opportunity_id,
+            "session_id": value.session_id, "discovery_reference": value.discovery_reference,
+            "market_observation_identity": cls._identity_dict(value.market_observation_identity),
+            "command_id": value.command_id, "bound_at": value.bound_at.isoformat(), "schema_version": value.schema_version},
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _opportunity_binding_from_payload(payload: str) -> OpportunityReviewBinding:
+        value = json.loads(payload); identity = value["market_observation_identity"]
+        return OpportunityReviewBinding(value["binding_id"], value["opportunity_id"], value["session_id"],
+            value["discovery_reference"], MarketObservationIdentity(
+                scope=identity["scope"], market=identity["market"], marketplace=identity["marketplace"],
+                canonical_product_id=identity["canonical_product_id"], marketplace_item_id=identity["marketplace_item_id"],
+                normalized_query=identity["normalized_query"], category=identity["category"],
+                variant_identity=identity["variant_identity"], condition=identity["condition"],
+                window_started_at=datetime.fromisoformat(identity["window_started_at"]), window_ended_at=datetime.fromisoformat(identity["window_ended_at"])),
+            value["command_id"], datetime.fromisoformat(value["bound_at"]), value["schema_version"])
 
     @staticmethod
     def _receipt_payload(receipt: ReviewCommandReceipt) -> str:

@@ -36,6 +36,8 @@ Start writes only ReviewSession history/current and its command Receipt. Cancel 
 
 `POST /api/v1/reviews` admits a trusted ReviewSession and returns HTTP 201 with `ReviewSessionResponseDTO`. The request requires `session_id`, `artifact_id`, non-empty `candidate_ids`, `operator_id`, timezone-aware `created_at`, `command_id`, and a non-empty `contexts` collection. Every Context contains its Candidate ID, complete `MarketObservationIdentity`, signal name/direction, artifact identity, and timezone-aware creation time.
 
+The optional `opportunity_id` creates an authoritative immutable Opportunity–Review binding in the same transaction. The Opportunity and its Market Identity binding must already exist, and every supplied Context identity must exactly match that authoritative identity. Missing sources return 404, identity or duplicate binding conflicts return 409, and persistence failures return 503. Omitting `opportunity_id` preserves legacy unbound Review admission.
+
 The endpoint constructs the existing `CreateReviewSession`, `ReviewCommandContext`, and market identity values and delegates to `ReviewWorkflowService`. The Application boundary requires Context Candidate IDs to match the Session Candidate set exactly. Existing repository validation remains authoritative for Candidate existence, Session membership, artifact identity, and immutable Context conflicts.
 
 Create Receipt, Session history/current, and Context history/current are committed in one SQLite transaction. An identical command and payload returns the exact HTTP 201 DTO after restart without additional facts. Duplicate Sessions, changed command payloads, Context conflicts, and untrusted Candidate/Context admission return 409; malformed input and naive timestamps return 422; persistence and commit failures return 503. The handler contains no SQL, transaction, revision calculation, or Domain transition logic.
@@ -52,6 +54,31 @@ All four endpoints return HTTP 200 with `ReviewSessionResponseDTO` and delegate 
 
 `GET /reviews` renders the Founder Review Queue and reads `GET /api/v1/reviews`. `GET /reviews/{session_id}` renders the operational detail page and reads `GET /api/v1/reviews/{session_id}/detail`. Page GET requests never execute workflow commands; every mutation requires an explicit native button submission and is followed by an authoritative detail refetch.
 
+`GET /opportunities` and `GET /opportunities/{opportunity_id}` render the operational Opportunity list and detail workflow. Their read endpoints are `GET /api/v1/opportunities` and `GET /api/v1/opportunities/{opportunity_id}/review-detail`, composed from the existing Validation Queue subject, Opportunity Market Identity binding, Opportunity–Review binding, ReviewSession projection, and OCR Candidate ledger current projection.
+
+The Opportunity Detail form never infers Candidate ownership from text, Artifact ID, or Market identity. It presents authoritative ledger Candidates for explicit operator selection, requires one shared authoritative Artifact, takes explicit signal name/direction, and submits the existing trusted Review Create request with `opportunity_id` and the server-provided Opportunity Market identity. Successful creation navigates to `/reviews`. When a binding already exists, the read DTO exposes that Review and the UI offers only its detail link; the persistence boundary rejects a second bound Review.
+
+`GET /api/v1/opportunities/{opportunity_id}/decision-readiness` reports read-only source readiness for Opportunity Market Identity, Opportunity–Review binding, Verified Economics, Production Safety, Competition assessment, Demand assessment, bound External Signals, and the latest Decision Composition. It validates only persisted identity and supported schema/policy versions; it never reruns economics, safety, competition, demand, or Decision formulas. Required missing/error sources produce blocking reasons and disable finalization. External Signals are optional when none are bound.
+
+Opportunity Detail renders the readiness result and enables its explicit Finalize button only when every required source is ready. Clicking performs the existing Decision Composition POST, then refetches readiness and the Decision Dashboard. Page GET and readiness GET never finalize. HTTP 409 reports duplicate/conflicting provenance truthfully; 404, 422, and 503 remain bounded without persistence internals.
+
+For local operational validation only, `python -m app.founder_review_validation --database <new-path> --confirm-local-demo` creates a labelled, isolated demo SQLite database and executes the existing Review Application commands. It refuses the production default database and existing files. `--prepare-only` stops after trusted Candidate, Context, and Session admission for browser-driven mutation. This is not an OCR ingestion endpoint and does not create or infer an Opportunity identity.
+
+`python -m app.founder_review_validation_server --database <demo-path>` serves the existing web composition root against that explicit local validation file. It also refuses the default DB and missing files; it does not seed on startup.
+
 The detail read DTO preserves Session Candidate order and combines the authoritative Session projection, OCR Candidate ledger entry, persisted Review Command Context, optional Skip metadata, and immutable Artifact metadata. It exposes raw/normalized OCR values, confidence, Candidate status, signal context, artifact ID/origin/source/MIME/dimensions/capture time, and explicitly reports `preview_available: false`. Artifact bytes remain external and no binary retrieval or image URL route exists.
 
 The vanilla JavaScript client renders API values with `textContent`, uses the current authoritative revision, and retains command ID, command timestamp, Verification ID, Signal ID, and exact payload across failed retries. A successful command clears retry state and refetches detail. HTTP 404/409/422/503 states receive bounded user-facing messages; raw persistence details are never rendered.
+## Verified Economics operational admission
+
+`POST /api/v1/opportunities/{opportunity_id}/verified-economics` admits the existing
+`VerifiedEconomicsInput` as the Opportunity's single immutable authoritative snapshot.
+All money amounts and rates are JSON strings so Decimal scale is preserved. Every input
+contains its existing evidence status, source, optional reference, and optional aware
+`observed_at`. The command additionally requires `command_id`, `operator_id`, and an aware
+`snapshot_at`; clients cannot supply readiness, decision, formula, or schema metadata.
+
+The first commit returns 201. An exact restart-safe replay returns 200 with the same DTO.
+Missing Opportunities return 404, existing snapshot or changed-command conflicts return
+409, malformed/domain-invalid input returns 422, and bounded persistence failures return
+503.

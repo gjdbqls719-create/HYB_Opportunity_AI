@@ -93,6 +93,13 @@ class ReviewWorkflowService:
                 raise ReviewCommandConflictError(
                     "trusted review contexts must match every session candidate"
                 )
+        if command.opportunity_id is not None:
+            for candidate_id in command.candidate_ids:
+                candidate = self._ledger.get_candidate(candidate_id)
+                if candidate is None:
+                    raise ReviewCandidateNotFoundError(candidate_id)
+                if candidate.artifact.artifact_id != command.artifact_id:
+                    raise ReviewArtifactMismatchError("candidate artifact does not match review session")
         session = ReviewSession(
             session_id=command.session_id,
             artifact_id=command.artifact_id,
@@ -108,7 +115,7 @@ class ReviewWorkflowService:
             receipt = self._receipt(command, session, "create", command.created_at)
             create = getattr(self._persistence, "create_session", None)
             if create is not None:
-                create(session, metadata, receipt, contexts=command.contexts or ())
+                create(session, metadata, receipt, contexts=command.contexts or (), opportunity_id=command.opportunity_id)
             else:
                 self._sessions.create(session, metadata)
         return session

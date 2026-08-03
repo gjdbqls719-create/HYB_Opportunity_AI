@@ -39,3 +39,17 @@ Production Review commands cross the Application boundary using IDs and an expec
 `review_cancel_metadata` stores one immutable cancellation audit fact per Session with reason, operator, cancellation time, resulting revision, and schema version. Context, Receipt, and Cancel queries are read-only and restart-safe; all three tables reject UPDATE and DELETE through triggers.
 
 Trusted Review creation commits its Create Receipt, ReviewSession history/current, and exactly one immutable Review Command Context for every Session Candidate in one `BEGIN IMMEDIATE` transaction. Context membership and artifact identity use the existing repository validation. Any Receipt, Session, Context, or commit failure rolls back the complete admission; identical command and Context payload replays without adding rows after restart.
+
+## Opportunity–Review Binding
+
+`opportunity_review_binding_history` is the append-only provenance ledger for an explicit Opportunity-to-ReviewSession association. `opportunity_review_binding_current` is its immutable lookup projection keyed by Session ID and indexed by Opportunity ID. The payload preserves binding ID, Opportunity ID, Session ID, authoritative discovery reference, complete authoritative MarketObservationIdentity, originating Review Create command ID, bound time, and schema version `opportunity-review-binding-v1`.
+
+A trusted Review Create request may include `opportunity_id`. The shared `BEGIN IMMEDIATE` transaction loads the existing Validation Queue subject and Opportunity Market Identity binding, requires every Review Command Context to carry exactly that identity, then commits Receipt, Session, Contexts, and Opportunity–Review binding together. Missing sources, identity conflicts, duplicate Session bindings, projection failure, and commit failure leave all Review admission areas unchanged. Neither title, query, artifact ID, nor Market identity alone is used to discover an Opportunity.
+
+Decision composition source selection uses External Signal IDs recorded by command receipts belonging to ReviewSessions explicitly bound to the requested Opportunity. When a binding exists, omitted signal IDs select only those bound Review Signals and explicitly supplied IDs outside that set conflict. Legacy Opportunities without an Opportunity–Review binding retain their pre-foundation signal selection contract.
+### `verified_economics_admission_receipts`
+
+Immutable, append-only idempotency receipts for post-admission Verified Economics.
+`command_id` is the primary key and `opportunity_id` is unique, matching the single-snapshot
+contract. The receipt stores the canonical command fingerprint, operator, snapshot time,
+and fixed receipt schema version. The snapshot insert and receipt insert commit atomically.

@@ -121,11 +121,17 @@ class FinalizeDecisionComposition:
         if demand is None: raise MissingDecisionCompositionSourceError("demand assessment snapshot not found")
         self._validate_source_versions(economics, safety, competition, demand)
         latest_signals = self._assessments.get_latest_human_verified_external_signals(market_identity)
+        bound_signal_ids = None
+        get_bound_ids = getattr(self._sources, "get_bound_review_external_signal_ids", None)
+        if get_bound_ids is not None:
+            bound_signal_ids = get_bound_ids(opportunity_id)
         if external_signal_ids is None:
-            signals = latest_signals
+            signals = latest_signals if bound_signal_ids is None else self._assessments.get_human_verified_external_signals_by_ids(market_identity, bound_signal_ids)
         else:
             if not isinstance(external_signal_ids, tuple):
                 raise TypeError("external_signal_ids must be tuple")
+            if bound_signal_ids is not None and any(value not in bound_signal_ids for value in external_signal_ids):
+                raise DecisionCompositionIdentityConflictError("external signal is not bound to opportunity review")
             signals = self._assessments.get_human_verified_external_signals_by_ids(
                 market_identity, external_signal_ids
             )

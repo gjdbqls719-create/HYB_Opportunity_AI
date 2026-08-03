@@ -24,6 +24,7 @@ class CreateReviewSession:
     schema_version: str = "review-session-v1"
     command_id: str | None = None
     contexts: tuple[ReviewCommandContext, ...] | None = None
+    opportunity_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
