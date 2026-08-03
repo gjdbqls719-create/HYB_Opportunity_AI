@@ -9,6 +9,9 @@ from app.application.decision_engine.policy import (
 )
 from app.application.decision_engine.ports import DecisionDimensionEvaluator
 from app.application.decision_engine.service import DecisionEvaluationService
+from app.application.decision_engine.explanation_service import (
+    DecisionExplanationService,
+)
 from app.application.decision_engine.use_cases import (
     CompetitionEvaluator,
     DemandEvaluator,
@@ -21,6 +24,7 @@ __all__ = [
     "CompetitionEvaluator",
     "DecisionDimensionEvaluator",
     "DecisionEvaluationService",
+    "DecisionExplanationService",
     "DecisionMatrix",
     "DecisionPolicy",
     "DefaultDecisionPolicy",

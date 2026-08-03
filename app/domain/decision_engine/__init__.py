@@ -13,6 +13,15 @@ from app.domain.decision_engine.models import (
     DecisionResult,
     OpportunityIdentity,
 )
+from app.domain.decision_engine.explanation import (
+    DecisionEvidenceSummary,
+    DecisionExplanation,
+    DecisionExplanationItem,
+    DecisionExplanationSection,
+    DecisionSummary,
+    ExplanationCode,
+    Severity,
+)
 
 __all__ = [
     "DecisionConfidence",
@@ -26,4 +35,11 @@ __all__ = [
     "DecisionReasonCode",
     "DecisionResult",
     "OpportunityIdentity",
+    "DecisionEvidenceSummary",
+    "DecisionExplanation",
+    "DecisionExplanationItem",
+    "DecisionExplanationSection",
+    "DecisionSummary",
+    "ExplanationCode",
+    "Severity",
 ]

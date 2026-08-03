@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR21-D - Deterministic Decision Explanation
+
+- Add immutable Decision summary, explanation sections/items, and per-dimension evidence summaries.
+- Convert DecisionResult facts into fixed Summary, Strengths, Warnings, and Missing Evidence sections.
+- Apply deterministic explanation codes, default text, severity mapping, ordering, and duplicate removal without using an LLM.
+- Preserve Decision outcome, aggregate confidence, timestamps, schema version, and policy version without rerunning policy or assessments.
+- Keep Dashboard, Recommendation, Founder Decision, and all Economics, Safety, Competition, and Demand calculations unchanged.
+
 ## PR21-C - Decision Matrix Foundation
 
 - Add a policy protocol and default MVP policy that combines only immutable dimension results.
