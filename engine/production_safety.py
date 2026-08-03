@@ -1,31 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from enum import StrEnum
+from dataclasses import replace
 from math import isfinite
 from typing import Mapping
 
 from app.models import Product, ProductDataSource
-from app.domain.opportunity import EconomicsCalculation
+from app.domain.opportunity import (
+    EconomicsCalculation,
+    ProductionSafetyAssessment,
+    ProductionSafetyStatus,
+)
 from engine.price_intelligence import PriceIntelligence
 from engine.recommendation import RecommendationResult
-
-
-class ProductionSafetyStatus(StrEnum):
-    READY = "READY"
-    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
-    PROFITABILITY_FAILED = "PROFITABILITY_FAILED"
-
-
-@dataclass(frozen=True, slots=True)
-class ProductionSafetyAssessment:
-    status: ProductionSafetyStatus
-    missing_fields: tuple[str, ...] = ()
-    failed_checks: tuple[str, ...] = ()
-
-    @property
-    def can_recommend_buy(self) -> bool:
-        return self.status is ProductionSafetyStatus.READY
 
 
 def assess_production_safety(

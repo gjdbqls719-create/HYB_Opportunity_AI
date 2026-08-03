@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR21-A.1 - Decision Domain Contract Hardening
+
+- Separate immutable Opportunity identity from Market Observation evidence identity.
+- Restrict Decision inputs to listing and canonical-product market scopes.
+- Enforce confidence availability/missing-dimension consistency and immutable Safety collections.
+- Reject mutable human-verified external signal values at the Decision input boundary.
+- Keep Decision calculation, Recommendation, business thresholds, and external signal storage contracts unchanged.
+
+## PR21-A - Decision Engine V2 Domain Contract
+
+- Add immutable Decision Engine V2 outcomes, dimensions, fact reason codes, evidence metadata, inputs, and results.
+- Require Decimal confidence, timezone-aware timestamps, immutable tuples, and explicit schema/policy versions.
+- Reuse verified economics, production safety, market assessments, human-verified external signals, and market observation identity without calculating a decision.
+- Move the existing immutable production-safety status/result language into the Opportunity Domain while preserving the legacy engine import path and safety formula.
+- Keep Decision Matrix, Recommendation, Dashboard, Founder Decision, thresholds, economics formulas, and Agreement Analysis unchanged.
+
 ## PR20-C.1 - Multi-Candidate Provenance Hardening
 
 - Distinguish verified external signals by candidate, verification, signal name, artifact, and evidence provenance.

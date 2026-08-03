@@ -31,6 +31,10 @@ from app.domain.opportunity.variance import (
     calculate_economics_variance,
 )
 from app.domain.opportunity.reasons import OpportunityReason
+from app.domain.opportunity.production_safety import (
+    ProductionSafetyAssessment,
+    ProductionSafetyStatus,
+)
 
 
 from app.domain.opportunity.founder_decision import FounderDecision, FounderDecisionType
@@ -70,6 +74,8 @@ __all__ = [
     "OpportunityLifecycleTransition",
     "OpportunityReason",
     "OpportunityScore",
+    "ProductionSafetyAssessment",
+    "ProductionSafetyStatus",
     "RateInput",
     "SnapshotValidationError",
     "VerifiedEconomicsInput",
