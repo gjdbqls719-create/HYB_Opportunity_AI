@@ -32,6 +32,7 @@ from app.application.production_safety_snapshot import (
     ProductionSafetySnapshotNotFoundError,
     ProductionSafetySnapshotRepository,
 )
+from app.application.production_safety_evaluation import ProductionSafetyEvaluationPersistenceError
 from app.application.assessment_snapshot import AssessmentSnapshotRepository
 from app.application.decision_composition import (
     DecisionCompositionError,
@@ -132,10 +133,15 @@ class ProductionOpportunityDecisionDashboardProvider:
             economics = self._verified_economics_repository.get_verified_economics_snapshot(
                 composition.verified_economics_snapshot_id
             )
-            safety = self._production_safety_repository.get_production_safety_snapshot(
-                composition.production_safety_snapshot_id
+            operational_get = getattr(self._production_safety_repository, "get_decision_source", None)
+            safety = (
+                operational_get(composition.production_safety_snapshot_id)
+                if operational_get is not None
+                else self._production_safety_repository.get_production_safety_snapshot(
+                    composition.production_safety_snapshot_id
+                )
             )
-        except (MalformedVerifiedEconomicsSnapshotError, MalformedProductionSafetySnapshotError) as error:
+        except (MalformedVerifiedEconomicsSnapshotError, MalformedProductionSafetySnapshotError, ProductionSafetyEvaluationPersistenceError) as error:
             raise DashboardCompositionUnavailableError(
                 "finalized composition source is malformed"
             ) from error

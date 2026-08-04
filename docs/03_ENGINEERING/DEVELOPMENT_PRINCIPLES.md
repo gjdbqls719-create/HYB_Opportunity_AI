@@ -505,3 +505,11 @@ and explicit Product member, then call the canonical engine exactly once. Persis
 the returned assessment unchanged with exact source provenance. Replay must not
 reconstruct or reevaluate. Admission Safety outcomes and operational evaluations
 are distinct contracts; neither may be inferred from or overwrite the other.
+
+## Decision use of operational Safety
+
+Production Readiness and Finalize must resolve the same operational current.
+Finalize must pin its evaluation ID in composition provenance and revalidate it
+inside the composition transaction. Dashboard must load that pinned immutable
+evaluation, not a newer current row. Missing operational Safety is a normal
+not-ready conflict; persistence failure is a separate unavailable condition.

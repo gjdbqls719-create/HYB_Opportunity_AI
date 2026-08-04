@@ -234,6 +234,30 @@ class ProductionSafetyEvaluationResult:
     replayed: bool
 
 
+@dataclass(frozen=True, slots=True)
+class OperationalProductionSafetyDecisionSource:
+    evaluation_id: str
+    opportunity_id: str
+    assessment: ProductionSafetyAssessment
+    snapshot_chain_binding_id: str
+    selected_product_snapshot_id: str
+    rule_version: str
+    evaluation_schema_version: str
+    provenance_schema_version: str
+    evaluated_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in (
+            "evaluation_id", "opportunity_id", "snapshot_chain_binding_id",
+            "selected_product_snapshot_id", "rule_version",
+            "evaluation_schema_version", "provenance_schema_version",
+        ):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        if not isinstance(self.assessment, ProductionSafetyAssessment):
+            raise TypeError("assessment must be ProductionSafetyAssessment")
+        _aware(self.evaluated_at, "evaluated_at")
+
+
 class ProductionSafetyEvaluationRepository(Protocol):
     def get_receipt(self, command_id: str) -> ProductionSafetyEvaluationReceipt | None: ...
     def get_evaluation(self, evaluation_id: str) -> ProductionSafetyEvaluation | None: ...
@@ -322,5 +346,5 @@ class EvaluateAndPersistProductionSafety:
 
 __all__ = [
     name for name in globals()
-    if name.startswith(("ProductionSafety", "EvaluateAndPersist", "MalformedProductionSafety", "UnsupportedProductionSafety"))
+    if name.startswith(("ProductionSafety", "OperationalProductionSafety", "EvaluateAndPersist", "MalformedProductionSafety", "UnsupportedProductionSafety"))
 ]

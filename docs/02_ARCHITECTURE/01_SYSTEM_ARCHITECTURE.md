@@ -131,3 +131,8 @@ PR36-A executes the unchanged Production Safety engine over that exact selection
 Operational evaluation history and provenance are authoritative; a controlled
 current projection supplies Decision Readiness. The one-shot admission Safety
 snapshot remains a separate legacy outcome and is never overwritten or backfilled.
+
+PR36-B makes operational Safety current the production Decision source. Finalize
+captures the exact evaluation ID and transactionally rejects a stale current;
+Dashboard subsequently reads that immutable evaluation. Readiness, Finalize, and
+Dashboard therefore share one authoritative source without a legacy fallback.

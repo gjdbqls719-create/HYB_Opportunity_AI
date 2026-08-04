@@ -948,7 +948,41 @@ class SQLiteValidationQueueRepository:
         safety = self.get_production_safety_snapshot(
             snapshot.production_safety_snapshot_id
         )
-        if safety is None or safety.opportunity_id != opportunity_id:
+        if safety is None:
+            tables = self._connection.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='production_safety_evaluation_current'"
+            ).fetchone()[0]
+            if not tables:
+                raise MissingDecisionCompositionSourceError("production safety provenance missing")
+            row = self._connection.execute(
+                """SELECT c.evaluation_id AS current_id,c.evaluation_version AS current_version,
+                h.opportunity_id,h.evaluation_version,h.rule_version,h.evaluation_schema_version,
+                p.opportunity_id AS provenance_opportunity,p.rule_version AS provenance_rule,
+                p.provenance_schema_version
+                FROM production_safety_evaluation_current c
+                JOIN production_safety_evaluation_history h ON h.evaluation_id=c.evaluation_id
+                JOIN production_safety_evaluation_provenance p ON p.evaluation_id=c.evaluation_id
+                WHERE c.opportunity_id=?""",
+                (opportunity_id,),
+            ).fetchone()
+            if row is None:
+                raise MissingDecisionCompositionSourceError("operational production safety current missing")
+            if row["current_id"] != snapshot.production_safety_snapshot_id:
+                raise DecisionCompositionVersionConflictError("operational production safety source is stale")
+            if (
+                row["opportunity_id"] != opportunity_id
+                or row["provenance_opportunity"] != opportunity_id
+                or row["current_version"] != row["evaluation_version"]
+            ):
+                raise DecisionCompositionIdentityConflictError("operational production safety identity mismatch")
+            if (
+                row["rule_version"] != "production-safety-v1"
+                or row["provenance_rule"] != row["rule_version"]
+                or row["evaluation_schema_version"] != "production-safety-evaluation-v1"
+                or row["provenance_schema_version"] != "production-safety-provenance-v1"
+            ):
+                raise UnsupportedDecisionCompositionVersionError("unsupported operational production safety source")
+        elif safety.opportunity_id != opportunity_id:
             raise MissingDecisionCompositionSourceError("production safety provenance missing")
         for snapshot_id, assessment_type in (
             (snapshot.competition_assessment_snapshot_id, "competition"),

@@ -360,12 +360,15 @@ def get_validation_queue_repository():
 def get_opportunity_decision_dashboard_provider():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     market_repository = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
+    safety_repository = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
     try:
         yield ProductionOpportunityDecisionDashboardProvider(
             repository,
+            production_safety_repository=safety_repository,
             assessment_repository=market_repository,
         )
     finally:
+        safety_repository.close()
         market_repository.close()
         repository.close()
 
@@ -373,16 +376,19 @@ def get_opportunity_decision_dashboard_provider():
 def get_decision_composition_finalizer():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     market_repository = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
+    safety_repository = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
     try:
         yield FinalizeOpportunityDecisionComposition(
             FinalizeDecisionComposition(
                 source_repository=repository,
                 assessment_repository=market_repository,
                 composition_repository=repository,
+                production_safety_repository=safety_repository,
             ),
             clock=lambda: datetime.now(timezone.utc),
         )
     finally:
+        safety_repository.close()
         market_repository.close()
         repository.close()
 
@@ -1129,11 +1135,11 @@ def finalize_opportunity_decision_composition(
         DecisionCompositionVersionConflictError,
         DecisionCompositionIdentityConflictError,
         UnsupportedDecisionCompositionVersionError,
+        MissingDecisionCompositionSourceError,
+        MalformedDecisionCompositionError,
     ) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except (
-        MissingDecisionCompositionSourceError,
-        MalformedDecisionCompositionError,
         DecisionCompositionPersistenceError,
         DecisionCompositionProjectionError,
         DecisionCompositionCommitError,

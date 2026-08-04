@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 from uuid import uuid4
+import sqlite3
 
 from app.application.assessment_snapshot import AssessmentSnapshotRepository
 from app.application.opportunity_market_identity import (
@@ -20,6 +21,11 @@ from app.domain.decision_engine import (
     OpportunityIdentity,
 )
 from app.domain.market_intelligence import MarketObservationIdentity
+from app.application.production_safety_evaluation import (
+    MalformedProductionSafetyEvaluationPersistenceError,
+    ProductionSafetyEvaluationPersistenceError,
+    UnsupportedProductionSafetyEvaluationVersionError,
+)
 
 
 COMPOSITION_SCHEMA_VERSION = "decision-composition-v1"
@@ -90,10 +96,11 @@ class DecisionCompositionRepository(Protocol):
 
 
 class FinalizeDecisionComposition:
-    def __init__(self, *, source_repository, assessment_repository: AssessmentSnapshotRepository, composition_repository: DecisionCompositionRepository):
+    def __init__(self, *, source_repository, assessment_repository: AssessmentSnapshotRepository, composition_repository: DecisionCompositionRepository, production_safety_repository=None):
         self._sources = source_repository
         self._assessments = assessment_repository
         self._compositions = composition_repository
+        self._production_safety = production_safety_repository
 
     def execute(self, opportunity_id: str, *, generated_at: datetime, schema_version: str, policy_version: str, external_signal_ids: tuple[str, ...] | None = None):
         self._validate_requested_versions(schema_version, policy_version)
@@ -108,15 +115,31 @@ class FinalizeDecisionComposition:
             raise DecisionCompositionIdentityConflictError(str(error)) from error
         try:
             economics = self._sources.get_verified_economics_snapshot(opportunity_id)
-            safety = self._sources.get_production_safety_snapshot(opportunity_id)
+            safety = (
+                self._production_safety.get_current_decision_source(opportunity_id)
+                if self._production_safety is not None
+                else self._sources.get_production_safety_snapshot(opportunity_id)
+            )
             competition = self._assessments.get_latest_competition_assessment_snapshot(market_identity)
             demand = self._assessments.get_latest_demand_assessment_snapshot(market_identity)
+        except UnsupportedProductionSafetyEvaluationVersionError as error:
+            raise UnsupportedDecisionCompositionVersionError(str(error)) from error
+        except MalformedProductionSafetyEvaluationPersistenceError as error:
+            raise MalformedDecisionCompositionError(str(error)) from error
+        except ProductionSafetyEvaluationPersistenceError as error:
+            raise DecisionCompositionPersistenceError(
+                "operational Production Safety persistence is unavailable"
+            ) from error
+        except sqlite3.Error as error:
+            raise DecisionCompositionPersistenceError(
+                "authoritative composition persistence is unavailable"
+            ) from error
         except (KeyError, TypeError, ValueError) as error:
             raise MalformedDecisionCompositionError(
                 "authoritative composition source is malformed"
             ) from error
         if economics is None: raise MissingDecisionCompositionSourceError("verified economics snapshot not found")
-        if safety is None: raise MissingDecisionCompositionSourceError("production safety snapshot not found")
+        if safety is None: raise MissingDecisionCompositionSourceError("operational production safety evaluation not found" if self._production_safety is not None else "production safety snapshot not found")
         if competition is None: raise MissingDecisionCompositionSourceError("competition assessment snapshot not found")
         if demand is None: raise MissingDecisionCompositionSourceError("demand assessment snapshot not found")
         self._validate_source_versions(economics, safety, competition, demand)
@@ -148,7 +171,7 @@ class FinalizeDecisionComposition:
             opportunity_identity=opportunity,
             market_observation_identity=market_identity,
             verified_economics_snapshot_id=economics.opportunity_id,
-            production_safety_snapshot_id=safety.opportunity_id,
+            production_safety_snapshot_id=(safety.evaluation_id if self._production_safety is not None else safety.opportunity_id),
             competition_assessment_snapshot_id=competition.snapshot_id,
             demand_assessment_snapshot_id=demand.snapshot_id,
             external_signal_ids=tuple(signal.signal_id for signal in signals),
@@ -173,7 +196,7 @@ class FinalizeDecisionComposition:
         external_confidence = min((signal.evidence.confidence for signal in signals), default=None)
         return (
             DecisionEvidenceMetadata(DecisionDimension.ECONOMICS, economics_availability, None, FinalizeDecisionComposition._freshness(economics_times, as_of)),
-            DecisionEvidenceMetadata(DecisionDimension.SAFETY, DecisionEvidenceAvailability.COMPLETE, None, FinalizeDecisionComposition._freshness((safety.snapshot_at,), as_of)),
+            DecisionEvidenceMetadata(DecisionDimension.SAFETY, DecisionEvidenceAvailability.COMPLETE, None, FinalizeDecisionComposition._freshness(((safety.evaluated_at if hasattr(safety, "evaluated_at") else safety.snapshot_at),), as_of)),
             DecisionEvidenceMetadata(DecisionDimension.COMPETITION, competition.availability, competition.confidence, competition.freshness),
             DecisionEvidenceMetadata(DecisionDimension.DEMAND, demand.availability, demand.confidence, demand.freshness),
             DecisionEvidenceMetadata(DecisionDimension.EXTERNAL_REFERENCE, DecisionEvidenceAvailability.COMPLETE if signals else DecisionEvidenceAvailability.UNAVAILABLE, external_confidence, FinalizeDecisionComposition._freshness(tuple(min(signal.captured_at, signal.verified_at) for signal in signals), as_of)),
@@ -206,9 +229,20 @@ class FinalizeDecisionComposition:
     def _validate_source_versions(economics, safety, competition, demand):
         from app.application.verified_economics_snapshot import VERIFIED_ECONOMICS_SNAPSHOT_SCHEMA_VERSION
         from app.application.production_safety_snapshot import PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION
+        from app.application.production_safety_evaluation import PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION
+        safety_schema = (
+            safety.evaluation_schema_version
+            if hasattr(safety, "evaluation_schema_version")
+            else safety.schema_version
+        )
+        expected_safety_schema = (
+            PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION
+            if hasattr(safety, "evaluation_id")
+            else PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION
+        )
         supported = (
             (economics.schema_version, VERIFIED_ECONOMICS_SNAPSHOT_SCHEMA_VERSION, "economics schema"),
-            (safety.schema_version, PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION, "safety schema"),
+            (safety_schema, expected_safety_schema, "safety schema"),
             (safety.rule_version, "production-safety-v1", "safety rule"),
             (competition.schema_version, ASSESSMENT_SCHEMA_VERSION, "competition schema"),
             (competition.policy_version, COMPETITION_POLICY_VERSION, "competition policy"),

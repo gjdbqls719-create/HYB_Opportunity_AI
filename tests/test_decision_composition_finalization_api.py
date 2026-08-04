@@ -202,7 +202,7 @@ def test_invalid_request_maps_to_422() -> None:
     validation.close(); market.close()
 
 
-def test_missing_required_authoritative_source_maps_to_503() -> None:
+def test_missing_required_authoritative_source_maps_to_409() -> None:
     validation, market = repositories()
     service(validation).add(safety_command())
     client = post_client(validation, market)
@@ -212,7 +212,7 @@ def test_missing_required_authoritative_source_maps_to_503() -> None:
         )
     finally:
         clear_overrides()
-    assert response.status_code == 503
+    assert response.status_code == 409
     assert validation.get_decision_composition_history("opp-bound") == ()
     validation.close(); market.close()
 
@@ -231,8 +231,8 @@ class FailingUseCase:
         (DecisionCompositionIdentityConflictError("identity conflict"), 409),
         (DecisionCompositionVersionConflictError("version conflict"), 409),
         (UnsupportedDecisionCompositionVersionError("unsupported version"), 409),
-        (MissingDecisionCompositionSourceError("source missing"), 503),
-        (MalformedDecisionCompositionError("source malformed"), 503),
+        (MissingDecisionCompositionSourceError("source missing"), 409),
+        (MalformedDecisionCompositionError("source malformed"), 409),
         (DecisionCompositionPersistenceError("history failed"), 503),
         (DecisionCompositionProjectionError("projection failed"), 503),
         (DecisionCompositionCommitError("commit failed"), 503),

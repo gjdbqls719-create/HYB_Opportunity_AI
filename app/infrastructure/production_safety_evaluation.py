@@ -414,6 +414,58 @@ class SQLiteProductionSafetyEvaluationRepository:
         ).fetchone()
         return None if row is None else self.get_evaluation(row[0])
 
+    def get_current_decision_source(self, opportunity_id):
+        row = self._connection.execute(
+            "SELECT evaluation_id,evaluation_version FROM production_safety_evaluation_current WHERE opportunity_id=?",
+            (opportunity_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        evaluation = self.get_evaluation(row["evaluation_id"])
+        provenance = self.get_provenance(row["evaluation_id"])
+        if evaluation is None or provenance is None:
+            raise MalformedProductionSafetyEvaluationPersistenceError("Safety current references incomplete facts")
+        if (
+            evaluation.opportunity_id != opportunity_id
+            or provenance.opportunity_id != opportunity_id
+            or provenance.evaluation_id != evaluation.evaluation_id
+            or provenance.rule_version != evaluation.rule_version
+            or row["evaluation_version"] != evaluation.evaluation_version
+        ):
+            raise MalformedProductionSafetyEvaluationPersistenceError("Safety current identity conflicts with history/provenance")
+        if (
+            evaluation.schema_version != PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION
+            or provenance.schema_version != PRODUCTION_SAFETY_PROVENANCE_SCHEMA_VERSION
+            or evaluation.rule_version != PRODUCTION_SAFETY_EVALUATION_RULE_VERSION
+        ):
+            raise UnsupportedProductionSafetyEvaluationVersionError("unsupported operational Safety decision source")
+        return OperationalProductionSafetyDecisionSource(
+            evaluation.evaluation_id, opportunity_id, evaluation.assessment,
+            provenance.snapshot_chain_binding_id, provenance.selected_product_snapshot_id,
+            evaluation.rule_version, evaluation.schema_version, provenance.schema_version,
+            evaluation.evaluated_at,
+        )
+
+    def get_decision_source(self, evaluation_id):
+        evaluation = self.get_evaluation(evaluation_id)
+        provenance = self.get_provenance(evaluation_id)
+        if evaluation is None or provenance is None:
+            return None
+        if (
+            provenance.opportunity_id != evaluation.opportunity_id
+            or provenance.rule_version != evaluation.rule_version
+            or evaluation.schema_version != PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION
+            or provenance.schema_version != PRODUCTION_SAFETY_PROVENANCE_SCHEMA_VERSION
+            or evaluation.rule_version != PRODUCTION_SAFETY_EVALUATION_RULE_VERSION
+        ):
+            raise MalformedProductionSafetyEvaluationPersistenceError("Safety decision source is inconsistent")
+        return OperationalProductionSafetyDecisionSource(
+            evaluation.evaluation_id, evaluation.opportunity_id, evaluation.assessment,
+            provenance.snapshot_chain_binding_id, provenance.selected_product_snapshot_id,
+            evaluation.rule_version, evaluation.schema_version, provenance.schema_version,
+            evaluation.evaluated_at,
+        )
+
     def get_receipts_by_evaluation(self, evaluation_id):
         rows = self._connection.execute(
             "SELECT command_id FROM production_safety_evaluation_receipts WHERE evaluation_id=? ORDER BY committed_at,command_id",

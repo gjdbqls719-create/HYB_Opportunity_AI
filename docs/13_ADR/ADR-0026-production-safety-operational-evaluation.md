@@ -31,3 +31,7 @@ Decision Readiness uses operational current when an operational repository is
 wired. Legacy admission outcomes are neither converted nor preferred and receive
 no migration or backfill. API/UI execution, ProductionSafetySnapshot replacement,
 Decision policy changes, and production orchestration remain deferred.
+
+PR36-B designates validated operational current as the production Decision source.
+Finalized compositions preserve its exact evaluation ID, while Dashboard reads
+that immutable evaluation rather than a later current projection.

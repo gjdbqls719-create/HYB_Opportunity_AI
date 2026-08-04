@@ -1249,3 +1249,9 @@ PR13-C
 - Persist immutable operational evaluation history, exact source provenance, replay receipts, and a controlled current projection atomically.
 - Make operational current available to Decision Readiness while keeping admission-time Safety snapshots isolated as legacy outcomes without migration or backfill.
 - Add no Safety API/UI, source inference, formula/status change, Decision policy change, or production orchestration.
+# PR36-B - Operational Production Safety Decision Integration
+
+- Use validated operational Production Safety current as the authoritative production source for Readiness and Decision finalization, with no legacy fallback.
+- Preserve the exact operational evaluation ID in Decision Composition provenance and revalidate current/history/provenance inside the composition transaction.
+- Load the immutable Safety evaluation named by a finalized composition for Dashboard Decision reconstruction, even after operational current advances.
+- Map missing or malformed required composition sources to bounded 409 business conflicts while retaining 503 for persistence/transaction failures.
