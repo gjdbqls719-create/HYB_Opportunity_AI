@@ -253,3 +253,15 @@ membership. `opportunity_snapshot_chain_binding_receipts` stores deterministic
 command replay facts and permits alias commands to reference the same binding.
 All three tables block UPDATE/DELETE and commit in one `BEGIN IMMEDIATE`. No
 current projection, migration, backfill, or latest-source query exists.
+
+## Operational Production Safety evaluation (PR36-A)
+
+`production_safety_evaluation_history` stores immutable versioned engine results.
+`production_safety_evaluation_provenance` binds each result to exact chain,
+promotion, Candidate, selected Product, Price, Economics, Verified Economics, and
+Market identity facts. `production_safety_evaluation_receipts` supports exact
+command replay and alias commands. These append-only tables reject UPDATE/DELETE.
+
+`production_safety_evaluation_current` is a controlled projection advanced only
+inside the evaluation transaction. It is not a latest-source inference mechanism.
+The legacy `production_safety_snapshots` admission table is unchanged.

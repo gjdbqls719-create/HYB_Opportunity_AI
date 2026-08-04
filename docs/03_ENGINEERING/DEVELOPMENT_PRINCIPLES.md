@@ -497,3 +497,11 @@ Economics, promotion, and Market identity references; it never selects latest or
 fills a missing source. Repeated complete calculations append chain versions,
 while an exact source duplicate aliases the original binding. Production Safety
 must name the binding and the Product cohort member it evaluates.
+
+## Operational Production Safety
+
+Production Safety must reconstruct runtime values from an explicit complete chain
+and explicit Product member, then call the canonical engine exactly once. Persist
+the returned assessment unchanged with exact source provenance. Replay must not
+reconstruct or reevaluate. Admission Safety outcomes and operational evaluations
+are distinct contracts; neither may be inferred from or overwrite the other.

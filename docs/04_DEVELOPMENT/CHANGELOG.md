@@ -1243,3 +1243,9 @@ PR13-C
 - Persist versioned binding history, normalized ordered Product membership, and replay receipts atomically under `BEGIN IMMEDIATE`; exact duplicate source sets alias the original binding.
 - Reconstruct Production Safety evaluation context and runtime inputs by exact binding and Product member IDs without latest inference, analyzer/calculator execution, or Safety execution.
 - Keep legacy Opportunities unbound: no migration, backfill, current projection, production orchestrator, Decision, Review, Dashboard, or Safety persistence change.
+# PR36-A - Production Safety Evaluation and Persistence
+
+- Evaluate an explicit complete Snapshot Chain binding and Product member through the existing runtime adapter and unchanged `assess_production_safety` engine.
+- Persist immutable operational evaluation history, exact source provenance, replay receipts, and a controlled current projection atomically.
+- Make operational current available to Decision Readiness while keeping admission-time Safety snapshots isolated as legacy outcomes without migration or backfill.
+- Add no Safety API/UI, source inference, formula/status change, Decision policy change, or production orchestration.

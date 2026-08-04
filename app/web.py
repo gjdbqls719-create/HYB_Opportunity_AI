@@ -121,6 +121,7 @@ from app.domain.opportunity import (
     VerifiedEconomicsInput,
 )
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
+from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review import (
     SQLiteReviewSessionRepository,
@@ -418,9 +419,11 @@ def get_opportunity_review_ui_query_service():
 
 def get_decision_readiness_service():
     persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
+    safety = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
     try:
-        yield DecisionReadinessService(persistence.opportunities, persistence.observations, persistence.sessions)
+        yield DecisionReadinessService(persistence.opportunities, persistence.observations, persistence.sessions, safety)
     finally:
+        safety.close()
         persistence.close()
 
 

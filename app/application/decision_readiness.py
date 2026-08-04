@@ -9,8 +9,9 @@ class DecisionReadinessNotFoundError(LookupError): pass
 
 
 class DecisionReadinessService:
-    def __init__(self, sources, assessments, reviews):
+    def __init__(self, sources, assessments, reviews, safety_evaluations=None):
         self._sources, self._assessments, self._reviews = sources, assessments, reviews
+        self._safety_evaluations = safety_evaluations
 
     def execute(self, opportunity_id: str) -> dict[str, object]:
         if self._sources.get_queue_item(opportunity_id) is None:
@@ -35,8 +36,15 @@ class DecisionReadinessService:
         identity=market_binding.market_observation_identity if market_binding else None
         self._snapshot(states, blockers, "verified_economics", lambda:self._sources.get_verified_economics_snapshot(opportunity_id),
             lambda v:v.opportunity_id==opportunity_id and v.schema_version==VERIFIED_ECONOMICS_SNAPSHOT_SCHEMA_VERSION, "Verified Economics snapshot is missing.")
-        self._snapshot(states, blockers, "production_safety", lambda:self._sources.get_production_safety_snapshot(opportunity_id),
-            lambda v:v.opportunity_id==opportunity_id and v.schema_version==PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION and v.rule_version=="production-safety-v1", "Production Safety snapshot is missing.")
+        if self._safety_evaluations is None:
+            safety_load=lambda:self._sources.get_production_safety_snapshot(opportunity_id)
+            safety_validate=lambda v:v.opportunity_id==opportunity_id and v.schema_version==PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION and v.rule_version=="production-safety-v1"
+        else:
+            from app.application.production_safety_evaluation import PRODUCTION_SAFETY_EVALUATION_RULE_VERSION,PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION
+            safety_load=lambda:self._safety_evaluations.get_current_production_safety_evaluation(opportunity_id)
+            safety_validate=lambda v:v.opportunity_id==opportunity_id and v.schema_version==PRODUCTION_SAFETY_EVALUATION_SCHEMA_VERSION and v.rule_version==PRODUCTION_SAFETY_EVALUATION_RULE_VERSION
+        self._snapshot(states, blockers, "production_safety", safety_load,
+            safety_validate, "Operational Production Safety evaluation is missing." if self._safety_evaluations is not None else "Production Safety snapshot is missing.")
         self._snapshot(states, blockers, "competition_assessment", lambda:self._assessments.get_latest_competition_assessment_snapshot(identity) if identity else None,
             lambda v:v.identity==identity and v.schema_version==ASSESSMENT_SCHEMA_VERSION and v.policy_version==COMPETITION_POLICY_VERSION, "Competition assessment snapshot is missing.")
         self._snapshot(states, blockers, "demand_assessment", lambda:self._assessments.get_latest_demand_assessment_snapshot(identity) if identity else None,

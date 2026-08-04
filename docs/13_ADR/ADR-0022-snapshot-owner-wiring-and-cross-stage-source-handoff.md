@@ -28,3 +28,6 @@ PR35-E1 implements Product source ownership, PR35-E2 adds Price Analyzer
 ownership, PR35-E3 adds the explicit Economics Price handoff and calculator
 ownership, and PR35-E4 persists the complete-only, versioned Snapshot Chain
 binding. Production Safety execution remains deferred.
+PR36-A completes the operational Safety consumer boundary by evaluating an exact
+binding/Product selection and persisting versioned result provenance. API/UI and
+production orchestration remain deferred.

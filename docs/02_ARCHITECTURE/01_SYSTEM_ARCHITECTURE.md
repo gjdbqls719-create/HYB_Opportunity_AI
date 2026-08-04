@@ -126,3 +126,8 @@ Economics, Verified Economics, and Market identity. Exact duplicate chains share
 one binding through alias receipts; changed complete sources append a new version.
 There is no current/latest projection. Safety source reconstruction requires an
 explicit binding ID and Product member ID and performs no source calculation.
+
+PR36-A executes the unchanged Production Safety engine over that exact selection.
+Operational evaluation history and provenance are authoritative; a controlled
+current projection supplies Decision Readiness. The one-shot admission Safety
+snapshot remains a separate legacy outcome and is never overwritten or backfilled.
