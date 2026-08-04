@@ -26,6 +26,7 @@
 - [ADR-0022: Snapshot Owner Wiring and Cross-Stage Source Handoff](ADR-0022-snapshot-owner-wiring-and-cross-stage-source-handoff.md)
 - [ADR-0023: PriceIntelligence Analyzer Owner Wiring](ADR-0023-price-intelligence-analyzer-owner-wiring.md)
 - [ADR-0024: Economics Price Source Handoff and Calculator Ownership](ADR-0024-economics-price-source-handoff-and-calculator-ownership.md)
+- [ADR-0025: Complete Snapshot Chain Binding and Safety Source Selection](ADR-0025-complete-snapshot-chain-binding.md)
 
 Architecture Decision Record 관리 영역.
 

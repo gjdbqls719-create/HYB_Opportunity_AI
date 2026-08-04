@@ -1237,3 +1237,9 @@ PR13-C
 - Added atomic Demand observation/assessment/receipt persistence with restart-safe replay.
 - Added explicit Demand provenance entry, generated assessment summary, and authoritative
   Decision Readiness refetch to Opportunity Detail.
+# PR35-E4 - Complete Snapshot Chain Binding Persistence
+
+- Add a complete-only immutable Opportunity Snapshot Chain binding over exact promotion, ordered Product, PriceIntelligence, EconomicsCalculation, and Verified Economics source facts.
+- Persist versioned binding history, normalized ordered Product membership, and replay receipts atomically under `BEGIN IMMEDIATE`; exact duplicate source sets alias the original binding.
+- Reconstruct Production Safety evaluation context and runtime inputs by exact binding and Product member IDs without latest inference, analyzer/calculator execution, or Safety execution.
+- Keep legacy Opportunities unbound: no migration, backfill, current projection, production orchestrator, Decision, Review, Dashboard, or Safety persistence change.

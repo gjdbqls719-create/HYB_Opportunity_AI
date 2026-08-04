@@ -68,6 +68,10 @@ class ProductionSafetyEvaluationContext:
             raise SnapshotCandidateSubjectMismatchError("Snapshot Candidate subject does not match promotion binding")
         if economics.opportunity_identity.opportunity_id != binding.opportunity_id or economics.opportunity_identity.discovery_reference != binding.discovery_reference:
             raise SnapshotOpportunityBindingMismatchError("Economics Opportunity subject does not match promotion binding")
+        if economics.candidate_id != binding.candidate_id or economics.candidate_opportunity_binding_id != binding.binding_id:
+            raise SnapshotOpportunityBindingMismatchError("Economics Candidate promotion provenance does not match binding")
+        if economics.price_intelligence_snapshot_id != price.snapshot_id:
+            raise ProductionSafetySnapshotLineageError("Economics exact Price source must match Price Snapshot")
         market = product.market_observation_identity
         if (
             price.market_observation_identity != market

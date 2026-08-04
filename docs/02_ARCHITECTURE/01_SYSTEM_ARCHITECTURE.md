@@ -119,3 +119,10 @@ bridges the exact Candidate Price Snapshot through the promotion binding to the
 Opportunity and Verified Economics source. The existing calculator consumes only
 persisted VerifiedEconomicsInput; Price remains provenance. Economics Snapshot v3
 and its replay receipt are committed atomically.
+
+PR35-E4 adds the post-owner complete Snapshot Chain binding. One immutable,
+versioned fact binds the exact promotion, ordered Product cohort, Price,
+Economics, Verified Economics, and Market identity. Exact duplicate chains share
+one binding through alias receipts; changed complete sources append a new version.
+There is no current/latest projection. Safety source reconstruction requires an
+explicit binding ID and Product member ID and performs no source calculation.

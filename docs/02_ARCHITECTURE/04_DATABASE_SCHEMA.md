@@ -239,3 +239,17 @@ Price analysis command, Verified Economics source, resulting Snapshot,
 calculation version, fingerprint, and request/generation/commit timestamps.
 Snapshot and receipt share one `BEGIN IMMEDIATE`; UPDATE/DELETE are blocked and
 no v2 migration or backfill is performed.
+
+## Complete Opportunity Snapshot Chain binding (PR35-E4)
+
+`opportunity_snapshot_chain_binding_history` is the append-only authoritative
+chain fact. It stores the promotion bridge, Candidate and Opportunity IDs, chain
+version, ordered Product IDs, exact Price/Economics/Verified source IDs, full
+Market identity, command, timestamp, schema, and integrity fingerprint.
+
+`opportunity_snapshot_chain_product_members` normalizes the ordered Product
+cohort by `(binding_id, position)` and preserves Product Snapshot foreign-key
+membership. `opportunity_snapshot_chain_binding_receipts` stores deterministic
+command replay facts and permits alias commands to reference the same binding.
+All three tables block UPDATE/DELETE and commit in one `BEGIN IMMEDIATE`. No
+current projection, migration, backfill, or latest-source query exists.

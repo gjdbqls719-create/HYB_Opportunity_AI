@@ -488,3 +488,12 @@ Candidate/Opportunity promotion binding. Price is provenance and must never
 replace persisted Verified Economics values. Calculator input comes only from
 the authoritative VerifiedEconomics Snapshot plus explicit immutable parameters
 and context; Snapshot and owner receipt commit atomically.
+
+## Complete Snapshot Chain selection
+
+Cross-stage consumers must bind only complete, already committed source facts.
+The binding preserves exact ordered Product, Price, Economics, Verified
+Economics, promotion, and Market identity references; it never selects latest or
+fills a missing source. Repeated complete calculations append chain versions,
+while an exact source duplicate aliases the original binding. Production Safety
+must name the binding and the Product cohort member it evaluates.

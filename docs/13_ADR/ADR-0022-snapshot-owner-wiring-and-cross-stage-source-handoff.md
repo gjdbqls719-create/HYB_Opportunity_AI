@@ -25,6 +25,6 @@ field matching is used.
 ## Scope split
 
 PR35-E1 implements Product source ownership, PR35-E2 adds Price Analyzer
-ownership, and PR35-E3 adds the explicit Economics Price handoff and calculator
-ownership. Complete Snapshot Chain binding and Production Safety source loading
-remain PR35-E4 work.
+ownership, PR35-E3 adds the explicit Economics Price handoff and calculator
+ownership, and PR35-E4 persists the complete-only, versioned Snapshot Chain
+binding. Production Safety execution remains deferred.
