@@ -3,6 +3,13 @@
 from app.infrastructure.discovery.sqlite_repository import (
     SQLiteDiscoveryCommandRepository,
 )
+from app.infrastructure.discovery.sqlite_observation_group_repository import (
+    SQLiteDiscoveryGroupRepository,
+    SQLiteDiscoveryObservationRepository,
+)
+from app.infrastructure.discovery.sqlite_result_repository import (
+    SQLiteDiscoveryResultRepository,
+)
 from app.infrastructure.discovery.orchestrator_gateway import (
     OrchestratorOpportunityDiscoveryGateway,
 )
@@ -10,4 +17,7 @@ from app.infrastructure.discovery.orchestrator_gateway import (
 __all__ = [
     "OrchestratorOpportunityDiscoveryGateway",
     "SQLiteDiscoveryCommandRepository",
+    "SQLiteDiscoveryGroupRepository",
+    "SQLiteDiscoveryObservationRepository",
+    "SQLiteDiscoveryResultRepository",
 ]

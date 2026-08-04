@@ -23,7 +23,14 @@ execution-result repository boundaries. SQLite implements only the command
 boundary: one immutable command and its receipt commit atomically with
 `BEGIN IMMEDIATE`, and durable replay returns that exact pair after restart.
 Command persistence does not execute discovery or issue Candidate identity.
-Finalized-group and execution-result infrastructure remain deferred.
+Collected observations and finalized groups are also stored as immutable,
+execution-bound SQLite facts. Observation identity is independent from source
+listing identity, so a listing may be observed repeatedly. Group membership is
+an ordered normalized relation and one observation may participate in multiple
+groups. An immutable Discovery execution result now records successful
+completion, including ordered finalized Group IDs or an explicit successful
+zero-result. Result persistence is command/execution-bound and does not generate
+completion time, execute discovery, or issue Candidates.
 
 HYB는 Modular Pipeline Architecture를 사용한다.
 

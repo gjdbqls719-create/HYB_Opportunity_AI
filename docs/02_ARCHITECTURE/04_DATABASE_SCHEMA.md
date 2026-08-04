@@ -94,3 +94,45 @@ receipt; changed payload or reused execution identity conflicts. There is no
 current projection because a command/receipt pair has no mutable latest state.
 No legacy command is inferred or backfilled. Group and execution-result
 persistence, Candidate issuance, and production discovery wiring remain absent.
+
+PR34-B.3 adds `discovery_collected_observation_history`,
+`discovery_finalized_group_history`, and
+`discovery_finalized_group_members`. Each observation is bound by foreign key to
+a previously committed command execution and preserves the complete immutable
+Product, Collector provenance, optional explicit Market identity, observation
+time, and schema version in deterministic JSON. Source marketplace/item is
+indexed but not unique: repeated observations of one listing require distinct
+observation IDs and remain independent facts.
+
+Each finalized group belongs to one committed execution. Its ordered IDs are
+stored both as deterministic JSON and as normalized member rows with contiguous
+positions, per-group observation uniqueness, and observation foreign keys.
+Save validates that every member exists in the same execution and that the
+representative is a member. Observation membership is not globally exclusive;
+one observation may belong to multiple finalized groups. Membership fingerprint
+is indexed rather than unique because the Domain query contract permits multiple
+opaque group IDs for the same immutable membership fact.
+
+Observation save and Group-plus-members save each use their own
+`BEGIN IMMEDIATE` transaction. Exact ID/payload replay adds no rows; changed
+payload conflicts. All three tables reject UPDATE and DELETE. They have no
+current projection because they contain immutable historical facts. Command and
+receipt are already committed before these transactions; DiscoveryExecutionResult
+and zero-result completion persistence remain deliberately absent.
+
+PR34-B.4 adds `discovery_execution_result_history`, with one immutable row per
+unique command ID and execution ID. Its composite foreign key binds the result
+to the exact committed command/execution pair. The row preserves ordered
+finalized Group IDs, an explicit zero-result flag, Domain-supplied completion
+time, fixed schema version, and deterministic Domain fingerprint. Non-zero
+results are accepted only when every referenced Group exists in the same
+execution; an empty ordered tuple is authoritative successful zero-result
+completion.
+
+Result save uses `BEGIN IMMEDIATE`, one history INSERT, and COMMIT. Exact
+command/fingerprint replay returns the original result without regenerating
+time or fingerprint; changed completion facts conflict. UPDATE and DELETE are
+blocked and no current projection is created. Result reads validate command
+identity, Group lineage, zero-result consistency, schema version, and
+fingerprint without opening write transactions. Candidate issuance and
+production discovery wiring remain absent.

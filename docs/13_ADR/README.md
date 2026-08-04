@@ -14,6 +14,8 @@
 - [ADR-0010: Stable Discovery Command and Finalized Group Correlation](ADR-0010-stable-discovery-command-and-finalized-group-correlation.md)
 - [ADR-0011: Discovery Persistence Foundation](ADR-0011-discovery-persistence-foundation.md)
 - [ADR-0012: Discovery Command SQLite Persistence](ADR-0012-discovery-command-sqlite-persistence.md)
+- [ADR-0013: Discovery Observation and Finalized Group Persistence](ADR-0013-discovery-observation-and-group-persistence.md)
+- [ADR-0014: Discovery Execution Result SQLite Persistence](ADR-0014-discovery-execution-result-persistence.md)
 
 Architecture Decision Record 관리 영역.
 

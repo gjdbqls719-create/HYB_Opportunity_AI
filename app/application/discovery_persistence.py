@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Callable, Protocol
 
 from app.domain.discovery_identity import (
+    CollectedProductObservation,
     DiscoveryCommand,
     DiscoveryExecutionResult,
     FinalizedProductGroup,
@@ -54,6 +55,108 @@ class DiscoveryCommandReceiptError(DiscoveryCommandPersistenceError):
 
 
 class DiscoveryCommandCommitError(DiscoveryCommandPersistenceError):
+    pass
+
+
+class DiscoveryObservationNotFoundError(DiscoveryPersistenceError):
+    pass
+
+
+class DuplicateDiscoveryObservationError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryObservationConflictError(DiscoveryPersistenceError):
+    pass
+
+
+class MalformedDiscoveryObservationPersistenceError(DiscoveryPersistenceError):
+    pass
+
+
+class UnsupportedDiscoveryObservationVersionError(
+    MalformedDiscoveryObservationPersistenceError
+):
+    pass
+
+
+class DiscoveryObservationHistoryError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryObservationCommitError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryGroupNotFoundError(DiscoveryPersistenceError):
+    pass
+
+
+class DuplicateFinalizedGroupError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryGroupConflictError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryGroupMembershipError(DiscoveryPersistenceError):
+    pass
+
+
+class MalformedDiscoveryGroupPersistenceError(DiscoveryPersistenceError):
+    pass
+
+
+class UnsupportedDiscoveryGroupVersionError(
+    MalformedDiscoveryGroupPersistenceError
+):
+    pass
+
+
+class DiscoveryGroupHistoryError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryGroupMembershipPersistenceError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryGroupCommitError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionNotFoundError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionIdentityConflictError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionResultNotFound(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionReplayConflict(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionResultHistoryError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryExecutionResultCommitError(DiscoveryPersistenceError):
+    pass
+
+
+class MalformedDiscoveryExecutionResult(DiscoveryPersistenceError):
+    pass
+
+
+class UnsupportedDiscoveryExecutionResultVersion(
+    MalformedDiscoveryExecutionResult
+):
     pass
 
 
@@ -130,6 +233,24 @@ class DiscoveryCommandRepository(Protocol):
     ) -> DiscoveryCommandReceipt | None: ...
 
 
+class DiscoveryObservationRepository(Protocol):
+    def save_observation(
+        self, observation: CollectedProductObservation
+    ) -> CollectedProductObservation: ...
+
+    def get_observation(
+        self, observation_id: str
+    ) -> CollectedProductObservation | None: ...
+
+    def get_by_execution(
+        self, discovery_execution_id: str
+    ) -> tuple[CollectedProductObservation, ...]: ...
+
+    def get_by_source_listing(
+        self, source_marketplace: str, source_item_id: str
+    ) -> tuple[CollectedProductObservation, ...]: ...
+
+
 class DiscoveryGroupRepository(Protocol):
     def save_group(self, group: FinalizedProductGroup) -> FinalizedProductGroup: ...
 
@@ -154,6 +275,10 @@ class DiscoveryResultRepository(Protocol):
     ) -> DiscoveryExecutionResult | None: ...
 
     def get_by_command(self, command_id: str) -> DiscoveryExecutionResult | None: ...
+
+    def get_by_execution(
+        self, discovery_execution_id: str
+    ) -> DiscoveryExecutionResult | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,15 +410,40 @@ __all__ = [
     "DiscoveryCommandPersistenceError",
     "DiscoveryCommandReceiptError",
     "DiscoveryCommandRepository",
+    "DiscoveryExecutionIdentityConflictError",
+    "DiscoveryExecutionNotFoundError",
+    "DiscoveryExecutionReplayConflict",
+    "DiscoveryExecutionResultCommitError",
+    "DiscoveryExecutionResultHistoryError",
+    "DiscoveryExecutionResultNotFound",
+    "DiscoveryGroupCommitError",
+    "DiscoveryGroupConflictError",
+    "DiscoveryGroupHistoryError",
+    "DiscoveryGroupMembershipError",
+    "DiscoveryGroupMembershipPersistenceError",
+    "DiscoveryGroupNotFoundError",
     "DiscoveryGroupRepository",
+    "DiscoveryObservationCommitError",
+    "DiscoveryObservationConflictError",
+    "DiscoveryObservationHistoryError",
+    "DiscoveryObservationNotFoundError",
+    "DiscoveryObservationRepository",
     "DiscoveryPersistenceError",
     "DiscoveryReplayConflict",
     "DuplicateDiscoveryExecutionError",
+    "DuplicateDiscoveryObservationError",
+    "DuplicateFinalizedGroupError",
     "DiscoveryResultRepository",
     "MalformedDiscoveryReceipt",
     "MalformedDiscoveryCommandPersistenceError",
+    "MalformedDiscoveryExecutionResult",
+    "MalformedDiscoveryGroupPersistenceError",
+    "MalformedDiscoveryObservationPersistenceError",
     "MissingDiscoveryCommand",
     "PersistDiscoveryCommand",
     "PersistDiscoveryCommandResult",
     "UnsupportedDiscoveryReceiptVersion",
+    "UnsupportedDiscoveryGroupVersionError",
+    "UnsupportedDiscoveryExecutionResultVersion",
+    "UnsupportedDiscoveryObservationVersionError",
 ]

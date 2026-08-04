@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR34-B.4 - DiscoveryExecutionResult SQLite Persistence
+
+- Persist one immutable authoritative `DiscoveryExecutionResult` per committed command/execution pair, preserving ordered finalized Group IDs, explicit successful zero-result state, Domain completion time, schema version, and deterministic fingerprint.
+- Validate every non-zero Group reference against persisted same-execution finalized Groups while keeping zero-result completion explicit rather than inferred from missing rows.
+- Add exact restart and response-loss replay, separate-connection concurrency, changed-result conflict, append-only triggers, deterministic reconstruction, and read-only command/execution queries.
+- Distinguish result history, commit, replay conflict, identity, malformed persistence, and unsupported-version failures while containing raw SQLite errors.
+- Keep Candidate issuance/receipts, Snapshot storage and wiring, Collector/grouping changes, Safety, Decision, Dashboard, Web/API, migration, and backfill unchanged.
+
+## PR34-B.3 - Collector Observation and Finalized Group SQLite Persistence
+
+- Persist complete immutable `CollectedProductObservation` facts against an already committed Discovery execution, including every observed Product field, Collector provenance, exact time, and optional explicit Market identity.
+- Permit repeated observations of the same source listing under distinct observation IDs; source listing remains an indexed lookup rather than invented identity or uniqueness.
+- Persist finalized groups with ordered normalized membership, per-member foreign keys, exact representative and policy provenance, and verified Domain membership fingerprints without imposing global observation ownership or fingerprint uniqueness.
+- Use separate `BEGIN IMMEDIATE` transactions for observation and group facts with exact replay, explicit changed-payload and execution conflicts, phase-specific rollback errors, append-only triggers, deterministic restart reconstruction, and read-only queries.
+- Keep DiscoveryExecutionResult, zero-result completion, Candidate issuance, Snapshot persistence/wiring, production Collector/orchestrator, Safety, Decision, Dashboard, HTTP, migration, and backfill unchanged.
+
 ## PR34-B.2 - Discovery Command SQLite Persistence
 
 - Add file-backed `SQLiteDiscoveryCommandRepository` for exact immutable Discovery command and receipt round-trip without Collector, grouping, Candidate, Snapshot, or production discovery wiring.
