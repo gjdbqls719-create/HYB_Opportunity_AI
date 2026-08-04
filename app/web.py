@@ -65,6 +65,11 @@ from app.application.competition_observation_admission import (
     CompetitionAdmissionUnavailableError, FinalizeCompetitionObservationAdmission,
     FinalizeCompetitionObservationAdmissionCommand,
 )
+from app.application.demand_observation_admission import (
+    DemandAdmissionConflictError, DemandAdmissionNotFoundError,
+    DemandAdmissionUnavailableError, FinalizeDemandObservationAdmission,
+    FinalizeDemandObservationAdmissionCommand,
+)
 from app.application.review import (
     ApproveCandidateCommand,
     CancelReviewCommand,
@@ -98,6 +103,7 @@ from app.application.review_api import (
 )
 from app.domain.market_intelligence import (
     CompetitionObservation,
+    DemandObservation,
     ExternalSignalDirection,
     InvalidReviewSessionTransitionError,
     MarketObservationIdentity,
@@ -233,6 +239,10 @@ class CompetitionObservationAdmissionRequest(BaseModel):
     identity: MarketObservationIdentityRequest
     observed_at: datetime
     evidence: dict[str, CompetitionEvidenceRequest]
+
+
+class DemandObservationAdmissionRequest(CompetitionObservationAdmissionRequest):
+    pass
 
 
 class StartReviewRequest(BaseModel):
@@ -429,6 +439,13 @@ def get_competition_admission_service():
         yield FinalizeCompetitionObservationAdmission(opportunities, observations)
     finally:
         observations.close(); opportunities.close()
+
+
+def get_demand_admission_service():
+    opportunities = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    observations = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
+    try: yield FinalizeDemandObservationAdmission(opportunities, observations)
+    finally: observations.close(); opportunities.close()
 
 
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:
@@ -790,6 +807,59 @@ def finalize_competition_observation(
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (CompetitionAdmissionUnavailableError, sqlite3.Error) as error:
         raise HTTPException(status_code=503, detail="competition admission unavailable") from error
+
+
+def _demand_payload(result):
+    observation, snapshot, assessment = result.observation, result.snapshot, result.snapshot.assessment
+    return {"observation": {"observation_id": observation.observation_id,
+        "observed_at": observation.observed_at.isoformat(),
+        "evidence": {name: {"value": str(item.value) if isinstance(item.value, Decimal) else item.value,
+            "source": item.source, "reference": item.reference,
+            "observed_at": item.observed_at.isoformat() if item.observed_at else None,
+            "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
+            "collection_method": item.collection_method} for name, item in observation.evidence.items()}},
+        "assessment": {"snapshot_id": snapshot.snapshot_id,
+            "demand_level": assessment.demand_level.value if assessment.demand_level else None,
+            "popularity_level": assessment.popularity_level.value if assessment.popularity_level else None,
+            "review_quality": assessment.review_quality.value, "availability": snapshot.availability.value,
+            "available_metrics": assessment.available_metrics, "missing_metrics": assessment.missing_metrics,
+            "confidence": str(snapshot.confidence), "summary": assessment.summary,
+            "freshness": snapshot.freshness.value, "generated_at": snapshot.generated_at.isoformat(),
+            "schema_version": snapshot.schema_version, "policy_version": snapshot.policy_version}}
+
+
+@app.post("/api/v1/opportunities/{opportunity_id}/demand-observations", status_code=201)
+def finalize_demand_observation(opportunity_id: str, request: DemandObservationAdmissionRequest,
+    response: Response, service: FinalizeDemandObservationAdmission = Depends(get_demand_admission_service)):
+    try:
+        identity = MarketObservationIdentity(**request.identity.model_dump())
+        integer_metrics = {"search_volume", "review_count", "coupang_popularity_rank",
+                           "itemscout_popularity_rank", "observed_result_position"}
+        decimal_metrics = {"rating", "sales_proxy"}; evidence = {}
+        for name, value in request.evidence.items():
+            raw = value.value
+            if name in integer_metrics and raw is not None and (isinstance(raw, bool) or not isinstance(raw, int)):
+                raise ValueError(f"{name} must be an integer")
+            if name in decimal_metrics and raw is not None:
+                if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
+                raw = Decimal(raw)
+            evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
+                value.status, Decimal(value.confidence), identity.market, identity.marketplace,
+                value.collection_method, "market-evidence-v1", value.keyword, value.category,
+                value.marketplace_item_id, value.canonical_product_id, value.unit)
+        observation = DemandObservation(request.observation_id, identity, request.observed_at, "demand-v1", evidence)
+        result = service.execute(FinalizeDemandObservationAdmissionCommand(
+            opportunity_id, request.command_id, request.operator_id, observation, request.submitted_at))
+        response.status_code = 200 if result.replayed else 201
+        return _demand_payload(result)
+    except DemandAdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except DemandAdmissionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (DemandAdmissionUnavailableError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="demand admission unavailable") from error
 
 
 @app.get("/api/v1/reviews/{session_id}")

@@ -103,6 +103,12 @@ CREATE TABLE IF NOT EXISTS competition_admission_receipts (
     schema_version TEXT NOT NULL
 )
 """
+_DEMAND_ADMISSION_RECEIPTS = """
+CREATE TABLE IF NOT EXISTS demand_admission_receipts (
+ command_id TEXT PRIMARY KEY, command_fingerprint TEXT NOT NULL,
+ opportunity_id TEXT NOT NULL, observation_id TEXT NOT NULL UNIQUE,
+ snapshot_id TEXT NOT NULL UNIQUE, operator_id TEXT NOT NULL, schema_version TEXT NOT NULL)
+"""
 
 
 class SQLiteMarketObservationRepository(MarketObservationRepository):
@@ -129,6 +135,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             self._connection.execute(_ASSESSMENT_HISTORY_TABLE)
             self._connection.execute(_ASSESSMENT_CURRENT_TABLE)
             self._connection.execute(_COMPETITION_ADMISSION_RECEIPTS)
+            self._connection.execute(_DEMAND_ADMISSION_RECEIPTS)
             self._migrate_external_current_series()
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_market_observation_history_lookup "
@@ -171,6 +178,10 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 trg_competition_admission_receipts_no_{operation.lower()}
                 BEFORE {operation} ON competition_admission_receipts
                 BEGIN SELECT RAISE(ABORT, 'competition admission receipt is immutable'); END""")
+                self._connection.execute(f"""CREATE TRIGGER IF NOT EXISTS
+                trg_demand_admission_receipts_no_{operation.lower()}
+                BEFORE {operation} ON demand_admission_receipts
+                BEGIN SELECT RAISE(ABORT, 'demand admission receipt is immutable'); END""")
 
     def save(
         self,
@@ -377,6 +388,57 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             raise CompetitionAdmissionUnavailableError("unsupported competition receipt version")
         return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
                 "observation_id": row["observation_id"], "snapshot_id": row["snapshot_id"]}
+
+    def get_demand_admission_receipt(self, command_id):
+        try:
+            row = self._connection.execute("""SELECT command_fingerprint, opportunity_id,
+                observation_id, snapshot_id, schema_version FROM demand_admission_receipts WHERE command_id = ?""",
+                (command_id,)).fetchone()
+        except sqlite3.Error as error:
+            from app.application.demand_observation_admission import DemandAdmissionUnavailableError
+            raise DemandAdmissionUnavailableError("demand receipt is unavailable") from error
+        if row is None: return None
+        if row["schema_version"] != "demand-admission-receipt-v1":
+            from app.application.demand_observation_admission import DemandAdmissionUnavailableError
+            raise DemandAdmissionUnavailableError("unsupported demand receipt version")
+        return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
+                "observation_id": row["observation_id"], "snapshot_id": row["snapshot_id"]}
+
+    def finalize_demand_admission(self, observation, snapshot, opportunity_id, command_id, fingerprint, operator_id):
+        if not isinstance(snapshot, DemandAssessmentSnapshot) or not isinstance(observation, DemandObservation):
+            raise TypeError("demand observation and snapshot are required")
+        if observation.observation_id != snapshot.source_observation_id or observation.identity != snapshot.identity:
+            raise AssessmentSnapshotProvenanceError("demand source provenance does not match")
+        identity_key = self._identity_key(snapshot.identity); payload = self._assessment_payload(snapshot)
+        try:
+            self._connection.execute("BEGIN IMMEDIATE"); self.save(observation, _manage_transaction=False)
+            self._connection.execute("""INSERT INTO market_assessment_snapshot_history
+                (snapshot_id, assessment_type, identity_key, source_observation_id, generated_at, payload_json)
+                VALUES (?, 'demand', ?, ?, ?, ?)""", (snapshot.snapshot_id, identity_key,
+                snapshot.source_observation_id, snapshot.generated_at.isoformat(), payload))
+            self._connection.execute("""INSERT INTO market_assessment_snapshot_current
+                (assessment_type, identity_key, snapshot_id, generated_at, payload_json)
+                VALUES ('demand', ?, ?, ?, ?) ON CONFLICT(assessment_type, identity_key) DO UPDATE SET
+                snapshot_id=excluded.snapshot_id, generated_at=excluded.generated_at, payload_json=excluded.payload_json
+                WHERE excluded.generated_at >= market_assessment_snapshot_current.generated_at""",
+                (identity_key, snapshot.snapshot_id, snapshot.generated_at.isoformat(), payload))
+            self._connection.execute("""INSERT INTO demand_admission_receipts
+                (command_id, command_fingerprint, opportunity_id, observation_id, snapshot_id, operator_id, schema_version)
+                VALUES (?, ?, ?, ?, ?, ?, 'demand-admission-receipt-v1')""",
+                (command_id, fingerprint, opportunity_id, observation.observation_id, snapshot.snapshot_id, operator_id))
+            self._connection.commit()
+        except (DuplicateMarketObservationError, sqlite3.IntegrityError) as error:
+            self._connection.rollback()
+            from app.application.demand_observation_admission import DemandAdmissionConflictError, DemandAdmissionUnavailableError
+            if (self.get_demand_admission_receipt(command_id) is not None or self.get_observation_by_id(observation.observation_id) is not None
+                    or self.get_demand_assessment_snapshot(snapshot.snapshot_id) is not None):
+                raise DemandAdmissionConflictError("duplicate demand admission") from error
+            raise DemandAdmissionUnavailableError("demand admission transaction failed") from error
+        except Exception as error:
+            self._connection.rollback()
+            from app.application.demand_observation_admission import DemandAdmissionUnavailableError
+            if isinstance(error, DemandAdmissionUnavailableError): raise
+            raise DemandAdmissionUnavailableError("demand admission transaction failed") from error
 
     def finalize_competition_admission(self, observation, snapshot, opportunity_id, command_id, fingerprint, operator_id):
         competition = isinstance(snapshot, CompetitionAssessmentSnapshot)

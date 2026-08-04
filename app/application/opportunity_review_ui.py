@@ -32,11 +32,16 @@ class OpportunityReviewUIQueryService:
             market.market_observation_identity) if self._observations is not None and market else None)
         competition_observation = (self._observations.get_observation_by_id(
             competition.source_observation_id) if competition and self._observations is not None else None)
+        demand = (self._observations.get_latest_demand_assessment_snapshot(
+            market.market_observation_identity) if self._observations is not None and market else None)
+        demand_observation = (self._observations.get_observation_by_id(
+            demand.source_observation_id) if demand and self._observations is not None else None)
         return {**self._summary(item),
             "market_identity": _identity(market.market_observation_identity) if market else None,
             "review": ReviewSessionResponseDTO.from_session(review).to_dict() if review else None,
             "verified_economics": self._economics(economics) if economics else None,
             "competition_assessment": self._competition(competition, competition_observation) if competition else None,
+            "demand_assessment": self._demand(demand, demand_observation) if demand else None,
             "candidates": [self._candidate(value) for value in self._candidates.list_candidates()]}
 
     @staticmethod
@@ -56,6 +61,23 @@ class OpportunityReviewUIQueryService:
                     "observed_at": item.observed_at.isoformat() if item.observed_at else None,
                     "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
                     "collection_method": item.collection_method} for name, item in observation.evidence.items()}}
+                if observation is not None else None}
+
+    @staticmethod
+    def _demand(snapshot, observation):
+        value = snapshot.assessment
+        return {"snapshot_id": snapshot.snapshot_id,
+            "demand_level": value.demand_level.value if value.demand_level else None,
+            "popularity_level": value.popularity_level.value if value.popularity_level else None,
+            "review_quality": value.review_quality.value, "availability": snapshot.availability.value,
+            "confidence": str(snapshot.confidence), "freshness": snapshot.freshness.value,
+            "generated_at": snapshot.generated_at.isoformat(), "schema_version": snapshot.schema_version,
+            "policy_version": snapshot.policy_version, "summary": value.summary,
+            "raw_observation": {"observation_id": observation.observation_id,
+                "observed_at": observation.observed_at.isoformat(), "schema_version": observation.schema_version,
+                "evidence": {name: {"value": str(item.value) if item.value is not None else None,
+                    "source": item.source, "reference": item.reference, "status": item.status.value,
+                    "confidence": str(item.confidence), "unit": item.unit} for name, item in observation.evidence.items()}}
                 if observation is not None else None}
 
     @staticmethod

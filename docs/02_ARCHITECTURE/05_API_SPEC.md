@@ -96,3 +96,16 @@ assessment history/current, and the command receipt are atomic. First commit ret
 exact replay returns 200. Missing Opportunity returns 404, identity/provenance/command
 conflicts return 409, malformed domain input returns 422, and bounded infrastructure
 failures return 503.
+## Demand operational admission
+
+`POST /api/v1/opportunities/{opportunity_id}/demand-observations` accepts an authoritative
+raw `DemandObservation`, metric-level `MarketEvidence`, and command metadata. Identity must
+exactly equal the Opportunity Market Identity. Counts/ranks are JSON integers; rating,
+sales proxy, and confidence use exact Decimal strings. Schema and policy versions are
+server-owned.
+
+The server reuses `analyze_demand`; clients cannot provide demand/popularity level, review
+quality result, confidence result, availability, freshness, readiness, or Decision metadata.
+Observation history/current, assessment history/current, and receipt are one transaction.
+First commit returns 201, exact replay 200, missing Opportunity 404, identity/provenance/
+command conflict 409, malformed domain input 422, and bounded infrastructure failure 503.

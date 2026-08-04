@@ -59,3 +59,9 @@ Immutable idempotency receipts for Opportunity-bound operational Competition adm
 The receipt binds one command fingerprint to its Opportunity, raw observation, generated
 assessment snapshot, operator, and fixed receipt schema. Receipt, observation history/current,
 and assessment history/current commit in one SQLite transaction.
+### `demand_admission_receipts`
+
+Immutable idempotency receipts for Opportunity-bound operational Demand admission. The
+receipt links its canonical command fingerprint to the Opportunity, raw Demand observation,
+generated assessment snapshot, operator, and fixed receipt schema. Receipt, observation
+history/current, and assessment history/current commit atomically.

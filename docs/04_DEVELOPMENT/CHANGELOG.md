@@ -1060,3 +1060,10 @@ PR13-C
 - Added atomic observation/assessment/receipt persistence with exact restart-safe replay.
 - Added explicit Competition provenance entry and read-only generated assessment display
   to Opportunity Detail, followed by authoritative Decision Readiness refetch.
+## PR26-D - Demand Operational Admission
+
+- Added an Opportunity-bound raw Demand Observation Application/API boundary reusing the
+  existing analyzer and complete/partial assessment snapshot contract.
+- Added atomic Demand observation/assessment/receipt persistence with restart-safe replay.
+- Added explicit Demand provenance entry, generated assessment summary, and authoritative
+  Decision Readiness refetch to Opportunity Detail.
