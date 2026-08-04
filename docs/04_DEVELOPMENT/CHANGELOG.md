@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## PR35-E3 - Economics Explicit Price Source Handoff and Owner Wiring
+
+- Upgrade EconomicsCalculation Snapshot to v3 with exact Candidate and PriceIntelligence Snapshot provenance while retaining its Opportunity subject, promotion binding, and Verified Economics source.
+- Add an immutable source context and owner command that validates the exact Price analysis receipt, Candidate/Opportunity binding, Market identity, and persisted VerifiedEconomicsInput before invoking the existing calculator.
+- Atomically persist complete calculation Snapshot and immutable receipt with replay, conflict, rollback, deterministic read queries, append-only triggers, and separate-connection convergence.
+- Treat Price as provenance only: no recommended-price injection, evidence parsing, latest selection, formula change, migration, backfill, Snapshot Chain binding, or Production Safety execution.
+
 ## PR35-E2 - Price Intelligence Analyzer Owner Wiring
 
 - Add an authoritative command boundary that loads explicit ordered Product Snapshot IDs, validates their exact finalized-group source bindings, reconstructs runtime Products losslessly, and calls the existing Price Analyzer without formula changes.

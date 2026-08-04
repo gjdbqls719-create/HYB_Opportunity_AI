@@ -482,3 +482,9 @@ source bindings exactly match finalized group membership. It must not select all
 Candidate snapshots, choose latest rows, or reconstruct order from Product data.
 Fallback multiplier and Analyzer version are explicit command provenance, and
 the Price Snapshot plus owner receipt share one transaction.
+
+Economics ownership must receive an exact Price Snapshot reference through the
+Candidate/Opportunity promotion binding. Price is provenance and must never
+replace persisted Verified Economics values. Calculator input comes only from
+the authoritative VerifiedEconomics Snapshot plus explicit immutable parameters
+and context; Snapshot and owner receipt commit atomically.

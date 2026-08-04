@@ -25,11 +25,21 @@ from app.infrastructure.economics_calculation import SQLiteEconomicsCalculationS
 from test_candidate_issuance_persistence import close
 from test_candidate_issuance_foundation import issuance_command
 from test_candidate_opportunity_promotion import command as promotion_command, setup_boundary
+from app.application.candidate_promotion import PromoteOpportunityCandidate
+from app.application.opportunity_validation import OpportunityValidationService
+from app.infrastructure.discovery import SQLiteCandidateIssuanceRepository
+from app.infrastructure.opportunity_validation import SQLiteCandidatePromotionRepository
+from test_candidate_issuance_foundation import Counter, ISSUED_AT
 from test_economics_calculation_snapshot import NOW, inputs, snapshot as foundation_snapshot
+from test_price_analysis_owner_wiring import prepare as price_prepare, boundary as price_boundary, command as price_command
+from app.infrastructure.price_intelligence import SQLitePriceAnalysisRepository
 
 
 def setup(path,*,promote=True,verified=True):
-    sources,candidates,validation,promotion=setup_boundary(path)
+    issuance=price_prepare(path)
+    price_repo=SQLitePriceAnalysisRepository(path);price_boundary(price_repo,snapshot_id="price-intelligence-1").execute(price_command(issuance));price_repo.close()
+    sources=();candidates=SQLiteCandidateIssuanceRepository(path);validation=SQLiteCandidatePromotionRepository(path)
+    promotion=PromoteOpportunityCandidate(candidates,validation,OpportunityValidationService(queue_repository=validation,lifecycle_repository=validation),opportunity_id_generator=Counter("opportunity-1"),binding_id_generator=Counter("binding-1"),clock=Counter(ISSUED_AT))
     if promote:promotion.execute(promotion_command())
     if promote and verified:
         FinalizeVerifiedEconomicsAdmission(validation).execute(FinalizeVerifiedEconomicsAdmissionCommand(
@@ -43,6 +53,7 @@ def snapshot(snapshot_id="economics-calculation-1"):
     return replace(base,snapshot_id=snapshot_id,
         opportunity_identity=OpportunityIdentity("opportunity-1","collector:ebay:item-1"),
         market_observation_identity=promotion_market(),candidate_opportunity_binding_id="binding-1",
+        candidate_id="candidate-1",price_intelligence_snapshot_id="price-intelligence-1",
         verified_economics_opportunity_id="opportunity-1")
 
 
@@ -55,7 +66,7 @@ def test_schema_exact_round_trip_restart_and_no_current(tmp_path):
     path=tmp_path/"econ.db";sources,candidates,validation,repo=setup(path);value=snapshot()
     assert repo.save_snapshot(value)==value and repo.get_snapshot(value.snapshot_id)==value
     columns={row[1] for row in repo._connection.execute("PRAGMA table_info(economics_calculation_snapshot_history)")}
-    assert {"snapshot_id","opportunity_id","discovery_reference","market_identity_payload_json","candidate_opportunity_binding_id","candidate_id","verified_economics_opportunity_id","calculation_results_payload_json","profitability_payload_json","calculation_parameters_payload_json","canonical_analysis_payload_json","analysis_fingerprint","analysis_schema_version","calculation_version","generated_at","snapshot_schema_version","payload_fingerprint","inserted_at"}==columns
+    assert {"snapshot_id","opportunity_id","discovery_reference","market_identity_payload_json","candidate_opportunity_binding_id","candidate_id","price_intelligence_snapshot_id","verified_economics_opportunity_id","calculation_results_payload_json","profitability_payload_json","calculation_parameters_payload_json","canonical_analysis_payload_json","analysis_fingerprint","analysis_schema_version","calculation_version","generated_at","snapshot_schema_version","payload_fingerprint","inserted_at"}==columns
     assert not repo._connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%economics_calculation_snapshot_current%'").fetchall()
     cleanup(sources,candidates,validation,repo);repo=SQLiteEconomicsCalculationSnapshotRepository(path)
     assert repo.get_snapshot(value.snapshot_id)==value;repo.close()
@@ -147,7 +158,7 @@ def test_repository_never_runs_calculator_analyzer_or_latest_price_selection():
     assert "calculate_verified_economics" not in source
     assert "analyze_product_prices" not in source
     assert "latest" not in source.lower()
-    assert "price_intelligence_snapshot_id" not in source
+    assert "price_intelligence_snapshot_id" in source
 
 
 def test_separate_connections_replay_and_changed_payload_conflict(tmp_path):

@@ -229,3 +229,13 @@ finalized group, resulting Price Snapshot ID, exact ordered Product Snapshot IDs
 Analyzer version, fallback multiplier, and request/generation/commit timestamps.
 The receipt and Price Snapshot history row share one `BEGIN IMMEDIATE` transaction.
 UPDATE and DELETE are blocked, and no current projection is created.
+
+## Economics calculation owner receipts (PR35-E3)
+
+`economics_calculation_snapshot_history` v3 adds exact Candidate ID and
+PriceIntelligence Snapshot ID to the Opportunity-scoped calculation fact.
+`economics_calculation_receipts` preserves command/source IDs, promotion binding,
+Price analysis command, Verified Economics source, resulting Snapshot,
+calculation version, fingerprint, and request/generation/commit timestamps.
+Snapshot and receipt share one `BEGIN IMMEDIATE`; UPDATE/DELETE are blocked and
+no v2 migration or backfill is performed.

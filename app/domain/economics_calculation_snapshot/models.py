@@ -13,7 +13,7 @@ from app.domain.opportunity import MoneyInput
 from app.domain.economics_calculation_snapshot.analysis import EconomicsAnalysisSnapshot
 
 
-ECONOMICS_CALCULATION_SNAPSHOT_SCHEMA_VERSION = "economics-calculation-snapshot-v2"
+ECONOMICS_CALCULATION_SNAPSHOT_SCHEMA_VERSION = "economics-calculation-snapshot-v3"
 
 
 def _required_text(value: str, name: str) -> str:
@@ -106,6 +106,8 @@ class EconomicsCalculationSnapshot:
     opportunity_identity: OpportunityIdentity
     market_observation_identity: MarketObservationIdentity
     candidate_opportunity_binding_id: str
+    candidate_id: str
+    price_intelligence_snapshot_id: str
     verified_economics_opportunity_id: str
     revenue: MoneyInput
     marketplace_fee: MoneyInput
@@ -130,6 +132,8 @@ class EconomicsCalculationSnapshot:
         for name in (
             "snapshot_id",
             "candidate_opportunity_binding_id",
+            "candidate_id",
+            "price_intelligence_snapshot_id",
             "verified_economics_opportunity_id",
             "calculation_version",
             "schema_version",

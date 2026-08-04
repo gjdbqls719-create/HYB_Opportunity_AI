@@ -113,3 +113,9 @@ Product Snapshot/source-binding cohort against finalized group membership,
 reconstructs runtime Products losslessly, invokes the existing Analyzer, and
 atomically persists the Price Snapshot and replay receipt. Production Discovery
 orchestrator wiring remains deferred.
+
+PR35-E3 adds the Economics calculator owner boundary. An immutable source context
+bridges the exact Candidate Price Snapshot through the promotion binding to the
+Opportunity and Verified Economics source. The existing calculator consumes only
+persisted VerifiedEconomicsInput; Price remains provenance. Economics Snapshot v3
+and its replay receipt are committed atomically.

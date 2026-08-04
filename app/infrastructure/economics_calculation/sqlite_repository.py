@@ -14,6 +14,8 @@ from app.application.economics_calculation_snapshot import (
     EconomicsCalculationSnapshotCommitError, EconomicsCalculationSnapshotConflictError,
     EconomicsCalculationSnapshotHistoryError, EconomicsCalculationSnapshotMarketIdentityConflictError,
     EconomicsCalculationSnapshotOpportunityNotFoundError,
+    EconomicsCalculationSnapshotPriceSourceConflictError,
+    EconomicsCalculationSnapshotPriceSourceNotFoundError,
     EconomicsCalculationSnapshotVerifiedSourceConflictError,
     EconomicsCalculationSnapshotVerifiedSourceNotFoundError,
     MalformedEconomicsCalculationSnapshotPersistenceError,
@@ -29,12 +31,14 @@ from app.domain.economics_calculation_snapshot import (
 from app.domain.market_intelligence import MarketObservationIdentity, MarketObservationScope
 from app.domain.opportunity import EconomicEvidence, EvidenceStatus, MoneyInput
 from app.infrastructure.opportunity_validation import SQLiteCandidatePromotionRepository
+from app.infrastructure.price_intelligence import SQLitePriceIntelligenceSnapshotRepository
 
 
 _TABLE="""CREATE TABLE IF NOT EXISTS economics_calculation_snapshot_history(
  snapshot_id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL, discovery_reference TEXT NOT NULL,
  market_identity_payload_json TEXT NOT NULL, candidate_opportunity_binding_id TEXT NOT NULL,
- candidate_id TEXT NOT NULL, verified_economics_opportunity_id TEXT NOT NULL,
+ candidate_id TEXT NOT NULL, price_intelligence_snapshot_id TEXT NOT NULL,
+ verified_economics_opportunity_id TEXT NOT NULL,
  calculation_results_payload_json TEXT NOT NULL, profitability_payload_json TEXT NOT NULL,
  calculation_parameters_payload_json TEXT NOT NULL, canonical_analysis_payload_json TEXT NOT NULL,
  analysis_fingerprint TEXT NOT NULL, analysis_schema_version TEXT NOT NULL,
@@ -43,6 +47,7 @@ _TABLE="""CREATE TABLE IF NOT EXISTS economics_calculation_snapshot_history(
  FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id),
  FOREIGN KEY(candidate_opportunity_binding_id) REFERENCES opportunity_candidate_promotion_history(binding_id),
  FOREIGN KEY(candidate_id) REFERENCES opportunity_candidate_history(candidate_id),
+ FOREIGN KEY(price_intelligence_snapshot_id) REFERENCES price_intelligence_snapshot_history(snapshot_id),
  FOREIGN KEY(verified_economics_opportunity_id) REFERENCES verified_economics_snapshots(opportunity_id))"""
 
 
@@ -72,7 +77,7 @@ def _parts(s):
 
 def _payload(s):
     results,profitability,parameters,analysis=_parts(s)
-    return {"snapshot_id":s.snapshot_id,"opportunity":{"opportunity_id":s.opportunity_identity.opportunity_id,"discovery_reference":s.opportunity_identity.discovery_reference},"market_identity":_identity(s.market_observation_identity),"binding_id":s.candidate_opportunity_binding_id,"verified_source":s.verified_economics_opportunity_id,"results":results,"profitability":profitability,"parameters":parameters,"analysis":analysis,"analysis_fingerprint":s.analysis.fingerprint,"calculation_version":s.calculation_version,"generated_at":s.generated_at.isoformat(),"schema_version":s.schema_version}
+    return {"snapshot_id":s.snapshot_id,"opportunity":{"opportunity_id":s.opportunity_identity.opportunity_id,"discovery_reference":s.opportunity_identity.discovery_reference},"market_identity":_identity(s.market_observation_identity),"binding_id":s.candidate_opportunity_binding_id,"candidate_id":s.candidate_id,"price_source":s.price_intelligence_snapshot_id,"verified_source":s.verified_economics_opportunity_id,"results":results,"profitability":profitability,"parameters":parameters,"analysis":analysis,"analysis_fingerprint":s.analysis.fingerprint,"calculation_version":s.calculation_version,"generated_at":s.generated_at.isoformat(),"schema_version":s.schema_version}
 
 
 def economics_snapshot_fingerprint(value):return hashlib.sha256(_dump(_payload(value)).encode("utf-8")).hexdigest()
@@ -86,6 +91,7 @@ class SQLiteEconomicsCalculationSnapshotRepository:
             path=Path(database_path);path.parent.mkdir(parents=True,exist_ok=True);connection=sqlite3.connect(path,timeout=30,check_same_thread=False)
         self._connection=connection;connection.row_factory=sqlite3.Row;connection.execute("PRAGMA foreign_keys = ON")
         self._sources=SQLiteCandidatePromotionRepository(connection=connection)
+        self._prices=SQLitePriceIntelligenceSnapshotRepository(connection=connection)
         with connection:
             connection.execute(_TABLE)
             for operation in ("UPDATE","DELETE"):
@@ -124,10 +130,14 @@ class SQLiteEconomicsCalculationSnapshotRepository:
         if lifecycle.discovery_reference!=s.opportunity_identity.discovery_reference:raise EconomicsCalculationSnapshotBindingMismatchError("Opportunity discovery reference differs")
         binding=self._sources.get_promotion_by_opportunity(s.opportunity_identity.opportunity_id)
         if binding is None:raise EconomicsCalculationSnapshotBindingNotFoundError("Candidate Opportunity binding is missing")
-        if binding.binding_id!=s.candidate_opportunity_binding_id or binding.discovery_reference!=s.opportunity_identity.discovery_reference:
+        if binding.binding_id!=s.candidate_opportunity_binding_id or binding.candidate_id!=s.candidate_id or binding.discovery_reference!=s.opportunity_identity.discovery_reference:
             raise EconomicsCalculationSnapshotBindingMismatchError("Candidate Opportunity binding differs")
         if binding.market_observation_identity!=s.market_observation_identity:
             raise EconomicsCalculationSnapshotMarketIdentityConflictError("Economics Market identity differs from binding")
+        price=self._prices.get_snapshot(s.price_intelligence_snapshot_id)
+        if price is None:raise EconomicsCalculationSnapshotPriceSourceNotFoundError("Price Snapshot source is missing")
+        if price.candidate_identity.candidate_id!=s.candidate_id or price.market_observation_identity!=s.market_observation_identity:
+            raise EconomicsCalculationSnapshotPriceSourceConflictError("Price Snapshot source lineage differs")
         verified=self._sources.get_verified_economics_snapshot(s.verified_economics_opportunity_id)
         if verified is None:raise EconomicsCalculationSnapshotVerifiedSourceNotFoundError("Verified Economics source is missing")
         if verified.opportunity_id!=s.opportunity_identity.opportunity_id or s.verified_economics_opportunity_id!=s.opportunity_identity.opportunity_id:
@@ -138,8 +148,8 @@ class SQLiteEconomicsCalculationSnapshotRepository:
 
     def _insert(self,s,candidate_id,fingerprint):
         results,profitability,parameters,analysis=_parts(s)
-        self._connection.execute("INSERT INTO economics_calculation_snapshot_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (s.snapshot_id,s.opportunity_identity.opportunity_id,s.opportunity_identity.discovery_reference,_dump(_identity(s.market_observation_identity)),s.candidate_opportunity_binding_id,candidate_id,s.verified_economics_opportunity_id,_dump(results),_dump(profitability),_dump(parameters),_dump(analysis),s.analysis.fingerprint,s.analysis.analysis_version,s.calculation_version,s.generated_at.isoformat(),s.schema_version,fingerprint,datetime.now(timezone.utc).isoformat()))
+        self._connection.execute("INSERT INTO economics_calculation_snapshot_history VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (s.snapshot_id,s.opportunity_identity.opportunity_id,s.opportunity_identity.discovery_reference,_dump(_identity(s.market_observation_identity)),s.candidate_opportunity_binding_id,candidate_id,s.price_intelligence_snapshot_id,s.verified_economics_opportunity_id,_dump(results),_dump(profitability),_dump(parameters),_dump(analysis),s.analysis.fingerprint,s.analysis.analysis_version,s.calculation_version,s.generated_at.isoformat(),s.schema_version,fingerprint,datetime.now(timezone.utc).isoformat()))
 
     def get_snapshot(self,snapshot_id):
         try:row=self._connection.execute("SELECT * FROM economics_calculation_snapshot_history WHERE snapshot_id=?",(snapshot_id,)).fetchone()
@@ -171,7 +181,7 @@ class SQLiteEconomicsCalculationSnapshotRepository:
             profitability=ProfitabilityResultSnapshot(Decimal(profit["minimum_net_profit"]),Decimal(profit["minimum_roi"]),profit["passes_net_profit_filter"],profit["passes_roi_filter"],profit["passes_profitability_filter"])
             parameters=EconomicsCalculationParameters(params["marketplace"],Decimal(params["minimum_net_profit"]),Decimal(params["minimum_roi"]),params["estimated_monthly_sales"],params["competitor_count"],params["risk_level"],tuple((key,_context_from(value)) for key,value in params["context_items"]))
             analysis=EconomicsAnalysisSnapshot(tuple((key,_analysis_from(value)) for key,value in analysis_data["entries"]),analysis_data["analysis_version"],row["analysis_fingerprint"])
-            value=EconomicsCalculationSnapshot(row["snapshot_id"],OpportunityIdentity(row["opportunity_id"],row["discovery_reference"]),identity,row["candidate_opportunity_binding_id"],row["verified_economics_opportunity_id"],money["revenue"],money["marketplace_fee"],money["payment_fee"],money["tax_cost"],money["landed_cost"],money["selling_cost"],money["total_cost"],money["net_profit"],Decimal(results["roi"]),Decimal(results["landed_cost_roi"]),Decimal(results["margin_rate"]),money["break_even"],profitability,parameters,analysis,row["calculation_version"],datetime.fromisoformat(row["generated_at"]),row["snapshot_schema_version"])
+            value=EconomicsCalculationSnapshot(row["snapshot_id"],OpportunityIdentity(row["opportunity_id"],row["discovery_reference"]),identity,row["candidate_opportunity_binding_id"],row["candidate_id"],row["price_intelligence_snapshot_id"],row["verified_economics_opportunity_id"],money["revenue"],money["marketplace_fee"],money["payment_fee"],money["tax_cost"],money["landed_cost"],money["selling_cost"],money["total_cost"],money["net_profit"],Decimal(results["roi"]),Decimal(results["landed_cost_roi"]),Decimal(results["margin_rate"]),money["break_even"],profitability,parameters,analysis,row["calculation_version"],datetime.fromisoformat(row["generated_at"]),row["snapshot_schema_version"])
             if economics_snapshot_fingerprint(value)!=row["payload_fingerprint"]:raise ValueError("Economics Snapshot fingerprint mismatch")
             return value
         except UnsupportedEconomicsCalculationSnapshotVersionError:raise
