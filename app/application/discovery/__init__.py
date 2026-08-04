@@ -3,6 +3,11 @@ from app.application.discovery.discover_opportunities import (
     DiscoverOpportunitiesUseCase,
 )
 from app.application.discovery.ports import OpportunityDiscoveryGateway
+from app.application.discovery.production_execution import (
+    PersistedDiscoveryExecutionEntry,
+    PersistedDiscoveryExecutionResult,
+    ProductionDiscoveryRuntime,
+)
 from app.application.discovery.session import (
     DiscoverySession,
     DiscoverySessionStatus,
@@ -24,4 +29,7 @@ __all__ = [
     "DiscoveryStatistics",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",
+    "ProductionDiscoveryRuntime",
+    "PersistedDiscoveryExecutionResult",
+    "PersistedDiscoveryExecutionEntry",
 ]

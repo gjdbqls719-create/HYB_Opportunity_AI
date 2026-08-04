@@ -518,3 +518,12 @@ Operational Safety interfaces must require explicit binding and Product IDs.
 Failed client retries reuse the complete payload; success is displayed only after
 authoritative detail and Readiness refetch. UI code must never calculate status,
 select a source, or automatically finalize a Decision.
+
+## Persisted Intent Before External Execution
+
+When a durable command is the authoritative description of an external runtime
+execution, commit or exactly replay that command before invoking the runtime.
+The runtime must consume the committed command rather than a reduced caller DTO
+or implicit Engine defaults. A runtime failure preserves the committed command;
+a persistence failure prevents execution. Application owns ordering, Repository
+owns its transaction and receipt, and Engine calculations remain unchanged.

@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## PR36-D.1 - Persisted Discovery Execution Entry
+
+- Add an Application workflow owner that commits or exactly replays one immutable `DiscoveryCommand` before invoking the production Discovery runtime.
+- Execute the existing Engine from the authoritative committed command and forward all nineteen execution-affecting parameters without changing Engine calculations or Domain contracts.
+- Preserve the committed command when runtime execution fails; persistence failure prevents any runtime call.
+- Keep Observation, Group, DiscoveryExecutionResult, Candidate, Promotion, Snapshot, Composition Root wiring, and workflow progress storage outside this PR.
+
 ## PR35-E3 - Economics Explicit Price Source Handoff and Owner Wiring
 
 - Upgrade EconomicsCalculation Snapshot to v3 with exact Candidate and PriceIntelligence Snapshot provenance while retaining its Opportunity subject, promotion binding, and Verified Economics source.

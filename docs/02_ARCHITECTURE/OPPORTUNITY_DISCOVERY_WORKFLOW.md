@@ -102,3 +102,44 @@ The next safe expansions are:
 4. Extraction of Collect, Normalize, Match, and Analyze contracts from the
    current gateway.
 5. Scheduler integration using the same application workflow entry point.
+
+## Persisted Production Discovery Entry
+
+PR36-D.1 adds a separate Application owner for production command correlation.
+It does not change the existing `DiscoverOpportunitiesWorkflow`, whose meaning
+remains transient Discover plus optional Intelligence and Publish coordination.
+
+```text
+Presentation / future Composition Root
+        |
+        v
+PersistedDiscoveryExecutionEntry
+        |
+        +--> PersistDiscoveryCommand
+        |        |
+        |        +--> command history / receipt transaction
+        |
+        +--> ProductionDiscoveryRuntime
+                 |
+                 +--> existing Engine orchestrator
+                 +--> existing OpportunityResult mapper
+        |
+        v
+tuple[DiscoveryResult, ...]
+```
+
+The persistence result is authoritative. On exact replay the runtime receives
+the committed command returned by `PersistDiscoveryCommand`, not a caller-built
+replacement. Persistence failure prevents runtime invocation. Runtime failure
+does not compensate or delete the committed command.
+
+The Infrastructure runtime adapter maps all execution-affecting command values:
+query, collection limit, matching threshold, pricing multiplier, cost and fee
+inputs, fee-known evidence flags, profitability thresholds, sales and competition
+inputs, risk level, and target currency. Policy and source references remain
+durable audit metadata and are not Engine arguments.
+
+This boundary deliberately stops before Observation, Group, durable execution
+completion, Candidate issuance, Promotion, and Snapshot creation. CLI and FastAPI
+wiring are deferred so the new contract can be verified without changing current
+production entry points.
