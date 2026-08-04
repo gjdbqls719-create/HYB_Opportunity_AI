@@ -92,6 +92,7 @@ from market_data.seller_snapshot import (
 from marketplaces.ebay import (
     search_products as search_ebay_products,
 )
+from collectors.collection_fact import CollectionFact
 from services.currency import (
     CurrencyConverter,
     normalize_currency_code,
@@ -181,6 +182,7 @@ def search_products(
     limit: int = 10,
     *,
     error_handler: SearchErrorHandler | None = None,
+    collection_fact_sink: Callable[[CollectionFact], None] | None = None,
 ) -> list[Product]:
     """
     여러 마켓을 독립적으로 검색해 하나의 목록으로 합친다.
@@ -197,12 +199,13 @@ def search_products(
 
     for marketplace, search in marketplace_searches:
         try:
-            products.extend(
-                search(
-                    query=query,
-                    limit=limit,
-                )
-            )
+            search_arguments: dict[str, Any] = {
+                "query": query,
+                "limit": limit,
+            }
+            if collection_fact_sink is not None:
+                search_arguments["collection_fact_sink"] = collection_fact_sink
+            products.extend(search(**search_arguments))
         except (RuntimeError, ValueError) as error:
             failures.append((marketplace, error))
 
@@ -411,6 +414,7 @@ def find_best_opportunities(
     ai_memory_history: list[HistoricalOpportunity] | None = None,
     currency_converter: CurrencyConverter | None = None,
     target_currency: str | None = None,
+    collection_fact_sink: Callable[[CollectionFact], None] | None = None,
 ) -> list[OpportunityResult]:
     """상품 검색부터 최종 AI Partner 보고서까지 생성한다."""
     cleaned_query = query.strip()
@@ -455,16 +459,22 @@ def find_best_opportunities(
         )
 
     if search_error_handler is None:
-        products = search_products(
-            query=cleaned_query,
-            limit=limit,
-        )
+        search_arguments: dict[str, Any] = {
+            "query": cleaned_query,
+            "limit": limit,
+        }
+        if collection_fact_sink is not None:
+            search_arguments["collection_fact_sink"] = collection_fact_sink
+        products = search_products(**search_arguments)
     else:
-        products = search_products(
-            query=cleaned_query,
-            limit=limit,
-            error_handler=search_error_handler,
-        )
+        search_arguments = {
+            "query": cleaned_query,
+            "limit": limit,
+            "error_handler": search_error_handler,
+        }
+        if collection_fact_sink is not None:
+            search_arguments["collection_fact_sink"] = collection_fact_sink
+        products = search_products(**search_arguments)
     currency_normalized = False
 
     if resolved_target_currency is not None:

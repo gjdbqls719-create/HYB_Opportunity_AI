@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -7,6 +9,7 @@ import requests
 
 from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter, parse_price
+from collectors.collection_fact import CollectionFact
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
 
@@ -157,10 +160,28 @@ def get_item_by_id(
     return response_data
 
 
-def ebay_item_to_product(item: dict[str, Any]) -> Product:
+def ebay_item_to_product(
+    item: dict[str, Any],
+    *,
+    collection_fact_sink: Callable[[CollectionFact], None] | None = None,
+    observed_at: Callable[[], datetime] | None = None,
+) -> Product:
     """이전 함수형 호출과의 호환을 유지하는 검증된 변환 함수."""
 
-    return EbayAdapter().normalize_and_validate(item)
+    product = EbayAdapter().normalize_and_validate(item)
+
+    if collection_fact_sink is not None:
+        clock = observed_at or (lambda: datetime.now(timezone.utc))
+        collection_fact_sink(
+            CollectionFact(
+                product=product,
+                observed_at=clock(),
+                collector_name=EbayAdapter.marketplace_name,
+                source_reference=product.url,
+            )
+        )
+
+    return product
 
 
 def get_product_by_id(
@@ -184,14 +205,23 @@ def search_products(
     query: str,
     limit: int = 10,
     marketplace_id: str = DEFAULT_MARKETPLACE_ID,
+    *,
+    collection_fact_sink: Callable[[CollectionFact], None] | None = None,
+    observed_at: Callable[[], datetime] | None = None,
 ) -> list[Product]:
     """eBay 상품을 검색하고 검증된 공통 Product 목록으로 반환한다."""
 
-    adapter = EbayAdapter()
     raw_items = search_items(
         query=query,
         limit=limit,
         marketplace_id=marketplace_id,
     )
 
-    return [adapter.normalize_and_validate(item) for item in raw_items]
+    return [
+        ebay_item_to_product(
+            item,
+            collection_fact_sink=collection_fact_sink,
+            observed_at=observed_at,
+        )
+        for item in raw_items
+    ]
