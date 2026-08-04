@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR34-C - Opportunity Candidate Issuance Foundation
+
+- Add immutable Candidate issuance command and result contracts that preserve distinct issuance/Discovery command identity, explicit discovery reference, explicit Candidate Market identity, request/issuance times, and fixed schema versions.
+- Add a read-only `IssueOpportunityCandidate` boundary that reloads persisted command, completed result, finalized Group, and representative Observation before validating exact command/execution/group lineage.
+- Require explicit LISTING or CANONICAL_PRODUCT Market identity and exact representative source marketplace/listing agreement without deriving identity or discovery reference from Group ID, Product, title, query, category, or fingerprint.
+- Generate opaque `OpportunityCandidateIdentity` and `DiscoveryOpportunityContext` only after validation through injected generator and clock dependencies, without creating an Opportunity or lifecycle state.
+- Deliberately add no Candidate repository, SQLite, receipt, registry, or replay cache; repeated invocation may issue another identity until a later durable issuance PR.
+
 ## PR34-B.4 - DiscoveryExecutionResult SQLite Persistence
 
 - Persist one immutable authoritative `DiscoveryExecutionResult` per committed command/execution pair, preserving ordered finalized Group IDs, explicit successful zero-result state, Domain completion time, schema version, and deterministic fingerprint.

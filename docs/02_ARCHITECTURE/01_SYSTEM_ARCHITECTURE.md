@@ -32,6 +32,16 @@ completion, including ordered finalized Group IDs or an explicit successful
 zero-result. Result persistence is command/execution-bound and does not generate
 completion time, execute discovery, or issue Candidates.
 
+Candidate issuance is a read-only Application boundary over the persisted
+command, completed result, finalized Group, and representative observation. The
+caller supplies an explicit discovery reference and listing or canonical-product
+Market identity; neither value is derived from Group ID, Product text, query, or
+fingerprint. After lineage and source identity validation, an injected opaque ID
+generator creates `OpportunityCandidateIdentity` and the boundary returns an
+immutable `DiscoveryOpportunityContext`. This does not create an Opportunity,
+write a Candidate, or claim durable replay. Until an issuance receipt exists,
+repeating the request may generate another Candidate identity.
+
 HYB는 Modular Pipeline Architecture를 사용한다.
 
 흐름:

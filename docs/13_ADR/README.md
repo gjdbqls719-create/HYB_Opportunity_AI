@@ -16,6 +16,7 @@
 - [ADR-0012: Discovery Command SQLite Persistence](ADR-0012-discovery-command-sqlite-persistence.md)
 - [ADR-0013: Discovery Observation and Finalized Group Persistence](ADR-0013-discovery-observation-and-group-persistence.md)
 - [ADR-0014: Discovery Execution Result SQLite Persistence](ADR-0014-discovery-execution-result-persistence.md)
+- [ADR-0015: Opportunity Candidate Issuance Foundation](ADR-0015-opportunity-candidate-issuance-foundation.md)
 
 Architecture Decision Record 관리 영역.
 
