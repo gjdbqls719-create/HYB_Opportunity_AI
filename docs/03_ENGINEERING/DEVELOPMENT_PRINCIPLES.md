@@ -476,3 +476,9 @@ Collector observations may precede Candidate issuance. Candidate-scoped Product
 Snapshots are published only by a collector-owned post-issuance boundary from
 exact persisted observation IDs. Downstream layers must not reconstruct this
 fact. Source bindings and replay receipts commit atomically with the Snapshots.
+
+Price analysis consumes an explicitly ordered Product Snapshot cohort whose
+source bindings exactly match finalized group membership. It must not select all
+Candidate snapshots, choose latest rows, or reconstruct order from Product data.
+Fallback multiplier and Analyzer version are explicit command provenance, and
+the Price Snapshot plus owner receipt share one transaction.

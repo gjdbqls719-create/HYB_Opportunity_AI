@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## PR35-E2 - Price Intelligence Analyzer Owner Wiring
+
+- Add an authoritative command boundary that loads explicit ordered Product Snapshot IDs, validates their exact finalized-group source bindings, reconstructs runtime Products losslessly, and calls the existing Price Analyzer without formula changes.
+- Persist the resulting Candidate-scoped PriceIntelligence Snapshot and immutable analysis receipt atomically, preserving explicit fallback multiplier, Analyzer version, request/generation/commit timestamps, and command fingerprint.
+- Add deterministic restart/response-loss replay, changed-command conflict, repeated analysis facts for distinct commands, append-only receipts, rollback, and separate-connection concurrency.
+- Add no latest Product selection, regrouping, Collector call, Economics handoff, Snapshot Chain binding, Safety execution, orchestrator wiring, migration, or backfill.
+
 ## PR35-E1 - Product Snapshot Source Reference and Owner Wiring
 
 - Add a collector-owned post-issuance capture boundary over one exact finalized group and its ordered persisted collector observations.

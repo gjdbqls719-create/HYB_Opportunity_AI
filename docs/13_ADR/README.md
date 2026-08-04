@@ -24,6 +24,7 @@
 - [ADR-0020: Candidate PriceIntelligence Snapshot Persistence](ADR-0020-candidate-price-intelligence-snapshot-persistence.md)
 - [ADR-0021: Opportunity EconomicsCalculation Snapshot Persistence](ADR-0021-opportunity-economics-calculation-snapshot-persistence.md)
 - [ADR-0022: Snapshot Owner Wiring and Cross-Stage Source Handoff](ADR-0022-snapshot-owner-wiring-and-cross-stage-source-handoff.md)
+- [ADR-0023: PriceIntelligence Analyzer Owner Wiring](ADR-0023-price-intelligence-analyzer-owner-wiring.md)
 
 Architecture Decision Record 관리 영역.
 

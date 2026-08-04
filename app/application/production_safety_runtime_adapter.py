@@ -32,6 +32,10 @@ from app.domain.product_observation import (
     ProductObservationSnapshot,
 )
 from app.models import Product
+from app.application.product_runtime import (
+    ProductRuntimeReconstructionError,
+    reconstruct_runtime_product,
+)
 from engine.price_intelligence import PriceIntelligence
 
 
@@ -143,49 +147,16 @@ class ProductionSafetyRuntimeAdapter:
         return snapshot
 
     def reconstruct_product(self, snapshot: ProductObservationSnapshot) -> Product:
-        if not isinstance(snapshot, ProductObservationSnapshot):
-            raise MalformedProductionSafetyRuntimeSourceError(
-                "Product Observation source is malformed"
-            )
-        if snapshot.schema_version != PRODUCT_OBSERVATION_SNAPSHOT_SCHEMA_VERSION:
-            raise UnsupportedProductionSafetyRuntimeVersionError(
-                "unsupported Product Observation snapshot schema version"
-            )
-        source = snapshot.product
-        if not source.shipping_cost_known and source.shipping_cost != 0.0:
-            raise MalformedProductionSafetyRuntimeSourceError(
-                "unknown shipping cost cannot carry a non-zero runtime value"
-            )
         try:
-            product = Product(
-                marketplace=source.marketplace,
-                item_id=source.item_id,
-                title=source.title,
-                price=source.price,
-                currency=source.currency,
-                condition=source.condition,
-                url=source.url,
-                brand=source.brand,
-                model_number=source.model_number,
-                category=source.category,
-                shipping_cost=(source.shipping_cost if source.shipping_cost_known else None),
-                seller=source.seller,
-                image_url=source.image_url,
-                rating=source.rating,
-                review_count=source.review_count,
-                in_stock=source.in_stock,
-                data_source=source.data_source,
-            )
-        except (TypeError, ValueError) as error:
+            return reconstruct_runtime_product(snapshot)
+        except ProductRuntimeReconstructionError as error:
+            if "unsupported" in str(error):
+                raise UnsupportedProductionSafetyRuntimeVersionError(str(error)) from error
+            if "malformed" in str(error) or "unknown shipping" in str(error):
+                raise MalformedProductionSafetyRuntimeSourceError(str(error)) from error
             raise ProductionSafetyRuntimeReconstructionError(
-                "Product runtime reconstruction failed"
+                str(error)
             ) from error
-        for field_name in source.__dataclass_fields__:
-            if getattr(product, field_name) != getattr(source, field_name):
-                raise ProductionSafetyRuntimeReconstructionError(
-                    f"Product runtime field changed during reconstruction: {field_name}"
-                )
-        return product
 
     def reconstruct_price_intelligence(
         self, snapshot: PriceIntelligenceSnapshot

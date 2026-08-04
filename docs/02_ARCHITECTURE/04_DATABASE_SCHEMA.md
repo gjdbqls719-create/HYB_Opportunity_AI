@@ -221,3 +221,11 @@ exact persisted collector observation, Candidate, and first capture command.
 Snapshot IDs, Candidate, commit time, and schema version. Snapshot rows, source
 bindings, and receipt share one `BEGIN IMMEDIATE`; neither table has a current
 projection.
+
+## Price Intelligence analysis receipts (PR35-E2)
+
+`price_intelligence_analysis_receipts` stores command ID/fingerprint, Candidate,
+finalized group, resulting Price Snapshot ID, exact ordered Product Snapshot IDs,
+Analyzer version, fallback multiplier, and request/generation/commit timestamps.
+The receipt and Price Snapshot history row share one `BEGIN IMMEDIATE` transaction.
+UPDATE and DELETE are blocked, and no current projection is created.

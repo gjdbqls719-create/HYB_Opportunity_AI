@@ -107,3 +107,9 @@ PR35-E1 adds the collector-owned post-issuance Product Snapshot capture boundary
 It reads one exact finalized group's ordered observations and atomically persists
 Candidate-scoped Snapshots, source bindings, and replay receipt. It performs no
 latest-source selection or Product-field identity inference.
+
+PR35-E2 adds the Price Analyzer owner boundary. It validates one explicit ordered
+Product Snapshot/source-binding cohort against finalized group membership,
+reconstructs runtime Products losslessly, invokes the existing Analyzer, and
+atomically persists the Price Snapshot and replay receipt. Production Discovery
+orchestrator wiring remains deferred.
