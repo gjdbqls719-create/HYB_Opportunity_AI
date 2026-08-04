@@ -127,6 +127,14 @@ class OpportunityValidationService:
         )
         return lifecycle, transition, snapshot
 
+    def prepare_admission(self, command: AddToValidationQueueCommand):
+        """Build the existing admission facts without persisting them."""
+        return self._build_admission(command)
+
+    def prepare_market_binding(self, command, lifecycle):
+        """Build the existing market binding for a shared atomic boundary."""
+        return self._binding(command, lifecycle)
+
     @staticmethod
     def _binding(command, lifecycle) -> OpportunityMarketIdentityBinding:
         return OpportunityMarketIdentityBinding(

@@ -70,3 +70,11 @@ Marketplace는 수집,
 Engine은 분석,
 Service는 연결,
 UI는 표현만 담당한다.
+# Candidate Admission Promotion (PR34-E)
+
+Persisted Candidate ID is promoted through an Application boundary that reloads
+Candidate, Context, and issuance provenance. The existing Validation Admission
+fact builders are reused, and a SQLite promotion repository commits lifecycle,
+admission snapshot, market binding, immutable Candidate/Opportunity binding, and
+receipt atomically. Candidate and Opportunity remain distinct identities.
+Snapshot-chain ownership and Production Safety are not part of this flow.

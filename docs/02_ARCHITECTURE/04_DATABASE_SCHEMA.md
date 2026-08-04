@@ -159,3 +159,16 @@ authoritative Discovery lineage and stores only a new alias Receipt. Concurrent
 initial writers converge to one Candidate/Context and one receipt per valid
 issuance command. All tables reject UPDATE and DELETE and have no current
 projection. No Candidate is backfilled and no Opportunity lifecycle is created.
+# PR34-E Candidate Promotion
+
+`opportunity_candidate_promotion_history` is an immutable one-to-one bridge from
+persisted Candidate to Validation-created Opportunity. Candidate ID and
+Opportunity ID are independently unique. It stores exact Discovery and Market
+identity provenance plus the initial promotion command and subject fingerprint.
+
+`opportunity_candidate_promotion_receipts` is append-only and keyed by promotion
+command ID. Multiple exact-subject alias receipts may reference the same binding.
+Both tables reject UPDATE and DELETE. Initial promotion is committed in the same
+`BEGIN IMMEDIATE` transaction as lifecycle current/history, Validation admission
+snapshot, and Opportunity market identity binding. No current projection or
+Snapshot-chain placeholder is created.

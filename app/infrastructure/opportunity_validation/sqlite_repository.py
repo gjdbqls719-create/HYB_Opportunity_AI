@@ -179,6 +179,26 @@ CREATE TABLE IF NOT EXISTS opportunity_review_binding_current (
  session_id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL, binding_id TEXT NOT NULL UNIQUE,
  payload_json TEXT NOT NULL, projected_at TEXT NOT NULL)
 """
+_CANDIDATE_PROMOTION_HISTORY = """
+CREATE TABLE IF NOT EXISTS opportunity_candidate_promotion_history (
+ binding_id TEXT PRIMARY KEY, candidate_id TEXT NOT NULL UNIQUE,
+ opportunity_id TEXT NOT NULL UNIQUE, discovery_reference TEXT NOT NULL,
+ market_identity_payload_json TEXT NOT NULL, discovery_command_id TEXT NOT NULL,
+ discovery_execution_id TEXT NOT NULL, finalized_group_id TEXT NOT NULL,
+ initial_promotion_command_id TEXT NOT NULL UNIQUE, subject_fingerprint TEXT NOT NULL,
+ promoted_at TEXT NOT NULL, schema_version TEXT NOT NULL, inserted_at TEXT NOT NULL,
+ FOREIGN KEY(candidate_id) REFERENCES opportunity_candidate_history(candidate_id),
+ FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id))
+"""
+_CANDIDATE_PROMOTION_RECEIPTS = """
+CREATE TABLE IF NOT EXISTS opportunity_candidate_promotion_receipts (
+ promotion_command_id TEXT PRIMARY KEY, candidate_id TEXT NOT NULL,
+ opportunity_id TEXT NOT NULL, command_fingerprint TEXT NOT NULL,
+ subject_fingerprint TEXT NOT NULL, committed_at TEXT NOT NULL,
+ schema_version TEXT NOT NULL, inserted_at TEXT NOT NULL,
+ FOREIGN KEY(candidate_id) REFERENCES opportunity_candidate_promotion_history(candidate_id),
+ FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id))
+"""
 
 
 class SQLiteValidationQueueRepository:
@@ -208,6 +228,13 @@ class SQLiteValidationQueueRepository:
             self._connection.execute(_DECISION_COMPOSITION_HISTORY)
             self._connection.execute(_DECISION_COMPOSITION_CURRENT)
             self._connection.execute(_OPPORTUNITY_REVIEW_BINDING_CURRENT)
+            self._connection.execute(_CANDIDATE_PROMOTION_HISTORY)
+            self._connection.execute(_CANDIDATE_PROMOTION_RECEIPTS)
+            for table in ("opportunity_candidate_promotion_history", "opportunity_candidate_promotion_receipts"):
+                for operation in ("UPDATE", "DELETE"):
+                    self._connection.execute(f"""CREATE TRIGGER IF NOT EXISTS trg_{table}_no_{operation.lower()}
+                    BEFORE {operation} ON {table}
+                    BEGIN SELECT RAISE(ABORT, '{table} is append-only'); END""")
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_opportunity_market_binding_reference "
                 "ON opportunity_market_identity_bindings(discovery_reference)"

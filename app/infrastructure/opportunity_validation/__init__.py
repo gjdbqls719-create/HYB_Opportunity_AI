@@ -1,3 +1,4 @@
 from app.infrastructure.opportunity_validation.sqlite_repository import SQLiteValidationQueueRepository
+from app.infrastructure.opportunity_validation.sqlite_candidate_promotion import SQLiteCandidatePromotionRepository
 
-__all__ = ["SQLiteValidationQueueRepository"]
+__all__ = ["SQLiteValidationQueueRepository", "SQLiteCandidatePromotionRepository"]

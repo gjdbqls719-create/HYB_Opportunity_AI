@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR34-E - Candidate-to-Opportunity Admission Promotion Foundation
+
+- Add an immutable promotion command, one-to-one Candidate/Opportunity binding, and one-to-many command receipts while keeping Candidate and Opportunity identity separate.
+- Reload authoritative persisted Candidate, Context, and issuance lineage; derive neither discovery reference nor Market identity from caller data.
+- Extend the existing SQLite Validation Admission boundary so lifecycle current/history, admission snapshot, market binding, Candidate binding, and receipt commit under one `BEGIN IMMEDIATE` transaction.
+- Add exact restart replay, changed-command conflict, alias receipt, append-only triggers, deterministic read queries, and rollback coverage without Snapshot IDs, Safety execution, migration, or backfill.
+- Keep Snapshot-chain handoff explicitly unavailable until authoritative Snapshot owner wiring exists.
+
 ## PR34-D - Opportunity Candidate Issuance Persistence
 
 - Persist one immutable Candidate and Context per Discovery command/finalized Group while allowing one immutable issuance receipt per command and multiple alias receipts to reference the same Candidate.

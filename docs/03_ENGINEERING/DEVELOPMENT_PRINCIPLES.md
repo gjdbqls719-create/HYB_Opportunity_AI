@@ -453,3 +453,11 @@ opaque IDs identify facts; deterministic fingerprints validate canonical command
 intent and ordered source membership. IDs and fingerprints remain separate, and
 committed command replay must use persisted results rather than repeat live
 external collection.
+# Candidate promotion
+
+Candidate promotion must read Candidate identity, Discovery context, and issuance
+lineage from authoritative persistence. Callers must not reconstruct discovery
+reference or Market identity. Candidate and Opportunity IDs are separate opaque
+identities, and admission plus their immutable binding and receipt must share one
+transaction. Missing Snapshot-chain facts must remain missing rather than being
+inferred or represented by placeholders.

@@ -18,6 +18,7 @@
 - [ADR-0014: Discovery Execution Result SQLite Persistence](ADR-0014-discovery-execution-result-persistence.md)
 - [ADR-0015: Opportunity Candidate Issuance Foundation](ADR-0015-opportunity-candidate-issuance-foundation.md)
 - [ADR-0016: Opportunity Candidate Cardinality and Alias Receipts](ADR-0016-opportunity-candidate-cardinality-and-alias-receipts.md)
+- [ADR-0017: Candidate-to-Opportunity Admission Promotion](ADR-0017-candidate-to-opportunity-admission-promotion.md)
 
 Architecture Decision Record 관리 영역.
 
