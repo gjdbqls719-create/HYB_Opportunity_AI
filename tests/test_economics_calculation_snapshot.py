@@ -104,6 +104,7 @@ def snapshot(result: EconomicsCalculation | None = None) -> EconomicsCalculation
         snapshot_id="economics-calculation-1",
         opportunity_identity=OpportunityIdentity("opp-1", "ebay:item-1"),
         market_observation_identity=identity(),
+        candidate_opportunity_binding_id="binding-1",
         verified_economics_opportunity_id="opp-1",
         revenue=value.inputs.expected_sale_price,
         marketplace_fee=value.marketplace_fee,

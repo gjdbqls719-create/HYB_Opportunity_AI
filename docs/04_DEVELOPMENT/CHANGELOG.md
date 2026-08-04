@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## PR35-D - Opportunity-Scoped EconomicsCalculation Snapshot SQLite Persistence
+
+- Upgrade EconomicsCalculation Snapshot to v2 with an exact Candidate/Opportunity promotion binding reference while retaining its authoritative Opportunity and Verified Economics source.
+- Persist complete typed results, Money/Evidence, profitability provenance, calculation parameters, canonical analysis/version/fingerprint, calculation version, generation time, and full payload fingerprint as immutable history.
+- Validate lifecycle, promotion binding, Market identity, and Verified Economics source inside one `BEGIN IMMEDIATE` transaction; add exact replay, repeated calculation support, rollback, deterministic queries, malformed persistence detection, append-only triggers, and separate-connection concurrency.
+- Do not infer a Price Snapshot: the existing calculator consumes VerifiedEconomicsInput and preserves no authoritative Price Snapshot ID. Add no latest-source lookup, calculator execution, Safety execution, current projection, migration, or backfill.
+
 ## PR35-C - Candidate-Scoped PriceIntelligence Snapshot SQLite Persistence
 
 - Persist PriceIntelligence Snapshot v2 as an immutable Candidate-scoped Analyzer fact with exact ordered Product Snapshot IDs, Market identity, Analyzer version, Decimal outputs, sample size, generation time, schema version, and integrity fingerprint.

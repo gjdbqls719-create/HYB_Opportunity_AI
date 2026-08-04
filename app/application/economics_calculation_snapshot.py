@@ -7,6 +7,23 @@ from app.domain.economics_calculation_snapshot import EconomicsCalculationSnapsh
 from app.domain.market_intelligence import MarketObservationIdentity
 
 
+class EconomicsCalculationSnapshotPersistenceError(RuntimeError): pass
+class EconomicsCalculationSnapshotNotFoundError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotConflictError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotOpportunityNotFoundError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotBindingNotFoundError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotBindingMismatchError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotMarketIdentityConflictError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotVerifiedSourceNotFoundError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotVerifiedSourceConflictError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotPriceSourceNotFoundError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotPriceSourceConflictError(EconomicsCalculationSnapshotPersistenceError): pass
+class MalformedEconomicsCalculationSnapshotPersistenceError(EconomicsCalculationSnapshotPersistenceError): pass
+class UnsupportedEconomicsCalculationSnapshotVersionError(MalformedEconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotHistoryError(EconomicsCalculationSnapshotPersistenceError): pass
+class EconomicsCalculationSnapshotCommitError(EconomicsCalculationSnapshotPersistenceError): pass
+
+
 class EconomicsCalculationSnapshotRepository(Protocol):
     def save_snapshot(
         self, snapshot: EconomicsCalculationSnapshot
@@ -22,5 +39,9 @@ class EconomicsCalculationSnapshotRepository(Protocol):
         self, market_observation_identity: MarketObservationIdentity
     ) -> tuple[EconomicsCalculationSnapshot, ...]: ...
 
+    def get_by_verified_economics_source(
+        self, opportunity_id: str
+    ) -> tuple[EconomicsCalculationSnapshot, ...]: ...
 
-__all__ = ["EconomicsCalculationSnapshotRepository"]
+
+__all__ = [name for name in globals() if name.startswith("EconomicsCalculation") or name.startswith("MalformedEconomics") or name.startswith("UnsupportedEconomics")]

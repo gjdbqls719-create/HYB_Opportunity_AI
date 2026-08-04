@@ -97,3 +97,8 @@ PR35-C adds the Price Analyzer's immutable Candidate-scoped Snapshot. It retains
 the ordered persisted Product cohort and validates every Candidate and Market
 lineage edge without rerunning grouping or price analysis. Economics, handoff,
 and Safety remain outside this persistence boundary.
+
+PR35-D persists the post-admission EconomicsCalculation Snapshot. The immutable
+promotion binding bridges Candidate provenance to its Opportunity, and Verified
+Economics is the exact calculator source. Price-to-Economics Snapshot lineage is
+not inferred because the calculator contract does not retain a Price Snapshot ID.

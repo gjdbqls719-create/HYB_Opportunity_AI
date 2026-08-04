@@ -13,7 +13,7 @@ from app.domain.opportunity import MoneyInput
 from app.domain.economics_calculation_snapshot.analysis import EconomicsAnalysisSnapshot
 
 
-ECONOMICS_CALCULATION_SNAPSHOT_SCHEMA_VERSION = "economics-calculation-snapshot-v1"
+ECONOMICS_CALCULATION_SNAPSHOT_SCHEMA_VERSION = "economics-calculation-snapshot-v2"
 
 
 def _required_text(value: str, name: str) -> str:
@@ -105,6 +105,7 @@ class EconomicsCalculationSnapshot:
     snapshot_id: str
     opportunity_identity: OpportunityIdentity
     market_observation_identity: MarketObservationIdentity
+    candidate_opportunity_binding_id: str
     verified_economics_opportunity_id: str
     revenue: MoneyInput
     marketplace_fee: MoneyInput
@@ -128,6 +129,7 @@ class EconomicsCalculationSnapshot:
     def __post_init__(self) -> None:
         for name in (
             "snapshot_id",
+            "candidate_opportunity_binding_id",
             "verified_economics_opportunity_id",
             "calculation_version",
             "schema_version",

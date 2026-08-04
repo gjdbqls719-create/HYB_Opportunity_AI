@@ -198,3 +198,16 @@ insertion time.
 Save validates every referenced Product Snapshot against its authoritative
 history before insert. UPDATE and DELETE are blocked. Fingerprint and cohort are
 not unique business keys, and no current projection exists.
+
+## Opportunity EconomicsCalculation Snapshot history (PR35-D)
+
+`economics_calculation_snapshot_history` stores immutable Opportunity-scoped
+calculation facts. It references lifecycle Opportunity, Candidate/Opportunity
+promotion binding, and Verified Economics Opportunity source. Canonical JSON
+preserves calculation results, profitability, parameters, and Economics analysis;
+Decimal values are text. Analysis and full Snapshot fingerprints are both stored.
+
+The calculator contract contains no authoritative Price Snapshot ID, so this
+table deliberately has no inferred Price reference. UPDATE and DELETE are
+blocked, repeated calculations use distinct Snapshot IDs, and no current
+projection exists.

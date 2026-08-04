@@ -22,6 +22,7 @@
 - [ADR-0018: Candidate-Scoped Snapshot Ownership and Opportunity Handoff](ADR-0018-candidate-scoped-snapshot-ownership-and-opportunity-handoff.md)
 - [ADR-0019: Candidate Product Observation Snapshot Persistence](ADR-0019-candidate-product-observation-snapshot-persistence.md)
 - [ADR-0020: Candidate PriceIntelligence Snapshot Persistence](ADR-0020-candidate-price-intelligence-snapshot-persistence.md)
+- [ADR-0021: Opportunity EconomicsCalculation Snapshot Persistence](ADR-0021-opportunity-economics-calculation-snapshot-persistence.md)
 
 Architecture Decision Record 관리 영역.
 
