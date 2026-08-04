@@ -1,5 +1,53 @@
 # HYB Changelog
 
+## PR31.1 - Economics Runtime Analysis Provenance Hardening
+
+- Preserve the complete runtime Economics `analysis` mapping as a versioned, fingerprinted, deeply immutable canonical value tree with deterministic mapping order and exact bool/int, Decimal, Enum, datetime, tuple/list, and nested-mapping semantics.
+- Reject arbitrary objects, sets, non-text mapping keys, cycles, non-finite numbers, naive datetimes, and unknown Enum reconstruction instead of serializing ambiguous provenance or inventing defaults.
+- Align the Economics snapshot lineage name with the real Verified Economics persistence key by recording `verified_economics_opportunity_id`, not a nonexistent snapshot ID.
+- Reconstruct exact disposable EconomicsCalculation and complete Production Safety runtime inputs from persisted snapshot facts without invoking the calculator, analyzer, or `assess_production_safety`.
+- Add explicit unsupported analysis-value and analysis-version failure paths while keeping SQLite, schemas, migrations, backfill, formulas, rules, statuses, Decision, Dashboard, and Safety execution unchanged.
+
+## PR33 - Production Safety Runtime Adapter Foundation
+
+- Add disposable Product and PriceIntelligence runtime reconstruction from exact authoritative snapshot fields without analyzer, calculator, cohort, fallback, or Safety execution.
+- Add exact read-only VerifiedEconomicsSnapshot loading with identity and schema validation; the current authoritative snapshot key remains Opportunity ID.
+- Add a ProductionSafetyRuntimeInputs result contract and explicit missing, identity-conflict, malformed, unsupported-version, and reconstruction error taxonomy.
+- PR31.1 resolves the original Economics analysis blocker through exact canonical provenance; no missing keys, defaults, formulas, or provenance are inferred.
+- Keep `assess_production_safety`, ProductionSafetyAssessment persistence, API/UI/receipts, SQLite, migration, backfill, Decision, Dashboard, collectors, analyzers, calculators, rules, formulas, and statuses unchanged.
+
+## PR32 - Production Safety Integration Foundation
+
+- Add an immutable ProductionSafetyEvaluationContext grouping exact Product Observation, PriceIntelligence, and EconomicsCalculation snapshots with the matching Verified Economics snapshot reference.
+- Validate Opportunity identity, Market Observation identity, ordered Product cohort membership, and Verified Economics lineage without adding Safety rules or formulas.
+- Add a ProductionSafetySourceRepository Protocol and read-only integration service for authoritative source loading and delegated lineage validation without SQLite, transactions, migration, API, or backfill.
+- Keep `assess_production_safety` unchanged and document the remaining runtime-adaptation and VerifiedEconomicsInput-loading gap instead of creating fake Product, PriceIntelligence, or EconomicsCalculation objects.
+- Assign context ownership exclusively to the Production Safety Integration Layer and keep Collector, Review, Dashboard, and Decision behavior unchanged.
+
+## PR31 - EconomicsCalculation Snapshot Foundation
+
+- Add an immutable EconomicsCalculation snapshot contract preserving explicit Opportunity and Market Observation identities, the exact Verified Economics snapshot reference, typed calculator outputs, profitability provenance, calculation parameters/version, generation time, and schema version.
+- Preserve per-unit expected sale price as revenue and represent the current calculator's absent break-even result explicitly through existing MoneyInput evidence instead of fabricating a value.
+- Preserve the existing net-profit and ROI thresholds plus all three existing profitability filter results without changing calculator formulas or policy.
+- Add an Application repository Protocol for save and direct, Opportunity, and Market Observation identity lookups without persistence, wiring, migration, transactions, or backfill.
+- Assign snapshot creation exclusively to the Economics Calculator and keep runtime EconomicsCalculation objects outside the persistence contract.
+
+## PR30 - PriceIntelligence Snapshot Foundation
+
+- Add an immutable PriceIntelligence snapshot contract preserving every existing analyzer result, explicit Opportunity and Market Observation identities, ordered Product Observation source IDs, analyzer version, generation time, and schema version.
+- Require sample size to match the immutable ordered source cohort without changing grouping, fallback, stability, variation, recommendation, or price formulas.
+- Add an Application repository Protocol for save and direct, Opportunity, and Market Observation identity lookups without persistence, migration, transactions, or backfill.
+- Assign snapshot creation exclusively to the Price Intelligence Analyzer and keep runtime PriceIntelligence objects outside the persistence contract.
+- Keep collectors, orchestrator, Economics, Production Safety, Review, Dashboard, Decision, and all existing analyzers and formulas unchanged.
+
+## PR29 - Product Observation Snapshot Foundation
+
+- Add an immutable Product Observation Domain contract preserving explicit Opportunity and Market Observation identities, every existing runtime Product field, collector-supplied provenance, observation time, and schema version.
+- Add an Application repository Protocol for save, direct lookup, Opportunity lookup, and Market Observation identity lookup without selecting persistence or adding tables.
+- Assign snapshot creation exclusively to the Marketplace Collection Boundary; Validation Admission, Review, Safety, Dashboard, and Decision cannot create snapshots.
+- Record why price history cannot substitute for a complete Product observation and why mutable Product reconstruction, migration, backfill, and inferred provenance are prohibited.
+- Keep collectors, PriceIntelligence, Economics, Production Safety, Review, Dashboard, Decision, formulas, and schemas unchanged.
+
 ## PR25-B - Decision Readiness and Finalization Experience
 
 - Add a read-only Decision Readiness Application service and API that validates persisted source existence, authoritative identity, and approved schema/policy versions without rerunning any formula or assessment.

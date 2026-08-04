@@ -428,3 +428,10 @@ AI should prioritize the long-term success of the project over short-term implem
 실제 금전, 운영 상태, 데이터 무결성 또는 장기 핵심 아키텍처에
 영향을 주는 변경일수록 더 강한 감사 절차를 적용한다.
 
+# Authoritative Runtime Projection
+
+Open runtime mappings are not persistence contracts. When exact runtime
+reconstruction is required, authoritative facts must use a versioned, deeply
+immutable, deterministic representation that preserves value semantics and
+rejects unsupported values. Reconstruction copies persisted facts; it does not
+recalculate, infer, default, or backfill them.
