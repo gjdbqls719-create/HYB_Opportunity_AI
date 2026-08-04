@@ -19,9 +19,11 @@ instead of calling a live marketplace again; this PR defines only the contracts,
 not persistence or production wiring.
 
 The Discovery Application layer defines separate command, finalized-group, and
-execution-result repository boundaries. Command persistence owns immutable
-receipt and replay/conflict semantics only; it does not execute discovery or
-issue Candidate identity. Infrastructure selection remains deferred.
+execution-result repository boundaries. SQLite implements only the command
+boundary: one immutable command and its receipt commit atomically with
+`BEGIN IMMEDIATE`, and durable replay returns that exact pair after restart.
+Command persistence does not execute discovery or issue Candidate identity.
+Finalized-group and execution-result infrastructure remain deferred.
 
 HYB는 Modular Pipeline Architecture를 사용한다.
 

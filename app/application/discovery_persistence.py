@@ -10,6 +10,7 @@ from app.domain.discovery_identity import (
     DiscoveryCommand,
     DiscoveryExecutionResult,
     FinalizedProductGroup,
+    UnsupportedDiscoveryCommandVersionError,
 )
 
 
@@ -20,11 +21,39 @@ class DiscoveryPersistenceError(RuntimeError):
     pass
 
 
-class MissingDiscoveryCommand(DiscoveryPersistenceError):
+class DiscoveryCommandPersistenceError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryCommandNotFoundError(DiscoveryPersistenceError):
+    pass
+
+
+class MissingDiscoveryCommand(DiscoveryCommandNotFoundError):
     pass
 
 
 class DiscoveryReplayConflict(DiscoveryPersistenceError):
+    pass
+
+
+class DuplicateDiscoveryExecutionError(DiscoveryPersistenceError):
+    pass
+
+
+class MalformedDiscoveryCommandPersistenceError(DiscoveryPersistenceError):
+    pass
+
+
+class DiscoveryCommandHistoryError(DiscoveryCommandPersistenceError):
+    pass
+
+
+class DiscoveryCommandReceiptError(DiscoveryCommandPersistenceError):
+    pass
+
+
+class DiscoveryCommandCommitError(DiscoveryCommandPersistenceError):
     pass
 
 
@@ -164,7 +193,12 @@ class PersistDiscoveryCommand:
             existing_receipt = self._repository.validate_replay(
                 command.command_id, fingerprint
             )
-        except DiscoveryReplayConflict:
+        except (
+            DiscoveryReplayConflict,
+            DiscoveryPersistenceError,
+            MalformedDiscoveryReceipt,
+            UnsupportedDiscoveryCommandVersionError,
+        ):
             raise
         except Exception as error:
             raise DiscoveryPersistenceError(
@@ -204,7 +238,12 @@ class PersistDiscoveryCommand:
         )
         try:
             saved_receipt = self._repository.save_command(command, receipt)
-        except DiscoveryReplayConflict:
+        except (
+            DiscoveryReplayConflict,
+            DiscoveryPersistenceError,
+            MalformedDiscoveryReceipt,
+            UnsupportedDiscoveryCommandVersionError,
+        ):
             raise
         except Exception as error:
             raise DiscoveryPersistenceError(
@@ -240,12 +279,19 @@ class PersistDiscoveryCommand:
 __all__ = [
     "DISCOVERY_COMMAND_RECEIPT_SCHEMA_VERSION",
     "DiscoveryCommandReceipt",
+    "DiscoveryCommandCommitError",
+    "DiscoveryCommandHistoryError",
+    "DiscoveryCommandNotFoundError",
+    "DiscoveryCommandPersistenceError",
+    "DiscoveryCommandReceiptError",
     "DiscoveryCommandRepository",
     "DiscoveryGroupRepository",
     "DiscoveryPersistenceError",
     "DiscoveryReplayConflict",
+    "DuplicateDiscoveryExecutionError",
     "DiscoveryResultRepository",
     "MalformedDiscoveryReceipt",
+    "MalformedDiscoveryCommandPersistenceError",
     "MissingDiscoveryCommand",
     "PersistDiscoveryCommand",
     "PersistDiscoveryCommandResult",

@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR34-B.2 - Discovery Command SQLite Persistence
+
+- Add file-backed `SQLiteDiscoveryCommandRepository` for exact immutable Discovery command and receipt round-trip without Collector, grouping, Candidate, Snapshot, or production discovery wiring.
+- Commit command history and its one-to-one receipt in one `BEGIN IMMEDIATE` transaction, preserving distinct history, receipt, and commit errors with complete rollback.
+- Enforce append-only UPDATE/DELETE triggers plus unique command/execution identity, deterministic canonical JSON reconstitution, fingerprint integrity, and explicit malformed/unsupported persistence failures.
+- Make restart and response-loss replay durable; separate-connection concurrent identical commands converge on one exact receipt while changed payload and execution reuse conflict.
+- Keep finalized-group/result persistence, Candidate issuance, migration/backfill, Safety, Decision, Dashboard, and all legacy production behavior unchanged.
+
 ## PR34-B.1 - Discovery Persistence Foundation
 
 - Add immutable `DiscoveryCommandReceipt` with exact command/execution identity, canonical payload fingerprint, timezone-aware commit time, and fixed schema version.

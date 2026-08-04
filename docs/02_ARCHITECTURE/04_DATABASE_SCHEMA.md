@@ -79,3 +79,18 @@ contract but still adds no database objects. `save_command` is defined as the
 future atomic command/receipt boundary; replay validation, group queries, and
 result queries are technology-neutral. SQLite tables, triggers, transactions,
 and durable replay remain a follow-up infrastructure PR.
+
+PR34-B.2 adds `discovery_command_history` and
+`discovery_command_receipts`. Both are append-only and reject UPDATE and DELETE
+through triggers. Command ID and execution ID are independently unique, and a
+composite foreign key binds each receipt to exactly one command/execution pair.
+The history row stores deterministic canonical JSON plus the authoritative
+Domain fingerprint; reads reconstruct and validate the complete typed command.
+
+`save_command` uses one `BEGIN IMMEDIATE` transaction for history and receipt.
+History, receipt, and commit failures are distinct and roll back the entire
+pair. Same-command/same-fingerprint concurrency converges on the first exact
+receipt; changed payload or reused execution identity conflicts. There is no
+current projection because a command/receipt pair has no mutable latest state.
+No legacy command is inferred or backfilled. Group and execution-result
+persistence, Candidate issuance, and production discovery wiring remain absent.
