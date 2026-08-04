@@ -102,3 +102,8 @@ PR35-D persists the post-admission EconomicsCalculation Snapshot. The immutable
 promotion binding bridges Candidate provenance to its Opportunity, and Verified
 Economics is the exact calculator source. Price-to-Economics Snapshot lineage is
 not inferred because the calculator contract does not retain a Price Snapshot ID.
+
+PR35-E1 adds the collector-owned post-issuance Product Snapshot capture boundary.
+It reads one exact finalized group's ordered observations and atomically persists
+Candidate-scoped Snapshots, source bindings, and replay receipt. It performs no
+latest-source selection or Product-field identity inference.

@@ -23,6 +23,7 @@
 - [ADR-0019: Candidate Product Observation Snapshot Persistence](ADR-0019-candidate-product-observation-snapshot-persistence.md)
 - [ADR-0020: Candidate PriceIntelligence Snapshot Persistence](ADR-0020-candidate-price-intelligence-snapshot-persistence.md)
 - [ADR-0021: Opportunity EconomicsCalculation Snapshot Persistence](ADR-0021-opportunity-economics-calculation-snapshot-persistence.md)
+- [ADR-0022: Snapshot Owner Wiring and Cross-Stage Source Handoff](ADR-0022-snapshot-owner-wiring-and-cross-stage-source-handoff.md)
 
 Architecture Decision Record 관리 영역.
 

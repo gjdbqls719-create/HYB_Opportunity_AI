@@ -469,3 +469,10 @@ Product and Price facts use Candidate identity; post-admission Verified Economic
 and EconomicsCalculation use Opportunity identity. Candidate ID must never be
 used as an Opportunity ID. Cross-stage consumers must validate the immutable
 promotion binding plus exact Market identity instead of inferring lineage.
+
+## Snapshot owner publication
+
+Collector observations may precede Candidate issuance. Candidate-scoped Product
+Snapshots are published only by a collector-owned post-issuance boundary from
+exact persisted observation IDs. Downstream layers must not reconstruct this
+fact. Source bindings and replay receipts commit atomically with the Snapshots.

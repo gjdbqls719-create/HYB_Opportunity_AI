@@ -211,3 +211,13 @@ The calculator contract contains no authoritative Price Snapshot ID, so this
 table deliberately has no inferred Price reference. UPDATE and DELETE are
 blocked, repeated calculations use distinct Snapshot IDs, and no current
 projection exists.
+
+## Product Snapshot owner source binding (PR35-E1)
+
+`product_snapshot_source_binding_history` links each Product Snapshot to its
+exact persisted collector observation, Candidate, and first capture command.
+`(candidate_id, collected_observation_id)` is unique. The append-only
+`product_snapshot_capture_receipts` table stores command fingerprint, ordered
+Snapshot IDs, Candidate, commit time, and schema version. Snapshot rows, source
+bindings, and receipt share one `BEGIN IMMEDIATE`; neither table has a current
+projection.

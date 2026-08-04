@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## PR35-E1 - Product Snapshot Source Reference and Owner Wiring
+
+- Add a collector-owned post-issuance capture boundary over one exact finalized group and its ordered persisted collector observations.
+- Persist immutable source bindings and replay receipts atomically with Product Snapshot history under `BEGIN IMMEDIATE`.
+- Preserve Product Snapshot v2; exact replay and alias receipts are supported, while changed commands and duplicate source publication under new Snapshot IDs conflict.
+- Defer Price/Economics owner wiring, complete Snapshot Chain binding, and Production Safety execution to PR35-E2-E4.
+
 ## PR35-D - Opportunity-Scoped EconomicsCalculation Snapshot SQLite Persistence
 
 - Upgrade EconomicsCalculation Snapshot to v2 with an exact Candidate/Opportunity promotion binding reference while retaining its authoritative Opportunity and Verified Economics source.
