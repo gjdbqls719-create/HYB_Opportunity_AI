@@ -172,3 +172,29 @@ Both tables reject UPDATE and DELETE. Initial promotion is committed in the same
 `BEGIN IMMEDIATE` transaction as lifecycle current/history, Validation admission
 snapshot, and Opportunity market identity binding. No current projection or
 Snapshot-chain placeholder is created.
+
+## Candidate Product Observation Snapshot history (PR35-B)
+
+`product_observation_snapshot_history` stores one immutable Product Observation
+Snapshot v2 per opaque Snapshot ID. It references `opportunity_candidate_history`,
+duplicates the Candidate discovery reference for corruption checks, and stores
+canonical JSON for complete Market identity, Product fields, and Collector
+provenance plus observation time, schema version, integrity fingerprint, and
+insertion time. UPDATE and DELETE triggers enforce append-only history.
+
+The fingerprint is not unique: different Snapshot IDs may record repeated
+observations of the same Product/source. There is no current projection and no
+Price, Economics, Safety, or handoff row is created.
+
+## Candidate PriceIntelligence Snapshot history (PR35-C)
+
+`price_intelligence_snapshot_history` stores one immutable Analyzer fact per
+opaque Price Snapshot ID. It preserves Candidate/discovery reference, canonical
+Market identity JSON, ordered Product Snapshot ID JSON, Analyzer version,
+currency, every Decimal price result as text, stability, sample size,
+timezone-aware generation time, schema version, integrity fingerprint, and
+insertion time.
+
+Save validates every referenced Product Snapshot against its authoritative
+history before insert. UPDATE and DELETE are blocked. Fingerprint and cohort are
+not unique business keys, and no current projection exists.

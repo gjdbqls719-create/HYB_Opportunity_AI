@@ -1,5 +1,19 @@
 # HYB Changelog
 
+## PR35-C - Candidate-Scoped PriceIntelligence Snapshot SQLite Persistence
+
+- Persist PriceIntelligence Snapshot v2 as an immutable Candidate-scoped Analyzer fact with exact ordered Product Snapshot IDs, Market identity, Analyzer version, Decimal outputs, sample size, generation time, schema version, and integrity fingerprint.
+- Validate persisted Candidate/Context and every Product Snapshot's version, fingerprint, Candidate subject, and Market identity inside one `BEGIN IMMEDIATE` transaction without rerunning grouping, Analyzer, or fallback logic.
+- Add exact snapshot-ID replay, changed-payload conflict, same-cohort new Snapshot support, restart round-trip, deterministic Candidate/Market queries, rollback, append-only triggers, malformed persistence detection, and separate-connection concurrency.
+- Add no current projection, Product writes, Economics persistence, promotion changes, Safety execution, handoff creation, migration, or backfill.
+
+## PR35-B - Candidate-Scoped Product Observation Snapshot SQLite Persistence
+
+- Persist Product Observation Snapshot v2 as a file-backed, append-only Candidate fact with complete Product, Collector provenance, Market identity, observation time, schema version, and deterministic integrity fingerprint.
+- Validate authoritative persisted Candidate/Context and exact discovery reference, Market identity, marketplace, and listing item inside one `BEGIN IMMEDIATE` transaction.
+- Add exact snapshot-ID replay, changed-payload conflict, multiple observations per Candidate, deterministic Candidate/Market queries, restart reconstruction, append-only triggers, rollback, and separate-connection concurrency.
+- Deliberately add no current projection, provenance uniqueness, Discovery Observation ID reuse, Collector wiring, Price/Economics persistence, Safety execution, migration, or backfill.
+
 ## PR35-A - Candidate-Scoped Snapshot Subject Alignment
 
 - Align Product Observation and PriceIntelligence snapshot schema v2 contracts with their pre-admission `OpportunityCandidateIdentity` owner and change repository lookup boundaries from Opportunity to Candidate.

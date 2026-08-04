@@ -87,3 +87,13 @@ Product cohort. Verified Economics and EconomicsCalculation remain post-admissio
 Opportunity facts. Production Safety context joins these stages only through the
 immutable Candidate/Opportunity promotion binding and exact Market identity.
 Snapshot persistence and owner wiring are not part of this foundation.
+
+PR35-B persists the Product Observation stage only. SQLite revalidates persisted
+Candidate and Context lineage atomically before appending the complete Snapshot.
+The repository does not invoke Collection and does not require promotion. Price,
+Economics, handoff, and Safety persistence remain unavailable.
+
+PR35-C adds the Price Analyzer's immutable Candidate-scoped Snapshot. It retains
+the ordered persisted Product cohort and validates every Candidate and Market
+lineage edge without rerunning grouping or price analysis. Economics, handoff,
+and Safety remain outside this persistence boundary.

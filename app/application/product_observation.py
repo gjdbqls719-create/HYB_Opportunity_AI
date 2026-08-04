@@ -7,6 +7,18 @@ from app.domain.market_intelligence import MarketObservationIdentity
 from app.domain.product_observation import ProductObservationSnapshot
 
 
+class ProductObservationSnapshotPersistenceError(RuntimeError): pass
+class ProductObservationSnapshotNotFoundError(ProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotConflictError(ProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotCandidateNotFoundError(ProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotCandidateMismatchError(ProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotMarketIdentityConflictError(ProductObservationSnapshotPersistenceError): pass
+class MalformedProductObservationSnapshotPersistenceError(ProductObservationSnapshotPersistenceError): pass
+class UnsupportedProductObservationSnapshotVersionError(MalformedProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotHistoryError(ProductObservationSnapshotPersistenceError): pass
+class ProductObservationSnapshotCommitError(ProductObservationSnapshotPersistenceError): pass
+
+
 class ProductObservationRepository(Protocol):
     def save_snapshot(
         self, snapshot: ProductObservationSnapshot
@@ -23,4 +35,4 @@ class ProductObservationRepository(Protocol):
     ) -> tuple[ProductObservationSnapshot, ...]: ...
 
 
-__all__ = ["ProductObservationRepository"]
+__all__ = [name for name in globals() if name.startswith("ProductObservation") or name.startswith("MalformedProduct") or name.startswith("UnsupportedProduct")]

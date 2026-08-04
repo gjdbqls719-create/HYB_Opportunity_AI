@@ -7,6 +7,17 @@ from app.domain.market_intelligence import MarketObservationIdentity
 from app.domain.price_intelligence import PriceIntelligenceSnapshot
 
 
+class PriceIntelligenceSnapshotPersistenceError(RuntimeError): pass
+class PriceIntelligenceSnapshotNotFoundError(PriceIntelligenceSnapshotPersistenceError): pass
+class PriceIntelligenceSnapshotConflictError(PriceIntelligenceSnapshotPersistenceError): pass
+class PriceIntelligenceSnapshotCandidateMismatchError(PriceIntelligenceSnapshotPersistenceError): pass
+class PriceIntelligenceSnapshotMarketMismatchError(PriceIntelligenceSnapshotPersistenceError): pass
+class MalformedPriceIntelligenceSnapshotPersistenceError(PriceIntelligenceSnapshotPersistenceError): pass
+class UnsupportedPriceIntelligenceSnapshotVersionError(MalformedPriceIntelligenceSnapshotPersistenceError): pass
+class PriceIntelligenceSnapshotHistoryError(PriceIntelligenceSnapshotPersistenceError): pass
+class PriceIntelligenceSnapshotCommitError(PriceIntelligenceSnapshotPersistenceError): pass
+
+
 class PriceIntelligenceSnapshotRepository(Protocol):
     def save_snapshot(
         self, snapshot: PriceIntelligenceSnapshot
@@ -23,4 +34,4 @@ class PriceIntelligenceSnapshotRepository(Protocol):
     ) -> tuple[PriceIntelligenceSnapshot, ...]: ...
 
 
-__all__ = ["PriceIntelligenceSnapshotRepository"]
+__all__ = [name for name in globals() if name.startswith("PriceIntelligence") or name.startswith("MalformedPrice") or name.startswith("UnsupportedPrice")]

@@ -1,0 +1,3 @@
+from .sqlite_repository import SQLiteProductObservationSnapshotRepository, product_snapshot_fingerprint
+
+__all__=["SQLiteProductObservationSnapshotRepository","product_snapshot_fingerprint"]

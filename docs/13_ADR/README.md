@@ -20,6 +20,8 @@
 - [ADR-0016: Opportunity Candidate Cardinality and Alias Receipts](ADR-0016-opportunity-candidate-cardinality-and-alias-receipts.md)
 - [ADR-0017: Candidate-to-Opportunity Admission Promotion](ADR-0017-candidate-to-opportunity-admission-promotion.md)
 - [ADR-0018: Candidate-Scoped Snapshot Ownership and Opportunity Handoff](ADR-0018-candidate-scoped-snapshot-ownership-and-opportunity-handoff.md)
+- [ADR-0019: Candidate Product Observation Snapshot Persistence](ADR-0019-candidate-product-observation-snapshot-persistence.md)
+- [ADR-0020: Candidate PriceIntelligence Snapshot Persistence](ADR-0020-candidate-price-intelligence-snapshot-persistence.md)
 
 Architecture Decision Record 관리 영역.
 
