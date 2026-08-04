@@ -109,3 +109,15 @@ quality result, confidence result, availability, freshness, readiness, or Decisi
 Observation history/current, assessment history/current, and receipt are one transaction.
 First commit returns 201, exact replay 200, missing Opportunity 404, identity/provenance/
 command conflict 409, malformed domain input 422, and bounded infrastructure failure 503.
+# Operational Production Safety
+
+`GET /api/v1/opportunities/{opportunity_id}/production-safety-evaluations`
+returns persisted complete bindings, ordered Product metadata, and the current
+operational evaluation. It is read-only and performs no source selection.
+
+`POST /api/v1/opportunities/{opportunity_id}/production-safety-evaluations`
+accepts `command_id`, `snapshot_chain_binding_id`,
+`selected_product_snapshot_id`, and timezone-aware `requested_at`. Initial commit
+returns 201; exact replay returns 200. Missing Opportunity/chain/Product is 404,
+lineage or command conflict is 409, malformed input is 422, and genuine
+persistence failure is 503. Raw SQLite details are never returned.

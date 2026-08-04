@@ -29,6 +29,7 @@
 - [ADR-0025: Complete Snapshot Chain Binding and Safety Source Selection](ADR-0025-complete-snapshot-chain-binding.md)
 - [ADR-0026: Production Safety Operational Evaluation and Provenance](ADR-0026-production-safety-operational-evaluation.md)
 - [ADR-0027: Operational Production Safety as Decision Source](ADR-0027-operational-safety-as-decision-source.md)
+- [ADR-0028: Explicit Operational Safety UI Source Selection](ADR-0028-explicit-operational-safety-ui-selection.md)
 
 Architecture Decision Record 관리 영역.
 

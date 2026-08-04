@@ -33,3 +33,7 @@ failures remain infrastructure-unavailable errors.
 Legacy isolated callers may continue using their explicit admission Snapshot
 adapter. There is no migration, backfill, implicit fallback, Safety execution
 API/UI, automatic Finalize, or Decision/Safety policy change.
+
+PR36-C adds the explicit operational execution UI. It refetches this same
+Readiness source after commit and leaves Finalize gated by the authoritative
+Readiness response.

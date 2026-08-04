@@ -136,3 +136,7 @@ PR36-B makes operational Safety current the production Decision source. Finalize
 captures the exact evaluation ID and transactionally rejects a stale current;
 Dashboard subsequently reads that immutable evaluation. Readiness, Finalize, and
 Dashboard therefore share one authoritative source without a legacy fallback.
+
+PR36-C exposes operational Safety through a thin DTO/API boundary and explicit
+Opportunity Detail controls. Application services retain all source validation,
+runtime reconstruction, engine execution, persistence, and replay responsibility.

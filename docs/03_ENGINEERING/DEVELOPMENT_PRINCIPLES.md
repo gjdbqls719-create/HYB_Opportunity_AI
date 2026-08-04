@@ -513,3 +513,8 @@ Finalize must pin its evaluation ID in composition provenance and revalidate it
 inside the composition transaction. Dashboard must load that pinned immutable
 evaluation, not a newer current row. Missing operational Safety is a normal
 not-ready conflict; persistence failure is a separate unavailable condition.
+
+Operational Safety interfaces must require explicit binding and Product IDs.
+Failed client retries reuse the complete payload; success is displayed only after
+authoritative detail and Readiness refetch. UI code must never calculate status,
+select a source, or automatically finalize a Decision.

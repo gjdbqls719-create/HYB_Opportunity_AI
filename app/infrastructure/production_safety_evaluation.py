@@ -141,6 +141,19 @@ class SQLiteProductionSafetyEvaluationRepository:
         except Exception as error:
             raise ProductionSafetySourceLineageError(str(error)) from error
 
+    def get_bindings_by_opportunity(self, opportunity_id):
+        return self._chains.get_by_opportunity(opportunity_id)
+
+    def get_binding(self, binding_id):
+        return self._chains.get_binding(binding_id)
+
+    def get_product_snapshot(self, snapshot_id):
+        return self._chains.get_product_snapshot(snapshot_id)
+
+    @property
+    def verified_economics_repository(self):
+        return self._chains._owners._sources
+
     def persist(self, command, evaluation_id, assessment, rule_version, evaluated_at, committed_at):
         try:
             self._connection.execute("BEGIN IMMEDIATE")

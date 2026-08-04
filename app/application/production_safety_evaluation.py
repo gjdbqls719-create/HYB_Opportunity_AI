@@ -44,6 +44,10 @@ class ProductionSafetyChainNotFoundError(ProductionSafetyEvaluationPersistenceEr
     pass
 
 
+class ProductionSafetyProductNotFoundError(ProductionSafetyEvaluationPersistenceError):
+    pass
+
+
 class ProductionSafetySelectedProductConflictError(ProductionSafetyEvaluationPersistenceError):
     pass
 

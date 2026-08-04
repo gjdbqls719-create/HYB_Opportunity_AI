@@ -35,3 +35,7 @@ Decision policy changes, and production orchestration remain deferred.
 PR36-B designates validated operational current as the production Decision source.
 Finalized compositions preserve its exact evaluation ID, while Dashboard reads
 that immutable evaluation rather than a later current projection.
+
+PR36-C exposes this boundary through an explicit chain/Product API and UI. Failed
+browser retries reuse immutable command metadata and successful evaluation causes
+authoritative detail/readiness refetch without automatic finalization.

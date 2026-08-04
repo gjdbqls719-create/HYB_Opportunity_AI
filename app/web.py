@@ -3,11 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from datetime import datetime, timezone
+from uuid import uuid4
 from decimal import Decimal
 import sqlite3
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -53,6 +55,18 @@ from app.application.opportunity_validation import (
 from app.application.opportunity_review_binding import OpportunityReviewBindingConflictError, OpportunityReviewBindingNotFoundError, OpportunityReviewBindingPersistenceError
 from app.application.opportunity_review_ui import OpportunityReviewUIQueryService
 from app.application.decision_readiness import DecisionReadinessNotFoundError, DecisionReadinessService
+from app.application.production_safety_api import EvaluateProductionSafetyApi, GetProductionSafetyOperationalDetail
+from app.application.production_safety_evaluation import (
+    EvaluateAndPersistProductionSafety,
+    EvaluateAndPersistProductionSafetyCommand,
+    ProductionSafetyChainNotFoundError,
+    ProductionSafetyEvaluationCommandConflictError,
+    ProductionSafetyEvaluationPersistenceError,
+    ProductionSafetyProductNotFoundError,
+    ProductionSafetySelectedProductConflictError,
+    ProductionSafetySourceLineageError,
+)
+from app.application.production_safety_runtime_adapter import ProductionSafetyRuntimeAdapter
 from app.application.verified_economics_admission import (
     FinalizeVerifiedEconomicsAdmission,
     FinalizeVerifiedEconomicsAdmissionCommand,
@@ -176,6 +190,14 @@ class DecisionCompositionFinalizationRequest(BaseModel):
     external_signal_ids: tuple[str, ...] | None = None
     generated_at: datetime | None = None
     requested_by: str | None = Field(default=None, min_length=1)
+
+
+class ProductionSafetyEvaluationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    snapshot_chain_binding_id: str = Field(min_length=1)
+    selected_product_snapshot_id: str = Field(min_length=1)
+    requested_at: datetime
 
 
 class EconomicEvidenceRequest(BaseModel):
@@ -433,6 +455,37 @@ def get_decision_readiness_service():
         persistence.close()
 
 
+def get_production_safety_api_service():
+    repository = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
+    try:
+        adapter = ProductionSafetyRuntimeAdapter(
+            repository.verified_economics_repository,
+            supported_analyzer_version="price-analyzer-v1",
+            supported_calculation_version="verified-economics-calculator-v1",
+        )
+        evaluator = EvaluateAndPersistProductionSafety(
+            repository, adapter,
+            evaluation_id_generator=lambda: uuid4().hex,
+            evaluated_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        yield EvaluateProductionSafetyApi(
+            evaluator, repository.verified_economics_repository, repository
+        )
+    finally:
+        repository.close()
+
+
+def get_production_safety_detail_service():
+    repository = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield GetProductionSafetyOperationalDetail(
+            repository, repository.verified_economics_repository
+        )
+    finally:
+        repository.close()
+
+
 def get_verified_economics_admission_service():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     try:
@@ -678,6 +731,43 @@ def get_decision_readiness(opportunity_id: str, service: DecisionReadinessServic
         raise HTTPException(status_code=404, detail="opportunity not found") from error
     except sqlite3.Error as error:
         raise HTTPException(status_code=503, detail="decision readiness unavailable") from error
+
+
+@app.get("/api/v1/opportunities/{opportunity_id}/production-safety-evaluations")
+def get_production_safety_operational_detail(
+    opportunity_id: str,
+    service: GetProductionSafetyOperationalDetail = Depends(get_production_safety_detail_service),
+):
+    try:
+        return service.execute(opportunity_id)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except ProductionSafetyEvaluationPersistenceError as error:
+        raise HTTPException(status_code=503, detail="Production Safety persistence is unavailable") from error
+
+
+@app.post("/api/v1/opportunities/{opportunity_id}/production-safety-evaluations")
+def evaluate_production_safety_operational(
+    opportunity_id: str,
+    request: ProductionSafetyEvaluationRequest,
+    service: EvaluateProductionSafetyApi = Depends(get_production_safety_api_service),
+):
+    try:
+        result = service.execute(EvaluateAndPersistProductionSafetyCommand(
+            request.command_id, opportunity_id, request.snapshot_chain_binding_id,
+            request.selected_product_snapshot_id, request.requested_at,
+        ))
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except (ProductionSafetyChainNotFoundError, ProductionSafetyProductNotFoundError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (ProductionSafetyEvaluationCommandConflictError, ProductionSafetySelectedProductConflictError, ProductionSafetySourceLineageError) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except ProductionSafetyEvaluationPersistenceError as error:
+        raise HTTPException(status_code=503, detail="Production Safety persistence is unavailable") from error
+    return JSONResponse(status_code=200 if result.replayed else 201, content=result.to_dict())
 
 
 def _economics_evidence(value: EconomicEvidenceRequest) -> EconomicEvidence:

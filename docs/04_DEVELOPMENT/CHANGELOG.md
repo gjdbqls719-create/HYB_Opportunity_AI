@@ -1255,3 +1255,8 @@ PR13-C
 - Preserve the exact operational evaluation ID in Decision Composition provenance and revalidate current/history/provenance inside the composition transaction.
 - Load the immutable Safety evaluation named by a finalized composition for Dashboard Decision reconstruction, even after operational current advances.
 - Map missing or malformed required composition sources to bounded 409 business conflicts while retaining 503 for persistence/transaction failures.
+# PR36-C - Production Safety Operational API and UI
+
+- Add read and POST APIs for explicit complete-chain/Product operational Safety evaluation with 201 initial commit and 200 exact replay.
+- Add persisted binding/Product/current Safety DTOs and an accessible Opportunity Detail source-selection form with deterministic retry metadata.
+- Refetch authoritative Safety detail and Decision Readiness after success; do not optimistically mutate state or automatically Finalize.
