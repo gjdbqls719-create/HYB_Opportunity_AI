@@ -53,3 +53,9 @@ Immutable, append-only idempotency receipts for post-admission Verified Economic
 `command_id` is the primary key and `opportunity_id` is unique, matching the single-snapshot
 contract. The receipt stores the canonical command fingerprint, operator, snapshot time,
 and fixed receipt schema version. The snapshot insert and receipt insert commit atomically.
+### `competition_admission_receipts`
+
+Immutable idempotency receipts for Opportunity-bound operational Competition admission.
+The receipt binds one command fingerprint to its Opportunity, raw observation, generated
+assessment snapshot, operator, and fixed receipt schema. Receipt, observation history/current,
+and assessment history/current commit in one SQLite transaction.

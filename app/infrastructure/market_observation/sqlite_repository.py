@@ -95,6 +95,15 @@ CREATE TABLE IF NOT EXISTS market_assessment_snapshot_current (
 )
 """
 
+_COMPETITION_ADMISSION_RECEIPTS = """
+CREATE TABLE IF NOT EXISTS competition_admission_receipts (
+    command_id TEXT PRIMARY KEY, command_fingerprint TEXT NOT NULL,
+    opportunity_id TEXT NOT NULL, observation_id TEXT NOT NULL UNIQUE,
+    snapshot_id TEXT NOT NULL UNIQUE, operator_id TEXT NOT NULL,
+    schema_version TEXT NOT NULL
+)
+"""
+
 
 class SQLiteMarketObservationRepository(MarketObservationRepository):
     """Append-only observation history with a replaceable latest projection."""
@@ -110,7 +119,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             resolved = str(database_path)
             if resolved != ":memory:":
                 Path(resolved).parent.mkdir(parents=True, exist_ok=True)
-            connection = sqlite3.connect(resolved)
+            connection = sqlite3.connect(resolved, check_same_thread=False)
         self._connection = connection
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
@@ -119,6 +128,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             self._connection.execute(_CURRENT_TABLE)
             self._connection.execute(_ASSESSMENT_HISTORY_TABLE)
             self._connection.execute(_ASSESSMENT_CURRENT_TABLE)
+            self._connection.execute(_COMPETITION_ADMISSION_RECEIPTS)
             self._migrate_external_current_series()
             self._connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_market_observation_history_lookup "
@@ -156,6 +166,11 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 BEFORE DELETE ON market_assessment_snapshot_history
                 BEGIN SELECT RAISE(ABORT, 'market assessment snapshot is immutable'); END"""
             )
+            for operation in ("UPDATE", "DELETE"):
+                self._connection.execute(f"""CREATE TRIGGER IF NOT EXISTS
+                trg_competition_admission_receipts_no_{operation.lower()}
+                BEFORE {operation} ON competition_admission_receipts
+                BEGIN SELECT RAISE(ABORT, 'competition admission receipt is immutable'); END""")
 
     def save(
         self,
@@ -337,6 +352,83 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
 
     def get_latest_competition_assessment_snapshot(self, identity):
         return self._get_latest_assessment("competition", identity)
+
+    def get_observation_by_id(self, observation_id):
+        row = self._connection.execute(
+            "SELECT payload_json FROM market_observation_history WHERE observation_id = ?",
+            (observation_id,),
+        ).fetchone()
+        return self._from_payload(row["payload_json"]) if row else None
+
+    def get_competition_admission_receipt(self, command_id):
+        try:
+            row = self._connection.execute(
+                """SELECT command_fingerprint, opportunity_id, observation_id, snapshot_id,
+                operator_id, schema_version FROM competition_admission_receipts WHERE command_id = ?""",
+                (command_id,),
+            ).fetchone()
+        except sqlite3.Error as error:
+            from app.application.competition_observation_admission import CompetitionAdmissionUnavailableError
+            raise CompetitionAdmissionUnavailableError("competition receipt is unavailable") from error
+        if row is None:
+            return None
+        if row["schema_version"] != "competition-admission-receipt-v1":
+            from app.application.competition_observation_admission import CompetitionAdmissionUnavailableError
+            raise CompetitionAdmissionUnavailableError("unsupported competition receipt version")
+        return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
+                "observation_id": row["observation_id"], "snapshot_id": row["snapshot_id"]}
+
+    def finalize_competition_admission(self, observation, snapshot, opportunity_id, command_id, fingerprint, operator_id):
+        competition = isinstance(snapshot, CompetitionAssessmentSnapshot)
+        if not competition or not isinstance(observation, CompetitionObservation):
+            raise TypeError("competition observation and snapshot are required")
+        if observation.observation_id != snapshot.source_observation_id or observation.identity != snapshot.identity:
+            raise AssessmentSnapshotProvenanceError("competition source provenance does not match")
+        identity_key = self._identity_key(snapshot.identity)
+        payload = self._assessment_payload(snapshot)
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            self.save(observation, _manage_transaction=False)
+            self._connection.execute(
+                """INSERT INTO market_assessment_snapshot_history
+                (snapshot_id, assessment_type, identity_key, source_observation_id, generated_at, payload_json)
+                VALUES (?, 'competition', ?, ?, ?, ?)""",
+                (snapshot.snapshot_id, identity_key, snapshot.source_observation_id,
+                 snapshot.generated_at.isoformat(), payload),
+            )
+            self._connection.execute(
+                """INSERT INTO market_assessment_snapshot_current
+                (assessment_type, identity_key, snapshot_id, generated_at, payload_json)
+                VALUES ('competition', ?, ?, ?, ?)
+                ON CONFLICT(assessment_type, identity_key) DO UPDATE SET
+                snapshot_id=excluded.snapshot_id, generated_at=excluded.generated_at,
+                payload_json=excluded.payload_json
+                WHERE excluded.generated_at >= market_assessment_snapshot_current.generated_at""",
+                (identity_key, snapshot.snapshot_id, snapshot.generated_at.isoformat(), payload),
+            )
+            self._connection.execute(
+                """INSERT INTO competition_admission_receipts
+                (command_id, command_fingerprint, opportunity_id, observation_id, snapshot_id, operator_id, schema_version)
+                VALUES (?, ?, ?, ?, ?, ?, 'competition-admission-receipt-v1')""",
+                (command_id, fingerprint, opportunity_id,
+                 observation.observation_id, snapshot.snapshot_id, operator_id),
+            )
+            self._connection.commit()
+        except (DuplicateMarketObservationError, sqlite3.IntegrityError) as error:
+            self._connection.rollback()
+            from app.application.competition_observation_admission import (
+                CompetitionAdmissionConflictError, CompetitionAdmissionUnavailableError,
+            )
+            if (self.get_competition_admission_receipt(command_id) is not None
+                    or self.get_observation_by_id(observation.observation_id) is not None
+                    or self.get_competition_assessment_snapshot(snapshot.snapshot_id) is not None):
+                raise CompetitionAdmissionConflictError("duplicate competition admission") from error
+            raise CompetitionAdmissionUnavailableError("competition admission transaction failed") from error
+        except Exception as error:
+            self._connection.rollback()
+            from app.application.competition_observation_admission import CompetitionAdmissionUnavailableError
+            if isinstance(error, CompetitionAdmissionUnavailableError): raise
+            raise CompetitionAdmissionUnavailableError("competition admission transaction failed") from error
 
     def get_latest_demand_assessment_snapshot(self, identity):
         return self._get_latest_assessment("demand", identity)

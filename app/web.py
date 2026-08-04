@@ -60,6 +60,11 @@ from app.application.verified_economics_admission import (
     VerifiedEconomicsAdmissionNotFoundError,
     VerifiedEconomicsAdmissionPersistenceError,
 )
+from app.application.competition_observation_admission import (
+    CompetitionAdmissionConflictError, CompetitionAdmissionNotFoundError,
+    CompetitionAdmissionUnavailableError, FinalizeCompetitionObservationAdmission,
+    FinalizeCompetitionObservationAdmissionCommand,
+)
 from app.application.review import (
     ApproveCandidateCommand,
     CancelReviewCommand,
@@ -92,10 +97,13 @@ from app.application.review_api import (
     ReviewSessionResponseDTO,
 )
 from app.domain.market_intelligence import (
+    CompetitionObservation,
     ExternalSignalDirection,
     InvalidReviewSessionTransitionError,
     MarketObservationIdentity,
     MarketObservationScope,
+    MarketEvidence,
+    MarketEvidenceStatus,
 )
 from app.domain.opportunity import (
     EconomicEvidence,
@@ -198,6 +206,33 @@ class VerifiedEconomicsAdmissionRequest(BaseModel):
     duty_cost: MoneyInputRequest
     other_cost: MoneyInputRequest
     expected_sale_price: MoneyInputRequest
+
+
+class CompetitionEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    value: Any = None
+    source: str | None = None
+    reference: str | None = None
+    observed_at: datetime | None = None
+    status: MarketEvidenceStatus
+    confidence: str
+    collection_method: str = Field(min_length=1)
+    keyword: str | None = None
+    category: str | None = None
+    marketplace_item_id: str | None = None
+    canonical_product_id: str | None = None
+    unit: str | None = None
+
+
+class CompetitionObservationAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    observation_id: str = Field(min_length=1)
+    identity: MarketObservationIdentityRequest
+    observed_at: datetime
+    evidence: dict[str, CompetitionEvidenceRequest]
 
 
 class StartReviewRequest(BaseModel):
@@ -366,7 +401,7 @@ def get_review_workflow_service():
 def get_opportunity_review_ui_query_service():
     persistence = SQLiteVerifiedSignalPersistence(DEFAULT_DATABASE_PATH)
     try:
-        yield OpportunityReviewUIQueryService(persistence.opportunities, persistence.sessions, persistence.ledger)
+        yield OpportunityReviewUIQueryService(persistence.opportunities, persistence.sessions, persistence.ledger, persistence.observations)
     finally:
         persistence.close()
 
@@ -385,6 +420,15 @@ def get_verified_economics_admission_service():
         yield FinalizeVerifiedEconomicsAdmission(repository)
     finally:
         repository.close()
+
+
+def get_competition_admission_service():
+    opportunities = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    observations = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
+    try:
+        yield FinalizeCompetitionObservationAdmission(opportunities, observations)
+    finally:
+        observations.close(); opportunities.close()
 
 
 def _validation_service(repository: SQLiteValidationQueueRepository) -> OpportunityValidationService:
@@ -683,6 +727,69 @@ def finalize_verified_economics_admission(
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (VerifiedEconomicsAdmissionPersistenceError, sqlite3.Error) as error:
         raise HTTPException(status_code=503, detail="verified economics persistence unavailable") from error
+
+
+def _competition_payload(result) -> dict[str, object]:
+    observation, snapshot = result.observation, result.snapshot
+    return {"observation": {"observation_id": observation.observation_id,
+            "identity": {"scope": observation.identity.scope.value, "market": observation.identity.market,
+                "marketplace": observation.identity.marketplace, "canonical_product_id": observation.identity.canonical_product_id,
+                "marketplace_item_id": observation.identity.marketplace_item_id, "normalized_query": observation.identity.normalized_query,
+                "category": observation.identity.category, "variant_identity": observation.identity.variant_identity,
+                "condition": observation.identity.condition, "window_started_at": observation.identity.window_started_at.isoformat(),
+                "window_ended_at": observation.identity.window_ended_at.isoformat()},
+            "observed_at": observation.observed_at.isoformat(),
+            "evidence": {name: {"value": str(item.value) if isinstance(item.value, Decimal) else item.value,
+                "source": item.source, "reference": item.reference,
+                "observed_at": item.observed_at.isoformat() if item.observed_at else None,
+                "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
+                "collection_method": item.collection_method} for name, item in observation.evidence.items()}},
+        "assessment": {"snapshot_id": snapshot.snapshot_id,
+            "competition_level": snapshot.assessment.competition_level.value,
+            "price_pressure": snapshot.assessment.price_pressure.value,
+            "rocket_competition": snapshot.assessment.rocket_competition.value,
+            "market_concentration": str(snapshot.assessment.market_concentration),
+            "confidence": str(snapshot.confidence), "summary": snapshot.assessment.summary,
+            "freshness": snapshot.freshness.value, "availability": snapshot.availability.value,
+            "generated_at": snapshot.generated_at.isoformat(), "schema_version": snapshot.schema_version,
+            "policy_version": snapshot.policy_version}}
+
+
+@app.post("/api/v1/opportunities/{opportunity_id}/competition-observations", status_code=201)
+def finalize_competition_observation(
+    opportunity_id: str, request: CompetitionObservationAdmissionRequest, response: Response,
+    service: FinalizeCompetitionObservationAdmission = Depends(get_competition_admission_service),
+):
+    try:
+        identity = MarketObservationIdentity(**request.identity.model_dump())
+        count_metrics = {"competitor_count", "rocket_seller_count", "sponsored_result_count", "organic_result_count"}
+        price_metrics = {"lowest_price", "highest_price", "median_price", "price_spread"}
+        evidence = {}
+        for name, value in request.evidence.items():
+            raw = value.value
+            if name in count_metrics and raw is not None and (isinstance(raw, bool) or not isinstance(raw, int)):
+                raise ValueError(f"{name} must be an integer")
+            if name in price_metrics and raw is not None:
+                if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
+                raw = Decimal(raw)
+            evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
+                value.status, Decimal(value.confidence), identity.market, identity.marketplace,
+                value.collection_method, "market-evidence-v1", value.keyword, value.category,
+                value.marketplace_item_id, value.canonical_product_id, value.unit)
+        observation = CompetitionObservation(request.observation_id, identity, request.observed_at,
+                                             "competition-v1", evidence)
+        result = service.execute(FinalizeCompetitionObservationAdmissionCommand(
+            opportunity_id, request.command_id, request.operator_id, observation, request.submitted_at))
+        response.status_code = 200 if result.replayed else 201
+        return _competition_payload(result)
+    except CompetitionAdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except CompetitionAdmissionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (CompetitionAdmissionUnavailableError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="competition admission unavailable") from error
 
 
 @app.get("/api/v1/reviews/{session_id}")

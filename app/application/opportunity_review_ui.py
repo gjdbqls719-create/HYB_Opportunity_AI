@@ -13,8 +13,9 @@ def _identity(value):
 
 
 class OpportunityReviewUIQueryService:
-    def __init__(self, opportunities, reviews, candidates):
+    def __init__(self, opportunities, reviews, candidates, observations=None):
         self._opportunities, self._reviews, self._candidates = opportunities, reviews, candidates
+        self._observations = observations
 
     def list(self) -> dict[str, object]:
         items = self._opportunities.list_queue(statuses=tuple(OpportunityLifecycleStatus), limit=100)
@@ -27,11 +28,35 @@ class OpportunityReviewUIQueryService:
         bindings = self._reviews.list_opportunity_bindings(opportunity_id)
         review = self._reviews.get(bindings[0].session_id) if bindings else None
         economics = self._opportunities.get_verified_economics_snapshot(opportunity_id)
+        competition = (self._observations.get_latest_competition_assessment_snapshot(
+            market.market_observation_identity) if self._observations is not None and market else None)
+        competition_observation = (self._observations.get_observation_by_id(
+            competition.source_observation_id) if competition and self._observations is not None else None)
         return {**self._summary(item),
             "market_identity": _identity(market.market_observation_identity) if market else None,
             "review": ReviewSessionResponseDTO.from_session(review).to_dict() if review else None,
             "verified_economics": self._economics(economics) if economics else None,
+            "competition_assessment": self._competition(competition, competition_observation) if competition else None,
             "candidates": [self._candidate(value) for value in self._candidates.list_candidates()]}
+
+    @staticmethod
+    def _competition(snapshot, observation):
+        value = snapshot.assessment
+        return {"snapshot_id": snapshot.snapshot_id, "source_observation_id": snapshot.source_observation_id,
+            "competition_level": value.competition_level.value, "price_pressure": value.price_pressure.value,
+            "rocket_competition": value.rocket_competition.value,
+            "market_concentration": str(value.market_concentration), "confidence": str(snapshot.confidence),
+            "summary": value.summary, "availability": snapshot.availability.value,
+            "freshness": snapshot.freshness.value, "generated_at": snapshot.generated_at.isoformat(),
+            "schema_version": snapshot.schema_version, "policy_version": snapshot.policy_version,
+            "raw_observation": {"observation_id": observation.observation_id,
+                "observed_at": observation.observed_at.isoformat(), "schema_version": observation.schema_version,
+                "evidence": {name: {"value": str(item.value) if item.value is not None else None,
+                    "source": item.source, "reference": item.reference,
+                    "observed_at": item.observed_at.isoformat() if item.observed_at else None,
+                    "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
+                    "collection_method": item.collection_method} for name, item in observation.evidence.items()}}
+                if observation is not None else None}
 
     @staticmethod
     def _economics(snapshot):

@@ -82,3 +82,17 @@ The first commit returns 201. An exact restart-safe replay returns 200 with the 
 Missing Opportunities return 404, existing snapshot or changed-command conflicts return
 409, malformed/domain-invalid input returns 422, and bounded persistence failures return
 503.
+## Competition operational admission
+
+`POST /api/v1/opportunities/{opportunity_id}/competition-observations` accepts only an
+authoritative raw `CompetitionObservation`, its `MarketEvidence` provenance, and command
+metadata. The observation identity must exactly equal the Opportunity Market Identity.
+Count metrics are JSON integers; price metrics and confidence are exact Decimal strings.
+Observation/evidence/assessment schema and Competition policy versions are server-owned.
+
+The server reuses `analyze_competition`; clients cannot submit level, confidence result,
+availability, freshness, readiness, or Decision metadata. Observation history/current,
+assessment history/current, and the command receipt are atomic. First commit returns 201;
+exact replay returns 200. Missing Opportunity returns 404, identity/provenance/command
+conflicts return 409, malformed domain input returns 422, and bounded infrastructure
+failures return 503.

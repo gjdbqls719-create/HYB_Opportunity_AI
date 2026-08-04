@@ -1053,3 +1053,10 @@ PR13-C
   Founder Review receipts.
 - Extended Opportunity Detail with explicit immutable economics admission, provenance
   fields, read-only saved summary, and authoritative readiness refetch.
+## PR26-C - Competition Operational Admission
+
+- Added an Opportunity-bound raw Competition Observation Application/API boundary that
+  reuses the existing analyzer and immutable assessment snapshot contract.
+- Added atomic observation/assessment/receipt persistence with exact restart-safe replay.
+- Added explicit Competition provenance entry and read-only generated assessment display
+  to Opportunity Detail, followed by authoritative Decision Readiness refetch.
