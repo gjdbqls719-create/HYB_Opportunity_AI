@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR34-B.1 - Discovery Persistence Foundation
+
+- Add immutable `DiscoveryCommandReceipt` with exact command/execution identity, canonical payload fingerprint, timezone-aware commit time, and fixed schema version.
+- Add Application repository Protocols for Discovery commands, finalized groups, and command results without selecting SQLite or defining tables, triggers, migrations, or transactions.
+- Add `PersistDiscoveryCommand` to validate replay, reject changed payloads, create a receipt through an injected clock, and delegate persistence without invoking collection, grouping, Economics, Safety, Candidate issuance, or Snapshot ownership.
+- Preserve same-command/same-fingerprint replay, same-command/changed-fingerprint conflict, and different-command new-execution semantics at the Application boundary.
+- Add explicit missing, replay-conflict, malformed-receipt, unsupported-version, and generic persistence errors while keeping infrastructure and production discovery behavior unchanged.
+
+## PR34-B.0 - Stable Discovery Command and Finalized Group Correlation Contract
+
+- Add immutable, versioned `DiscoveryCommand` and typed parameters covering the existing orchestrator inputs with exact Decimal, bool/int, policy, and authoritative source-reference semantics plus a deterministic payload fingerprint independent of command ID.
+- Add `CollectedProductObservation` to preserve collector-owned observation/source identity, immutable Product facts, provenance, and time without changing collectors or inferring Candidate Market identity.
+- Add `FinalizedProductGroup` with a server-owned opaque group reference separated from its deterministic ordered membership/policy fingerprint; list index, title, representative item, runtime hash, and current price are not identity inputs.
+- Add an ordered `DiscoveryExecutionResult`, including successful zero-result semantics, and a derivable Candidate issuance replay key over command, group membership, explicit Market identity, and issuance version.
+- Keep SQLite, receipts, ID generation, collector/grouping production wiring, Snapshot persistence, admission, lifecycle, Safety, Decision, Dashboard, migration, and backfill unchanged.
+
 ## PR34-A - Discovery Identity and Snapshot Ownership Timing Contract
 
 - Add a distinct immutable `OpportunityCandidateIdentity` for one pre-admission ProductGroup candidate; issuing it does not create an Opportunity lifecycle or imply admission.

@@ -11,6 +11,8 @@
 - [ADR-0007: Production Safety Runtime Reconstruction Policy](ADR-0007-runtime-reconstruction-policy.md)
 - [ADR-0008: Canonical Economics Analysis Provenance](ADR-0008-canonical-economics-analysis-provenance.md)
 - [ADR-0009: Discovery Identity Issuance and Snapshot Ownership Timing](ADR-0009-discovery-identity-issuance-and-snapshot-ownership-timing.md)
+- [ADR-0010: Stable Discovery Command and Finalized Group Correlation](ADR-0010-stable-discovery-command-and-finalized-group-correlation.md)
+- [ADR-0011: Discovery Persistence Foundation](ADR-0011-discovery-persistence-foundation.md)
 
 Architecture Decision Record 관리 영역.
 

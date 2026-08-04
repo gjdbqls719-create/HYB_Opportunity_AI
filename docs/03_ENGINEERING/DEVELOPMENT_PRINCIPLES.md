@@ -444,3 +444,12 @@ and Market scope are passed explicitly through owner boundaries; global context,
 text-derived identity, implicit promotion, and downstream reconstruction are
 prohibited. Admission binds a candidate and its exact source lineage to an
 authoritative Opportunity in a separate explicit contract.
+
+# Stable Automated Correlation
+
+Durable automated identity must not be inferred from mutable runtime objects,
+list indexes, titles, representative items, or changing prices. Server-owned
+opaque IDs identify facts; deterministic fingerprints validate canonical command
+intent and ordered source membership. IDs and fingerprints remain separate, and
+committed command replay must use persisted results rather than repeat live
+external collection.

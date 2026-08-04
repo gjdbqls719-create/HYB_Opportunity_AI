@@ -65,3 +65,17 @@ Immutable idempotency receipts for Opportunity-bound operational Demand admissio
 receipt links its canonical command fingerprint to the Opportunity, raw Demand observation,
 generated assessment snapshot, operator, and fixed receipt schema. Receipt, observation
 history/current, and assessment history/current commit atomically.
+# Discovery Correlation Persistence Status
+
+PR34-B.0 adds no database objects. `DiscoveryCommand`, collector observation,
+finalized ProductGroup, command result, and Candidate issuance replay-key
+contracts are currently in-memory immutable Domain language only. A follow-up
+PR may add append-only command/result/group and issuance receipt tables after ID
+generation and transaction ownership are approved. Existing databases are not
+migrated, seeded, or backfilled by this contract foundation.
+
+PR34-B.1 adds Application repository Protocols and an immutable command receipt
+contract but still adds no database objects. `save_command` is defined as the
+future atomic command/receipt boundary; replay validation, group queries, and
+result queries are technology-neutral. SQLite tables, triggers, transactions,
+and durable replay remain a follow-up infrastructure PR.
