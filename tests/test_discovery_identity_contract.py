@@ -55,6 +55,7 @@ def handoff() -> AdmissionSnapshotChainHandoff:
         product_observation_snapshot_ids=("product-1", "product-2"),
         price_intelligence_snapshot_id="price-1",
         economics_calculation_snapshot_id="economics-1",
+        candidate_opportunity_binding_id="binding-1",
         admission_command_id="admit-1",
         handed_off_at=NOW,
     )

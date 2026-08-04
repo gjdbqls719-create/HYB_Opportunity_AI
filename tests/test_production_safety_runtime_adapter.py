@@ -16,7 +16,7 @@ from app.domain.price_intelligence import PriceIntelligenceSnapshot
 from app.domain.product_observation import ObservedProductSnapshot
 from engine.price_intelligence import PriceIntelligence
 from test_economics_calculation_snapshot import NOW, inputs
-from test_production_safety_integration_foundation import source_chain
+from test_production_safety_integration_foundation import source_chain, promotion_binding
 
 
 class VerifiedEconomicsSources:
@@ -32,7 +32,7 @@ class VerifiedEconomicsSources:
 
 def authoritative_chain():
     product, price, economics = source_chain()
-    context = ProductionSafetyEvaluationContext(product, price, economics, "opp-1")
+    context = ProductionSafetyEvaluationContext(product, price, economics, promotion_binding(product), "opp-1")
     verified = VerifiedEconomicsSnapshot("opp-1", inputs(), NOW)
     return context, verified
 

@@ -78,3 +78,12 @@ fact builders are reused, and a SQLite promotion repository commits lifecycle,
 admission snapshot, market binding, immutable Candidate/Opportunity binding, and
 receipt atomically. Candidate and Opportunity remain distinct identities.
 Snapshot-chain ownership and Production Safety are not part of this flow.
+
+## Candidate-scoped Snapshot chain (PR35-A)
+
+Marketplace Collection owns Candidate-scoped Product Observation snapshots;
+Price Intelligence owns Candidate-scoped Price snapshots referencing an ordered
+Product cohort. Verified Economics and EconomicsCalculation remain post-admission
+Opportunity facts. Production Safety context joins these stages only through the
+immutable Candidate/Opportunity promotion binding and exact Market identity.
+Snapshot persistence and owner wiring are not part of this foundation.

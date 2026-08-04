@@ -194,7 +194,8 @@ def test_unknown_enum_runtime_value_maps_to_analysis_error_taxonomy() -> None:
 def test_runtime_economics_and_complete_bundle_round_trip_exactly() -> None:
     product, price, economics_snapshot = source_chain()
     verified = VerifiedEconomicsSnapshot("opp-1", inputs(), NOW)
-    context = ProductionSafetyEvaluationContext(product, price, economics_snapshot, "opp-1")
+    from test_production_safety_integration_foundation import promotion_binding
+    context = ProductionSafetyEvaluationContext(product, price, economics_snapshot, promotion_binding(product), "opp-1")
     adapter = runtime_adapter(verified)
     runtime = adapter.reconstruct_economics(economics_snapshot, verified)
     bundle = adapter.reconstruct_inputs(context, verified)
@@ -215,7 +216,8 @@ def test_runtime_economics_and_complete_bundle_round_trip_exactly() -> None:
 def test_repeated_runtime_reconstruction_is_deterministic_and_disposable() -> None:
     product, price, economics = source_chain()
     verified = VerifiedEconomicsSnapshot("opp-1", inputs(), NOW)
-    context = ProductionSafetyEvaluationContext(product, price, economics, "opp-1")
+    from test_production_safety_integration_foundation import promotion_binding
+    context = ProductionSafetyEvaluationContext(product, price, economics, promotion_binding(product), "opp-1")
     adapter = runtime_adapter(verified)
     first = adapter.reconstruct_inputs(context, verified)
     second = adapter.reconstruct_inputs(context, verified)

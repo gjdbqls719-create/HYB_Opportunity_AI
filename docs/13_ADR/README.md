@@ -19,6 +19,7 @@
 - [ADR-0015: Opportunity Candidate Issuance Foundation](ADR-0015-opportunity-candidate-issuance-foundation.md)
 - [ADR-0016: Opportunity Candidate Cardinality and Alias Receipts](ADR-0016-opportunity-candidate-cardinality-and-alias-receipts.md)
 - [ADR-0017: Candidate-to-Opportunity Admission Promotion](ADR-0017-candidate-to-opportunity-admission-promotion.md)
+- [ADR-0018: Candidate-Scoped Snapshot Ownership and Opportunity Handoff](ADR-0018-candidate-scoped-snapshot-ownership-and-opportunity-handoff.md)
 
 Architecture Decision Record 관리 영역.
 

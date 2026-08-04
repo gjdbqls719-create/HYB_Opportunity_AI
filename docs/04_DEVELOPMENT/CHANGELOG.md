@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR35-A - Candidate-Scoped Snapshot Subject Alignment
+
+- Align Product Observation and PriceIntelligence snapshot schema v2 contracts with their pre-admission `OpportunityCandidateIdentity` owner and change repository lookup boundaries from Opportunity to Candidate.
+- Keep Verified Economics and EconomicsCalculation Opportunity-scoped because their authoritative source exists only after admission; never substitute Candidate ID for an Opportunity key.
+- Require Production Safety evaluation context to bridge the Candidate source chain to post-admission Economics through an immutable Candidate/Opportunity promotion binding while preserving exact Market identity and runtime scalar reconstruction.
+- Upgrade complete-only Admission Snapshot Chain handoff to schema v2 with an explicit promotion binding reference and no optional, fake, or inferred Snapshot IDs.
+- Add explicit Candidate subject, Opportunity binding, Market identity, incomplete-chain, reference-conflict, malformed, and unsupported-version taxonomy without persistence, owner wiring, calculation, or Safety execution.
+
 ## PR34-E - Candidate-to-Opportunity Admission Promotion Foundation
 
 - Add an immutable promotion command, one-to-one Candidate/Opportunity binding, and one-to-many command receipts while keeping Candidate and Opportunity identity separate.

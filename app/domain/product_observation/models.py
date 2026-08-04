@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
 
-from app.domain.decision_engine import OpportunityIdentity
+from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity
 from app.models import ProductDataSource
 
 
-PRODUCT_OBSERVATION_SNAPSHOT_SCHEMA_VERSION = "product-observation-snapshot-v1"
+PRODUCT_OBSERVATION_SNAPSHOT_SCHEMA_VERSION = "product-observation-snapshot-v2"
 
 
 def _required_text(value: str, name: str) -> str:
@@ -124,7 +124,7 @@ class CollectorProvenance:
 @dataclass(frozen=True, slots=True)
 class ProductObservationSnapshot:
     snapshot_id: str
-    opportunity_identity: OpportunityIdentity
+    candidate_identity: OpportunityCandidateIdentity
     market_observation_identity: MarketObservationIdentity
     product: ObservedProductSnapshot
     collector_provenance: CollectorProvenance
@@ -133,8 +133,8 @@ class ProductObservationSnapshot:
 
     def __post_init__(self) -> None:
         _required_text(self.snapshot_id, "snapshot_id")
-        if not isinstance(self.opportunity_identity, OpportunityIdentity):
-            raise TypeError("opportunity_identity must be OpportunityIdentity")
+        if not isinstance(self.candidate_identity, OpportunityCandidateIdentity):
+            raise TypeError("candidate_identity must be OpportunityCandidateIdentity")
         if not isinstance(self.market_observation_identity, MarketObservationIdentity):
             raise TypeError("market_observation_identity must be MarketObservationIdentity")
         if not isinstance(self.product, ObservedProductSnapshot):

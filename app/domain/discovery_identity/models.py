@@ -13,7 +13,7 @@ from app.domain.market_intelligence import (
 
 
 DISCOVERY_IDENTITY_SCHEMA_VERSION = "discovery-identity-v1"
-ADMISSION_SNAPSHOT_HANDOFF_SCHEMA_VERSION = "admission-snapshot-handoff-v1"
+ADMISSION_SNAPSHOT_HANDOFF_SCHEMA_VERSION = "admission-snapshot-handoff-v2"
 
 
 def _required_text(value: str, name: str) -> str:
@@ -92,6 +92,7 @@ class AdmissionSnapshotChainHandoff:
     product_observation_snapshot_ids: tuple[str, ...]
     price_intelligence_snapshot_id: str
     economics_calculation_snapshot_id: str
+    candidate_opportunity_binding_id: str
     admission_command_id: str
     handed_off_at: datetime
     schema_version: str = ADMISSION_SNAPSHOT_HANDOFF_SCHEMA_VERSION
@@ -123,6 +124,7 @@ class AdmissionSnapshotChainHandoff:
         for name in (
             "price_intelligence_snapshot_id",
             "economics_calculation_snapshot_id",
+            "candidate_opportunity_binding_id",
             "admission_command_id",
             "schema_version",
         ):

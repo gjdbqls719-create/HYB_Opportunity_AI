@@ -135,7 +135,7 @@ class ProductionSafetyRuntimeAdapter:
             raise UnsupportedProductionSafetyRuntimeVersionError(
                 "unsupported Verified Economics snapshot schema version"
             )
-        opportunity_id = context.product_observation_snapshot.opportunity_identity.opportunity_id
+        opportunity_id = context.candidate_opportunity_binding.opportunity_id
         if snapshot.opportunity_id != reference or snapshot.opportunity_id != opportunity_id:
             raise ProductionSafetyRuntimeIdentityConflictError(
                 "Verified Economics snapshot identity conflicts with evaluation context"
@@ -284,9 +284,10 @@ class ProductionSafetyRuntimeAdapter:
                 context.product_observation_snapshot,
                 context.price_intelligence_snapshot,
                 context.economics_calculation_snapshot,
+                context.candidate_opportunity_binding,
                 context.verified_economics_opportunity_id,
             )
-        except ProductionSafetySnapshotLineageError as error:
+        except (ProductionSafetySnapshotLineageError, ValueError) as error:
             raise ProductionSafetyRuntimeIdentityConflictError(str(error)) from error
         self._validate_economics_version(context.economics_calculation_snapshot)
         self.reconstruct_price_intelligence(context.price_intelligence_snapshot)

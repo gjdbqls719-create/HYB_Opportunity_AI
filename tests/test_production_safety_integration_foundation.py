@@ -10,6 +10,7 @@ from app.application.production_safety_integration import (
     ProductionSafetySnapshotLineageError,
     ProductionSafetySourceNotFoundError,
 )
+from app.application.candidate_promotion import CandidateOpportunityBinding
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.opportunity import EconomicsCalculation
 from app.models import Product
@@ -23,7 +24,7 @@ def source_chain():
     product = product_snapshot()
     price = replace(
         price_snapshot(),
-        opportunity_identity=product.opportunity_identity,
+        candidate_identity=product.candidate_identity,
         market_observation_identity=product.market_observation_identity,
         product_observation_snapshot_ids=(
             product.snapshot_id,
@@ -33,10 +34,19 @@ def source_chain():
     )
     economics = replace(
         economics_snapshot(),
-        opportunity_identity=product.opportunity_identity,
         market_observation_identity=product.market_observation_identity,
     )
     return product, price, economics
+
+
+def promotion_binding(product=None):
+    product = product or source_chain()[0]
+    return CandidateOpportunityBinding(
+        "binding-1", product.candidate_identity.candidate_id, "opp-1",
+        product.candidate_identity.discovery_reference,
+        product.market_observation_identity, "command-1", "execution-1", "group-1",
+        "promotion-1", product.observed_at,
+    )
 
 
 def context() -> ProductionSafetyEvaluationContext:
@@ -45,6 +55,7 @@ def context() -> ProductionSafetyEvaluationContext:
         product,
         price,
         economics,
+        promotion_binding(product),
         economics.verified_economics_opportunity_id,
     )
 
@@ -69,11 +80,14 @@ def test_context_is_immutable_and_value_equal() -> None:
         value.verified_economics_opportunity_id = "changed"
 
 
-@pytest.mark.parametrize("conflict", ("opportunity", "market", "cohort", "verified"))
+@pytest.mark.parametrize("conflict", ("candidate", "opportunity", "market", "cohort", "verified"))
 def test_context_rejects_broken_snapshot_lineage(conflict) -> None:
     product, price, economics = source_chain()
     verified_id = economics.verified_economics_opportunity_id
-    if conflict == "opportunity":
+    binding = promotion_binding(product)
+    if conflict == "candidate":
+        price = replace(price, candidate_identity=replace(price.candidate_identity, candidate_id="other"))
+    elif conflict == "opportunity":
         economics = replace(
             economics,
             opportunity_identity=OpportunityIdentity("other", "ebay:other"),
@@ -92,7 +106,7 @@ def test_context_rejects_broken_snapshot_lineage(conflict) -> None:
         verified_id = "other-verified-economics"
 
     with pytest.raises(ProductionSafetySnapshotLineageError):
-        ProductionSafetyEvaluationContext(product, price, economics, verified_id)
+        ProductionSafetyEvaluationContext(product, price, economics, binding, verified_id)
 
 
 class MemoryProductionSafetySources:
@@ -100,6 +114,7 @@ class MemoryProductionSafetySources:
         self.product = product
         self.price = price
         self.economics = economics
+        self.binding = promotion_binding(product) if product else None
         self.validated = []
 
     def get_product_snapshot(self, snapshot_id):
@@ -110,6 +125,9 @@ class MemoryProductionSafetySources:
 
     def get_economics_snapshot(self, snapshot_id):
         return self.economics if self.economics and self.economics.snapshot_id == snapshot_id else None
+
+    def get_candidate_opportunity_binding(self, candidate_id):
+        return self.binding if self.binding and self.binding.candidate_id == candidate_id else None
 
     def validate_snapshot_lineage(self, value):
         self.validated.append(value)

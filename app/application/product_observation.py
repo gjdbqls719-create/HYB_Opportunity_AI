@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.domain.decision_engine import OpportunityIdentity
+from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity
 from app.domain.product_observation import ProductObservationSnapshot
 
@@ -14,8 +14,8 @@ class ProductObservationRepository(Protocol):
 
     def get_snapshot(self, snapshot_id: str) -> ProductObservationSnapshot | None: ...
 
-    def get_by_opportunity(
-        self, opportunity_identity: OpportunityIdentity
+    def get_by_candidate(
+        self, candidate_identity: OpportunityCandidateIdentity
     ) -> tuple[ProductObservationSnapshot, ...]: ...
 
     def get_by_market_identity(

@@ -461,3 +461,11 @@ reference or Market identity. Candidate and Opportunity IDs are separate opaque
 identities, and admission plus their immutable binding and receipt must share one
 transaction. Missing Snapshot-chain facts must remain missing rather than being
 inferred or represented by placeholders.
+
+## Snapshot subject timing
+
+A Snapshot subject must exist when its owner produces the fact. Pre-admission
+Product and Price facts use Candidate identity; post-admission Verified Economics
+and EconomicsCalculation use Opportunity identity. Candidate ID must never be
+used as an Opportunity ID. Cross-stage consumers must validate the immutable
+promotion binding plus exact Market identity instead of inferring lineage.

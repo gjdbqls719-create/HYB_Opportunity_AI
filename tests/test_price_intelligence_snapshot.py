@@ -7,7 +7,7 @@ import pytest
 from app.application.price_intelligence_snapshot import (
     PriceIntelligenceSnapshotRepository,
 )
-from app.domain.decision_engine import OpportunityIdentity
+from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity, MarketObservationScope
 from app.domain.price_intelligence import (
     PRICE_INTELLIGENCE_SNAPSHOT_SCHEMA_VERSION,
@@ -47,7 +47,7 @@ def snapshot(
     value = result or analyze_product_prices(products())
     return PriceIntelligenceSnapshot(
         snapshot_id="price-intelligence-1",
-        opportunity_identity=OpportunityIdentity("opp-1", "ebay:item-1"),
+        candidate_identity=OpportunityCandidateIdentity("candidate-1", "ebay:item-1"),
         market_observation_identity=market_identity(),
         product_observation_snapshot_ids=source_ids,
         currency=value.currency,
@@ -119,8 +119,8 @@ class MemoryPriceIntelligenceSnapshotRepository:
     def __init__(self): self.values = {}
     def save_snapshot(self, value): self.values[value.snapshot_id] = value; return value
     def get_snapshot(self, snapshot_id): return self.values.get(snapshot_id)
-    def get_by_opportunity(self, identity):
-        return tuple(v for v in self.values.values() if v.opportunity_identity == identity)
+    def get_by_candidate(self, identity):
+        return tuple(v for v in self.values.values() if v.candidate_identity == identity)
     def get_by_market_identity(self, identity):
         return tuple(v for v in self.values.values() if v.market_observation_identity == identity)
 
@@ -129,7 +129,7 @@ def exercise_repository(repository: PriceIntelligenceSnapshotRepository) -> None
     value = snapshot()
     assert repository.save_snapshot(value) == value
     assert repository.get_snapshot(value.snapshot_id) == value
-    assert repository.get_by_opportunity(value.opportunity_identity) == (value,)
+    assert repository.get_by_candidate(value.candidate_identity) == (value,)
     assert repository.get_by_market_identity(value.market_observation_identity) == (value,)
 
 

@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from app.domain.decision_engine import OpportunityIdentity
+from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity
 
 
-PRICE_INTELLIGENCE_SNAPSHOT_SCHEMA_VERSION = "price-intelligence-snapshot-v1"
+PRICE_INTELLIGENCE_SNAPSHOT_SCHEMA_VERSION = "price-intelligence-snapshot-v2"
 
 
 def _required_text(value: str, name: str) -> str:
@@ -30,7 +30,7 @@ def _decimal(value: Decimal, name: str) -> Decimal:
 @dataclass(frozen=True, slots=True)
 class PriceIntelligenceSnapshot:
     snapshot_id: str
-    opportunity_identity: OpportunityIdentity
+    candidate_identity: OpportunityCandidateIdentity
     market_observation_identity: MarketObservationIdentity
     product_observation_snapshot_ids: tuple[str, ...]
     currency: str
@@ -56,8 +56,8 @@ class PriceIntelligenceSnapshot:
             "schema_version",
         ):
             _required_text(getattr(self, name), name)
-        if not isinstance(self.opportunity_identity, OpportunityIdentity):
-            raise TypeError("opportunity_identity must be OpportunityIdentity")
+        if not isinstance(self.candidate_identity, OpportunityCandidateIdentity):
+            raise TypeError("candidate_identity must be OpportunityCandidateIdentity")
         if not isinstance(self.market_observation_identity, MarketObservationIdentity):
             raise TypeError("market_observation_identity must be MarketObservationIdentity")
         source_ids = self.product_observation_snapshot_ids
