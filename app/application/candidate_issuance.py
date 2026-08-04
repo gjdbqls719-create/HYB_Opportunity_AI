@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Protocol
+import hashlib
+import json
 
 from app.application.discovery_persistence import (
     DiscoveryCommandRepository,
@@ -24,6 +26,8 @@ from app.domain.market_intelligence import (
 
 CANDIDATE_ISSUANCE_COMMAND_SCHEMA_VERSION = "candidate-issuance-command-v1"
 CANDIDATE_ISSUANCE_RESULT_SCHEMA_VERSION = "candidate-issuance-result-v1"
+OPPORTUNITY_CANDIDATE_SCHEMA_VERSION = "opportunity-candidate-v1"
+OPPORTUNITY_CANDIDATE_RECEIPT_SCHEMA_VERSION = "opportunity-candidate-receipt-v1"
 
 
 class CandidateIssuanceError(RuntimeError):
@@ -70,6 +74,20 @@ class UnsupportedCandidateIssuanceCommandVersionError(
     MalformedCandidateIssuanceCommandError
 ):
     pass
+
+
+class CandidatePersistenceError(CandidateIssuanceError): pass
+class CandidateIssuanceNotFoundError(CandidatePersistenceError): pass
+class CandidateIssuanceCommandConflictError(CandidatePersistenceError): pass
+class CandidateIssuanceReplayConflictError(CandidatePersistenceError): pass
+class DuplicateOpportunityCandidateError(CandidatePersistenceError): pass
+class CandidateLineageConflictError(CandidatePersistenceError): pass
+class MalformedCandidatePersistenceError(CandidatePersistenceError): pass
+class UnsupportedCandidatePersistenceVersionError(MalformedCandidatePersistenceError): pass
+class CandidateHistoryPersistenceError(CandidatePersistenceError): pass
+class CandidateContextPersistenceError(CandidatePersistenceError): pass
+class CandidateReceiptPersistenceError(CandidatePersistenceError): pass
+class CandidateCommitError(CandidatePersistenceError): pass
 
 
 def _required(value: str, name: str, error_type: type[Exception]) -> str:
@@ -158,6 +176,138 @@ class CandidateIssuanceResult:
             )
 
 
+def _identity_value(identity: MarketObservationIdentity) -> dict[str, object]:
+    return {
+        "scope": identity.scope.value, "market": identity.market,
+        "marketplace": identity.marketplace,
+        "canonical_product_id": identity.canonical_product_id,
+        "marketplace_item_id": identity.marketplace_item_id,
+        "normalized_query": identity.normalized_query, "category": identity.category,
+        "variant_identity": identity.variant_identity, "condition": identity.condition,
+        "window_started_at": identity.window_started_at.isoformat(),
+        "window_ended_at": identity.window_ended_at.isoformat(),
+    }
+
+
+def _hash(value: dict[str, object]) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def candidate_subject_fingerprint(command: IssueOpportunityCandidateCommand) -> str:
+    return _hash({
+        "discovery_command_id": command.discovery_command_id,
+        "discovery_execution_id": command.discovery_execution_id,
+        "finalized_group_id": command.finalized_group_id,
+        "discovery_reference": command.discovery_reference,
+        "market_observation_identity": _identity_value(command.market_observation_identity),
+        "schema_version": command.schema_version,
+    })
+
+
+def candidate_command_fingerprint(command: IssueOpportunityCandidateCommand) -> str:
+    return _hash({
+        "subject_fingerprint": candidate_subject_fingerprint(command),
+        "requested_at": command.requested_at.isoformat(),
+        "schema_version": command.schema_version,
+    })
+
+
+@dataclass(frozen=True, slots=True)
+class OpportunityCandidateIssuanceReceipt:
+    issuance_command_id: str
+    discovery_command_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    candidate_id: str
+    command_fingerprint: str
+    subject_fingerprint: str
+    discovery_reference: str
+    market_observation_identity: MarketObservationIdentity
+    requested_at: datetime
+    receipt_committed_at: datetime
+    schema_version: str = OPPORTUNITY_CANDIDATE_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for name in ("issuance_command_id", "discovery_command_id", "discovery_execution_id",
+                     "finalized_group_id", "candidate_id", "discovery_reference"):
+            object.__setattr__(self, name, _required(getattr(self, name), name, ValueError))
+        for name in ("command_fingerprint", "subject_fingerprint"):
+            value = _required(getattr(self, name), name, ValueError)
+            if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+                raise ValueError(f"{name} must be lowercase SHA-256 text")
+        if not isinstance(self.market_observation_identity, MarketObservationIdentity):
+            raise TypeError("market_observation_identity must be MarketObservationIdentity")
+        _aware(self.requested_at, "requested_at", ValueError)
+        _aware(self.receipt_committed_at, "receipt_committed_at", ValueError)
+        if self.schema_version != OPPORTUNITY_CANDIDATE_RECEIPT_SCHEMA_VERSION:
+            raise UnsupportedCandidatePersistenceVersionError("unsupported candidate receipt version")
+
+
+@dataclass(frozen=True, slots=True)
+class DurableCandidateIssuanceResult:
+    issuance: CandidateIssuanceResult
+    receipt: OpportunityCandidateIssuanceReceipt
+    replayed: bool
+
+
+class CandidateIssuanceRepository(Protocol):
+    def save_initial_issuance(self, command: IssueOpportunityCandidateCommand,
+                              issuance: CandidateIssuanceResult,
+                              receipt: OpportunityCandidateIssuanceReceipt) -> DurableCandidateIssuanceResult: ...
+    def save_alias_receipt(self, command: IssueOpportunityCandidateCommand,
+                           receipt: OpportunityCandidateIssuanceReceipt) -> DurableCandidateIssuanceResult: ...
+    def get_candidate(self, candidate_id: str) -> OpportunityCandidateIdentity | None: ...
+    def get_context(self, candidate_id: str) -> DiscoveryOpportunityContext | None: ...
+    def get_receipt_by_command(self, issuance_command_id: str) -> OpportunityCandidateIssuanceReceipt | None: ...
+    def get_by_discovery_group(self, discovery_command_id: str, finalized_group_id: str) -> CandidateIssuanceResult | None: ...
+    def list_receipts_for_candidate(self, candidate_id: str) -> tuple[OpportunityCandidateIssuanceReceipt, ...]: ...
+    def validate_command_replay(self, issuance_command_id: str, command_fingerprint: str) -> DurableCandidateIssuanceResult | None: ...
+    def validate_subject_replay(self, discovery_command_id: str, finalized_group_id: str, subject_fingerprint: str) -> CandidateIssuanceResult | None: ...
+
+
+class PersistOpportunityCandidateIssuance:
+    def __init__(self, issuance_service: "IssueOpportunityCandidate",
+                 repository: CandidateIssuanceRepository, *,
+                 receipt_clock: Callable[[], datetime]) -> None:
+        self._issuance_service = issuance_service
+        self._repository = repository
+        self._receipt_clock = receipt_clock
+
+    def execute(self, command: IssueOpportunityCandidateCommand) -> DurableCandidateIssuanceResult:
+        command_fingerprint = candidate_command_fingerprint(command)
+        subject_fingerprint = candidate_subject_fingerprint(command)
+        replay = self._repository.validate_command_replay(
+            command.issuance_command_id, command_fingerprint
+        )
+        if replay is not None:
+            return DurableCandidateIssuanceResult(replay.issuance, replay.receipt, True)
+        existing = self._repository.validate_subject_replay(
+            command.discovery_command_id, command.finalized_group_id, subject_fingerprint
+        )
+        if existing is not None:
+            receipt = self._receipt(command, existing.candidate_identity.candidate_id,
+                                    command_fingerprint, subject_fingerprint)
+            return self._repository.save_alias_receipt(command, receipt)
+        issuance = self._issuance_service.execute(command)
+        receipt = self._receipt(command, issuance.candidate_identity.candidate_id,
+                                command_fingerprint, subject_fingerprint)
+        return self._repository.save_initial_issuance(command, issuance, receipt)
+
+    def _receipt(self, command, candidate_id, command_fingerprint, subject_fingerprint):
+        return OpportunityCandidateIssuanceReceipt(
+            issuance_command_id=command.issuance_command_id,
+            discovery_command_id=command.discovery_command_id,
+            discovery_execution_id=command.discovery_execution_id,
+            finalized_group_id=command.finalized_group_id,
+            candidate_id=candidate_id,
+            command_fingerprint=command_fingerprint,
+            subject_fingerprint=subject_fingerprint,
+            discovery_reference=command.discovery_reference,
+            market_observation_identity=command.market_observation_identity,
+            requested_at=command.requested_at,
+            receipt_committed_at=self._receipt_clock(),
+        )
 class IssueOpportunityCandidate:
     """Issues identity from persisted Discovery facts without writing or replaying."""
 
@@ -324,6 +474,12 @@ __all__ = [
     "CandidateIdentityGenerationError",
     "CandidateIssuanceError",
     "CandidateIssuanceResult",
+    "CandidateIssuanceRepository",
+    "DurableCandidateIssuanceResult",
+    "OpportunityCandidateIssuanceReceipt",
+    "PersistOpportunityCandidateIssuance",
+    "candidate_command_fingerprint",
+    "candidate_subject_fingerprint",
     "CandidateMarketIdentityConflictError",
     "IssueOpportunityCandidate",
     "IssueOpportunityCandidateCommand",

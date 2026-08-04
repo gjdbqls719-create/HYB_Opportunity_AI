@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR34-D - Opportunity Candidate Issuance Persistence
+
+- Persist one immutable Candidate and Context per Discovery command/finalized Group while allowing one immutable issuance receipt per command and multiple alias receipts to reference the same Candidate.
+- Separate Candidate subject and issuance command fingerprints from generated Candidate ID, Candidate issuance time, and receipt commit time.
+- Add initial Candidate/Context/Receipt and alias-only `BEGIN IMMEDIATE` transactions with authoritative Discovery lineage revalidation, phase-specific rollback errors, and append-only triggers.
+- Integrate restart-safe command replay, response-loss replay, same-subject alias convergence, distinct command/subject conflicts, and separate-connection initial issuance convergence without process-local locks.
+- Keep Candidate state pre-admission and leave Opportunity lifecycle, Validation Admission, Snapshot wiring, Safety, Review, Decision, Dashboard, Web/API, migration, and backfill unchanged.
+
 ## PR34-C - Opportunity Candidate Issuance Foundation
 
 - Add immutable Candidate issuance command and result contracts that preserve distinct issuance/Discovery command identity, explicit discovery reference, explicit Candidate Market identity, request/issuance times, and fixed schema versions.

@@ -10,6 +10,9 @@ from app.infrastructure.discovery.sqlite_observation_group_repository import (
 from app.infrastructure.discovery.sqlite_result_repository import (
     SQLiteDiscoveryResultRepository,
 )
+from app.infrastructure.discovery.sqlite_candidate_repository import (
+    SQLiteCandidateIssuanceRepository,
+)
 from app.infrastructure.discovery.orchestrator_gateway import (
     OrchestratorOpportunityDiscoveryGateway,
 )
@@ -20,4 +23,5 @@ __all__ = [
     "SQLiteDiscoveryGroupRepository",
     "SQLiteDiscoveryObservationRepository",
     "SQLiteDiscoveryResultRepository",
+    "SQLiteCandidateIssuanceRepository",
 ]

@@ -136,3 +136,26 @@ blocked and no current projection is created. Result reads validate command
 identity, Group lineage, zero-result consistency, schema version, and
 fingerprint without opening write transactions. Candidate issuance and
 production discovery wiring remain absent.
+
+## Opportunity Candidate Issuance
+
+`opportunity_candidate_history` stores exactly one immutable Candidate per
+`(discovery_command_id, finalized_group_id)` with opaque Candidate ID, explicit
+discovery reference, execution lineage, initial issuance time, schema version,
+and subject fingerprint. `opportunity_candidate_context_history` is a one-to-one
+Candidate foreign-key table preserving the complete explicit Market identity,
+Discovery command/execution context, request time, and context version.
+
+`opportunity_candidate_issuance_receipts` stores one immutable receipt per
+issuance command. Candidate ID is deliberately non-unique in this table, allowing
+multiple alias receipts to reference the same Candidate. Command fingerprint
+includes subject intent plus request time; subject fingerprint excludes command
+and result values and identifies the Candidate provenance. Candidate ID,
+Candidate issuance time, and receipt commit time are never fingerprint inputs.
+
+Initial issuance uses one `BEGIN IMMEDIATE` transaction for Candidate, Context,
+and Receipt. An equivalent command for an existing Group validates the same
+authoritative Discovery lineage and stores only a new alias Receipt. Concurrent
+initial writers converge to one Candidate/Context and one receipt per valid
+issuance command. All tables reject UPDATE and DELETE and have no current
+projection. No Candidate is backfilled and no Opportunity lifecycle is created.

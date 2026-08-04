@@ -42,6 +42,14 @@ immutable `DiscoveryOpportunityContext`. This does not create an Opportunity,
 write a Candidate, or claim durable replay. Until an issuance receipt exists,
 repeating the request may generate another Candidate identity.
 
+Candidate issuance persistence closes that replay gap. One Candidate and Context
+exist per `(Discovery command ID, finalized Group ID)`, while every immutable
+issuance command owns one receipt; multiple alias receipts may reference the same
+Candidate. Initial issuance atomically stores Candidate, Context, and receipt.
+An equivalent later command stores only an alias receipt and returns the existing
+Candidate without regenerating its ID or issuance time. This durable state is
+still pre-admission and creates no Opportunity lifecycle.
+
 HYB는 Modular Pipeline Architecture를 사용한다.
 
 흐름:
