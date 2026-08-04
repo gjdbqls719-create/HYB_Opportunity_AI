@@ -10,6 +10,7 @@
 - [ADR-0006: Production Safety Snapshot Chain Integration](ADR-0006-production-safety-snapshot-chain-integration.md)
 - [ADR-0007: Production Safety Runtime Reconstruction Policy](ADR-0007-runtime-reconstruction-policy.md)
 - [ADR-0008: Canonical Economics Analysis Provenance](ADR-0008-canonical-economics-analysis-provenance.md)
+- [ADR-0009: Discovery Identity Issuance and Snapshot Ownership Timing](ADR-0009-discovery-identity-issuance-and-snapshot-ownership-timing.md)
 
 Architecture Decision Record 관리 영역.
 

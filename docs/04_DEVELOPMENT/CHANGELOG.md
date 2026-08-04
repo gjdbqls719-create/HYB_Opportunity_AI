@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## PR34-A - Discovery Identity and Snapshot Ownership Timing Contract
+
+- Add a distinct immutable `OpportunityCandidateIdentity` for one pre-admission ProductGroup candidate; issuing it does not create an Opportunity lifecycle or imply admission.
+- Add an explicit `DiscoveryOpportunityContext` carrying candidate identity, listing/canonical Market Observation identity, discovery execution ID, command correlation, request time, and schema version without global or implicit context.
+- Add an immutable `AdmissionSnapshotChainHandoff` that explicitly promotes one candidate to an authoritative Opportunity identity and carries the exact ordered Product, PriceIntelligence, and Economics snapshot references.
+- Select candidate identity plus explicit admission promotion over pre-issued Opportunity IDs or unbound source identity, preserving current lifecycle semantics and avoiding inferred IDs or Market identities.
+- Keep persistence, schemas, migrations, Snapshot writes, production wiring, Safety execution, Decision, Dashboard, formulas, grouping, and legacy backfill unchanged.
+
 ## PR31.1 - Economics Runtime Analysis Provenance Hardening
 
 - Preserve the complete runtime Economics `analysis` mapping as a versioned, fingerprinted, deeply immutable canonical value tree with deterministic mapping order and exact bool/int, Decimal, Enum, datetime, tuple/list, and nested-mapping semantics.

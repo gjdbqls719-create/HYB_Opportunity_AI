@@ -435,3 +435,12 @@ reconstruction is required, authoritative facts must use a versioned, deeply
 immutable, deterministic representation that preserves value semantics and
 rejects unsupported values. Reconstruction copies persisted facts; it does not
 recalculate, infer, default, or backfill them.
+
+# Pre-admission Identity Ownership
+
+Discovery candidates and admitted Opportunities are different subjects. A
+pre-admission identity must not imply lifecycle creation or admission. Identity
+and Market scope are passed explicitly through owner boundaries; global context,
+text-derived identity, implicit promotion, and downstream reconstruction are
+prohibited. Admission binds a candidate and its exact source lineage to an
+authoritative Opportunity in a separate explicit contract.
