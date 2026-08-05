@@ -462,6 +462,42 @@ class IssueOpportunityCandidate:
             )
 
 
+class CandidateIssuanceProductionEntry:
+    """Composes durable Candidate issuance over persisted Discovery facts."""
+
+    def __init__(
+        self,
+        *,
+        command_repository: DiscoveryCommandRepository,
+        result_repository: DiscoveryResultRepository,
+        group_repository: DiscoveryGroupRepository,
+        observation_repository: DiscoveryObservationRepository,
+        candidate_repository: CandidateIssuanceRepository,
+        candidate_id_generator: Callable[[], str],
+        issuance_clock: Callable[[], datetime],
+        receipt_clock: Callable[[], datetime],
+    ) -> None:
+        issuance = IssueOpportunityCandidate(
+            command_repository,
+            result_repository,
+            group_repository,
+            observation_repository,
+            candidate_id_generator=candidate_id_generator,
+            clock=issuance_clock,
+        )
+        self._persist_issuance = PersistOpportunityCandidateIssuance(
+            issuance,
+            candidate_repository,
+            receipt_clock=receipt_clock,
+        )
+
+    def execute(
+        self,
+        command: IssueOpportunityCandidateCommand,
+    ) -> DurableCandidateIssuanceResult:
+        return self._persist_issuance.execute(command)
+
+
 __all__ = [
     "CANDIDATE_ISSUANCE_COMMAND_SCHEMA_VERSION",
     "CANDIDATE_ISSUANCE_RESULT_SCHEMA_VERSION",
@@ -473,6 +509,7 @@ __all__ = [
     "CandidateGroupNotInResultError",
     "CandidateIdentityGenerationError",
     "CandidateIssuanceError",
+    "CandidateIssuanceProductionEntry",
     "CandidateIssuanceResult",
     "CandidateIssuanceRepository",
     "DurableCandidateIssuanceResult",
