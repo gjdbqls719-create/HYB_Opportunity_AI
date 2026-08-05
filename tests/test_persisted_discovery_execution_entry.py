@@ -175,12 +175,25 @@ class RecordingGroupFinalizationClock:
         return NOW
 
 
+class RecordingGroupRepository:
+    def __init__(self, events: list[str] | None = None) -> None:
+        self.events = events
+        self.calls = []
+
+    def save_group(self, group):
+        self.calls.append(group)
+        if self.events is not None:
+            self.events.append(f"group:{group.finalized_group_id}")
+        return group
+
+
 def finalization_dependencies():
     return {
         "finalized_group_identity_provider": (
             RecordingFinalizedGroupIdentityProvider()
         ),
         "group_finalization_clock": RecordingGroupFinalizationClock(),
+        "group_repository": RecordingGroupRepository(),
     }
 
 

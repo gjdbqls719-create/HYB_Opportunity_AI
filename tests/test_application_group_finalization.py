@@ -25,6 +25,7 @@ from tests.test_discovery_phase_checkpoints import (
     CheckpointRuntime,
 )
 from tests.test_persisted_discovery_execution_entry import (
+    RecordingGroupRepository,
     RecordingObservationIdentityProvider,
     RecordingPersister,
     command,
@@ -240,7 +241,7 @@ def test_assembly_does_not_regroup_or_compare_products(
     assert groups[0].observation_ids == ("observation-0",)
 
 
-def test_entry_assembles_groups_at_checkpoint_and_returns_them_without_group_repository() -> None:
+def test_entry_assembles_and_persists_groups_at_checkpoint() -> None:
     events: list[str] = []
     runtime = CheckpointRuntime(events)
     identity_provider = RecordingFinalizedGroupIdentityProvider(
@@ -259,6 +260,7 @@ def test_entry_assembles_groups_at_checkpoint_and_returns_them_without_group_rep
         observation_repository=CheckpointObservationRepository(events),
         finalized_group_identity_provider=identity_provider,
         group_finalization_clock=clock,
+        group_repository=RecordingGroupRepository(events),
     ).execute(command())
 
     assert events == [
@@ -270,6 +272,7 @@ def test_entry_assembles_groups_at_checkpoint_and_returns_them_without_group_rep
         "grouping",
         "group-id:group-1",
         f"finalized-at:{FINALIZED_AT.isoformat()}",
+        "group:group-1",
         "grouping-checkpoint",
         "analysis",
     ]

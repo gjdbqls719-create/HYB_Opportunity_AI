@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.application.discovery_persistence import (
+    DiscoveryGroupRepository,
     DiscoveryObservationRepository,
     PersistDiscoveryCommand,
     PersistDiscoveryCommandResult,
@@ -213,6 +214,7 @@ class PersistedDiscoveryExecutionEntry:
         observation_repository: DiscoveryObservationRepository,
         finalized_group_identity_provider: FinalizedGroupIdentityProvider,
         group_finalization_clock: GroupFinalizationClock,
+        group_repository: DiscoveryGroupRepository,
     ) -> None:
         if not isinstance(observation_identity_provider, ObservationIdentityProvider):
             raise TypeError(
@@ -238,6 +240,7 @@ class PersistedDiscoveryExecutionEntry:
             finalized_group_identity_provider
         )
         self._group_finalization_clock = group_finalization_clock
+        self._group_repository = group_repository
 
     def execute(
         self,
@@ -273,7 +276,7 @@ class PersistedDiscoveryExecutionEntry:
         ) -> None:
             nonlocal checkpointed_grouping_correlations, finalized_groups
             checkpointed_grouping_correlations = grouping_correlations
-            finalized_groups = assemble_finalized_product_groups(
+            assembled_groups = assemble_finalized_product_groups(
                 discovery_execution_id=(
                     command_result.command.discovery_execution_id
                 ),
@@ -282,6 +285,10 @@ class PersistedDiscoveryExecutionEntry:
                 grouping_policy_descriptor=grouping_policy_descriptor,
                 identity_provider=self._finalized_group_identity_provider,
                 clock=self._group_finalization_clock,
+            )
+            finalized_groups = tuple(
+                self._group_repository.save_group(group)
+                for group in assembled_groups
             )
 
         runtime_result = self._runtime.execute(
