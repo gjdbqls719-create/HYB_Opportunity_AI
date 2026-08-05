@@ -95,6 +95,14 @@ from app.application.candidate_issuance import (
     IssueOpportunityCandidateCommand,
     MalformedCandidateIssuanceCommandError,
 )
+from app.application.product_snapshot_capture import (
+    CandidateProductSnapshotCaptureProductionEntry,
+    CandidateProductSnapshotCaptureRequest,
+    ProductSnapshotSourceConflictError,
+    ProductSnapshotSourceObservationNotFoundError,
+    SnapshotOwnerCommandConflictError,
+    SnapshotOwnerPersistenceError,
+)
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
@@ -193,6 +201,9 @@ from app.infrastructure.discovery import (
     SQLiteDiscoveryResultRepository,
 )
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
+from app.infrastructure.product_observation import (
+    SQLiteProductSnapshotCaptureRepository,
+)
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review import (
@@ -508,6 +519,44 @@ class CandidateIssuanceResponse(BaseModel):
     replayed: bool
 
 
+class ProductSnapshotCaptureRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    finalized_group_id: str = Field(min_length=1)
+    product_snapshot_ids: tuple[str, ...] = Field(min_length=1)
+    requested_at: datetime
+
+    def to_application_request(self) -> CandidateProductSnapshotCaptureRequest:
+        return CandidateProductSnapshotCaptureRequest(
+            command_id=self.command_id,
+            candidate_id=self.candidate_id,
+            finalized_group_id=self.finalized_group_id,
+            product_snapshot_ids=self.product_snapshot_ids,
+            requested_at=self.requested_at,
+        )
+
+
+class ProductSnapshotSourceBindingResponse(BaseModel):
+    product_snapshot_id: str
+    collected_observation_id: str
+    candidate_id: str
+    capture_command_id: str
+    bound_at: datetime
+
+
+class ProductSnapshotCaptureResponse(BaseModel):
+    command_id: str
+    candidate_id: str
+    finalized_group_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    product_snapshot_ids: tuple[str, ...]
+    source_bindings: tuple[ProductSnapshotSourceBindingResponse, ...]
+    committed_at: datetime
+    replayed: bool
+
+
 class ReviewCommandContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -702,6 +751,39 @@ def get_candidate_issuance_entry():
         raise HTTPException(
             status_code=503,
             detail="candidate persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_product_snapshot_capture_entry():
+    resources = ExitStack()
+    try:
+        candidate_repository = resources.enter_context(
+            SQLiteCandidateIssuanceRepository(DEFAULT_DATABASE_PATH)
+        )
+        group_repository = resources.enter_context(
+            SQLiteDiscoveryGroupRepository(DEFAULT_DATABASE_PATH)
+        )
+        capture_repository = resources.enter_context(
+            SQLiteProductSnapshotCaptureRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = CandidateProductSnapshotCaptureProductionEntry(
+            candidate_repository=candidate_repository,
+            group_repository=group_repository,
+            capture_repository=capture_repository,
+            receipt_clock=lambda: datetime.now(timezone.utc),
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="product snapshot persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -1251,6 +1333,78 @@ def issue_opportunity_candidate(
         requested_at=issuance.discovery_context.requested_at,
         issued_at=issuance.issued_at,
         receipt_committed_at=receipt.receipt_committed_at,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/product-snapshots/capture",
+    response_model=ProductSnapshotCaptureResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def capture_candidate_product_snapshots(
+    request: ProductSnapshotCaptureRequest,
+    response: Response,
+    entry: CandidateProductSnapshotCaptureProductionEntry = Depends(
+        get_product_snapshot_capture_entry
+    ),
+) -> ProductSnapshotCaptureResponse:
+    try:
+        result = entry.execute(request.to_application_request())
+    except ProductSnapshotSourceObservationNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ProductSnapshotSourceConflictError,
+        SnapshotOwnerCommandConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except SnapshotOwnerPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="product snapshot persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="product snapshot capture failed",
+        ) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    identity = result.snapshots[0].market_observation_identity
+    return ProductSnapshotCaptureResponse(
+        command_id=result.receipt.command_id,
+        candidate_id=result.receipt.candidate_id,
+        finalized_group_id=request.finalized_group_id,
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        product_snapshot_ids=result.receipt.product_snapshot_ids,
+        source_bindings=tuple(
+            ProductSnapshotSourceBindingResponse(
+                product_snapshot_id=binding.product_snapshot_id,
+                collected_observation_id=binding.collected_observation_id,
+                candidate_id=binding.candidate_id,
+                capture_command_id=binding.capture_command_id,
+                bound_at=binding.bound_at,
+            )
+            for binding in result.bindings
+        ),
+        committed_at=result.receipt.committed_at,
         replayed=result.replayed,
     )
 
