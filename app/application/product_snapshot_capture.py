@@ -8,6 +8,8 @@ import hashlib
 import json
 from typing import Callable, Protocol
 
+from app.application.candidate_issuance import CandidateIssuanceRepository
+from app.application.discovery_persistence import DiscoveryGroupRepository
 from app.domain.discovery_identity import CollectedProductObservation, FinalizedProductGroup
 from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity
@@ -59,6 +61,31 @@ class CaptureProductSnapshotsCommand:
             "sources":self.observation_snapshot_ids,"market":repr(self.market_observation_identity),
             "requested_at":self.requested_at.isoformat(),"schema_version":self.schema_version}
         return hashlib.sha256(json.dumps(payload,sort_keys=True,separators=(",", ":")).encode()).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateProductSnapshotCaptureRequest:
+    command_id: str
+    candidate_id: str
+    finalized_group_id: str
+    product_snapshot_ids: tuple[str, ...]
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in ("command_id", "candidate_id", "finalized_group_id"):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        if not isinstance(self.product_snapshot_ids, tuple):
+            raise TypeError("product_snapshot_ids must be a tuple")
+        if not self.product_snapshot_ids:
+            raise ValueError("product_snapshot_ids must not be empty")
+        normalized_ids = tuple(
+            _required(value, "product_snapshot_id")
+            for value in self.product_snapshot_ids
+        )
+        if len(set(normalized_ids)) != len(normalized_ids):
+            raise ValueError("product_snapshot_ids must be unique")
+        object.__setattr__(self, "product_snapshot_ids", normalized_ids)
+        _aware(self.requested_at, "requested_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,7 +254,75 @@ class CaptureProductSnapshots:
         return self._repository.persist_capture(command, snapshots, bindings, receipt)
 
 
+class CandidateProductSnapshotCaptureProductionEntry:
+    """Composes persisted Candidate facts with the existing capture owner."""
+
+    def __init__(
+        self,
+        *,
+        candidate_repository: CandidateIssuanceRepository,
+        group_repository: DiscoveryGroupRepository,
+        capture_repository: ProductSnapshotCaptureRepository,
+        receipt_clock: Callable[[], datetime],
+    ) -> None:
+        self._candidates = candidate_repository
+        self._groups = group_repository
+        self._capture = CaptureProductSnapshots(
+            capture_repository,
+            receipt_clock=receipt_clock,
+        )
+
+    def execute(
+        self,
+        request: CandidateProductSnapshotCaptureRequest,
+    ) -> ProductSnapshotCaptureResult:
+        if not isinstance(request, CandidateProductSnapshotCaptureRequest):
+            raise TypeError(
+                "request must be CandidateProductSnapshotCaptureRequest"
+            )
+        candidate = self._candidates.get_candidate(request.candidate_id)
+        if candidate is None:
+            raise ProductSnapshotSourceConflictError(
+                "persisted Candidate is missing"
+            )
+        context = self._candidates.get_context(request.candidate_id)
+        if context is None:
+            raise ProductSnapshotSourceConflictError(
+                "persisted Candidate Context is missing"
+            )
+        if context.candidate_identity != candidate:
+            raise ProductSnapshotSourceConflictError(
+                "persisted Candidate and Context differ"
+            )
+        group = self._groups.get_group(request.finalized_group_id)
+        if group is None:
+            raise ProductSnapshotSourceConflictError(
+                "persisted finalized Product group is missing"
+            )
+        if len(request.product_snapshot_ids) != len(group.observation_ids):
+            raise ProductSnapshotSourceConflictError(
+                "Product Snapshot IDs must match the finalized group cohort"
+            )
+        command = CaptureProductSnapshotsCommand(
+            command_id=request.command_id,
+            candidate_identity=candidate,
+            finalized_group_id=request.finalized_group_id,
+            observation_snapshot_ids=tuple(
+                zip(
+                    group.observation_ids,
+                    request.product_snapshot_ids,
+                    strict=True,
+                )
+            ),
+            market_observation_identity=context.market_observation_identity,
+            requested_at=request.requested_at,
+        )
+        return self._capture.execute(command)
+
+
 __all__ = [
+    "CandidateProductSnapshotCaptureProductionEntry",
+    "CandidateProductSnapshotCaptureRequest",
     "CaptureProductSnapshotsCommand", "ProductSnapshotSourceBinding",
     "ProductSnapshotCaptureReceipt", "PRODUCT_SNAPSHOT_CAPTURE_COMMAND_SCHEMA_VERSION",
     "PRODUCT_SNAPSHOT_SOURCE_BINDING_SCHEMA_VERSION", "PRODUCT_SNAPSHOT_CAPTURE_RECEIPT_SCHEMA_VERSION",
