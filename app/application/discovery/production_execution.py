@@ -9,8 +9,12 @@ from app.application.discovery_persistence import (
     PersistDiscoveryCommand,
     PersistDiscoveryCommandResult,
 )
+from app.application.discovery.observation_assembly import (
+    assemble_collected_product_observations,
+)
+from app.application.discovery.ports import ObservationIdentityProvider
 from app.domain.discovery import DiscoveryResult
-from app.domain.discovery_identity import DiscoveryCommand
+from app.domain.discovery_identity import CollectedProductObservation, DiscoveryCommand
 from collectors.collection_fact import CollectionFact
 
 
@@ -61,6 +65,7 @@ class PersistedDiscoveryExecutionResult:
     command_result: PersistDiscoveryCommandResult
     discovery_results: tuple[DiscoveryResult, ...]
     collection_facts: tuple[CollectionFact, ...]
+    observations: tuple[CollectedProductObservation, ...]
 
     def __post_init__(self) -> None:
         if not isinstance(self.command_result, PersistDiscoveryCommandResult):
@@ -82,6 +87,15 @@ class PersistedDiscoveryExecutionResult:
             isinstance(fact, CollectionFact) for fact in self.collection_facts
         ):
             raise TypeError("collection_facts must contain CollectionFact values")
+        if not isinstance(self.observations, tuple):
+            raise TypeError("observations must be tuple")
+        if not all(
+            isinstance(observation, CollectedProductObservation)
+            for observation in self.observations
+        ):
+            raise TypeError(
+                "observations must contain CollectedProductObservation values"
+            )
 
 
 class PersistedDiscoveryExecutionEntry:
@@ -92,9 +106,15 @@ class PersistedDiscoveryExecutionEntry:
         *,
         persist_command: PersistDiscoveryCommand,
         runtime: ProductionDiscoveryRuntime,
+        observation_identity_provider: ObservationIdentityProvider,
     ) -> None:
+        if not isinstance(observation_identity_provider, ObservationIdentityProvider):
+            raise TypeError(
+                "observation_identity_provider must be ObservationIdentityProvider"
+            )
         self._persist_command = persist_command
         self._runtime = runtime
+        self._observation_identity_provider = observation_identity_provider
 
     def execute(
         self,
@@ -117,10 +137,17 @@ class PersistedDiscoveryExecutionEntry:
                 "runtime execution identity conflicts with committed command"
             )
 
+        observations = assemble_collected_product_observations(
+            discovery_execution_id=command_result.command.discovery_execution_id,
+            collection_facts=runtime_result.collection_facts,
+            identity_provider=self._observation_identity_provider,
+        )
+
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
             discovery_results=runtime_result.discovery_results,
             collection_facts=runtime_result.collection_facts,
+            observations=observations,
         )
 
 
