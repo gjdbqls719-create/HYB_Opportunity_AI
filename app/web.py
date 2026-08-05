@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from pathlib import Path
 
 from datetime import datetime, timezone
@@ -7,6 +8,8 @@ from uuid import uuid4
 from decimal import Decimal
 import sqlite3
 from typing import Any
+
+import requests
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -67,6 +70,26 @@ from app.application.production_safety_evaluation import (
     ProductionSafetySourceLineageError,
 )
 from app.application.production_safety_runtime_adapter import ProductionSafetyRuntimeAdapter
+from app.application.discovery import (
+    DiscoveryCompletionReplayError,
+    DiscoveryRuntimeCorrelationError,
+    PersistedDiscoveryExecutionEntry,
+)
+from app.application.discovery_persistence import (
+    DiscoveryExecutionIdentityConflictError,
+    DiscoveryExecutionNotFoundError,
+    DiscoveryExecutionReplayConflict,
+    DiscoveryGroupConflictError,
+    DiscoveryGroupMembershipError,
+    DiscoveryObservationConflictError,
+    DiscoveryPersistenceError,
+    DiscoveryReplayConflict,
+    DuplicateDiscoveryExecutionError,
+    DuplicateDiscoveryObservationError,
+    DuplicateFinalizedGroupError,
+    MissingDiscoveryCommand,
+    PersistDiscoveryCommand,
+)
 from app.application.verified_economics_admission import (
     FinalizeVerifiedEconomicsAdmission,
     FinalizeVerifiedEconomicsAdmissionCommand,
@@ -134,6 +157,16 @@ from app.domain.opportunity import (
     RateInput,
     VerifiedEconomicsInput,
 )
+from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
+from app.infrastructure.discovery import (
+    OrchestratorProductionDiscoveryRuntime,
+    ProductionFinalizedGroupIdentityProvider,
+    ProductionObservationIdentityProvider,
+    SQLiteDiscoveryCommandRepository,
+    SQLiteDiscoveryGroupRepository,
+    SQLiteDiscoveryObservationRepository,
+    SQLiteDiscoveryResultRepository,
+)
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
@@ -142,6 +175,13 @@ from app.infrastructure.review import (
     SQLiteVerifiedSignalPersistence,
 )
 from storage.price_history import DEFAULT_DATABASE_PATH
+from services.currency import (
+    CachedExchangeRateProvider,
+    CurrencyConverter,
+    ExchangeRateNotFoundError,
+    ExchangeRateProviderError,
+    FrankfurterExchangeRateProvider,
+)
 
 
 PROJECT_NAME = "HYB Opportunity AI"
@@ -158,6 +198,83 @@ class OpportunitySearchRequest(BaseModel):
     query: str = Field(min_length=1)
     limit: int = Field(default=10, ge=1)
     top: int = Field(default=5, ge=1)
+
+
+class AuthoritativeDiscoveryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    discovery_execution_id: str = Field(min_length=1)
+    requested_at: datetime
+    query: str = Field(min_length=1)
+    selling_price_multiplier: Decimal
+    shipping_cost: Decimal | None
+    marketplace_fee_rate: Decimal
+    payment_fee_rate: Decimal
+    fixed_fee: Decimal | None
+    marketplace_fee_known: bool
+    payment_fee_known: bool
+    fixed_fee_known: bool
+    tax_rate: Decimal
+    other_cost: Decimal
+    minimum_net_profit: Decimal
+    minimum_roi: Decimal
+    estimated_monthly_sales: int
+    competitor_count: int
+    risk_level: str = Field(min_length=1)
+    limit: int
+    match_threshold: Decimal
+    target_currency: str | None = None
+    policy_references: tuple[tuple[str, str], ...] = ()
+    source_references: tuple[tuple[str, str], ...] = ()
+
+    def to_command(self) -> DiscoveryCommand:
+        return DiscoveryCommand(
+            command_id=self.command_id,
+            discovery_execution_id=self.discovery_execution_id,
+            parameters=DiscoveryCommandParameters(
+                query=self.query,
+                selling_price_multiplier=self.selling_price_multiplier,
+                shipping_cost=self.shipping_cost,
+                marketplace_fee_rate=self.marketplace_fee_rate,
+                payment_fee_rate=self.payment_fee_rate,
+                fixed_fee=self.fixed_fee,
+                marketplace_fee_known=self.marketplace_fee_known,
+                payment_fee_known=self.payment_fee_known,
+                fixed_fee_known=self.fixed_fee_known,
+                tax_rate=self.tax_rate,
+                other_cost=self.other_cost,
+                minimum_net_profit=self.minimum_net_profit,
+                minimum_roi=self.minimum_roi,
+                estimated_monthly_sales=self.estimated_monthly_sales,
+                competitor_count=self.competitor_count,
+                risk_level=self.risk_level,
+                limit=self.limit,
+                match_threshold=self.match_threshold,
+                target_currency=self.target_currency,
+                policy_references=self.policy_references,
+                source_references=self.source_references,
+            ),
+            requested_at=self.requested_at,
+        )
+
+
+class AuthoritativeFinalizedGroupResponse(BaseModel):
+    finalized_group_id: str
+    discovery_execution_id: str
+    observation_ids: tuple[str, ...]
+    representative_observation_id: str
+    grouping_policy_version: str
+    finalized_at: datetime
+
+
+class AuthoritativeDiscoveryResponse(BaseModel):
+    command_id: str
+    discovery_execution_id: str
+    completed_at: datetime
+    is_zero_result: bool
+    completion_replayed: bool
+    finalized_groups: tuple[AuthoritativeFinalizedGroupResponse, ...]
 
 
 class ValidationQueueAdmissionRequest(BaseModel):
@@ -377,6 +494,63 @@ def get_validation_queue_repository():
         yield repository
     finally:
         repository.close()
+
+
+def get_authoritative_discovery_entry():
+    resources = ExitStack()
+    try:
+        command_repository = resources.enter_context(
+            SQLiteDiscoveryCommandRepository(DEFAULT_DATABASE_PATH)
+        )
+        observation_repository = resources.enter_context(
+            SQLiteDiscoveryObservationRepository(DEFAULT_DATABASE_PATH)
+        )
+        group_repository = resources.enter_context(
+            SQLiteDiscoveryGroupRepository(DEFAULT_DATABASE_PATH)
+        )
+        result_repository = resources.enter_context(
+            SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
+        )
+        session = requests.Session()
+        resources.callback(session.close)
+        currency_converter = CurrencyConverter(
+            CachedExchangeRateProvider(
+                FrankfurterExchangeRateProvider(session=session)
+            )
+        )
+        entry = PersistedDiscoveryExecutionEntry(
+            persist_command=PersistDiscoveryCommand(
+                command_repository,
+                clock=lambda: datetime.now(timezone.utc),
+            ),
+            runtime=OrchestratorProductionDiscoveryRuntime(
+                currency_converter=currency_converter
+            ),
+            observation_identity_provider=(
+                ProductionObservationIdentityProvider()
+            ),
+            observation_repository=observation_repository,
+            finalized_group_identity_provider=(
+                ProductionFinalizedGroupIdentityProvider()
+            ),
+            group_finalization_clock=lambda: datetime.now(timezone.utc),
+            group_repository=group_repository,
+            discovery_completion_clock=lambda: datetime.now(timezone.utc),
+            result_repository=result_repository,
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="discovery persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
 
 
 def get_opportunity_decision_dashboard_provider():
@@ -674,6 +848,83 @@ def search_opportunities(
             for card in dashboard_cards
         ],
     }
+
+
+@app.post(
+    "/api/v1/discovery/executions",
+    response_model=AuthoritativeDiscoveryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def execute_authoritative_discovery(
+    request: AuthoritativeDiscoveryRequest,
+    response: Response,
+    entry: PersistedDiscoveryExecutionEntry = Depends(
+        get_authoritative_discovery_entry
+    ),
+) -> AuthoritativeDiscoveryResponse:
+    try:
+        result = entry.execute(request.to_command())
+    except (
+        DiscoveryReplayConflict,
+        DuplicateDiscoveryExecutionError,
+        DuplicateDiscoveryObservationError,
+        DiscoveryObservationConflictError,
+        DuplicateFinalizedGroupError,
+        DiscoveryGroupConflictError,
+        DiscoveryGroupMembershipError,
+        DiscoveryExecutionIdentityConflictError,
+        DiscoveryExecutionNotFoundError,
+        DiscoveryExecutionReplayConflict,
+        MissingDiscoveryCommand,
+        DiscoveryRuntimeCorrelationError,
+        DiscoveryCompletionReplayError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ExchangeRateNotFoundError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except DiscoveryPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="discovery persistence unavailable",
+        ) from error
+    except ExchangeRateProviderError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="discovery currency conversion failed",
+        ) from error
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="authoritative discovery execution failed",
+        ) from error
+
+    if result.completion_replayed:
+        response.status_code = status.HTTP_200_OK
+    execution_result = result.execution_result
+    return AuthoritativeDiscoveryResponse(
+        command_id=execution_result.command_id,
+        discovery_execution_id=execution_result.discovery_execution_id,
+        completed_at=execution_result.completed_at,
+        is_zero_result=execution_result.is_zero_result,
+        completion_replayed=result.completion_replayed,
+        finalized_groups=tuple(
+            AuthoritativeFinalizedGroupResponse(
+                finalized_group_id=group.finalized_group_id,
+                discovery_execution_id=group.discovery_execution_id,
+                observation_ids=group.observation_ids,
+                representative_observation_id=(
+                    group.representative_observation_id
+                ),
+                grouping_policy_version=group.grouping_policy_version,
+                finalized_at=group.finalized_at,
+            )
+            for group in result.finalized_groups
+        ),
+    )
 
 
 @app.get("/api/v1/opportunities/{opportunity_id}/decision-dashboard")
