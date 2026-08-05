@@ -7,6 +7,9 @@ from typing import Any
 
 from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand
+from app.application.discovery.production_execution import (
+    ProductionDiscoveryRuntimeResult,
+)
 from app.infrastructure.discovery.orchestrator_gateway import (
     opportunity_result_to_discovery_result,
 )
@@ -36,21 +39,16 @@ class OrchestratorProductionDiscoveryRuntime:
         self._opportunity_history_repository = opportunity_history_repository
         self._ai_memory_history = ai_memory_history
         self._currency_converter = currency_converter
-        self._collection_facts: list[CollectionFact] = []
-
-    @property
-    def collection_facts(self) -> tuple[CollectionFact, ...]:
-        return tuple(self._collection_facts)
 
     def execute(
         self,
         command: DiscoveryCommand,
-    ) -> tuple[DiscoveryResult, ...]:
+    ) -> ProductionDiscoveryRuntimeResult:
         if not isinstance(command, DiscoveryCommand):
             raise TypeError("command must be DiscoveryCommand")
 
         parameters = command.parameters
-        self._collection_facts.clear()
+        collection_facts: list[CollectionFact] = []
         opportunities = self._finder(
             query=parameters.query,
             selling_price_multiplier=float(
@@ -86,12 +84,16 @@ class OrchestratorProductionDiscoveryRuntime:
             ai_memory_history=self._ai_memory_history,
             currency_converter=self._currency_converter,
             target_currency=parameters.target_currency,
-            collection_fact_sink=self._collection_facts.append,
+            collection_fact_sink=collection_facts.append,
         )
 
-        return tuple(
-            opportunity_result_to_discovery_result(opportunity)
-            for opportunity in opportunities
+        return ProductionDiscoveryRuntimeResult(
+            discovery_execution_id=command.discovery_execution_id,
+            discovery_results=tuple(
+                opportunity_result_to_discovery_result(opportunity)
+                for opportunity in opportunities
+            ),
+            collection_facts=tuple(collection_facts),
         )
 
 
