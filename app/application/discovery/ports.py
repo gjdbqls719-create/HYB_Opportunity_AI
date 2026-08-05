@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from app.domain.discovery import DiscoveryResult
+
+
+@runtime_checkable
+class ObservationIdentityProvider(Protocol):
+    """Supplies an authoritative opaque identity for one observation."""
+
+    def provide_observation_id(self) -> str: ...
 
 
 class OpportunityDiscoveryGateway(Protocol):

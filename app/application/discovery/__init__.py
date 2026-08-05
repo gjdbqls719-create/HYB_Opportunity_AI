@@ -2,7 +2,10 @@ from app.application.discovery.discover_opportunities import (
     DiscoverOpportunitiesResponse,
     DiscoverOpportunitiesUseCase,
 )
-from app.application.discovery.ports import OpportunityDiscoveryGateway
+from app.application.discovery.ports import (
+    ObservationIdentityProvider,
+    OpportunityDiscoveryGateway,
+)
 from app.application.discovery.production_execution import (
     DiscoveryRuntimeCorrelationError,
     PersistedDiscoveryExecutionEntry,
@@ -30,6 +33,7 @@ __all__ = [
     "DiscoverySessionStatus",
     "DiscoveryStatistics",
     "DiscoveryRuntimeCorrelationError",
+    "ObservationIdentityProvider",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",
     "ProductionDiscoveryRuntime",
