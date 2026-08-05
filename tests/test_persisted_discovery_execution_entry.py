@@ -199,6 +199,11 @@ class RecordingDiscoveryCompletionClock:
 class RecordingResultRepository:
     def __init__(self) -> None:
         self.calls = []
+        self.lookups = []
+
+    def get_by_command(self, command_id):
+        self.lookups.append(command_id)
+        return None
 
     def save_result(self, result):
         self.calls.append(result)

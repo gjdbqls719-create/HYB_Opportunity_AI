@@ -40,6 +40,10 @@ class DiscoveryRuntimeCorrelationError(RuntimeError):
     pass
 
 
+class DiscoveryCompletionReplayError(RuntimeError):
+    pass
+
+
 CollectionCheckpointHandler = Callable[[tuple[CollectionFact, ...]], None]
 
 
@@ -150,6 +154,7 @@ class PersistedDiscoveryExecutionResult:
     execution_result: DiscoveryExecutionResult
     grouping_correlations: tuple[GroupingCorrelation, ...] = ()
     finalized_groups: tuple[FinalizedProductGroup, ...] = ()
+    completion_replayed: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.command_result, PersistDiscoveryCommandResult):
@@ -206,6 +211,8 @@ class PersistedDiscoveryExecutionResult:
             raise TypeError(
                 "finalized_groups must contain FinalizedProductGroup values"
             )
+        if not isinstance(self.completion_replayed, bool):
+            raise TypeError("completion_replayed must be bool")
 
 
 class PersistedDiscoveryExecutionEntry:
@@ -256,6 +263,90 @@ class PersistedDiscoveryExecutionEntry:
         self._discovery_completion_clock = discovery_completion_clock
         self._result_repository = result_repository
 
+    def _completed_replay_response(
+        self,
+        command_result: PersistDiscoveryCommandResult,
+        execution_result: DiscoveryExecutionResult,
+    ) -> PersistedDiscoveryExecutionResult:
+        committed_command = command_result.command
+        if (
+            execution_result.command_id != committed_command.command_id
+            or execution_result.discovery_execution_id
+            != committed_command.discovery_execution_id
+        ):
+            raise DiscoveryCompletionReplayError(
+                "completed result execution identity conflicts with committed command"
+            )
+
+        observations = self._observation_repository.get_by_execution(
+            execution_result.discovery_execution_id
+        )
+        if not isinstance(observations, tuple) or not all(
+            isinstance(observation, CollectedProductObservation)
+            for observation in observations
+        ):
+            raise DiscoveryCompletionReplayError(
+                "observation repository returned malformed replay lineage"
+            )
+        if any(
+            observation.discovery_execution_id
+            != execution_result.discovery_execution_id
+            for observation in observations
+        ):
+            raise DiscoveryCompletionReplayError(
+                "observation execution conflicts with completed result"
+            )
+        observations_by_id = {
+            observation.observation_id: observation
+            for observation in observations
+        }
+        if len(observations_by_id) != len(observations):
+            raise DiscoveryCompletionReplayError(
+                "completed replay contains duplicate observation identity"
+            )
+
+        finalized_groups = []
+        for finalized_group_id in execution_result.finalized_group_ids:
+            group = self._group_repository.get_group(finalized_group_id)
+            if group is None:
+                raise DiscoveryCompletionReplayError(
+                    "completed result references a missing finalized group"
+                )
+            if not isinstance(group, FinalizedProductGroup):
+                raise DiscoveryCompletionReplayError(
+                    "group repository returned malformed replay lineage"
+                )
+            if group.finalized_group_id != finalized_group_id:
+                raise DiscoveryCompletionReplayError(
+                    "group repository returned conflicting finalized group identity"
+                )
+            if (
+                group.discovery_execution_id
+                != execution_result.discovery_execution_id
+            ):
+                raise DiscoveryCompletionReplayError(
+                    "group execution conflicts with completed result"
+                )
+            if any(
+                observation_id not in observations_by_id
+                for observation_id in group.observation_ids
+            ):
+                raise DiscoveryCompletionReplayError(
+                    "finalized group references a missing observation"
+                )
+            finalized_groups.append(group)
+
+        return PersistedDiscoveryExecutionResult(
+            command_result=command_result,
+            discovery_results=(),
+            collection_facts=(),
+            observations=observations,
+            execution_result=execution_result,
+            grouping_correlations=(),
+            finalized_groups=tuple(finalized_groups),
+            completion_replayed=True,
+        )
+
     def execute(
         self,
         command: DiscoveryCommand,
@@ -264,6 +355,19 @@ class PersistedDiscoveryExecutionEntry:
             raise TypeError("command must be DiscoveryCommand")
 
         command_result = self._persist_command.execute(command)
+        if command_result.replayed:
+            completed_result = self._result_repository.get_by_command(
+                command_result.command.command_id
+            )
+            if completed_result is not None:
+                if not isinstance(completed_result, DiscoveryExecutionResult):
+                    raise DiscoveryCompletionReplayError(
+                        "result repository returned malformed completion"
+                    )
+                return self._completed_replay_response(
+                    command_result,
+                    completed_result,
+                )
         persisted_observations: tuple[CollectedProductObservation, ...] = ()
         checkpointed_grouping_correlations: tuple[GroupingCorrelation, ...] = ()
         finalized_groups: tuple[FinalizedProductGroup, ...] = ()
@@ -349,6 +453,7 @@ class PersistedDiscoveryExecutionEntry:
 
 __all__ = [
     "CollectionCheckpointHandler",
+    "DiscoveryCompletionReplayError",
     "DiscoveryRuntimeCorrelationError",
     "GroupingCorrelation",
     "GroupingCheckpointHandler",

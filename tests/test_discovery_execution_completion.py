@@ -351,7 +351,8 @@ def test_sqlite_completion_replay_conflict_restart_and_append_only(tmp_path) -> 
     )
     replayed = application.execute(command())
     assert replayed.command_result.replayed is True
-    assert replay_runtime.calls == [command()]
+    assert replay_runtime.calls == []
+    assert replayed.completion_replayed is True
     assert replayed.execution_result == persisted
     results = repositories[-1]
     assert results._connection.execute(
@@ -365,12 +366,12 @@ def test_sqlite_completion_replay_conflict_restart_and_append_only(tmp_path) -> 
             results._connection.execute(statement)
     close_all(*repositories)
 
-    application, *repositories = sqlite_entry(
-        path,
-        CheckpointRuntime([]),
-        completed_at=COMPLETED_AT + timedelta(minutes=1),
-        replay=True,
-    )
+    results = SQLiteDiscoveryResultRepository(path)
     with pytest.raises(DiscoveryExecutionReplayConflict):
-        application.execute(command())
-    close_all(*repositories)
+        results.save_result(
+            replace(
+                persisted,
+                completed_at=COMPLETED_AT + timedelta(minutes=1),
+            )
+        )
+    results.close()

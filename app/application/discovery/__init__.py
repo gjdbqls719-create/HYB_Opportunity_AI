@@ -11,6 +11,7 @@ from app.application.discovery.ports import (
 )
 from app.application.discovery.production_execution import (
     CollectionCheckpointHandler,
+    DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
     GroupingCorrelation,
     GroupingCheckpointHandler,
@@ -40,6 +41,7 @@ __all__ = [
     "DiscoverySessionStatus",
     "DiscoveryStatistics",
     "DiscoveryRuntimeCorrelationError",
+    "DiscoveryCompletionReplayError",
     "DiscoveryCompletionClock",
     "FinalizedGroupIdentityProvider",
     "GroupFinalizationClock",
