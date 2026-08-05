@@ -8,7 +8,11 @@ import hashlib
 import json
 from typing import Callable, Protocol
 
-from app.application.candidate_promotion import CandidateOpportunityBinding
+from app.application.candidate_promotion import (
+    CandidateOpportunityBinding,
+    CandidatePromotionRepository,
+)
+from app.application.price_analysis import PriceAnalysisRepository
 from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.economics_calculation_snapshot import (
@@ -91,6 +95,27 @@ class CalculateAndPersistEconomicsCommand:
 
 
 @dataclass(frozen=True,slots=True)
+class EconomicsSnapshotProductionRequest:
+    command_id:str
+    opportunity_id:str
+    price_analysis_command_id:str
+    calculation_parameters:EconomicsCalculationParameters
+    calculation_version:str
+    requested_at:datetime
+    def __post_init__(self):
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "price_analysis_command_id",
+            "calculation_version",
+        ):
+            object.__setattr__(self,name,_text(getattr(self,name),name))
+        if not isinstance(self.calculation_parameters,EconomicsCalculationParameters):
+            raise TypeError("calculation_parameters must be EconomicsCalculationParameters")
+        _aware(self.requested_at,"requested_at")
+
+
+@dataclass(frozen=True,slots=True)
 class EconomicsCalculationReceipt:
     command_id:str;opportunity_id:str;candidate_id:str;candidate_opportunity_binding_id:str
     price_intelligence_snapshot_id:str;verified_economics_opportunity_id:str
@@ -143,5 +168,57 @@ class CalculateAndPersistEconomics:
         snapshot=EconomicsCalculationSnapshot(snapshot_id,OpportunityIdentity(command.source.opportunity_id,sources.binding.discovery_reference),command.source.market_observation_identity,command.source.candidate_opportunity_binding_id,command.source.candidate_id,command.source.price_intelligence_snapshot_id,command.source.verified_economics_opportunity_id,result.inputs.expected_sale_price,result.marketplace_fee,result.payment_fee,result.tax_cost,result.landed_cost,result.selling_cost,result.total_cost,result.net_profit,result.roi,result.landed_cost_roi,result.margin_rate,MoneyInput(None,result.inputs.currency,evidence),profitability,p,EconomicsAnalysisSnapshot.from_runtime(result.analysis),command.calculation_version,generated_at)
         receipt=EconomicsCalculationReceipt(command.command_id,command.source.opportunity_id,command.source.candidate_id,command.source.candidate_opportunity_binding_id,command.source.price_intelligence_snapshot_id,command.source.verified_economics_opportunity_id,command.source.price_analysis_command_id,snapshot_id,command.fingerprint,command.calculation_version,command.requested_at,generated_at,committed_at)
         return self._repository.save_result(command,snapshot,receipt)
+
+
+class EconomicsSnapshotProductionEntry:
+    """Composes persisted promotion and Price facts with the Economics owner."""
+
+    def __init__(self,*,promotion_repository:CandidatePromotionRepository,
+                 price_analysis_repository:PriceAnalysisRepository,
+                 economics_repository:EconomicsOwnerRepository,
+                 snapshot_id_generator:Callable[[],str],
+                 generated_clock:Callable[[],datetime],
+                 receipt_clock:Callable[[],datetime],
+                 calculator:Callable[...,EconomicsCalculation]=calculate_verified_economics):
+        self._promotions=promotion_repository
+        self._prices=price_analysis_repository
+        self._calculate=CalculateAndPersistEconomics(
+            economics_repository,snapshot_id_generator=snapshot_id_generator,
+            generated_clock=generated_clock,receipt_clock=receipt_clock,
+            calculator=calculator)
+
+    def execute(self,request:EconomicsSnapshotProductionRequest)->EconomicsOwnerResult:
+        if not isinstance(request,EconomicsSnapshotProductionRequest):
+            raise TypeError("request must be EconomicsSnapshotProductionRequest")
+        binding=self._promotions.get_promotion_by_opportunity(request.opportunity_id)
+        if binding is None:
+            raise EconomicsCalculationSourceNotFoundError("persisted Opportunity promotion is missing")
+        if binding.opportunity_id!=request.opportunity_id:
+            raise EconomicsCalculationBindingConflictError("Opportunity promotion binding differs")
+        price_receipt=self._prices.get_receipt(request.price_analysis_command_id)
+        if price_receipt is None:
+            raise EconomicsCalculationSourceNotFoundError("persisted Price analysis is missing")
+        price_result=self._prices.get_result(price_receipt)
+        price_snapshot=price_result.snapshot
+        if price_snapshot.candidate_identity.candidate_id!=binding.candidate_id:
+            raise EconomicsCalculationPriceSourceConflictError("Price source Candidate differs")
+        if price_snapshot.market_observation_identity!=binding.market_observation_identity:
+            raise EconomicsCalculationMarketIdentityConflictError("Price source Market identity differs")
+        source=EconomicsCalculationSourceContext(
+            opportunity_id=binding.opportunity_id,
+            candidate_opportunity_binding_id=binding.binding_id,
+            candidate_id=binding.candidate_id,
+            price_intelligence_snapshot_id=price_snapshot.snapshot_id,
+            price_analysis_command_id=price_receipt.command_id,
+            verified_economics_opportunity_id=binding.opportunity_id,
+            market_observation_identity=binding.market_observation_identity,
+            economics_calculation_command_id=request.command_id,
+            requested_at=request.requested_at)
+        command=CalculateAndPersistEconomicsCommand(
+            command_id=request.command_id,source=source,
+            calculation_parameters=request.calculation_parameters,
+            calculation_version=request.calculation_version,
+            requested_at=request.requested_at)
+        return self._calculate.execute(command)
 
 __all__=[name for name in globals() if name.startswith("Economics") or name.startswith("CalculateAnd") or name.startswith("MalformedEconomics") or name.startswith("UnsupportedEconomics")]
