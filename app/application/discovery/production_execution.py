@@ -9,6 +9,7 @@ from typing import Protocol
 from app.application.discovery_persistence import (
     DiscoveryGroupRepository,
     DiscoveryObservationRepository,
+    DiscoveryResultRepository,
     PersistDiscoveryCommand,
     PersistDiscoveryCommandResult,
 )
@@ -19,6 +20,7 @@ from app.application.discovery.group_finalization import (
     assemble_finalized_product_groups,
 )
 from app.application.discovery.ports import (
+    DiscoveryCompletionClock,
     FinalizedGroupIdentityProvider,
     GroupFinalizationClock,
     ObservationIdentityProvider,
@@ -27,6 +29,7 @@ from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import (
     CollectedProductObservation,
     DiscoveryCommand,
+    DiscoveryExecutionResult,
     FinalizedProductGroup,
 )
 from collectors.collection_fact import CollectionFact
@@ -144,6 +147,7 @@ class PersistedDiscoveryExecutionResult:
     discovery_results: tuple[DiscoveryResult, ...]
     collection_facts: tuple[CollectionFact, ...]
     observations: tuple[CollectedProductObservation, ...]
+    execution_result: DiscoveryExecutionResult
     grouping_correlations: tuple[GroupingCorrelation, ...] = ()
     finalized_groups: tuple[FinalizedProductGroup, ...] = ()
 
@@ -191,6 +195,8 @@ class PersistedDiscoveryExecutionResult:
             raise TypeError(
                 "observations must contain CollectedProductObservation values"
             )
+        if not isinstance(self.execution_result, DiscoveryExecutionResult):
+            raise TypeError("execution_result must be DiscoveryExecutionResult")
         if not isinstance(self.finalized_groups, tuple):
             raise TypeError("finalized_groups must be tuple")
         if not all(
@@ -215,6 +221,8 @@ class PersistedDiscoveryExecutionEntry:
         finalized_group_identity_provider: FinalizedGroupIdentityProvider,
         group_finalization_clock: GroupFinalizationClock,
         group_repository: DiscoveryGroupRepository,
+        discovery_completion_clock: DiscoveryCompletionClock,
+        result_repository: DiscoveryResultRepository,
     ) -> None:
         if not isinstance(observation_identity_provider, ObservationIdentityProvider):
             raise TypeError(
@@ -232,6 +240,10 @@ class PersistedDiscoveryExecutionEntry:
             raise TypeError(
                 "group_finalization_clock must be GroupFinalizationClock"
             )
+        if not isinstance(discovery_completion_clock, DiscoveryCompletionClock):
+            raise TypeError(
+                "discovery_completion_clock must be DiscoveryCompletionClock"
+            )
         self._persist_command = persist_command
         self._runtime = runtime
         self._observation_identity_provider = observation_identity_provider
@@ -241,6 +253,8 @@ class PersistedDiscoveryExecutionEntry:
         )
         self._group_finalization_clock = group_finalization_clock
         self._group_repository = group_repository
+        self._discovery_completion_clock = discovery_completion_clock
+        self._result_repository = result_repository
 
     def execute(
         self,
@@ -308,11 +322,26 @@ class PersistedDiscoveryExecutionEntry:
                 "runtime execution identity conflicts with committed command"
             )
 
+        execution_result = DiscoveryExecutionResult(
+            command_id=command_result.command.command_id,
+            discovery_execution_id=(
+                command_result.command.discovery_execution_id
+            ),
+            finalized_group_ids=tuple(
+                group.finalized_group_id for group in finalized_groups
+            ),
+            completed_at=self._discovery_completion_clock(),
+        )
+        persisted_execution_result = self._result_repository.save_result(
+            execution_result
+        )
+
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
             discovery_results=runtime_result.discovery_results,
             collection_facts=runtime_result.collection_facts,
             observations=persisted_observations,
+            execution_result=persisted_execution_result,
             grouping_correlations=checkpointed_grouping_correlations,
             finalized_groups=finalized_groups,
         )

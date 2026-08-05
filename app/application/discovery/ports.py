@@ -27,6 +27,13 @@ class GroupFinalizationClock(Protocol):
     def __call__(self) -> datetime: ...
 
 
+@runtime_checkable
+class DiscoveryCompletionClock(Protocol):
+    """Supplies the authoritative completion time for one Discovery execution."""
+
+    def __call__(self) -> datetime: ...
+
+
 class OpportunityDiscoveryGateway(Protocol):
     """Application Layer가 기회 탐색 구현에 요구하는 최소 규약."""
 

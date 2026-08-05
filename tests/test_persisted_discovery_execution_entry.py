@@ -187,6 +187,24 @@ class RecordingGroupRepository:
         return group
 
 
+class RecordingDiscoveryCompletionClock:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self) -> datetime:
+        self.calls += 1
+        return NOW
+
+
+class RecordingResultRepository:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def save_result(self, result):
+        self.calls.append(result)
+        return result
+
+
 def finalization_dependencies():
     return {
         "finalized_group_identity_provider": (
@@ -194,6 +212,8 @@ def finalization_dependencies():
         ),
         "group_finalization_clock": RecordingGroupFinalizationClock(),
         "group_repository": RecordingGroupRepository(),
+        "discovery_completion_clock": RecordingDiscoveryCompletionClock(),
+        "result_repository": RecordingResultRepository(),
     }
 
 

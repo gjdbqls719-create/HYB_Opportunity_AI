@@ -25,9 +25,11 @@ from tests.test_discovery_phase_checkpoints import (
     CheckpointRuntime,
 )
 from tests.test_persisted_discovery_execution_entry import (
+    RecordingDiscoveryCompletionClock,
     RecordingGroupRepository,
     RecordingObservationIdentityProvider,
     RecordingPersister,
+    RecordingResultRepository,
     command,
 )
 
@@ -261,6 +263,8 @@ def test_entry_assembles_and_persists_groups_at_checkpoint() -> None:
         finalized_group_identity_provider=identity_provider,
         group_finalization_clock=clock,
         group_repository=RecordingGroupRepository(events),
+        discovery_completion_clock=RecordingDiscoveryCompletionClock(),
+        result_repository=RecordingResultRepository(),
     ).execute(command())
 
     assert events == [

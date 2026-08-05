@@ -3,6 +3,7 @@ from app.application.discovery.discover_opportunities import (
     DiscoverOpportunitiesUseCase,
 )
 from app.application.discovery.ports import (
+    DiscoveryCompletionClock,
     FinalizedGroupIdentityProvider,
     GroupFinalizationClock,
     ObservationIdentityProvider,
@@ -39,6 +40,7 @@ __all__ = [
     "DiscoverySessionStatus",
     "DiscoveryStatistics",
     "DiscoveryRuntimeCorrelationError",
+    "DiscoveryCompletionClock",
     "FinalizedGroupIdentityProvider",
     "GroupFinalizationClock",
     "GroupingCorrelation",

@@ -30,8 +30,10 @@ from tests.test_discovery_phase_checkpoints import (
 )
 from tests.test_persisted_discovery_execution_entry import (
     NOW,
+    RecordingDiscoveryCompletionClock,
     RecordingObservationIdentityProvider,
     RecordingPersister,
+    RecordingResultRepository,
     command,
 )
 
@@ -72,6 +74,8 @@ def entry(events, runtime, group_repository):
             FINALIZED_AT + timedelta(seconds=1),
         ),
         group_repository=group_repository,
+        discovery_completion_clock=RecordingDiscoveryCompletionClock(),
+        result_repository=RecordingResultRepository(),
     )
 
 
@@ -123,6 +127,8 @@ def test_zero_finalized_groups_does_not_call_repository() -> None:
         ),
         group_finalization_clock=RecordingGroupFinalizationClock(),
         group_repository=repository,
+        discovery_completion_clock=RecordingDiscoveryCompletionClock(),
+        result_repository=RecordingResultRepository(),
     ).execute(command())
 
     assert result.finalized_groups == ()
@@ -171,6 +177,8 @@ def sqlite_entry(path, runtime, *, finalized_at=FINALIZED_AT, replay=False):
         ),
         group_finalization_clock=RecordingGroupFinalizationClock(finalized_at),
         group_repository=groups,
+        discovery_completion_clock=RecordingDiscoveryCompletionClock(),
+        result_repository=RecordingResultRepository(),
     )
     return application, commands, observations, groups
 
