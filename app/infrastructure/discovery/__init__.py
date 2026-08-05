@@ -20,6 +20,7 @@ from app.infrastructure.discovery.orchestrator_gateway import (
     OrchestratorOpportunityDiscoveryGateway,
 )
 from app.infrastructure.discovery.identity_suppliers import (
+    ProductionCandidateIdentityGenerator,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
 )
@@ -27,6 +28,7 @@ from app.infrastructure.discovery.identity_suppliers import (
 __all__ = [
     "OrchestratorOpportunityDiscoveryGateway",
     "OrchestratorProductionDiscoveryRuntime",
+    "ProductionCandidateIdentityGenerator",
     "ProductionFinalizedGroupIdentityProvider",
     "ProductionObservationIdentityProvider",
     "SQLiteDiscoveryCommandRepository",
