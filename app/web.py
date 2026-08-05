@@ -131,6 +131,18 @@ from app.application.price_analysis import (
     PriceAnalysisProductOrderConflictError,
     PriceAnalysisSourceNotFoundError,
 )
+from app.application.economics_calculation_owner import (
+    EconomicsCalculationBindingConflictError,
+    EconomicsCalculationCommandConflictError,
+    EconomicsCalculationExecutionError,
+    EconomicsCalculationMarketIdentityConflictError,
+    EconomicsCalculationOwnerPersistenceError,
+    EconomicsCalculationPriceSourceConflictError,
+    EconomicsCalculationSourceNotFoundError,
+    EconomicsCalculationVerifiedSourceConflictError,
+    EconomicsSnapshotProductionEntry,
+    EconomicsSnapshotProductionRequest,
+)
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
@@ -216,6 +228,7 @@ from app.domain.opportunity import (
     RateInput,
     VerifiedEconomicsInput,
 )
+from app.domain.economics_calculation_snapshot import EconomicsCalculationParameters
 from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
 from app.infrastructure.discovery import (
     OrchestratorProductionDiscoveryRuntime,
@@ -241,6 +254,10 @@ from app.infrastructure.price_intelligence import (
     ProductionPriceSnapshotIdentityGenerator,
     SQLitePriceAnalysisRepository,
 )
+from app.infrastructure.economics_calculation import (
+    ProductionEconomicsSnapshotIdentityGenerator,
+    SQLiteEconomicsCalculationOwnerRepository,
+)
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review import (
@@ -256,6 +273,7 @@ from services.currency import (
     FrankfurterExchangeRateProvider,
 )
 from engine.price_intelligence import analyze_product_prices
+from engine.opportunity import calculate_verified_economics
 
 
 PROJECT_NAME = "HYB Opportunity AI"
@@ -705,6 +723,87 @@ class PriceAnalysisResponse(BaseModel):
     replayed: bool
 
 
+class EconomicsCalculationParametersRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    marketplace: str = Field(min_length=1)
+    minimum_net_profit: Decimal
+    minimum_roi: Decimal
+    estimated_monthly_sales: int = Field(ge=0)
+    competitor_count: int = Field(ge=0)
+    risk_level: str = Field(min_length=1)
+    context_items: tuple[tuple[str, Any], ...] = ()
+
+    def to_domain(self) -> EconomicsCalculationParameters:
+        return EconomicsCalculationParameters(
+            marketplace=self.marketplace,
+            minimum_net_profit=self.minimum_net_profit,
+            minimum_roi=self.minimum_roi,
+            estimated_monthly_sales=self.estimated_monthly_sales,
+            competitor_count=self.competitor_count,
+            risk_level=self.risk_level,
+            context_items=self.context_items,
+        )
+
+
+class EconomicsSnapshotRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    opportunity_id: str = Field(min_length=1)
+    price_analysis_command_id: str = Field(min_length=1)
+    calculation_parameters: EconomicsCalculationParametersRequest
+    calculation_version: str = Field(min_length=1)
+    requested_at: datetime
+
+    def to_application_request(self) -> EconomicsSnapshotProductionRequest:
+        return EconomicsSnapshotProductionRequest(
+            command_id=self.command_id,
+            opportunity_id=self.opportunity_id,
+            price_analysis_command_id=self.price_analysis_command_id,
+            calculation_parameters=self.calculation_parameters.to_domain(),
+            calculation_version=self.calculation_version,
+            requested_at=self.requested_at,
+        )
+
+
+class EconomicsSnapshotResponse(BaseModel):
+    command_id: str
+    opportunity_id: str
+    discovery_reference: str
+    candidate_id: str
+    candidate_opportunity_binding_id: str
+    price_analysis_command_id: str
+    price_intelligence_snapshot_id: str
+    verified_economics_opportunity_id: str
+    economics_snapshot_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    calculation_parameters: EconomicsCalculationParametersRequest
+    calculation_version: str
+    requested_at: datetime
+    generated_at: datetime
+    committed_at: datetime
+    currency: str
+    revenue: Decimal | None
+    marketplace_fee: Decimal | None
+    payment_fee: Decimal | None
+    tax_cost: Decimal | None
+    landed_cost: Decimal | None
+    selling_cost: Decimal | None
+    total_cost: Decimal | None
+    net_profit: Decimal | None
+    break_even: Decimal | None
+    roi: Decimal
+    landed_cost_roi: Decimal
+    margin_rate: Decimal
+    minimum_net_profit: Decimal
+    minimum_roi: Decimal
+    passes_net_profit_filter: bool
+    passes_roi_filter: bool
+    passes_profitability_filter: bool
+    replayed: bool
+
+
 class ReviewCommandContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1002,6 +1101,43 @@ def get_candidate_price_analysis_entry():
         raise HTTPException(
             status_code=503,
             detail="price analysis persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_economics_snapshot_entry():
+    resources = ExitStack()
+    try:
+        promotion_repository = SQLiteCandidatePromotionRepository(
+            DEFAULT_DATABASE_PATH
+        )
+        resources.callback(promotion_repository.close)
+        price_analysis_repository = resources.enter_context(
+            SQLitePriceAnalysisRepository(DEFAULT_DATABASE_PATH)
+        )
+        economics_repository = resources.enter_context(
+            SQLiteEconomicsCalculationOwnerRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = EconomicsSnapshotProductionEntry(
+            promotion_repository=promotion_repository,
+            price_analysis_repository=price_analysis_repository,
+            economics_repository=economics_repository,
+            snapshot_id_generator=ProductionEconomicsSnapshotIdentityGenerator(),
+            generated_clock=lambda: datetime.now(timezone.utc),
+            receipt_clock=lambda: datetime.now(timezone.utc),
+            calculator=calculate_verified_economics,
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="economics persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -1789,6 +1925,113 @@ def analyze_candidate_prices(
         price_stability_level=snapshot.price_stability_level,
         recommended_selling_price=snapshot.recommended_selling_price,
         sample_size=snapshot.sample_size,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/economics",
+    response_model=EconomicsSnapshotResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def calculate_opportunity_economics(
+    request: EconomicsSnapshotRequest,
+    response: Response,
+    entry: EconomicsSnapshotProductionEntry = Depends(
+        get_economics_snapshot_entry
+    ),
+) -> EconomicsSnapshotResponse:
+    try:
+        result = entry.execute(request.to_application_request())
+    except EconomicsCalculationSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsCalculationBindingConflictError,
+        EconomicsCalculationCommandConflictError,
+        EconomicsCalculationMarketIdentityConflictError,
+        EconomicsCalculationPriceSourceConflictError,
+        EconomicsCalculationVerifiedSourceConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except EconomicsCalculationExecutionError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except EconomicsCalculationOwnerPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="economics persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    snapshot = result.snapshot
+    receipt = result.receipt
+    identity = snapshot.market_observation_identity
+    parameters = snapshot.calculation_parameters
+    profitability = snapshot.profitability_result
+    return EconomicsSnapshotResponse(
+        command_id=receipt.command_id,
+        opportunity_id=receipt.opportunity_id,
+        discovery_reference=snapshot.opportunity_identity.discovery_reference,
+        candidate_id=receipt.candidate_id,
+        candidate_opportunity_binding_id=(
+            receipt.candidate_opportunity_binding_id
+        ),
+        price_analysis_command_id=receipt.price_analysis_command_id,
+        price_intelligence_snapshot_id=(
+            receipt.price_intelligence_snapshot_id
+        ),
+        verified_economics_opportunity_id=(
+            receipt.verified_economics_opportunity_id
+        ),
+        economics_snapshot_id=snapshot.snapshot_id,
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        calculation_parameters=EconomicsCalculationParametersRequest(
+            marketplace=parameters.marketplace,
+            minimum_net_profit=parameters.minimum_net_profit,
+            minimum_roi=parameters.minimum_roi,
+            estimated_monthly_sales=parameters.estimated_monthly_sales,
+            competitor_count=parameters.competitor_count,
+            risk_level=parameters.risk_level,
+            context_items=parameters.context_items,
+        ),
+        calculation_version=receipt.calculation_version,
+        requested_at=receipt.requested_at,
+        generated_at=snapshot.generated_at,
+        committed_at=receipt.committed_at,
+        currency=snapshot.revenue.currency,
+        revenue=snapshot.revenue.amount,
+        marketplace_fee=snapshot.marketplace_fee.amount,
+        payment_fee=snapshot.payment_fee.amount,
+        tax_cost=snapshot.tax_cost.amount,
+        landed_cost=snapshot.landed_cost.amount,
+        selling_cost=snapshot.selling_cost.amount,
+        total_cost=snapshot.total_cost.amount,
+        net_profit=snapshot.net_profit.amount,
+        break_even=snapshot.break_even.amount,
+        roi=snapshot.roi,
+        landed_cost_roi=snapshot.landed_cost_roi,
+        margin_rate=snapshot.margin_rate,
+        minimum_net_profit=profitability.minimum_net_profit,
+        minimum_roi=profitability.minimum_roi,
+        passes_net_profit_filter=profitability.passes_net_profit_filter,
+        passes_roi_filter=profitability.passes_roi_filter,
+        passes_profitability_filter=profitability.passes_profitability_filter,
         replayed=result.replayed,
     )
 
