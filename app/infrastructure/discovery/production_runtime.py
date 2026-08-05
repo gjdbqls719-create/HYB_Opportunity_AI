@@ -10,6 +10,7 @@ from app.domain.discovery_identity import DiscoveryCommand
 from app.infrastructure.discovery.orchestrator_gateway import (
     opportunity_result_to_discovery_result,
 )
+from collectors.collection_fact import CollectionFact
 from engine.orchestrator import OpportunityResult, find_best_opportunities
 
 
@@ -35,6 +36,11 @@ class OrchestratorProductionDiscoveryRuntime:
         self._opportunity_history_repository = opportunity_history_repository
         self._ai_memory_history = ai_memory_history
         self._currency_converter = currency_converter
+        self._collection_facts: list[CollectionFact] = []
+
+    @property
+    def collection_facts(self) -> tuple[CollectionFact, ...]:
+        return tuple(self._collection_facts)
 
     def execute(
         self,
@@ -44,6 +50,7 @@ class OrchestratorProductionDiscoveryRuntime:
             raise TypeError("command must be DiscoveryCommand")
 
         parameters = command.parameters
+        self._collection_facts.clear()
         opportunities = self._finder(
             query=parameters.query,
             selling_price_multiplier=float(
@@ -79,6 +86,7 @@ class OrchestratorProductionDiscoveryRuntime:
             ai_memory_history=self._ai_memory_history,
             currency_converter=self._currency_converter,
             target_currency=parameters.target_currency,
+            collection_fact_sink=self._collection_facts.append,
         )
 
         return tuple(

@@ -212,6 +212,8 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
     results = runtime.execute(value)
 
     assert len(results) == 1
+    collection_fact_sink = calls[0].pop("collection_fact_sink")
+    assert callable(collection_fact_sink)
     assert calls == [
         {
             "query": "iphone 15 pro",
