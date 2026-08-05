@@ -157,6 +157,33 @@ class RecordingObservationRepository:
         return observation
 
 
+class RecordingFinalizedGroupIdentityProvider:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def provide_finalized_group_id(self) -> str:
+        self.calls += 1
+        return f"finalized-group-{self.calls}"
+
+
+class RecordingGroupFinalizationClock:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self) -> datetime:
+        self.calls += 1
+        return NOW
+
+
+def finalization_dependencies():
+    return {
+        "finalized_group_identity_provider": (
+            RecordingFinalizedGroupIdentityProvider()
+        ),
+        "group_finalization_clock": RecordingGroupFinalizationClock(),
+    }
+
+
 def test_entry_persists_before_runtime_and_returns_both_results() -> None:
     events: list[str] = []
     value = command()
@@ -168,6 +195,7 @@ def test_entry_persists_before_runtime_and_returns_both_results() -> None:
         runtime=runtime,
         observation_identity_provider=RecordingObservationIdentityProvider(),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(value)
 
     assert events == ["persist", "runtime"]
@@ -190,6 +218,7 @@ def test_entry_does_not_run_runtime_when_persistence_fails() -> None:
             runtime=runtime,
             observation_identity_provider=RecordingObservationIdentityProvider(),
             observation_repository=RecordingObservationRepository(),
+            **finalization_dependencies(),
         ).execute(command())
 
     assert events == ["persist"]
@@ -206,6 +235,7 @@ def test_entry_keeps_persisted_command_when_runtime_fails() -> None:
             runtime=RecordingRuntime(events, fail=RuntimeError("runtime failed")),
             observation_identity_provider=RecordingObservationIdentityProvider(),
             observation_repository=RecordingObservationRepository(),
+            **finalization_dependencies(),
         ).execute(command())
 
     assert events == ["persist", "runtime"]
@@ -228,6 +258,7 @@ def test_entry_passes_the_committed_replay_command_to_runtime() -> None:
         runtime=runtime,
         observation_identity_provider=RecordingObservationIdentityProvider(),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(requested)
 
     assert runtime.calls == [committed]
@@ -251,6 +282,7 @@ def test_entry_returns_collection_facts_without_changing_them() -> None:
             "observation-1", "observation-2"
         ),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(command())
 
     assert result.collection_facts is facts
@@ -268,6 +300,7 @@ def test_entry_rejects_runtime_execution_identity_mismatch() -> None:
             runtime=runtime,
             observation_identity_provider=RecordingObservationIdentityProvider(),
             observation_repository=RecordingObservationRepository(),
+            **finalization_dependencies(),
         ).execute(command())
 
     assert events == ["persist", "runtime"]

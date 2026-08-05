@@ -19,6 +19,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingPersister,
     RecordingRuntime,
     command,
+    finalization_dependencies,
     persist_result,
 )
 
@@ -78,6 +79,7 @@ def execute(runtime: RecordingRuntime, provider, *, persister=None):
         runtime=runtime,
         observation_identity_provider=provider,
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(command())
 
 
@@ -172,6 +174,7 @@ def test_replay_assembles_with_committed_command_execution_identity() -> None:
         runtime=runtime,
         observation_identity_provider=SequentialObservationIdentityProvider("opaque:1"),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(requested)
 
     assert runtime.calls == [committed]

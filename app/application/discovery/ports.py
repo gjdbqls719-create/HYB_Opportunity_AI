@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from app.domain.discovery import DiscoveryResult
@@ -10,6 +11,20 @@ class ObservationIdentityProvider(Protocol):
     """Supplies an authoritative opaque identity for one observation."""
 
     def provide_observation_id(self) -> str: ...
+
+
+@runtime_checkable
+class FinalizedGroupIdentityProvider(Protocol):
+    """Supplies one authoritative opaque finalized Group identity."""
+
+    def provide_finalized_group_id(self) -> str: ...
+
+
+@runtime_checkable
+class GroupFinalizationClock(Protocol):
+    """Supplies the authoritative time for one finalized Group."""
+
+    def __call__(self) -> datetime: ...
 
 
 class OpportunityDiscoveryGateway(Protocol):

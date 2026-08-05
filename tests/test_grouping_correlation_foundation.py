@@ -24,6 +24,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingPersister,
     RecordingRuntime,
     command,
+    finalization_dependencies,
 )
 
 
@@ -167,6 +168,7 @@ def test_runtime_and_application_return_the_same_grouping_correlations() -> None
             "observation-1", "observation-2"
         ),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(command())
 
     assert result.grouping_correlations is correlations
@@ -198,6 +200,7 @@ def test_replay_keeps_committed_command_and_grouping_correlation_semantics() -> 
             "observation-1"
         ),
         observation_repository=RecordingObservationRepository(),
+        **finalization_dependencies(),
     ).execute(command())
 
     assert runtime.calls == [command()]

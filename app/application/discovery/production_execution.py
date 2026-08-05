@@ -14,9 +14,20 @@ from app.application.discovery_persistence import (
 from app.application.discovery.observation_assembly import (
     assemble_collected_product_observations,
 )
-from app.application.discovery.ports import ObservationIdentityProvider
+from app.application.discovery.group_finalization import (
+    assemble_finalized_product_groups,
+)
+from app.application.discovery.ports import (
+    FinalizedGroupIdentityProvider,
+    GroupFinalizationClock,
+    ObservationIdentityProvider,
+)
 from app.domain.discovery import DiscoveryResult
-from app.domain.discovery_identity import CollectedProductObservation, DiscoveryCommand
+from app.domain.discovery_identity import (
+    CollectedProductObservation,
+    DiscoveryCommand,
+    FinalizedProductGroup,
+)
 from collectors.collection_fact import CollectionFact
 from engine.grouping_policy import GroupingPolicyDescriptor
 
@@ -133,6 +144,7 @@ class PersistedDiscoveryExecutionResult:
     collection_facts: tuple[CollectionFact, ...]
     observations: tuple[CollectedProductObservation, ...]
     grouping_correlations: tuple[GroupingCorrelation, ...] = ()
+    finalized_groups: tuple[FinalizedProductGroup, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.command_result, PersistDiscoveryCommandResult):
@@ -178,6 +190,15 @@ class PersistedDiscoveryExecutionResult:
             raise TypeError(
                 "observations must contain CollectedProductObservation values"
             )
+        if not isinstance(self.finalized_groups, tuple):
+            raise TypeError("finalized_groups must be tuple")
+        if not all(
+            isinstance(group, FinalizedProductGroup)
+            for group in self.finalized_groups
+        ):
+            raise TypeError(
+                "finalized_groups must contain FinalizedProductGroup values"
+            )
 
 
 class PersistedDiscoveryExecutionEntry:
@@ -190,15 +211,33 @@ class PersistedDiscoveryExecutionEntry:
         runtime: ProductionDiscoveryRuntime,
         observation_identity_provider: ObservationIdentityProvider,
         observation_repository: DiscoveryObservationRepository,
+        finalized_group_identity_provider: FinalizedGroupIdentityProvider,
+        group_finalization_clock: GroupFinalizationClock,
     ) -> None:
         if not isinstance(observation_identity_provider, ObservationIdentityProvider):
             raise TypeError(
                 "observation_identity_provider must be ObservationIdentityProvider"
             )
+        if not isinstance(
+            finalized_group_identity_provider,
+            FinalizedGroupIdentityProvider,
+        ):
+            raise TypeError(
+                "finalized_group_identity_provider must be "
+                "FinalizedGroupIdentityProvider"
+            )
+        if not isinstance(group_finalization_clock, GroupFinalizationClock):
+            raise TypeError(
+                "group_finalization_clock must be GroupFinalizationClock"
+            )
         self._persist_command = persist_command
         self._runtime = runtime
         self._observation_identity_provider = observation_identity_provider
         self._observation_repository = observation_repository
+        self._finalized_group_identity_provider = (
+            finalized_group_identity_provider
+        )
+        self._group_finalization_clock = group_finalization_clock
 
     def execute(
         self,
@@ -210,6 +249,7 @@ class PersistedDiscoveryExecutionEntry:
         command_result = self._persist_command.execute(command)
         persisted_observations: tuple[CollectedProductObservation, ...] = ()
         checkpointed_grouping_correlations: tuple[GroupingCorrelation, ...] = ()
+        finalized_groups: tuple[FinalizedProductGroup, ...] = ()
 
         def persist_collection_checkpoint(
             collection_facts: tuple[CollectionFact, ...],
@@ -231,8 +271,18 @@ class PersistedDiscoveryExecutionEntry:
             grouping_correlations: tuple[GroupingCorrelation, ...],
             grouping_policy_descriptor: GroupingPolicyDescriptor,
         ) -> None:
-            nonlocal checkpointed_grouping_correlations
+            nonlocal checkpointed_grouping_correlations, finalized_groups
             checkpointed_grouping_correlations = grouping_correlations
+            finalized_groups = assemble_finalized_product_groups(
+                discovery_execution_id=(
+                    command_result.command.discovery_execution_id
+                ),
+                observations=persisted_observations,
+                grouping_correlations=grouping_correlations,
+                grouping_policy_descriptor=grouping_policy_descriptor,
+                identity_provider=self._finalized_group_identity_provider,
+                clock=self._group_finalization_clock,
+            )
 
         runtime_result = self._runtime.execute(
             command_result.command,
@@ -257,6 +307,7 @@ class PersistedDiscoveryExecutionEntry:
             collection_facts=runtime_result.collection_facts,
             observations=persisted_observations,
             grouping_correlations=checkpointed_grouping_correlations,
+            finalized_groups=finalized_groups,
         )
 
 

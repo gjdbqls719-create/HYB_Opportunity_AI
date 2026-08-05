@@ -23,6 +23,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingPersister,
     RecordingRuntime,
     command,
+    finalization_dependencies,
 )
 
 
@@ -46,6 +47,7 @@ def execute(runtime, provider, repository, *, persister=None):
         runtime=runtime,
         observation_identity_provider=provider,
         observation_repository=repository,
+        **finalization_dependencies(),
     ).execute(command())
 
 
@@ -135,6 +137,7 @@ def sqlite_entry(path, runtime, observation_id, *, replay_clock=False):
             observation_id
         ),
         observation_repository=observation_repository,
+        **finalization_dependencies(),
     )
     return entry, command_repository, observation_repository
 

@@ -23,6 +23,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingObservationIdentityProvider,
     RecordingPersister,
     command,
+    finalization_dependencies,
 )
 
 
@@ -375,6 +376,7 @@ def entry(events, runtime, repository, *, persister=None):
             "observation-one", "observation-two"
         ),
         observation_repository=repository,
+        **finalization_dependencies(),
     )
 
 
