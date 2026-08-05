@@ -76,6 +76,25 @@ from app.application.discovery import (
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryResultReader,
 )
+from app.application.candidate_issuance import (
+    CandidateDiscoveryCommandNotFoundError,
+    CandidateDiscoveryReferenceConflictError,
+    CandidateDiscoveryResultNotFoundError,
+    CandidateExecutionMismatchError,
+    CandidateFinalizedGroupNotFoundError,
+    CandidateGroupNotInResultError,
+    CandidateIdentityGenerationError,
+    CandidateIssuanceCommandConflictError,
+    CandidateIssuanceNotFoundError,
+    CandidateIssuanceProductionEntry,
+    CandidateIssuanceReplayConflictError,
+    CandidateLineageConflictError,
+    CandidateMarketIdentityConflictError,
+    CandidatePersistenceError,
+    DuplicateOpportunityCandidateError,
+    IssueOpportunityCandidateCommand,
+    MalformedCandidateIssuanceCommandError,
+)
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
@@ -164,8 +183,10 @@ from app.domain.opportunity import (
 from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
 from app.infrastructure.discovery import (
     OrchestratorProductionDiscoveryRuntime,
+    ProductionCandidateIdentityGenerator,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
+    SQLiteCandidateIssuanceRepository,
     SQLiteDiscoveryCommandRepository,
     SQLiteDiscoveryGroupRepository,
     SQLiteDiscoveryObservationRepository,
@@ -437,6 +458,56 @@ class MarketObservationIdentityRequest(BaseModel):
     window_ended_at: datetime
 
 
+class CandidateIssuanceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    issuance_command_id: str = Field(min_length=1)
+    discovery_command_id: str = Field(min_length=1)
+    discovery_execution_id: str = Field(min_length=1)
+    finalized_group_id: str = Field(min_length=1)
+    discovery_reference: str = Field(min_length=1)
+    market_observation_identity: MarketObservationIdentityRequest
+    requested_at: datetime
+
+    def to_command(self) -> IssueOpportunityCandidateCommand:
+        identity = self.market_observation_identity
+        return IssueOpportunityCandidateCommand(
+            issuance_command_id=self.issuance_command_id,
+            discovery_command_id=self.discovery_command_id,
+            discovery_execution_id=self.discovery_execution_id,
+            finalized_group_id=self.finalized_group_id,
+            discovery_reference=self.discovery_reference,
+            market_observation_identity=MarketObservationIdentity(
+                scope=identity.scope,
+                market=identity.market,
+                marketplace=identity.marketplace,
+                canonical_product_id=identity.canonical_product_id,
+                marketplace_item_id=identity.marketplace_item_id,
+                normalized_query=identity.normalized_query,
+                category=identity.category,
+                variant_identity=identity.variant_identity,
+                condition=identity.condition,
+                window_started_at=identity.window_started_at,
+                window_ended_at=identity.window_ended_at,
+            ),
+            requested_at=self.requested_at,
+        )
+
+
+class CandidateIssuanceResponse(BaseModel):
+    candidate_id: str
+    discovery_reference: str
+    issuance_command_id: str
+    discovery_command_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    requested_at: datetime
+    issued_at: datetime
+    receipt_committed_at: datetime
+    replayed: bool
+
+
 class ReviewCommandContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -594,6 +665,49 @@ def get_authoritative_discovery_reader():
         raise
     try:
         yield reader
+    finally:
+        resources.close()
+
+
+def get_candidate_issuance_entry():
+    resources = ExitStack()
+    try:
+        command_repository = resources.enter_context(
+            SQLiteDiscoveryCommandRepository(DEFAULT_DATABASE_PATH)
+        )
+        result_repository = resources.enter_context(
+            SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
+        )
+        group_repository = resources.enter_context(
+            SQLiteDiscoveryGroupRepository(DEFAULT_DATABASE_PATH)
+        )
+        observation_repository = resources.enter_context(
+            SQLiteDiscoveryObservationRepository(DEFAULT_DATABASE_PATH)
+        )
+        candidate_repository = resources.enter_context(
+            SQLiteCandidateIssuanceRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = CandidateIssuanceProductionEntry(
+            command_repository=command_repository,
+            result_repository=result_repository,
+            group_repository=group_repository,
+            observation_repository=observation_repository,
+            candidate_repository=candidate_repository,
+            candidate_id_generator=ProductionCandidateIdentityGenerator(),
+            issuance_clock=lambda: datetime.now(timezone.utc),
+            receipt_clock=lambda: datetime.now(timezone.utc),
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="candidate persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
     finally:
         resources.close()
 
@@ -1058,6 +1172,86 @@ def get_authoritative_discovery_groups(
             )
             for group in groups
         ),
+    )
+
+
+@app.post(
+    "/api/v1/candidates",
+    response_model=CandidateIssuanceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def issue_opportunity_candidate(
+    request: CandidateIssuanceRequest,
+    response: Response,
+    entry: CandidateIssuanceProductionEntry = Depends(
+        get_candidate_issuance_entry
+    ),
+) -> CandidateIssuanceResponse:
+    try:
+        result = entry.execute(request.to_command())
+    except (
+        CandidateDiscoveryCommandNotFoundError,
+        CandidateDiscoveryResultNotFoundError,
+        CandidateFinalizedGroupNotFoundError,
+        CandidateIssuanceNotFoundError,
+    ) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CandidateDiscoveryReferenceConflictError,
+        CandidateExecutionMismatchError,
+        CandidateGroupNotInResultError,
+        CandidateIssuanceCommandConflictError,
+        CandidateIssuanceReplayConflictError,
+        CandidateLineageConflictError,
+        CandidateMarketIdentityConflictError,
+        DuplicateOpportunityCandidateError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except MalformedCandidateIssuanceCommandError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except CandidateIdentityGenerationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except CandidatePersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="candidate persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    issuance = result.issuance
+    receipt = result.receipt
+    identity = issuance.discovery_context.market_observation_identity
+    return CandidateIssuanceResponse(
+        candidate_id=issuance.candidate_identity.candidate_id,
+        discovery_reference=issuance.candidate_identity.discovery_reference,
+        issuance_command_id=receipt.issuance_command_id,
+        discovery_command_id=issuance.discovery_command_id,
+        discovery_execution_id=(
+            issuance.discovery_context.discovery_execution_id
+        ),
+        finalized_group_id=issuance.finalized_group_id,
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        requested_at=issuance.discovery_context.requested_at,
+        issued_at=issuance.issued_at,
+        receipt_committed_at=receipt.receipt_committed_at,
+        replayed=result.replayed,
     )
 
 
