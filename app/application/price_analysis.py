@@ -9,6 +9,8 @@ import hashlib
 import json
 from typing import Callable, Protocol
 
+from app.application.candidate_issuance import CandidateIssuanceRepository
+from app.application.product_snapshot_capture import ProductSnapshotCaptureRepository
 from app.domain.discovery_identity import OpportunityCandidateIdentity
 from app.domain.market_intelligence import MarketObservationIdentity
 from app.domain.price_intelligence import PriceIntelligenceSnapshot
@@ -79,6 +81,35 @@ class AnalyzeAndPersistPriceIntelligenceCommand:
             "fallback_multiplier":str(self.fallback_multiplier),"analyzer_version":self.analyzer_version,
             "requested_at":self.requested_at.isoformat(),"schema_version":self.schema_version}
         return hashlib.sha256(json.dumps(payload,sort_keys=True,separators=(",", ":")).encode()).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class CandidatePriceAnalysisRequest:
+    command_id: str
+    candidate_id: str
+    finalized_group_id: str
+    product_snapshot_capture_command_id: str
+    fallback_multiplier: Decimal
+    analyzer_version: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "candidate_id",
+            "finalized_group_id",
+            "product_snapshot_capture_command_id",
+            "analyzer_version",
+        ):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        if not isinstance(self.fallback_multiplier, Decimal):
+            raise TypeError("fallback_multiplier must be Decimal")
+        if (
+            not self.fallback_multiplier.is_finite()
+            or self.fallback_multiplier <= 0
+        ):
+            raise ValueError("fallback_multiplier must be finite and positive")
+        _aware(self.requested_at, "requested_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,4 +184,67 @@ class AnalyzeAndPersistPriceIntelligence:
         return self._repository.save_analysis_result(command,snapshot,receipt)
 
 
-__all__=[name for name in globals() if name.startswith("PriceAnalysis") or name.startswith("AnalyzeAnd") or name.startswith("MalformedPriceAnalysis") or name.startswith("UnsupportedPriceAnalysis") or name in {"PriceIntelligenceAnalysisReceipt","PRICE_ANALYSIS_COMMAND_SCHEMA_VERSION","PRICE_ANALYSIS_RECEIPT_SCHEMA_VERSION"}]
+class CandidatePriceAnalysisProductionEntry:
+    """Composes persisted Candidate capture facts with the Price Analyzer owner."""
+
+    def __init__(
+        self,
+        *,
+        candidate_repository: CandidateIssuanceRepository,
+        capture_repository: ProductSnapshotCaptureRepository,
+        analysis_repository: PriceAnalysisRepository,
+        snapshot_id_generator: Callable[[], str],
+        generated_clock: Callable[[], datetime],
+        receipt_clock: Callable[[], datetime],
+        analyzer: Callable[..., PriceIntelligence] = analyze_product_prices,
+    ) -> None:
+        self._candidates = candidate_repository
+        self._captures = capture_repository
+        self._analyze = AnalyzeAndPersistPriceIntelligence(
+            analysis_repository,
+            snapshot_id_generator=snapshot_id_generator,
+            generated_clock=generated_clock,
+            receipt_clock=receipt_clock,
+            analyzer=analyzer,
+        )
+
+    def execute(self, request: CandidatePriceAnalysisRequest) -> PriceAnalysisResult:
+        if not isinstance(request, CandidatePriceAnalysisRequest):
+            raise TypeError("request must be CandidatePriceAnalysisRequest")
+        candidate = self._candidates.get_candidate(request.candidate_id)
+        if candidate is None:
+            raise PriceAnalysisSourceNotFoundError("persisted Candidate is missing")
+        context = self._candidates.get_context(request.candidate_id)
+        if context is None:
+            raise PriceAnalysisSourceNotFoundError(
+                "persisted Candidate Context is missing"
+            )
+        if context.candidate_identity != candidate:
+            raise PriceAnalysisCandidateMismatchError(
+                "persisted Candidate and Context differ"
+            )
+        capture_receipt = self._captures.get_receipt(
+            request.product_snapshot_capture_command_id
+        )
+        if capture_receipt is None:
+            raise PriceAnalysisSourceNotFoundError(
+                "persisted Product Snapshot capture is missing"
+            )
+        if capture_receipt.candidate_id != candidate.candidate_id:
+            raise PriceAnalysisCandidateMismatchError(
+                "Product Snapshot capture Candidate differs"
+            )
+        command = AnalyzeAndPersistPriceIntelligenceCommand(
+            command_id=request.command_id,
+            candidate_identity=candidate,
+            finalized_group_id=request.finalized_group_id,
+            product_snapshot_ids=capture_receipt.product_snapshot_ids,
+            market_observation_identity=context.market_observation_identity,
+            fallback_multiplier=request.fallback_multiplier,
+            analyzer_version=request.analyzer_version,
+            requested_at=request.requested_at,
+        )
+        return self._analyze.execute(command)
+
+
+__all__=[name for name in globals() if name.startswith("PriceAnalysis") or name.startswith("AnalyzeAnd") or name.startswith("CandidatePriceAnalysis") or name.startswith("MalformedPriceAnalysis") or name.startswith("UnsupportedPriceAnalysis") or name in {"PriceIntelligenceAnalysisReceipt","PRICE_ANALYSIS_COMMAND_SCHEMA_VERSION","PRICE_ANALYSIS_RECEIPT_SCHEMA_VERSION"}]
