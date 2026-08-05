@@ -176,6 +176,7 @@ class OpportunityHistoryLoader(Protocol):
 
 SearchErrorHandler = Callable[[str, Exception], None]
 GroupingCorrelationSink = Callable[[tuple[int, ...], int], None]
+PhaseCompleteCallback = Callable[[], None]
 
 
 def search_products(
@@ -445,6 +446,8 @@ def find_best_opportunities(
     target_currency: str | None = None,
     collection_fact_sink: Callable[[CollectionFact], None] | None = None,
     grouping_correlation_sink: GroupingCorrelationSink | None = None,
+    collection_phase_complete_callback: PhaseCompleteCallback | None = None,
+    grouping_phase_complete_callback: PhaseCompleteCallback | None = None,
 ) -> list[OpportunityResult]:
     """상품 검색부터 최종 AI Partner 보고서까지 생성한다."""
     cleaned_query = query.strip()
@@ -521,11 +524,17 @@ def find_best_opportunities(
 
         currency_normalized = True
 
+    if collection_phase_complete_callback is not None:
+        collection_phase_complete_callback()
+
     product_groups = group_similar_products(
         products,
         match_threshold=match_threshold,
         grouping_correlation_sink=grouping_correlation_sink,
     )
+
+    if grouping_phase_complete_callback is not None:
+        grouping_phase_complete_callback()
 
     price_change_detector = _build_price_change_detector(
         repository=price_history_repository,

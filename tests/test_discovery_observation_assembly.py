@@ -191,7 +191,7 @@ def test_invalid_provider_identity_propagates_domain_error() -> None:
     assert provider.calls == 1
 
 
-def test_correlation_mismatch_is_rejected_before_identity_supply() -> None:
+def test_correlation_mismatch_is_rejected_after_collection_checkpoint() -> None:
     events: list[str] = []
     runtime = RecordingRuntime(events)
     runtime.discovery_execution_id = "other-execution"
@@ -201,4 +201,4 @@ def test_correlation_mismatch_is_rejected_before_identity_supply() -> None:
     with pytest.raises(DiscoveryRuntimeCorrelationError):
         execute(runtime, provider)
 
-    assert provider.calls == 0
+    assert provider.calls == 1

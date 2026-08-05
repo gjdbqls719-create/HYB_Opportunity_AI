@@ -7,8 +7,10 @@ from app.application.discovery.ports import (
     OpportunityDiscoveryGateway,
 )
 from app.application.discovery.production_execution import (
+    CollectionCheckpointHandler,
     DiscoveryRuntimeCorrelationError,
     GroupingCorrelation,
+    GroupingCheckpointHandler,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryExecutionResult,
     ProductionDiscoveryRuntime,
@@ -26,6 +28,7 @@ from app.application.discovery.workflow import (
 )
 
 __all__ = [
+    "CollectionCheckpointHandler",
     "DiscoverOpportunitiesResponse",
     "DiscoverOpportunitiesUseCase",
     "DiscoverOpportunitiesWorkflow",
@@ -35,6 +38,7 @@ __all__ = [
     "DiscoveryStatistics",
     "DiscoveryRuntimeCorrelationError",
     "GroupingCorrelation",
+    "GroupingCheckpointHandler",
     "ObservationIdentityProvider",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",

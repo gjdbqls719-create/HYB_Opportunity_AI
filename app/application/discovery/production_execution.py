@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -21,6 +22,9 @@ from collectors.collection_fact import CollectionFact
 
 class DiscoveryRuntimeCorrelationError(RuntimeError):
     pass
+
+
+CollectionCheckpointHandler = Callable[[tuple[CollectionFact, ...]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +60,9 @@ class GroupingCorrelation:
             raise ValueError(
                 "representative collection position must belong to the group"
             )
+
+
+GroupingCheckpointHandler = Callable[[tuple[GroupingCorrelation, ...]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +116,9 @@ class ProductionDiscoveryRuntime(Protocol):
     def execute(
         self,
         command: DiscoveryCommand,
+        *,
+        collection_checkpoint_handler: CollectionCheckpointHandler | None = None,
+        grouping_checkpoint_handler: GroupingCheckpointHandler | None = None,
     ) -> ProductionDiscoveryRuntimeResult: ...
 
 
@@ -194,7 +204,36 @@ class PersistedDiscoveryExecutionEntry:
             raise TypeError("command must be DiscoveryCommand")
 
         command_result = self._persist_command.execute(command)
-        runtime_result = self._runtime.execute(command_result.command)
+        persisted_observations: tuple[CollectedProductObservation, ...] = ()
+        checkpointed_grouping_correlations: tuple[GroupingCorrelation, ...] = ()
+
+        def persist_collection_checkpoint(
+            collection_facts: tuple[CollectionFact, ...],
+        ) -> None:
+            nonlocal persisted_observations
+            observations = assemble_collected_product_observations(
+                discovery_execution_id=(
+                    command_result.command.discovery_execution_id
+                ),
+                collection_facts=collection_facts,
+                identity_provider=self._observation_identity_provider,
+            )
+            persisted_observations = tuple(
+                self._observation_repository.save_observation(observation)
+                for observation in observations
+            )
+
+        def receive_grouping_checkpoint(
+            grouping_correlations: tuple[GroupingCorrelation, ...],
+        ) -> None:
+            nonlocal checkpointed_grouping_correlations
+            checkpointed_grouping_correlations = grouping_correlations
+
+        runtime_result = self._runtime.execute(
+            command_result.command,
+            collection_checkpoint_handler=persist_collection_checkpoint,
+            grouping_checkpoint_handler=receive_grouping_checkpoint,
+        )
         if not isinstance(runtime_result, ProductionDiscoveryRuntimeResult):
             raise TypeError(
                 "runtime must return ProductionDiscoveryRuntimeResult"
@@ -207,28 +246,20 @@ class PersistedDiscoveryExecutionEntry:
                 "runtime execution identity conflicts with committed command"
             )
 
-        observations = assemble_collected_product_observations(
-            discovery_execution_id=command_result.command.discovery_execution_id,
-            collection_facts=runtime_result.collection_facts,
-            identity_provider=self._observation_identity_provider,
-        )
-        persisted_observations = tuple(
-            self._observation_repository.save_observation(observation)
-            for observation in observations
-        )
-
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
             discovery_results=runtime_result.discovery_results,
             collection_facts=runtime_result.collection_facts,
             observations=persisted_observations,
-            grouping_correlations=runtime_result.grouping_correlations,
+            grouping_correlations=checkpointed_grouping_correlations,
         )
 
 
 __all__ = [
+    "CollectionCheckpointHandler",
     "DiscoveryRuntimeCorrelationError",
     "GroupingCorrelation",
+    "GroupingCheckpointHandler",
     "PersistedDiscoveryExecutionEntry",
     "PersistedDiscoveryExecutionResult",
     "ProductionDiscoveryRuntime",

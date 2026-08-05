@@ -8,7 +8,9 @@ from typing import Any
 from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand
 from app.application.discovery.production_execution import (
+    CollectionCheckpointHandler,
     GroupingCorrelation,
+    GroupingCheckpointHandler,
     ProductionDiscoveryRuntimeResult,
 )
 from app.infrastructure.discovery.orchestrator_gateway import (
@@ -44,6 +46,9 @@ class OrchestratorProductionDiscoveryRuntime:
     def execute(
         self,
         command: DiscoveryCommand,
+        *,
+        collection_checkpoint_handler: CollectionCheckpointHandler | None = None,
+        grouping_checkpoint_handler: GroupingCheckpointHandler | None = None,
     ) -> ProductionDiscoveryRuntimeResult:
         if not isinstance(command, DiscoveryCommand):
             raise TypeError("command must be DiscoveryCommand")
@@ -62,6 +67,14 @@ class OrchestratorProductionDiscoveryRuntime:
                     representative_collection_position,
                 )
             )
+
+        def complete_collection_phase() -> None:
+            if collection_checkpoint_handler is not None:
+                collection_checkpoint_handler(tuple(collection_facts))
+
+        def complete_grouping_phase() -> None:
+            if grouping_checkpoint_handler is not None:
+                grouping_checkpoint_handler(tuple(grouping_correlations))
 
         opportunities = self._finder(
             query=parameters.query,
@@ -100,6 +113,8 @@ class OrchestratorProductionDiscoveryRuntime:
             target_currency=parameters.target_currency,
             collection_fact_sink=collection_facts.append,
             grouping_correlation_sink=collect_grouping_correlation,
+            collection_phase_complete_callback=complete_collection_phase,
+            grouping_phase_complete_callback=complete_grouping_phase,
         )
 
         return ProductionDiscoveryRuntimeResult(

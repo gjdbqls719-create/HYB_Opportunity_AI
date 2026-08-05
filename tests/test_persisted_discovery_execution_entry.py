@@ -111,11 +111,21 @@ class RecordingRuntime:
         self.grouping_correlations = ()
         self.discovery_execution_id = "execution-1"
 
-    def execute(self, value: DiscoveryCommand):
+    def execute(
+        self,
+        value: DiscoveryCommand,
+        *,
+        collection_checkpoint_handler=None,
+        grouping_checkpoint_handler=None,
+    ):
         self.events.append("runtime")
         self.calls.append(value)
         if self.fail is not None:
             raise self.fail
+        if collection_checkpoint_handler is not None:
+            collection_checkpoint_handler(self.collection_facts)
+        if grouping_checkpoint_handler is not None:
+            grouping_checkpoint_handler(self.grouping_correlations)
         return ProductionDiscoveryRuntimeResult(
             discovery_execution_id=self.discovery_execution_id,
             discovery_results=self.results,
@@ -295,8 +305,16 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
     assert runtime_result.discovery_execution_id == "execution-1"
     collection_fact_sink = calls[0].pop("collection_fact_sink")
     grouping_correlation_sink = calls[0].pop("grouping_correlation_sink")
+    collection_phase_complete_callback = calls[0].pop(
+        "collection_phase_complete_callback"
+    )
+    grouping_phase_complete_callback = calls[0].pop(
+        "grouping_phase_complete_callback"
+    )
     assert callable(collection_fact_sink)
     assert callable(grouping_correlation_sink)
+    assert callable(collection_phase_complete_callback)
+    assert callable(grouping_phase_complete_callback)
     assert calls == [
         {
             "query": "iphone 15 pro",
