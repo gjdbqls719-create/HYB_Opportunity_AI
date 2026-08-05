@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import datetime, timezone
+from threading import Barrier
 from types import SimpleNamespace
 
 from app.infrastructure.discovery.production_runtime import (
     OrchestratorProductionDiscoveryRuntime,
+)
+from app.application.discovery.production_execution import (
+    ProductionDiscoveryRuntimeResult,
 )
 from collectors.collection_fact import CollectionFact
 from engine import orchestrator
@@ -112,7 +118,7 @@ def test_orchestrator_passes_collection_fact_sink_to_ebay(monkeypatch) -> None:
     }
 
 
-def test_production_runtime_buffers_facts_emitted_by_finder() -> None:
+def test_production_runtime_returns_execution_results_and_ordered_facts() -> None:
     opportunity = SimpleNamespace(
         product=SimpleNamespace(),
         final_opportunity_score=77.0,
@@ -125,22 +131,107 @@ def test_production_runtime_buffers_facts_emitted_by_finder() -> None:
     def finder(**kwargs):
         sink = kwargs["collection_fact_sink"]
         product = ebay.ebay_item_to_product(raw_item())
-        sink(
-            CollectionFact(
-                product=product,
-                observed_at=OBSERVED_AT,
-                collector_name="ebay",
-                source_reference=product.url,
+        for suffix in ("first", "second"):
+            sink(
+                CollectionFact(
+                    product=product,
+                    observed_at=OBSERVED_AT,
+                    collector_name="ebay",
+                    source_reference=f"{product.url}#{suffix}",
+                )
             )
-        )
         return [opportunity]
 
     runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)
 
-    runtime.execute(_command())
+    result = runtime.execute(_command())
 
-    assert len(runtime.collection_facts) == 1
-    assert runtime.collection_facts[0].product.item_id == "v1|123456789|0"
+    assert isinstance(result, ProductionDiscoveryRuntimeResult)
+    assert result.discovery_execution_id == "execution-1"
+    assert len(result.discovery_results) == 1
+    assert tuple(fact.source_reference for fact in result.collection_facts) == (
+        "https://www.ebay.com/itm/123456789#first",
+        "https://www.ebay.com/itm/123456789#second",
+    )
+
+
+def test_production_runtime_isolates_consecutive_execution_fact_tuples() -> None:
+    calls = 0
+
+    def finder(**kwargs):
+        nonlocal calls
+        calls += 1
+        product = ebay.ebay_item_to_product(raw_item(item_id=f"item-{calls}"))
+        kwargs["collection_fact_sink"](
+            CollectionFact(
+                product=product,
+                observed_at=OBSERVED_AT,
+                collector_name="ebay",
+                source_reference=f"run-{calls}",
+            )
+        )
+        return []
+
+    runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)
+    first = runtime.execute(_command())
+    second = runtime.execute(_command())
+
+    assert first.discovery_results == ()
+    assert second.discovery_results == ()
+    assert tuple(fact.source_reference for fact in first.collection_facts) == (
+        "run-1",
+    )
+    assert tuple(fact.source_reference for fact in second.collection_facts) == (
+        "run-2",
+    )
+    assert first.collection_facts is not second.collection_facts
+
+
+def test_production_runtime_isolates_concurrent_execution_fact_buffers() -> None:
+    barrier = Barrier(2)
+
+    def finder(**kwargs):
+        barrier.wait()
+        product = ebay.ebay_item_to_product(
+            raw_item(item_id=kwargs["query"], source_url=kwargs["query"])
+        )
+        kwargs["collection_fact_sink"](
+            CollectionFact(
+                product=product,
+                observed_at=OBSERVED_AT,
+                collector_name="ebay",
+                source_reference=kwargs["query"],
+            )
+        )
+        return []
+
+    runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)
+    first_command = replace(
+        _command(),
+        discovery_execution_id="execution-1",
+        parameters=replace(_command().parameters, query="first"),
+    )
+    second_command = replace(
+        _command(),
+        command_id="command-2",
+        discovery_execution_id="execution-2",
+        parameters=replace(_command().parameters, query="second"),
+    )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(runtime.execute, first_command)
+        second_future = pool.submit(runtime.execute, second_command)
+        first = first_future.result()
+        second = second_future.result()
+
+    assert first.discovery_execution_id == "execution-1"
+    assert second.discovery_execution_id == "execution-2"
+    assert tuple(fact.source_reference for fact in first.collection_facts) == (
+        "first",
+    )
+    assert tuple(fact.source_reference for fact in second.collection_facts) == (
+        "second",
+    )
 
 
 def _command():

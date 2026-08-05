@@ -4,9 +4,11 @@ from app.application.discovery.discover_opportunities import (
 )
 from app.application.discovery.ports import OpportunityDiscoveryGateway
 from app.application.discovery.production_execution import (
+    DiscoveryRuntimeCorrelationError,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryExecutionResult,
     ProductionDiscoveryRuntime,
+    ProductionDiscoveryRuntimeResult,
 )
 from app.application.discovery.session import (
     DiscoverySession,
@@ -27,9 +29,11 @@ __all__ = [
     "DiscoverySession",
     "DiscoverySessionStatus",
     "DiscoveryStatistics",
+    "DiscoveryRuntimeCorrelationError",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",
     "ProductionDiscoveryRuntime",
+    "ProductionDiscoveryRuntimeResult",
     "PersistedDiscoveryExecutionResult",
     "PersistedDiscoveryExecutionEntry",
 ]

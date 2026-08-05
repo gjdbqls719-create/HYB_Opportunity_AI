@@ -7,8 +7,10 @@ from types import SimpleNamespace
 import pytest
 
 from app.application.discovery.production_execution import (
+    DiscoveryRuntimeCorrelationError,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryExecutionResult,
+    ProductionDiscoveryRuntimeResult,
 )
 from app.application.discovery_persistence import (
     DiscoveryCommandReceipt,
@@ -17,6 +19,7 @@ from app.application.discovery_persistence import (
 from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
 from app.models import Product
+from collectors.collection_fact import CollectionFact
 from app.infrastructure.discovery.production_runtime import (
     OrchestratorProductionDiscoveryRuntime,
 )
@@ -102,13 +105,19 @@ class RecordingRuntime:
         self.fail = fail
         self.calls: list[DiscoveryCommand] = []
         self.results = (discovery_result(),)
+        self.collection_facts = ()
+        self.discovery_execution_id = "execution-1"
 
     def execute(self, value: DiscoveryCommand):
         self.events.append("runtime")
         self.calls.append(value)
         if self.fail is not None:
             raise self.fail
-        return self.results
+        return ProductionDiscoveryRuntimeResult(
+            discovery_execution_id=self.discovery_execution_id,
+            discovery_results=self.results,
+            collection_facts=self.collection_facts,
+        )
 
 
 def test_entry_persists_before_runtime_and_returns_both_results() -> None:
@@ -128,6 +137,7 @@ def test_entry_persists_before_runtime_and_returns_both_results() -> None:
     assert isinstance(result, PersistedDiscoveryExecutionResult)
     assert result.command_result.command is value
     assert result.discovery_results == runtime.results
+    assert result.collection_facts == ()
 
 
 def test_entry_does_not_run_runtime_when_persistence_fails() -> None:
@@ -179,6 +189,39 @@ def test_entry_passes_the_committed_replay_command_to_runtime() -> None:
     assert result.command_result.replayed is True
 
 
+def test_entry_returns_collection_facts_without_changing_them() -> None:
+    events: list[str] = []
+    runtime = RecordingRuntime(events)
+    product = discovery_result().product
+    facts = (
+        CollectionFact(product, NOW, "ebay", "source-1"),
+        CollectionFact(product, NOW, "ebay", "source-2"),
+    )
+    runtime.collection_facts = facts
+
+    result = PersistedDiscoveryExecutionEntry(
+        persist_command=RecordingPersister(events),
+        runtime=runtime,
+    ).execute(command())
+
+    assert result.collection_facts is facts
+    assert result.discovery_results == runtime.results
+
+
+def test_entry_rejects_runtime_execution_identity_mismatch() -> None:
+    events: list[str] = []
+    runtime = RecordingRuntime(events)
+    runtime.discovery_execution_id = "other-execution"
+
+    with pytest.raises(DiscoveryRuntimeCorrelationError, match="execution identity"):
+        PersistedDiscoveryExecutionEntry(
+            persist_command=RecordingPersister(events),
+            runtime=runtime,
+        ).execute(command())
+
+    assert events == ["persist", "runtime"]
+
+
 def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> None:
     value = command()
     calls: list[dict[str, object]] = []
@@ -209,9 +252,10 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
         currency_converter=converter,
     )
 
-    results = runtime.execute(value)
+    runtime_result = runtime.execute(value)
 
-    assert len(results) == 1
+    assert len(runtime_result.discovery_results) == 1
+    assert runtime_result.discovery_execution_id == "execution-1"
     collection_fact_sink = calls[0].pop("collection_fact_sink")
     assert callable(collection_fact_sink)
     assert calls == [
