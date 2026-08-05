@@ -74,13 +74,17 @@ from app.application.discovery import (
     DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
     PersistedDiscoveryExecutionEntry,
+    PersistedDiscoveryResultReader,
 )
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
     DiscoveryExecutionReplayConflict,
+    DiscoveryExecutionResultNotFound,
     DiscoveryGroupConflictError,
     DiscoveryGroupMembershipError,
+    MalformedDiscoveryExecutionResult,
+    MalformedDiscoveryGroupPersistenceError,
     DiscoveryObservationConflictError,
     DiscoveryPersistenceError,
     DiscoveryReplayConflict,
@@ -274,6 +278,19 @@ class AuthoritativeDiscoveryResponse(BaseModel):
     completed_at: datetime
     is_zero_result: bool
     completion_replayed: bool
+    finalized_groups: tuple[AuthoritativeFinalizedGroupResponse, ...]
+
+
+class DiscoveryExecutionResultReadResponse(BaseModel):
+    command_id: str
+    discovery_execution_id: str
+    completed_at: datetime
+    is_zero_result: bool
+    finalized_group_ids: tuple[str, ...]
+
+
+class DiscoveryFinalizedGroupsReadResponse(BaseModel):
+    discovery_execution_id: str
     finalized_groups: tuple[AuthoritativeFinalizedGroupResponse, ...]
 
 
@@ -549,6 +566,34 @@ def get_authoritative_discovery_entry():
         raise
     try:
         yield entry
+    finally:
+        resources.close()
+
+
+def get_authoritative_discovery_reader():
+    resources = ExitStack()
+    try:
+        group_repository = resources.enter_context(
+            SQLiteDiscoveryGroupRepository(DEFAULT_DATABASE_PATH)
+        )
+        result_repository = resources.enter_context(
+            SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
+        )
+        reader = PersistedDiscoveryResultReader(
+            result_repository=result_repository,
+            group_repository=group_repository,
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="discovery persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield reader
     finally:
         resources.close()
 
@@ -923,6 +968,95 @@ def execute_authoritative_discovery(
                 finalized_at=group.finalized_at,
             )
             for group in result.finalized_groups
+        ),
+    )
+
+
+@app.get(
+    "/api/v1/discovery/executions/{discovery_execution_id}",
+    response_model=DiscoveryExecutionResultReadResponse,
+)
+def get_authoritative_discovery_result(
+    discovery_execution_id: str,
+    reader: PersistedDiscoveryResultReader = Depends(
+        get_authoritative_discovery_reader
+    ),
+) -> DiscoveryExecutionResultReadResponse:
+    try:
+        result = reader.get_execution_result(discovery_execution_id)
+    except DiscoveryExecutionResultNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DiscoveryCompletionReplayError,
+        DiscoveryExecutionIdentityConflictError,
+        DiscoveryGroupMembershipError,
+        MalformedDiscoveryExecutionResult,
+        MalformedDiscoveryGroupPersistenceError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except DiscoveryPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="discovery persistence unavailable",
+        ) from error
+    return DiscoveryExecutionResultReadResponse(
+        command_id=result.command_id,
+        discovery_execution_id=result.discovery_execution_id,
+        completed_at=result.completed_at,
+        is_zero_result=result.is_zero_result,
+        finalized_group_ids=result.finalized_group_ids,
+    )
+
+
+@app.get(
+    "/api/v1/discovery/executions/{discovery_execution_id}/finalized-groups",
+    response_model=DiscoveryFinalizedGroupsReadResponse,
+)
+def get_authoritative_discovery_groups(
+    discovery_execution_id: str,
+    reader: PersistedDiscoveryResultReader = Depends(
+        get_authoritative_discovery_reader
+    ),
+) -> DiscoveryFinalizedGroupsReadResponse:
+    try:
+        groups = reader.get_finalized_groups(discovery_execution_id)
+    except DiscoveryExecutionResultNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DiscoveryCompletionReplayError,
+        DiscoveryExecutionIdentityConflictError,
+        DiscoveryGroupMembershipError,
+        MalformedDiscoveryExecutionResult,
+        MalformedDiscoveryGroupPersistenceError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except DiscoveryPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="discovery persistence unavailable",
+        ) from error
+    return DiscoveryFinalizedGroupsReadResponse(
+        discovery_execution_id=discovery_execution_id,
+        finalized_groups=tuple(
+            AuthoritativeFinalizedGroupResponse(
+                finalized_group_id=group.finalized_group_id,
+                discovery_execution_id=group.discovery_execution_id,
+                observation_ids=group.observation_ids,
+                representative_observation_id=(
+                    group.representative_observation_id
+                ),
+                grouping_policy_version=group.grouping_policy_version,
+                finalized_at=group.finalized_at,
+            )
+            for group in groups
         ),
     )
 

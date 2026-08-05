@@ -20,6 +20,7 @@ from app.application.discovery.production_execution import (
     ProductionDiscoveryRuntime,
     ProductionDiscoveryRuntimeResult,
 )
+from app.application.discovery.result_read import PersistedDiscoveryResultReader
 from app.application.discovery.session import (
     DiscoverySession,
     DiscoverySessionStatus,
@@ -54,4 +55,5 @@ __all__ = [
     "ProductionDiscoveryRuntimeResult",
     "PersistedDiscoveryExecutionResult",
     "PersistedDiscoveryExecutionEntry",
+    "PersistedDiscoveryResultReader",
 ]
