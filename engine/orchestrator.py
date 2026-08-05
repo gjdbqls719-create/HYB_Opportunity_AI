@@ -175,6 +175,7 @@ class OpportunityHistoryLoader(Protocol):
 
 
 SearchErrorHandler = Callable[[str, Exception], None]
+GroupingCorrelationSink = Callable[[tuple[int, ...], int], None]
 
 
 def search_products(
@@ -229,6 +230,8 @@ def search_products(
 def group_similar_products(
     products: list[Product],
     match_threshold: float = 75.0,
+    *,
+    grouping_correlation_sink: GroupingCorrelationSink | None = None,
 ) -> list[ProductGroup]:
     """
     제목이 유사한 상품을 같은 그룹으로 묶는다.
@@ -240,11 +243,12 @@ def group_similar_products(
         )
 
     groups: list[ProductGroup] = []
+    group_collection_positions: list[list[int]] = []
 
-    for product in products:
-        matched_group: ProductGroup | None = None
+    for collection_position, product in enumerate(products):
+        matched_group_position: int | None = None
 
-        for group in groups:
+        for group_position, group in enumerate(groups):
             match_result = compare_products(
                 product,
                 group.representative,
@@ -252,17 +256,42 @@ def group_similar_products(
             )
 
             if match_result.is_match:
-                matched_group = group
+                matched_group_position = group_position
                 break
 
-        if matched_group is None:
+        if matched_group_position is None:
             groups.append(
                 ProductGroup(
                     products=[product],
                 )
             )
+            group_collection_positions.append([collection_position])
         else:
-            matched_group.products.append(product)
+            groups[matched_group_position].products.append(product)
+            group_collection_positions[matched_group_position].append(
+                collection_position
+            )
+
+    if grouping_correlation_sink is not None:
+        for group, collection_positions in zip(
+            groups,
+            group_collection_positions,
+            strict=True,
+        ):
+            representative = group.representative
+            representative_collection_position = next(
+                collection_position
+                for member, collection_position in zip(
+                    group.products,
+                    collection_positions,
+                    strict=True,
+                )
+                if member is representative
+            )
+            grouping_correlation_sink(
+                tuple(collection_positions),
+                representative_collection_position,
+            )
 
     return groups
 
@@ -415,6 +444,7 @@ def find_best_opportunities(
     currency_converter: CurrencyConverter | None = None,
     target_currency: str | None = None,
     collection_fact_sink: Callable[[CollectionFact], None] | None = None,
+    grouping_correlation_sink: GroupingCorrelationSink | None = None,
 ) -> list[OpportunityResult]:
     """상품 검색부터 최종 AI Partner 보고서까지 생성한다."""
     cleaned_query = query.strip()
@@ -494,6 +524,7 @@ def find_best_opportunities(
     product_groups = group_similar_products(
         products,
         match_threshold=match_threshold,
+        grouping_correlation_sink=grouping_correlation_sink,
     )
 
     price_change_detector = _build_price_change_detector(

@@ -108,6 +108,7 @@ class RecordingRuntime:
         self.calls: list[DiscoveryCommand] = []
         self.results = (discovery_result(),)
         self.collection_facts = ()
+        self.grouping_correlations = ()
         self.discovery_execution_id = "execution-1"
 
     def execute(self, value: DiscoveryCommand):
@@ -119,6 +120,7 @@ class RecordingRuntime:
             discovery_execution_id=self.discovery_execution_id,
             discovery_results=self.results,
             collection_facts=self.collection_facts,
+            grouping_correlations=self.grouping_correlations,
         )
 
 
@@ -292,7 +294,9 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
     assert len(runtime_result.discovery_results) == 1
     assert runtime_result.discovery_execution_id == "execution-1"
     collection_fact_sink = calls[0].pop("collection_fact_sink")
+    grouping_correlation_sink = calls[0].pop("grouping_correlation_sink")
     assert callable(collection_fact_sink)
+    assert callable(grouping_correlation_sink)
     assert calls == [
         {
             "query": "iphone 15 pro",

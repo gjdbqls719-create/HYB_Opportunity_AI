@@ -8,6 +8,7 @@ from typing import Any
 from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand
 from app.application.discovery.production_execution import (
+    GroupingCorrelation,
     ProductionDiscoveryRuntimeResult,
 )
 from app.infrastructure.discovery.orchestrator_gateway import (
@@ -49,6 +50,19 @@ class OrchestratorProductionDiscoveryRuntime:
 
         parameters = command.parameters
         collection_facts: list[CollectionFact] = []
+        grouping_correlations: list[GroupingCorrelation] = []
+
+        def collect_grouping_correlation(
+            ordered_member_collection_positions: tuple[int, ...],
+            representative_collection_position: int,
+        ) -> None:
+            grouping_correlations.append(
+                GroupingCorrelation(
+                    ordered_member_collection_positions,
+                    representative_collection_position,
+                )
+            )
+
         opportunities = self._finder(
             query=parameters.query,
             selling_price_multiplier=float(
@@ -85,6 +99,7 @@ class OrchestratorProductionDiscoveryRuntime:
             currency_converter=self._currency_converter,
             target_currency=parameters.target_currency,
             collection_fact_sink=collection_facts.append,
+            grouping_correlation_sink=collect_grouping_correlation,
         )
 
         return ProductionDiscoveryRuntimeResult(
@@ -94,6 +109,7 @@ class OrchestratorProductionDiscoveryRuntime:
                 for opportunity in opportunities
             ),
             collection_facts=tuple(collection_facts),
+            grouping_correlations=tuple(grouping_correlations),
         )
 
 

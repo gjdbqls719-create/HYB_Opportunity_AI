@@ -24,10 +24,46 @@ class DiscoveryRuntimeCorrelationError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class GroupingCorrelation:
+    ordered_member_collection_positions: tuple[int, ...]
+    representative_collection_position: int
+
+    def __post_init__(self) -> None:
+        positions = self.ordered_member_collection_positions
+        if not isinstance(positions, tuple) or not positions:
+            raise ValueError(
+                "ordered_member_collection_positions must be a non-empty tuple"
+            )
+        if any(
+            isinstance(position, bool)
+            or not isinstance(position, int)
+            or position < 0
+            for position in positions
+        ):
+            raise ValueError("collection positions must be non-negative integers")
+        if len(set(positions)) != len(positions):
+            raise ValueError("member collection positions must be unique")
+        representative = self.representative_collection_position
+        if (
+            isinstance(representative, bool)
+            or not isinstance(representative, int)
+            or representative < 0
+        ):
+            raise ValueError(
+                "representative_collection_position must be a non-negative integer"
+            )
+        if representative not in positions:
+            raise ValueError(
+                "representative collection position must belong to the group"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class ProductionDiscoveryRuntimeResult:
     discovery_execution_id: str
     discovery_results: tuple[DiscoveryResult, ...]
     collection_facts: tuple[CollectionFact, ...]
+    grouping_correlations: tuple[GroupingCorrelation, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -50,6 +86,21 @@ class ProductionDiscoveryRuntimeResult:
             isinstance(fact, CollectionFact) for fact in self.collection_facts
         ):
             raise TypeError("collection_facts must contain CollectionFact values")
+        if not isinstance(self.grouping_correlations, tuple):
+            raise TypeError("grouping_correlations must be tuple")
+        if not all(
+            isinstance(correlation, GroupingCorrelation)
+            for correlation in self.grouping_correlations
+        ):
+            raise TypeError(
+                "grouping_correlations must contain GroupingCorrelation values"
+            )
+        if any(
+            position >= len(self.collection_facts)
+            for correlation in self.grouping_correlations
+            for position in correlation.ordered_member_collection_positions
+        ):
+            raise ValueError("grouping correlation references a missing collection fact")
 
 
 class ProductionDiscoveryRuntime(Protocol):
@@ -67,6 +118,7 @@ class PersistedDiscoveryExecutionResult:
     discovery_results: tuple[DiscoveryResult, ...]
     collection_facts: tuple[CollectionFact, ...]
     observations: tuple[CollectedProductObservation, ...]
+    grouping_correlations: tuple[GroupingCorrelation, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.command_result, PersistDiscoveryCommandResult):
@@ -88,6 +140,21 @@ class PersistedDiscoveryExecutionResult:
             isinstance(fact, CollectionFact) for fact in self.collection_facts
         ):
             raise TypeError("collection_facts must contain CollectionFact values")
+        if not isinstance(self.grouping_correlations, tuple):
+            raise TypeError("grouping_correlations must be tuple")
+        if not all(
+            isinstance(correlation, GroupingCorrelation)
+            for correlation in self.grouping_correlations
+        ):
+            raise TypeError(
+                "grouping_correlations must contain GroupingCorrelation values"
+            )
+        if any(
+            position >= len(self.collection_facts)
+            for correlation in self.grouping_correlations
+            for position in correlation.ordered_member_collection_positions
+        ):
+            raise ValueError("grouping correlation references a missing collection fact")
         if not isinstance(self.observations, tuple):
             raise TypeError("observations must be tuple")
         if not all(
@@ -155,11 +222,13 @@ class PersistedDiscoveryExecutionEntry:
             discovery_results=runtime_result.discovery_results,
             collection_facts=runtime_result.collection_facts,
             observations=persisted_observations,
+            grouping_correlations=runtime_result.grouping_correlations,
         )
 
 
 __all__ = [
     "DiscoveryRuntimeCorrelationError",
+    "GroupingCorrelation",
     "PersistedDiscoveryExecutionEntry",
     "PersistedDiscoveryExecutionResult",
     "ProductionDiscoveryRuntime",

@@ -8,6 +8,7 @@ from app.application.discovery.ports import (
 )
 from app.application.discovery.production_execution import (
     DiscoveryRuntimeCorrelationError,
+    GroupingCorrelation,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryExecutionResult,
     ProductionDiscoveryRuntime,
@@ -33,6 +34,7 @@ __all__ = [
     "DiscoverySessionStatus",
     "DiscoveryStatistics",
     "DiscoveryRuntimeCorrelationError",
+    "GroupingCorrelation",
     "ObservationIdentityProvider",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",
