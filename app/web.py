@@ -103,6 +103,18 @@ from app.application.product_snapshot_capture import (
     SnapshotOwnerCommandConflictError,
     SnapshotOwnerPersistenceError,
 )
+from app.application.price_analysis import (
+    CandidatePriceAnalysisProductionEntry,
+    CandidatePriceAnalysisRequest,
+    PriceAnalysisCandidateMismatchError,
+    PriceAnalysisCommandConflictError,
+    PriceAnalysisExecutionError,
+    PriceAnalysisGroupMismatchError,
+    PriceAnalysisMarketIdentityConflictError,
+    PriceAnalysisPersistenceError,
+    PriceAnalysisProductOrderConflictError,
+    PriceAnalysisSourceNotFoundError,
+)
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
@@ -204,6 +216,10 @@ from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepos
 from app.infrastructure.product_observation import (
     SQLiteProductSnapshotCaptureRepository,
 )
+from app.infrastructure.price_intelligence import (
+    ProductionPriceSnapshotIdentityGenerator,
+    SQLitePriceAnalysisRepository,
+)
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
 from app.infrastructure.review import (
@@ -218,6 +234,7 @@ from services.currency import (
     ExchangeRateProviderError,
     FrankfurterExchangeRateProvider,
 )
+from engine.price_intelligence import analyze_product_prices
 
 
 PROJECT_NAME = "HYB Opportunity AI"
@@ -557,6 +574,56 @@ class ProductSnapshotCaptureResponse(BaseModel):
     replayed: bool
 
 
+class PriceAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    finalized_group_id: str = Field(min_length=1)
+    product_snapshot_capture_command_id: str = Field(min_length=1)
+    fallback_multiplier: Decimal
+    analyzer_version: str = Field(min_length=1)
+    requested_at: datetime
+
+    def to_application_request(self) -> CandidatePriceAnalysisRequest:
+        return CandidatePriceAnalysisRequest(
+            command_id=self.command_id,
+            candidate_id=self.candidate_id,
+            finalized_group_id=self.finalized_group_id,
+            product_snapshot_capture_command_id=(
+                self.product_snapshot_capture_command_id
+            ),
+            fallback_multiplier=self.fallback_multiplier,
+            analyzer_version=self.analyzer_version,
+            requested_at=self.requested_at,
+        )
+
+
+class PriceAnalysisResponse(BaseModel):
+    command_id: str
+    candidate_id: str
+    finalized_group_id: str
+    price_snapshot_id: str
+    product_snapshot_ids: tuple[str, ...]
+    market_observation_identity: MarketObservationIdentityRequest
+    analyzer_version: str
+    fallback_multiplier: Decimal
+    requested_at: datetime
+    generated_at: datetime
+    committed_at: datetime
+    currency: str
+    lowest_price: Decimal
+    average_price: Decimal
+    median_price: Decimal
+    highest_price: Decimal
+    price_range: Decimal
+    price_variation_rate: Decimal
+    price_stability_level: str
+    recommended_selling_price: Decimal
+    sample_size: int
+    replayed: bool
+
+
 class ReviewCommandContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -784,6 +851,42 @@ def get_product_snapshot_capture_entry():
         raise HTTPException(
             status_code=503,
             detail="product snapshot persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_candidate_price_analysis_entry():
+    resources = ExitStack()
+    try:
+        candidate_repository = resources.enter_context(
+            SQLiteCandidateIssuanceRepository(DEFAULT_DATABASE_PATH)
+        )
+        capture_repository = resources.enter_context(
+            SQLiteProductSnapshotCaptureRepository(DEFAULT_DATABASE_PATH)
+        )
+        analysis_repository = resources.enter_context(
+            SQLitePriceAnalysisRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = CandidatePriceAnalysisProductionEntry(
+            candidate_repository=candidate_repository,
+            capture_repository=capture_repository,
+            analysis_repository=analysis_repository,
+            snapshot_id_generator=ProductionPriceSnapshotIdentityGenerator(),
+            generated_clock=lambda: datetime.now(timezone.utc),
+            receipt_clock=lambda: datetime.now(timezone.utc),
+            analyzer=analyze_product_prices,
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="price analysis persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -1405,6 +1508,85 @@ def capture_candidate_product_snapshots(
             for binding in result.bindings
         ),
         committed_at=result.receipt.committed_at,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/price-analyses",
+    response_model=PriceAnalysisResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def analyze_candidate_prices(
+    request: PriceAnalysisRequest,
+    response: Response,
+    entry: CandidatePriceAnalysisProductionEntry = Depends(
+        get_candidate_price_analysis_entry
+    ),
+) -> PriceAnalysisResponse:
+    try:
+        result = entry.execute(request.to_application_request())
+    except PriceAnalysisSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        PriceAnalysisCandidateMismatchError,
+        PriceAnalysisCommandConflictError,
+        PriceAnalysisGroupMismatchError,
+        PriceAnalysisMarketIdentityConflictError,
+        PriceAnalysisProductOrderConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except PriceAnalysisExecutionError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    except PriceAnalysisPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="price analysis persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    snapshot = result.snapshot
+    receipt = result.receipt
+    identity = snapshot.market_observation_identity
+    return PriceAnalysisResponse(
+        command_id=receipt.command_id,
+        candidate_id=receipt.candidate_id,
+        finalized_group_id=receipt.finalized_group_id,
+        price_snapshot_id=snapshot.snapshot_id,
+        product_snapshot_ids=snapshot.product_observation_snapshot_ids,
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        analyzer_version=receipt.analyzer_version,
+        fallback_multiplier=receipt.fallback_multiplier,
+        requested_at=receipt.requested_at,
+        generated_at=snapshot.generated_at,
+        committed_at=receipt.committed_at,
+        currency=snapshot.currency,
+        lowest_price=snapshot.lowest_price,
+        average_price=snapshot.average_price,
+        median_price=snapshot.median_price,
+        highest_price=snapshot.highest_price,
+        price_range=snapshot.price_range,
+        price_variation_rate=snapshot.price_variation_rate,
+        price_stability_level=snapshot.price_stability_level,
+        recommended_selling_price=snapshot.recommended_selling_price,
+        sample_size=snapshot.sample_size,
         replayed=result.replayed,
     )
 
