@@ -1,4 +1,5 @@
 from .sqlite_repository import SQLiteEconomicsCalculationSnapshotRepository, economics_snapshot_fingerprint
 from .owner_repository import SQLiteEconomicsCalculationOwnerRepository
+from .identity_suppliers import ProductionEconomicsSnapshotIdentityGenerator
 
-__all__=["SQLiteEconomicsCalculationSnapshotRepository","SQLiteEconomicsCalculationOwnerRepository","economics_snapshot_fingerprint"]
+__all__=["ProductionEconomicsSnapshotIdentityGenerator","SQLiteEconomicsCalculationSnapshotRepository","SQLiteEconomicsCalculationOwnerRepository","economics_snapshot_fingerprint"]
