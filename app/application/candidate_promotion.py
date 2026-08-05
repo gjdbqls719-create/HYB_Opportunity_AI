@@ -230,12 +230,44 @@ class PromoteOpportunityCandidate:
         return receipts[0].finalized_group_id
 
 
+class CandidatePromotionProductionEntry:
+    """Composes persisted Candidate promotion with Validation admission."""
+
+    def __init__(
+        self,
+        *,
+        candidate_repository: CandidateIssuanceRepository,
+        promotion_repository: CandidatePromotionRepository,
+        opportunity_id_generator: Callable[[], str],
+        binding_id_generator: Callable[[], str],
+        clock: Callable[[], datetime],
+    ) -> None:
+        validation = OpportunityValidationService(
+            queue_repository=promotion_repository,
+            lifecycle_repository=promotion_repository,
+        )
+        self._promote = PromoteOpportunityCandidate(
+            candidate_repository,
+            promotion_repository,
+            validation,
+            opportunity_id_generator=opportunity_id_generator,
+            binding_id_generator=binding_id_generator,
+            clock=clock,
+        )
+
+    def execute(
+        self, command: PromoteOpportunityCandidateCommand
+    ) -> CandidatePromotionResult:
+        return self._promote.execute(command)
+
+
 __all__ = (
     "PROMOTION_COMMAND_SCHEMA_VERSION", "PROMOTION_BINDING_SCHEMA_VERSION",
     "PROMOTION_RECEIPT_SCHEMA_VERSION", "PromoteOpportunityCandidateCommand",
     "CandidateOpportunityBinding", "CandidatePromotionReceipt",
     "CandidatePromotionResult", "CandidatePromotionRepository",
-    "PromoteOpportunityCandidate", "promotion_command_fingerprint",
+    "PromoteOpportunityCandidate", "CandidatePromotionProductionEntry",
+    "promotion_command_fingerprint",
     "promotion_subject_fingerprint", "OpportunityCandidatePromotionError",
     "CandidateForPromotionNotFoundError", "CandidatePromotionContextNotFoundError",
     "CandidateAlreadyPromotedError", "OpportunityAlreadyBoundToCandidateError",
