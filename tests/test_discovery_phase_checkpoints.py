@@ -108,7 +108,7 @@ def test_engine_calls_phase_checkpoints_at_exact_lifecycle_boundaries(
             collection_phase_complete_callback=lambda: events.append(
                 "collection-checkpoint"
             ),
-            grouping_phase_complete_callback=lambda: events.append(
+            grouping_phase_complete_callback=lambda descriptor: events.append(
                 "grouping-checkpoint"
             ),
         )
@@ -135,7 +135,7 @@ def test_engine_calls_both_phase_checkpoints_once_for_zero_results(
     result = orchestrator.find_best_opportunities(
         "nothing",
         collection_phase_complete_callback=lambda: events.append("collection"),
-        grouping_phase_complete_callback=lambda: events.append("grouping"),
+        grouping_phase_complete_callback=lambda descriptor: events.append("grouping"),
     )
 
     assert result == []
@@ -151,7 +151,7 @@ def test_engine_omitted_and_noop_callbacks_preserve_existing_zero_result(
     with_noops = orchestrator.find_best_opportunities(
         "nothing",
         collection_phase_complete_callback=lambda: None,
-        grouping_phase_complete_callback=lambda: None,
+        grouping_phase_complete_callback=lambda descriptor: None,
     )
 
     assert without_callbacks == with_noops == []
@@ -201,7 +201,7 @@ def test_grouping_checkpoint_failure_stops_price_history_and_analysis(
     with pytest.raises(RuntimeError, match="grouping checkpoint failed"):
         orchestrator.find_best_opportunities(
             "product",
-            grouping_phase_complete_callback=lambda: (_ for _ in ()).throw(
+            grouping_phase_complete_callback=lambda descriptor: (_ for _ in ()).throw(
                 RuntimeError("grouping checkpoint failed")
             ),
         )
@@ -224,7 +224,9 @@ def test_runtime_bridges_immutable_ordered_phase_facts() -> None:
                 correlation.ordered_member_collection_positions,
                 correlation.representative_collection_position,
             )
-        kwargs["grouping_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
         return []
 
     result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
@@ -232,7 +234,7 @@ def test_runtime_bridges_immutable_ordered_phase_facts() -> None:
         collection_checkpoint_handler=lambda values: events.append(
             ("collection", values)
         ),
-        grouping_checkpoint_handler=lambda values: events.append(
+        grouping_checkpoint_handler=lambda values, descriptor: events.append(
             ("grouping", values)
         ),
     )
@@ -252,13 +254,15 @@ def test_runtime_calls_handlers_with_empty_tuples() -> None:
 
     def finder(**kwargs):
         kwargs["collection_phase_complete_callback"]()
-        kwargs["grouping_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
         return []
 
     OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
         command(),
         collection_checkpoint_handler=received.append,
-        grouping_checkpoint_handler=received.append,
+        grouping_checkpoint_handler=lambda values, descriptor: received.append(values),
     )
 
     assert received == [(), ()]
@@ -274,7 +278,9 @@ def test_runtime_checkpoint_handlers_isolate_consecutive_executions() -> None:
         kwargs["collection_fact_sink"](fact(f"item-{calls}"))
         kwargs["collection_phase_complete_callback"]()
         kwargs["grouping_correlation_sink"]((0,), 0)
-        kwargs["grouping_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
         return []
 
     runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)
@@ -291,7 +297,9 @@ def test_runtime_omitted_handlers_preserve_existing_result_contract() -> None:
         kwargs["collection_fact_sink"](fact("one"))
         kwargs["collection_phase_complete_callback"]()
         kwargs["grouping_correlation_sink"]((0,), 0)
-        kwargs["grouping_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
         return []
 
     result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(command())
@@ -329,7 +337,10 @@ class CheckpointRuntime:
         self.events.append("collection-checkpoint")
         collection_checkpoint_handler(self.collection_facts)
         self.events.append("grouping")
-        grouping_checkpoint_handler(self.grouping_correlations)
+        grouping_checkpoint_handler(
+            self.grouping_correlations,
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR,
+        )
         self.events.append("grouping-checkpoint")
         if self.fail_after_grouping is not None:
             raise self.fail_after_grouping
@@ -474,7 +485,9 @@ def test_runtime_checkpoint_buffers_are_isolated_across_concurrent_executions() 
         kwargs["collection_fact_sink"](value)
         kwargs["collection_phase_complete_callback"]()
         kwargs["grouping_correlation_sink"]((0,), 0)
-        kwargs["grouping_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
         return []
 
     runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)

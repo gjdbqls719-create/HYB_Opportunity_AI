@@ -17,6 +17,7 @@ from app.infrastructure.discovery.orchestrator_gateway import (
     opportunity_result_to_discovery_result,
 )
 from collectors.collection_fact import CollectionFact
+from engine.grouping_policy import GroupingPolicyDescriptor
 from engine.orchestrator import OpportunityResult, find_best_opportunities
 
 
@@ -72,9 +73,14 @@ class OrchestratorProductionDiscoveryRuntime:
             if collection_checkpoint_handler is not None:
                 collection_checkpoint_handler(tuple(collection_facts))
 
-        def complete_grouping_phase() -> None:
+        def complete_grouping_phase(
+            grouping_policy_descriptor: GroupingPolicyDescriptor,
+        ) -> None:
             if grouping_checkpoint_handler is not None:
-                grouping_checkpoint_handler(tuple(grouping_correlations))
+                grouping_checkpoint_handler(
+                    tuple(grouping_correlations),
+                    grouping_policy_descriptor,
+                )
 
         opportunities = self._finder(
             query=parameters.query,

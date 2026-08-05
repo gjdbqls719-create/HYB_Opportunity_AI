@@ -21,6 +21,7 @@ from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandPara
 from app.models import Product
 from collectors.collection_fact import CollectionFact
 from collectors.descriptor import CollectorDescriptor
+from engine.orchestrator import PRODUCTION_GROUPING_POLICY_DESCRIPTOR
 from app.infrastructure.discovery.production_runtime import (
     OrchestratorProductionDiscoveryRuntime,
 )
@@ -125,7 +126,10 @@ class RecordingRuntime:
         if collection_checkpoint_handler is not None:
             collection_checkpoint_handler(self.collection_facts)
         if grouping_checkpoint_handler is not None:
-            grouping_checkpoint_handler(self.grouping_correlations)
+            grouping_checkpoint_handler(
+                self.grouping_correlations,
+                PRODUCTION_GROUPING_POLICY_DESCRIPTOR,
+            )
         return ProductionDiscoveryRuntimeResult(
             discovery_execution_id=self.discovery_execution_id,
             discovery_results=self.results,

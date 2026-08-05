@@ -64,6 +64,7 @@ from engine.inventory_analysis import (
     InventoryAnalysisResult,
     analyze_inventory,
 )
+from engine.grouping_policy import GroupingPolicyDescriptor
 
 from engine.seller_analysis import (
     SellerAnalysisResult,
@@ -177,6 +178,12 @@ class OpportunityHistoryLoader(Protocol):
 SearchErrorHandler = Callable[[str, Exception], None]
 GroupingCorrelationSink = Callable[[tuple[int, ...], int], None]
 PhaseCompleteCallback = Callable[[], None]
+GroupingPhaseCompleteCallback = Callable[[GroupingPolicyDescriptor], None]
+
+PRODUCTION_GROUPING_POLICY_DESCRIPTOR = GroupingPolicyDescriptor(
+    policy_name="product-similarity-greedy-first-match",
+    policy_version="1.0.0",
+)
 
 
 def search_products(
@@ -447,7 +454,7 @@ def find_best_opportunities(
     collection_fact_sink: Callable[[CollectionFact], None] | None = None,
     grouping_correlation_sink: GroupingCorrelationSink | None = None,
     collection_phase_complete_callback: PhaseCompleteCallback | None = None,
-    grouping_phase_complete_callback: PhaseCompleteCallback | None = None,
+    grouping_phase_complete_callback: GroupingPhaseCompleteCallback | None = None,
 ) -> list[OpportunityResult]:
     """상품 검색부터 최종 AI Partner 보고서까지 생성한다."""
     cleaned_query = query.strip()
@@ -534,7 +541,7 @@ def find_best_opportunities(
     )
 
     if grouping_phase_complete_callback is not None:
-        grouping_phase_complete_callback()
+        grouping_phase_complete_callback(PRODUCTION_GROUPING_POLICY_DESCRIPTOR)
 
     price_change_detector = _build_price_change_detector(
         repository=price_history_repository,

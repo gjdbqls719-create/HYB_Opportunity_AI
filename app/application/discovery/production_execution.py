@@ -18,6 +18,7 @@ from app.application.discovery.ports import ObservationIdentityProvider
 from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import CollectedProductObservation, DiscoveryCommand
 from collectors.collection_fact import CollectionFact
+from engine.grouping_policy import GroupingPolicyDescriptor
 
 
 class DiscoveryRuntimeCorrelationError(RuntimeError):
@@ -62,7 +63,10 @@ class GroupingCorrelation:
             )
 
 
-GroupingCheckpointHandler = Callable[[tuple[GroupingCorrelation, ...]], None]
+GroupingCheckpointHandler = Callable[
+    [tuple[GroupingCorrelation, ...], GroupingPolicyDescriptor],
+    None,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +229,7 @@ class PersistedDiscoveryExecutionEntry:
 
         def receive_grouping_checkpoint(
             grouping_correlations: tuple[GroupingCorrelation, ...],
+            grouping_policy_descriptor: GroupingPolicyDescriptor,
         ) -> None:
             nonlocal checkpointed_grouping_correlations
             checkpointed_grouping_correlations = grouping_correlations
