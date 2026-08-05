@@ -95,6 +95,22 @@ from app.application.candidate_issuance import (
     IssueOpportunityCandidateCommand,
     MalformedCandidateIssuanceCommandError,
 )
+from app.application.candidate_promotion import (
+    CandidateAlreadyPromotedError,
+    CandidateForPromotionNotFoundError,
+    CandidatePromotionCommandConflictError,
+    CandidatePromotionCommitError,
+    CandidatePromotionContextNotFoundError,
+    CandidatePromotionHistoryError,
+    CandidatePromotionIdentityConflictError,
+    CandidatePromotionMarketIdentityConflictError,
+    CandidatePromotionPersistenceError,
+    CandidatePromotionProductionEntry,
+    CandidatePromotionReceiptError,
+    MalformedCandidatePromotionPersistenceError,
+    OpportunityAlreadyBoundToCandidateError,
+    PromoteOpportunityCandidateCommand,
+)
 from app.application.product_snapshot_capture import (
     CandidateProductSnapshotCaptureProductionEntry,
     CandidateProductSnapshotCaptureRequest,
@@ -212,7 +228,12 @@ from app.infrastructure.discovery import (
     SQLiteDiscoveryObservationRepository,
     SQLiteDiscoveryResultRepository,
 )
-from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
+from app.infrastructure.opportunity_validation import (
+    ProductionCandidateOpportunityBindingIdentityGenerator,
+    ProductionOpportunityIdentityGenerator,
+    SQLiteCandidatePromotionRepository,
+    SQLiteValidationQueueRepository,
+)
 from app.infrastructure.product_observation import (
     SQLiteProductSnapshotCaptureRepository,
 )
@@ -536,6 +557,66 @@ class CandidateIssuanceResponse(BaseModel):
     replayed: bool
 
 
+class CandidatePromotionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    promotion_command_id: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    admission_recommendation: str = Field(min_length=1)
+    admission_score: float
+    admission_roi: float
+    currency: str = Field(min_length=1)
+    admission_safety_status: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    requested_at: datetime
+    opportunity_id: str | None = Field(default=None, min_length=1)
+    note: str | None = None
+
+    def to_command(self) -> PromoteOpportunityCandidateCommand:
+        return PromoteOpportunityCandidateCommand(
+            promotion_command_id=self.promotion_command_id,
+            candidate_id=self.candidate_id,
+            title=self.title,
+            admission_recommendation=self.admission_recommendation,
+            admission_score=self.admission_score,
+            admission_roi=self.admission_roi,
+            currency=self.currency,
+            admission_safety_status=self.admission_safety_status,
+            operator_id=self.operator_id,
+            reason=self.reason,
+            requested_at=self.requested_at,
+            opportunity_id=self.opportunity_id,
+            note=self.note,
+        )
+
+
+class CandidatePromotionResponse(BaseModel):
+    promotion_command_id: str
+    candidate_id: str
+    opportunity_id: str
+    binding_id: str
+    discovery_reference: str
+    discovery_command_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    marketplace: str
+    title: str
+    admission_recommendation: str
+    admission_score: float
+    admission_roi: float
+    currency: str
+    admission_safety_status: str
+    lifecycle_status: OpportunityLifecycleStatus
+    lifecycle_version: int
+    requested_at: datetime
+    promoted_at: datetime
+    committed_at: datetime
+    replayed: bool
+
+
 class ProductSnapshotCaptureRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -818,6 +899,40 @@ def get_candidate_issuance_entry():
         raise HTTPException(
             status_code=503,
             detail="candidate persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_candidate_promotion_entry():
+    resources = ExitStack()
+    try:
+        candidate_repository = resources.enter_context(
+            SQLiteCandidateIssuanceRepository(DEFAULT_DATABASE_PATH)
+        )
+        promotion_repository = SQLiteCandidatePromotionRepository(
+            DEFAULT_DATABASE_PATH
+        )
+        resources.callback(promotion_repository.close)
+        entry = CandidatePromotionProductionEntry(
+            candidate_repository=candidate_repository,
+            promotion_repository=promotion_repository,
+            opportunity_id_generator=ProductionOpportunityIdentityGenerator(),
+            binding_id_generator=(
+                ProductionCandidateOpportunityBindingIdentityGenerator()
+            ),
+            clock=lambda: datetime.now(timezone.utc),
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="candidate promotion persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -1436,6 +1551,93 @@ def issue_opportunity_candidate(
         requested_at=issuance.discovery_context.requested_at,
         issued_at=issuance.issued_at,
         receipt_committed_at=receipt.receipt_committed_at,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/candidate-promotions",
+    response_model=CandidatePromotionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def promote_opportunity_candidate(
+    request: CandidatePromotionRequest,
+    response: Response,
+    entry: CandidatePromotionProductionEntry = Depends(
+        get_candidate_promotion_entry
+    ),
+) -> CandidatePromotionResponse:
+    try:
+        result = entry.execute(request.to_command())
+    except (
+        CandidateForPromotionNotFoundError,
+        CandidatePromotionContextNotFoundError,
+    ) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CandidateAlreadyPromotedError,
+        CandidatePromotionCommandConflictError,
+        CandidatePromotionIdentityConflictError,
+        CandidatePromotionMarketIdentityConflictError,
+        OpportunityAlreadyBoundToCandidateError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        CandidatePromotionCommitError,
+        CandidatePromotionHistoryError,
+        CandidatePromotionPersistenceError,
+        CandidatePromotionReceiptError,
+        MalformedCandidatePromotionPersistenceError,
+    ) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="candidate promotion persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    item = result.item
+    binding = result.binding
+    receipt = result.receipt
+    identity = binding.market_observation_identity
+    return CandidatePromotionResponse(
+        promotion_command_id=receipt.promotion_command_id,
+        candidate_id=receipt.candidate_id,
+        opportunity_id=receipt.opportunity_id,
+        binding_id=binding.binding_id,
+        discovery_reference=binding.discovery_reference,
+        discovery_command_id=binding.discovery_command_id,
+        discovery_execution_id=binding.discovery_execution_id,
+        finalized_group_id=binding.finalized_group_id,
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        marketplace=item.marketplace,
+        title=item.title,
+        admission_recommendation=item.recommendation,
+        admission_score=item.score,
+        admission_roi=item.roi,
+        currency=item.currency,
+        admission_safety_status=item.safety_status,
+        lifecycle_status=item.lifecycle_status,
+        lifecycle_version=item.lifecycle_version,
+        requested_at=item.created_at,
+        promoted_at=binding.promoted_at,
+        committed_at=receipt.committed_at,
         replayed=result.replayed,
     )
 
