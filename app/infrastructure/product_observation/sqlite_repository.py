@@ -113,11 +113,6 @@ class SQLiteProductObservationSnapshotRepository:
         except (TypeError,ValueError) as error:raise MalformedProductObservationSnapshotPersistenceError("persisted Candidate context is malformed") from error
         if persisted!=_identity_dict(snapshot.market_observation_identity):
             raise ProductObservationSnapshotMarketIdentityConflictError("Snapshot Market identity differs from Candidate Context")
-        identity=snapshot.market_observation_identity;product=snapshot.product
-        if product.marketplace!=identity.marketplace:
-            raise ProductObservationSnapshotMarketIdentityConflictError("Product marketplace differs from Market identity")
-        if identity.scope is MarketObservationScope.LISTING and product.item_id!=identity.marketplace_item_id:
-            raise ProductObservationSnapshotMarketIdentityConflictError("Product item differs from listing identity")
 
     def _insert(self,s,fingerprint):
         p=_payload(s)

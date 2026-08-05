@@ -173,13 +173,17 @@ class CaptureProductSnapshots:
             observation = self._repository.get_observation(observation_id)
             if observation is None:
                 raise ProductSnapshotSourceObservationNotFoundError(observation_id)
+            if observation.discovery_execution_id != group.discovery_execution_id:
+                raise ProductSnapshotSourceConflictError(
+                    "collector observation execution lineage differs"
+                )
             if (
-                observation.discovery_execution_id != group.discovery_execution_id
-                or observation.candidate_market_identity
+                observation.candidate_market_identity is not None
+                and observation.candidate_market_identity
                 != command.market_observation_identity
             ):
                 raise ProductSnapshotSourceConflictError(
-                    "collector observation Candidate/Market lineage differs"
+                    "explicit collector observation Market identity differs"
                 )
             observations.append(observation)
 

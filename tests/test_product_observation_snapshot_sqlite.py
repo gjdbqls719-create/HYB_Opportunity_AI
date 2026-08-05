@@ -62,15 +62,19 @@ def test_exact_replay_conflict_and_repeated_observations(tmp_path):
     repo.close();candidates.close();close(sources)
 
 
-def test_candidate_context_and_listing_lineage_validation(tmp_path):
+def test_candidate_context_identity_and_evidence_source_are_independent(tmp_path):
     path=tmp_path/"lineage.db";sources,candidates,repo=setup(path);value=snapshot()
     with pytest.raises(ProductObservationSnapshotCandidateMismatchError):
         repo.save_snapshot(replace(value,candidate_identity=OpportunityCandidateIdentity("candidate-1","other")))
     with pytest.raises(ProductObservationSnapshotMarketIdentityConflictError):
         repo.save_snapshot(replace(value,market_observation_identity=replace(value.market_observation_identity,marketplace_item_id="other")))
-    with pytest.raises(ProductObservationSnapshotMarketIdentityConflictError):
-        repo.save_snapshot(replace(value,product=replace(value.product,item_id="other")))
-    assert count(repo)==0 and not repo._connection.in_transaction
+    other_listing=replace(value,snapshot_id="product-observation-2",
+        product=replace(value.product,item_id="other"))
+    other_marketplace=replace(value,snapshot_id="product-observation-3",
+        product=replace(value.product,marketplace="amazon",item_id="amazon-item"))
+    assert repo.save_snapshot(other_listing)==other_listing
+    assert repo.save_snapshot(other_marketplace)==other_marketplace
+    assert count(repo)==2 and not repo._connection.in_transaction
     repo.close();candidates.close();close(sources)
 
 

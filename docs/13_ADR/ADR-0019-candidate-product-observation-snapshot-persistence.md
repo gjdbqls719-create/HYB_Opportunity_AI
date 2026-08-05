@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted; Candidate subject and evidence source identity reconciled by PR38-B
 
 ## Decision
 
@@ -14,9 +14,11 @@ Collector or constructs Candidate identity.
 
 Every save uses `BEGIN IMMEDIATE`, checks snapshot-ID replay, then validates the
 persisted Candidate and Context. Candidate identity and discovery reference must
-match exactly; complete Market identity must equal Context; Product marketplace
-and listing item must match that identity. Promotion is not required because the
-fact is legitimately pre-admission.
+match exactly, and complete Market identity must equal Context. That identity is
+the Snapshot's Candidate subject identity; it does not assert that every evidence
+Product has the same marketplace or listing item. Each Product's exact source is
+preserved by its copied fields and immutable discovery-observation source binding.
+Promotion is not required because the fact is legitimately pre-admission.
 
 Snapshot ID is the replay key. Same ID and complete payload replay exactly; a
 changed payload conflicts. A different ID with identical Product/provenance is

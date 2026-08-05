@@ -11,9 +11,11 @@ from app.application.product_snapshot_capture import (
     CaptureProductSnapshotsCommand,
     ProductSnapshotCaptureHistoryError,
     ProductSnapshotSourceConflictError,
+    ProductSnapshotSourceObservationNotFoundError,
     SnapshotOwnerCommandConflictError,
     SnapshotOwnerCommitError,
 )
+from app.domain.market_intelligence import MarketObservationScope
 from app.infrastructure.discovery import (
     SQLiteCandidateIssuanceRepository,
     SQLiteDiscoveryCommandRepository,
@@ -28,18 +30,43 @@ from test_discovery_correlation_contract import NOW, command, group, market_iden
 from test_discovery_execution_result_sqlite_persistence import result
 
 
-def setup(path):
+def setup(
+    path,
+    *,
+    candidate_market_identity=None,
+    observation_market_identity=None,
+    second_item_id="item-2",
+    second_marketplace="ebay",
+):
     command_repo=SQLiteDiscoveryCommandRepository(path); command_repo.save_command(command(),receipt(command()))
     observation_repo=SQLiteDiscoveryObservationRepository(path)
-    first=replace(observation(),candidate_market_identity=market_identity())
-    second=replace(first,observation_id="observation-2",observed_at=NOW+timedelta(seconds=1))
+    first=replace(
+        observation(),
+        candidate_market_identity=observation_market_identity,
+    )
+    second_product=replace(
+        first.product,
+        marketplace=second_marketplace,
+        item_id=second_item_id,
+        url=f"https://example.com/{second_marketplace}/{second_item_id}",
+    )
+    second=replace(
+        first,
+        observation_id="observation-2",
+        source_marketplace=second_marketplace,
+        source_item_id=second_item_id,
+        product=second_product,
+        observed_at=NOW+timedelta(seconds=1),
+    )
     observation_repo.save_observation(first);observation_repo.save_observation(second)
     group_repo=SQLiteDiscoveryGroupRepository(path);group_repo.save_group(group())
     result_repo=SQLiteDiscoveryResultRepository(path);result_repo.save_result(result())
     sources=(command_repo,result_repo,group_repo,observation_repo)
     candidates=SQLiteCandidateIssuanceRepository(path)
     boundary=PersistOpportunityCandidateIssuance(service(sources,Counter("candidate-1"),Counter(ISSUED_AT)),candidates,receipt_clock=Counter(ISSUED_AT))
-    issuance=boundary.execute(issuance_command()).issuance
+    issuance=boundary.execute(issuance_command(
+        market_observation_identity=candidate_market_identity or market_identity()
+    )).issuance
     for value in sources:value.close()
     candidates.close()
     return issuance,first,second
@@ -67,6 +94,8 @@ def test_exact_collector_source_capture_round_trip_and_restart(tmp_path):
     assert tuple(value.product for value in result_.snapshots)==(first.product,second.product)
     assert tuple(value.collector_provenance for value in result_.snapshots)==(first.collector_provenance,second.collector_provenance)
     assert tuple(value.observed_at for value in result_.snapshots)==(first.observed_at,second.observed_at)
+    assert tuple(value.product.item_id for value in result_.snapshots)==("item-1","item-2")
+    assert all(value.market_observation_identity==issuance.discovery_context.market_observation_identity for value in result_.snapshots)
     assert tuple(value.collected_observation_id for value in result_.bindings)==("observation-1","observation-2")
     repo.close();repo=SQLiteProductSnapshotCaptureRepository(path)
     replay=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT+timedelta(days=1))).execute(capture_command(issuance))
@@ -99,10 +128,114 @@ def test_new_command_can_alias_exact_publication_but_cannot_duplicate_source(tmp
 def test_exact_group_order_and_candidate_market_identity_are_required(tmp_path):
     path=tmp_path/"lineage.db";issuance,_,_=setup(path);repo=SQLiteProductSnapshotCaptureRepository(path);boundary=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT))
     with pytest.raises(ProductSnapshotSourceConflictError):
+        boundary.execute(replace(capture_command(issuance),finalized_group_id="other-group"))
+    with pytest.raises(ProductSnapshotSourceConflictError):
         boundary.execute(replace(capture_command(issuance),observation_snapshot_ids=(("observation-2","product-2"),("observation-1","product-1"))))
     with pytest.raises(ProductSnapshotSourceConflictError):
         boundary.execute(replace(capture_command(issuance),market_observation_identity=replace(market_identity(),condition="used")))
     assert counts(repo)==(0,0,0);repo.close()
+
+
+@pytest.mark.parametrize("failure",("missing","wrong-execution"))
+def test_observation_presence_and_execution_lineage_are_required(failure):
+    identity=market_identity()
+
+    class Repository:
+        get_receipt=lambda self, value: None
+        get_candidate_lineage=lambda self, value: (
+            "collector:ebay:item-1","group-opaque-1",identity
+        )
+        get_group=lambda self, value: group()
+
+        def get_observation(self, observation_id):
+            if failure=="missing":return None
+            return replace(observation(),observation_id=observation_id,
+                discovery_execution_id="other-execution")
+
+        persist_capture=lambda *args: pytest.fail("persistence must not run")
+
+    error=(ProductSnapshotSourceObservationNotFoundError
+        if failure=="missing" else ProductSnapshotSourceConflictError)
+    with pytest.raises(error):
+        CaptureProductSnapshots(Repository(),receipt_clock=Counter(ISSUED_AT)).execute(
+            CaptureProductSnapshotsCommand(
+                command_id="capture-1",
+                candidate_identity=issuance_command_identity(),
+                finalized_group_id="group-opaque-1",
+                observation_snapshot_ids=(("observation-1","product-1"),("observation-2","product-2")),
+                market_observation_identity=identity,
+                requested_at=NOW,
+            )
+        )
+
+
+def issuance_command_identity():
+    from app.domain.discovery_identity import OpportunityCandidateIdentity
+    return OpportunityCandidateIdentity("candidate-1","collector:ebay:item-1")
+
+
+def test_explicit_matching_observation_identity_is_accepted(tmp_path):
+    path=tmp_path/"explicit-match.db";identity=market_identity()
+    issuance,_,_=setup(path,candidate_market_identity=identity,
+        observation_market_identity=identity,second_item_id="item-1")
+    repo=SQLiteProductSnapshotCaptureRepository(path)
+    result_=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
+    assert tuple(value.product.item_id for value in result_.snapshots)==("item-1","item-1")
+    assert counts(repo)==(2,2,1);repo.close()
+
+
+def test_explicit_conflicting_observation_identity_is_rejected_without_writes(tmp_path):
+    path=tmp_path/"explicit-conflict.db";identity=market_identity()
+    conflicting=replace(identity,condition="used")
+    issuance,_,_=setup(path,candidate_market_identity=identity,
+        observation_market_identity=conflicting,second_item_id="item-1")
+    repo=SQLiteProductSnapshotCaptureRepository(path)
+    with pytest.raises(ProductSnapshotSourceConflictError):
+        CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
+    assert counts(repo)==(0,0,0);repo.close()
+
+
+def test_canonical_candidate_captures_unresolved_multi_listing_group(tmp_path):
+    path=tmp_path/"canonical.db"
+    identity=market_identity(MarketObservationScope.CANONICAL_PRODUCT)
+    issuance,first,second=setup(path,candidate_market_identity=identity)
+    repo=SQLiteProductSnapshotCaptureRepository(path)
+    result_=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
+    assert tuple(value.market_observation_identity for value in result_.snapshots)==(identity,identity)
+    assert tuple(value.product for value in result_.snapshots)==(first.product,second.product)
+    assert tuple(value.collected_observation_id for value in result_.bindings)==("observation-1","observation-2")
+    assert counts(repo)==(2,2,1);repo.close()
+
+
+def test_unresolved_cross_market_member_preserves_evidence_source(tmp_path):
+    path=tmp_path/"cross-market.db"
+    issuance,first,second=setup(path,second_marketplace="amazon")
+    repo=SQLiteProductSnapshotCaptureRepository(path)
+    result_=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
+    assert tuple(value.product.marketplace for value in result_.snapshots)==("ebay","amazon")
+    assert tuple(value.product for value in result_.snapshots)==(first.product,second.product)
+    assert tuple(value.collected_observation_id for value in result_.bindings)==("observation-1","observation-2")
+    assert counts(repo)==(2,2,1);repo.close()
+
+
+@pytest.mark.parametrize("field",("product","provenance","observed_at"))
+def test_repository_rejects_snapshot_that_differs_from_bound_observation(tmp_path,field):
+    path=tmp_path/f"mismatch-{field}.db";issuance,_,_=setup(path)
+    repository=SQLiteProductSnapshotCaptureRepository(path)
+
+    class MutatingRepository:
+        def __getattr__(self,name):return getattr(repository,name)
+
+        def persist_capture(self,command_,snapshots,bindings,receipt_):
+            first=snapshots[0]
+            if field=="product":first=replace(first,product=replace(first.product,title="changed"))
+            elif field=="provenance":first=replace(first,collector_provenance=replace(first.collector_provenance,source_reference="changed"))
+            else:first=replace(first,observed_at=first.observed_at+timedelta(seconds=1))
+            return repository.persist_capture(command_,(first,)+snapshots[1:],bindings,receipt_)
+
+    with pytest.raises(ProductSnapshotSourceConflictError):
+        CaptureProductSnapshots(MutatingRepository(),receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
+    assert counts(repository)==(0,0,0);repository.close()
 
 
 def test_append_only_triggers_and_read_only_replay_queries(tmp_path):
