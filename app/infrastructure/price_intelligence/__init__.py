@@ -1,4 +1,5 @@
 from .sqlite_repository import SQLitePriceIntelligenceSnapshotRepository, price_snapshot_fingerprint
 from .analysis_repository import SQLitePriceAnalysisRepository
+from .identity_suppliers import ProductionPriceSnapshotIdentityGenerator
 
-__all__=["SQLitePriceIntelligenceSnapshotRepository","SQLitePriceAnalysisRepository","price_snapshot_fingerprint"]
+__all__=["ProductionPriceSnapshotIdentityGenerator","SQLitePriceIntelligenceSnapshotRepository","SQLitePriceAnalysisRepository","price_snapshot_fingerprint"]
