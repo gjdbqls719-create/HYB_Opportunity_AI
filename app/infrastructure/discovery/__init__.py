@@ -19,10 +19,16 @@ from app.infrastructure.discovery.production_runtime import (
 from app.infrastructure.discovery.orchestrator_gateway import (
     OrchestratorOpportunityDiscoveryGateway,
 )
+from app.infrastructure.discovery.identity_suppliers import (
+    ProductionFinalizedGroupIdentityProvider,
+    ProductionObservationIdentityProvider,
+)
 
 __all__ = [
     "OrchestratorOpportunityDiscoveryGateway",
     "OrchestratorProductionDiscoveryRuntime",
+    "ProductionFinalizedGroupIdentityProvider",
+    "ProductionObservationIdentityProvider",
     "SQLiteDiscoveryCommandRepository",
     "SQLiteDiscoveryGroupRepository",
     "SQLiteDiscoveryObservationRepository",
