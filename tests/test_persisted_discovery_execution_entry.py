@@ -20,12 +20,14 @@ from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
 from app.models import Product
 from collectors.collection_fact import CollectionFact
+from collectors.descriptor import CollectorDescriptor
 from app.infrastructure.discovery.production_runtime import (
     OrchestratorProductionDiscoveryRuntime,
 )
 
 
 NOW = datetime(2026, 8, 5, 1, 0, tzinfo=timezone.utc)
+TEST_COLLECTOR = CollectorDescriptor("ebay", "test-collector-implementation")
 
 
 def command() -> DiscoveryCommand:
@@ -194,8 +196,8 @@ def test_entry_returns_collection_facts_without_changing_them() -> None:
     runtime = RecordingRuntime(events)
     product = discovery_result().product
     facts = (
-        CollectionFact(product, NOW, "ebay", "source-1"),
-        CollectionFact(product, NOW, "ebay", "source-2"),
+        CollectionFact(product, NOW, TEST_COLLECTOR, "source-1"),
+        CollectionFact(product, NOW, TEST_COLLECTOR, "source-2"),
     )
     runtime.collection_facts = facts
 

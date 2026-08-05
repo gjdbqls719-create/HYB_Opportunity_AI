@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.models import Product
+from collectors.descriptor import CollectorDescriptor
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,8 +13,20 @@ class CollectionFact:
 
     product: Product
     observed_at: datetime
-    collector_name: str
+    collector_descriptor: CollectorDescriptor
     source_reference: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.collector_descriptor, CollectorDescriptor):
+            raise TypeError("collector_descriptor must be CollectorDescriptor")
+
+    @property
+    def collector_name(self) -> str:
+        return self.collector_descriptor.collector_name
+
+    @property
+    def collector_version(self) -> str:
+        return self.collector_descriptor.collector_version
 
 
 __all__ = ["CollectionFact"]

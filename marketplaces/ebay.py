@@ -10,6 +10,7 @@ import requests
 from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter, parse_price
 from collectors.collection_fact import CollectionFact
+from collectors.descriptor import CollectorDescriptor
 from config.settings import get_settings
 from services.ebay_auth import get_application_token
 
@@ -21,6 +22,10 @@ class EbayAdapter(MarketplaceAdapter):
     """eBay 원본 상품 데이터를 공통 Product 모델로 변환한다."""
 
     marketplace_name = "ebay"
+    collector_descriptor = CollectorDescriptor(
+        collector_name=marketplace_name,
+        collector_version="ebay-collector-implementation-v1",
+    )
 
     def normalize(self, raw_product: dict[str, Any]) -> Product:
         price_data = raw_product.get("price")
@@ -176,7 +181,7 @@ def ebay_item_to_product(
             CollectionFact(
                 product=product,
                 observed_at=clock(),
-                collector_name=EbayAdapter.marketplace_name,
+                collector_descriptor=EbayAdapter.collector_descriptor,
                 source_reference=product.url,
             )
         )

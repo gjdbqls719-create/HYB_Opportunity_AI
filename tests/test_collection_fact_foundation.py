@@ -13,11 +13,13 @@ from app.application.discovery.production_execution import (
     ProductionDiscoveryRuntimeResult,
 )
 from collectors.collection_fact import CollectionFact
+from collectors.descriptor import CollectorDescriptor
 from engine import orchestrator
 from marketplaces import ebay
 
 
 OBSERVED_AT = datetime(2026, 8, 5, 2, 30, tzinfo=timezone.utc)
+TEST_COLLECTOR = CollectorDescriptor("ebay", "test-collector-implementation")
 
 
 def raw_item(
@@ -40,7 +42,7 @@ def test_collection_fact_preserves_only_collection_boundary_facts() -> None:
     fact = CollectionFact(
         product=product,
         observed_at=OBSERVED_AT,
-        collector_name="ebay",
+        collector_descriptor=TEST_COLLECTOR,
         source_reference=product.url,
     )
 
@@ -51,7 +53,7 @@ def test_collection_fact_preserves_only_collection_boundary_facts() -> None:
     assert set(fact.__dataclass_fields__) == {
         "product",
         "observed_at",
-        "collector_name",
+        "collector_descriptor",
         "source_reference",
     }
 
@@ -136,7 +138,7 @@ def test_production_runtime_returns_execution_results_and_ordered_facts() -> Non
                 CollectionFact(
                     product=product,
                     observed_at=OBSERVED_AT,
-                    collector_name="ebay",
+                    collector_descriptor=TEST_COLLECTOR,
                     source_reference=f"{product.url}#{suffix}",
                 )
             )
@@ -166,7 +168,7 @@ def test_production_runtime_isolates_consecutive_execution_fact_tuples() -> None
             CollectionFact(
                 product=product,
                 observed_at=OBSERVED_AT,
-                collector_name="ebay",
+                collector_descriptor=TEST_COLLECTOR,
                 source_reference=f"run-{calls}",
             )
         )
@@ -199,7 +201,7 @@ def test_production_runtime_isolates_concurrent_execution_fact_buffers() -> None
             CollectionFact(
                 product=product,
                 observed_at=OBSERVED_AT,
-                collector_name="ebay",
+                collector_descriptor=TEST_COLLECTOR,
                 source_reference=kwargs["query"],
             )
         )
