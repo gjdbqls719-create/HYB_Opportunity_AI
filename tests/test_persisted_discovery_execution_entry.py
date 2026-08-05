@@ -132,6 +132,15 @@ class RecordingObservationIdentityProvider:
         return next(self.values)
 
 
+class RecordingObservationRepository:
+    def __init__(self):
+        self.calls = []
+
+    def save_observation(self, observation):
+        self.calls.append(observation)
+        return observation
+
+
 def test_entry_persists_before_runtime_and_returns_both_results() -> None:
     events: list[str] = []
     value = command()
@@ -142,6 +151,7 @@ def test_entry_persists_before_runtime_and_returns_both_results() -> None:
         persist_command=persister,
         runtime=runtime,
         observation_identity_provider=RecordingObservationIdentityProvider(),
+        observation_repository=RecordingObservationRepository(),
     ).execute(value)
 
     assert events == ["persist", "runtime"]
@@ -163,6 +173,7 @@ def test_entry_does_not_run_runtime_when_persistence_fails() -> None:
             persist_command=RecordingPersister(events, fail=persistence_error),
             runtime=runtime,
             observation_identity_provider=RecordingObservationIdentityProvider(),
+            observation_repository=RecordingObservationRepository(),
         ).execute(command())
 
     assert events == ["persist"]
@@ -178,6 +189,7 @@ def test_entry_keeps_persisted_command_when_runtime_fails() -> None:
             persist_command=persister,
             runtime=RecordingRuntime(events, fail=RuntimeError("runtime failed")),
             observation_identity_provider=RecordingObservationIdentityProvider(),
+            observation_repository=RecordingObservationRepository(),
         ).execute(command())
 
     assert events == ["persist", "runtime"]
@@ -199,6 +211,7 @@ def test_entry_passes_the_committed_replay_command_to_runtime() -> None:
         persist_command=ReplayPersister(events),
         runtime=runtime,
         observation_identity_provider=RecordingObservationIdentityProvider(),
+        observation_repository=RecordingObservationRepository(),
     ).execute(requested)
 
     assert runtime.calls == [committed]
@@ -221,6 +234,7 @@ def test_entry_returns_collection_facts_without_changing_them() -> None:
         observation_identity_provider=RecordingObservationIdentityProvider(
             "observation-1", "observation-2"
         ),
+        observation_repository=RecordingObservationRepository(),
     ).execute(command())
 
     assert result.collection_facts is facts
@@ -237,6 +251,7 @@ def test_entry_rejects_runtime_execution_identity_mismatch() -> None:
             persist_command=RecordingPersister(events),
             runtime=runtime,
             observation_identity_provider=RecordingObservationIdentityProvider(),
+            observation_repository=RecordingObservationRepository(),
         ).execute(command())
 
     assert events == ["persist", "runtime"]

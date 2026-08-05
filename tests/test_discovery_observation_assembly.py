@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from inspect import signature
 
 import pytest
 
@@ -16,6 +15,7 @@ from collectors.collection_fact import CollectionFact
 from collectors.descriptor import CollectorDescriptor
 from tests.test_persisted_discovery_execution_entry import (
     NOW,
+    RecordingObservationRepository,
     RecordingPersister,
     RecordingRuntime,
     command,
@@ -77,6 +77,7 @@ def execute(runtime: RecordingRuntime, provider, *, persister=None):
         persist_command=persister or RecordingPersister(events),
         runtime=runtime,
         observation_identity_provider=provider,
+        observation_repository=RecordingObservationRepository(),
     ).execute(command())
 
 
@@ -170,6 +171,7 @@ def test_replay_assembles_with_committed_command_execution_identity() -> None:
         persist_command=ReplayPersister(events),
         runtime=runtime,
         observation_identity_provider=SequentialObservationIdentityProvider("opaque:1"),
+        observation_repository=RecordingObservationRepository(),
     ).execute(requested)
 
     assert runtime.calls == [committed]
@@ -200,7 +202,3 @@ def test_correlation_mismatch_is_rejected_before_identity_supply() -> None:
         execute(runtime, provider)
 
     assert provider.calls == 0
-
-
-def test_entry_has_no_observation_repository_dependency() -> None:
-    assert "repository" not in signature(PersistedDiscoveryExecutionEntry).parameters

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from app.application.discovery_persistence import (
+    DiscoveryObservationRepository,
     PersistDiscoveryCommand,
     PersistDiscoveryCommandResult,
 )
@@ -107,6 +108,7 @@ class PersistedDiscoveryExecutionEntry:
         persist_command: PersistDiscoveryCommand,
         runtime: ProductionDiscoveryRuntime,
         observation_identity_provider: ObservationIdentityProvider,
+        observation_repository: DiscoveryObservationRepository,
     ) -> None:
         if not isinstance(observation_identity_provider, ObservationIdentityProvider):
             raise TypeError(
@@ -115,6 +117,7 @@ class PersistedDiscoveryExecutionEntry:
         self._persist_command = persist_command
         self._runtime = runtime
         self._observation_identity_provider = observation_identity_provider
+        self._observation_repository = observation_repository
 
     def execute(
         self,
@@ -142,12 +145,16 @@ class PersistedDiscoveryExecutionEntry:
             collection_facts=runtime_result.collection_facts,
             identity_provider=self._observation_identity_provider,
         )
+        persisted_observations = tuple(
+            self._observation_repository.save_observation(observation)
+            for observation in observations
+        )
 
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
             discovery_results=runtime_result.discovery_results,
             collection_facts=runtime_result.collection_facts,
-            observations=observations,
+            observations=persisted_observations,
         )
 
 
