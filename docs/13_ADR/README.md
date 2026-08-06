@@ -37,3 +37,4 @@ Architecture Decision Record 관리 영역.
 
 - [ADR-0029: Persisted Discovery Execution Entry](ADR-0029-persisted-discovery-execution-entry.md)
 - [ADR-0030: OCR Artifact Authority](ADR-0030-ocr-artifact-authority.md)
+- [ADR-0031: OCR Execution Persistence and Replay](ADR-0031-ocr-execution-persistence-and-replay.md)
