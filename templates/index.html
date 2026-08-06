@@ -248,7 +248,7 @@
                 <button id="search-button" type="submit">Discover</button>
             </form>
             <p id="loading" class="state-message" role="status" hidden>
-                Searching eBay for opportunities…
+                Searching eBay...
             </p>
             <p id="summary" class="state-message" role="status"
                aria-live="polite" hidden></p>
@@ -262,7 +262,10 @@
         </section>
     </main>
     <script>
+        const founderDiscoveryProfile = {{ founder_discovery_profile | tojson }};
+        const pendingEnvelopeStorageKey = "hyb.founder-discovery.pending.v1";
         const searchForm = document.getElementById("search-form");
+        const marketplaceSelect = document.getElementById("marketplace");
         const queryInput = document.getElementById("query");
         const limitSelect = document.getElementById("limit");
         const searchButton = document.getElementById("search-button");
@@ -271,14 +274,112 @@
         const errorMessage = document.getElementById("error-message");
         const resultsContainer = document.getElementById("results");
 
-        function formatAmount(value, currency) {
-            return `${value} ${currency}`.trim();
+        function setLoadingState(message) {
+            loadingIndicator.textContent = message;
+            loadingIndicator.hidden = false;
         }
 
-        function renderOpportunities(opportunities, query) {
-            resultsContainer.replaceChildren();
+        function readPendingEnvelope() {
+            try {
+                const serialized = sessionStorage.getItem(pendingEnvelopeStorageKey);
+                return serialized ? JSON.parse(serialized) : null;
+            } catch (error) {
+                return null;
+            }
+        }
 
-            if (opportunities.length === 0) {
+        function retainPendingEnvelope(envelope) {
+            try {
+                sessionStorage.setItem(
+                    pendingEnvelopeStorageKey,
+                    JSON.stringify(envelope),
+                );
+            } catch (storageError) {
+                const error = new Error(
+                    "Retry recovery is unavailable, so Discovery was not started."
+                );
+                error.code = "retry-storage-unavailable";
+                throw error;
+            }
+        }
+
+        function clearPendingEnvelope() {
+            try {
+                sessionStorage.removeItem(pendingEnvelopeStorageKey);
+            } catch (error) {
+                // The authoritative server result is already committed.
+            }
+        }
+
+        function hasSameIntent(envelope, marketplace, query, limit) {
+            return envelope
+                && envelope.marketplace === marketplace
+                && envelope.query === query
+                && envelope.limit === limit
+                && envelope.profile_name === founderDiscoveryProfile.profile_name
+                && envelope.profile_version === founderDiscoveryProfile.profile_version;
+        }
+
+        function createEnvelope(marketplace, query, limit) {
+            const commandId = crypto.randomUUID();
+            const executionId = crypto.randomUUID();
+            return {
+                marketplace,
+                query,
+                limit,
+                profile_name: founderDiscoveryProfile.profile_name,
+                profile_version: founderDiscoveryProfile.profile_version,
+                request: {
+                    command_id: commandId,
+                    discovery_execution_id: executionId,
+                    requested_at: new Date().toISOString(),
+                    query,
+                    selling_price_multiplier: founderDiscoveryProfile.selling_price_multiplier,
+                    shipping_cost: founderDiscoveryProfile.shipping_cost,
+                    marketplace_fee_rate: founderDiscoveryProfile.marketplace_fee_rate,
+                    payment_fee_rate: founderDiscoveryProfile.payment_fee_rate,
+                    fixed_fee: founderDiscoveryProfile.fixed_fee,
+                    marketplace_fee_known: founderDiscoveryProfile.marketplace_fee_known,
+                    payment_fee_known: founderDiscoveryProfile.payment_fee_known,
+                    fixed_fee_known: founderDiscoveryProfile.fixed_fee_known,
+                    tax_rate: founderDiscoveryProfile.tax_rate,
+                    other_cost: founderDiscoveryProfile.other_cost,
+                    minimum_net_profit: founderDiscoveryProfile.minimum_net_profit,
+                    minimum_roi: founderDiscoveryProfile.minimum_roi,
+                    estimated_monthly_sales: founderDiscoveryProfile.estimated_monthly_sales,
+                    competitor_count: founderDiscoveryProfile.competitor_count,
+                    risk_level: founderDiscoveryProfile.risk_level,
+                    limit,
+                    match_threshold: founderDiscoveryProfile.match_threshold,
+                    target_currency: founderDiscoveryProfile.target_currency,
+                    policy_references: founderDiscoveryProfile.policy_references,
+                    source_references: founderDiscoveryProfile.source_references,
+                },
+            };
+        }
+
+        function getOrCreateEnvelope(marketplace, query, limit) {
+            const pending = readPendingEnvelope();
+            if (hasSameIntent(pending, marketplace, query, limit)) {
+                return pending;
+            }
+            const envelope = createEnvelope(marketplace, query, limit);
+            retainPendingEnvelope(envelope);
+            return envelope;
+        }
+
+        async function requireJson(response, message) {
+            if (!response.ok) {
+                const error = new Error(message);
+                error.status = response.status;
+                throw error;
+            }
+            return response.json();
+        }
+
+        function renderFinalizedGroups(groups, query) {
+            resultsContainer.replaceChildren();
+            if (groups.length === 0) {
                 const emptyMessage = document.createElement("p");
                 emptyMessage.className = "state-message";
                 emptyMessage.textContent =
@@ -287,27 +388,21 @@
                 return;
             }
 
-            for (const opportunity of opportunities) {
-                const product = opportunity.product;
-                const metrics = opportunity.metrics;
+            for (const [index, group] of groups.entries()) {
                 const card = document.createElement("article");
                 const title = document.createElement("h2");
-                const marketplace = document.createElement("p");
-                const score = document.createElement("p");
+                const groupId = document.createElement("p");
                 const details = document.createElement("dl");
                 const values = [
-                    ["ROI", `${metrics.roi}%`],
-                    ["Expected selling price", formatAmount(metrics.expected_selling_price, product.currency)],
-                    ["Net profit", formatAmount(metrics.net_profit, product.currency)],
+                    ["Observations", String(group.observation_ids.length)],
+                    ["Representative observation", group.representative_observation_id],
+                    ["Grouping policy", group.grouping_policy_version],
                 ];
 
                 card.className = "opportunity-card";
-                title.textContent = product.title;
-                marketplace.className = "marketplace";
-                marketplace.textContent = `Marketplace: ${product.marketplace}`;
-                score.className = "opportunity-score";
-                score.textContent = `Final Opportunity Score: ${metrics.final_opportunity_score}`;
-
+                title.textContent = `Finalized product group ${index + 1}`;
+                groupId.className = "marketplace";
+                groupId.textContent = `Group ID: ${group.finalized_group_id}`;
                 for (const [label, value] of values) {
                     const term = document.createElement("dt");
                     const description = document.createElement("dd");
@@ -315,44 +410,73 @@
                     description.textContent = value;
                     details.append(term, description);
                 }
-
-                card.append(title, marketplace, score, details);
+                card.append(title, groupId, details);
                 resultsContainer.append(card);
             }
         }
 
         async function searchOpportunities() {
+            const marketplace = marketplaceSelect.value;
             const query = queryInput.value.trim();
+            const limit = Number(limitSelect.value);
             if (!query) return;
+            if (marketplace !== founderDiscoveryProfile.marketplace) {
+                errorMessage.textContent = "The selected marketplace is unavailable.";
+                errorMessage.hidden = false;
+                return;
+            }
 
             searchButton.disabled = true;
-            loadingIndicator.hidden = false;
             summary.hidden = true;
             errorMessage.hidden = true;
             resultsContainer.replaceChildren();
 
             try {
-                const response = await fetch("/api/v1/opportunities/search", {
+                const envelope = getOrCreateEnvelope(marketplace, query, limit);
+                const executionId = envelope.request.discovery_execution_id;
+                setLoadingState("Searching eBay...");
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                const executionPromise = fetch("/api/v1/discovery/executions", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        query,
-                        limit: Number(limitSelect.value),
-                        top: Number(limitSelect.value),
-                    }),
+                    body: JSON.stringify(envelope.request),
                 });
-
-                if (!response.ok) {
-                    const error = new Error("Discovery request failed");
-                    error.status = response.status;
-                    throw error;
+                setLoadingState("Discovery running...");
+                const execution = await requireJson(
+                    await executionPromise,
+                    "Discovery request failed",
+                );
+                if (execution.discovery_execution_id !== executionId) {
+                    throw new Error("Discovery execution identity mismatch");
                 }
 
-                const data = await response.json();
-                renderOpportunities(data.dashboard_cards, data.query);
-                summary.textContent =
-                    `Found ${data.dashboard_cards.length} opportunities for “${data.query}”.`;
+                setLoadingState("Reading Result...");
+                const result = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}`),
+                    "Discovery result read failed",
+                );
+                setLoadingState("Reading Groups...");
+                const groupRead = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}/finalized-groups`),
+                    "Finalized Group read failed",
+                );
+                const groups = groupRead.finalized_groups;
+                const groupIds = groups.map((group) => group.finalized_group_id);
+                if (
+                    result.discovery_execution_id !== executionId
+                    || groupRead.discovery_execution_id !== executionId
+                    || JSON.stringify(result.finalized_group_ids) !== JSON.stringify(groupIds)
+                ) {
+                    throw new Error("Discovery read lineage mismatch");
+                }
+
+                setLoadingState("Completed");
+                renderFinalizedGroups(groups, query);
+                summary.textContent = result.is_zero_result
+                    ? `Completed · No opportunities found for “${query}”.`
+                    : `Completed · Found ${groups.length} finalized product groups for “${query}”.`;
                 summary.hidden = false;
+                clearPendingEnvelope();
             } catch (error) {
                 if (error.status === 502) {
                     errorMessage.textContent =
@@ -360,6 +484,8 @@
                 } else if (error.status === 422) {
                     errorMessage.textContent =
                         "Check the keyword and limit, then try again.";
+                } else if (error.code === "retry-storage-unavailable") {
+                    errorMessage.textContent = error.message;
                 } else {
                     errorMessage.textContent =
                         "Discovery could not be completed. Try again.";
@@ -369,6 +495,19 @@
                 searchButton.disabled = false;
                 loadingIndicator.hidden = true;
             }
+        }
+
+        const pendingEnvelope = readPendingEnvelope();
+        if (
+            pendingEnvelope
+            && pendingEnvelope.profile_name === founderDiscoveryProfile.profile_name
+            && pendingEnvelope.profile_version === founderDiscoveryProfile.profile_version
+        ) {
+            marketplaceSelect.value = pendingEnvelope.marketplace;
+            queryInput.value = pendingEnvelope.query;
+            limitSelect.value = String(pendingEnvelope.limit);
+            summary.textContent = "A pending Discovery attempt is ready to retry.";
+            summary.hidden = false;
         }
 
         searchForm.addEventListener("submit", (event) => {

@@ -35,9 +35,8 @@ def test_index_contains_api_first_search_controls() -> None:
     assert 'id="error-message"' in response.text
     assert 'id="loading"' in response.text
     assert "async function searchOpportunities()" in response.text
-    assert 'fetch("/api/v1/opportunities/search"' in response.text
-    assert "limit: Number(limitSelect.value)" in response.text
-    assert "top: Number(limitSelect.value)" in response.text
+    assert 'fetch("/api/v1/discovery/executions"' in response.text
+    assert "Number(limitSelect.value)" in response.text
 
 
 def test_index_contains_opportunity_dashboard_contract() -> None:
@@ -45,9 +44,9 @@ def test_index_contains_opportunity_dashboard_contract() -> None:
 
     assert 'id="results"' in response.text
     assert 'className = "opportunity-card"' in response.text
-    assert "Final Opportunity Score" in response.text
+    assert "Representative observation" in response.text
     assert "No opportunities found for" in response.text
-    assert "Searching eBay for opportunities" in response.text
+    assert "Searching eBay..." in response.text
     assert "eBay is temporarily unavailable" in response.text
 
 
@@ -61,7 +60,7 @@ def test_index_contains_dashboard_ux_accessibility_contract() -> None:
     assert 'id="summary" class="state-message" role="status"' in response.text
     assert 'aria-live="polite"' in response.text
     assert 'id="error-message" class="state-message" role="alert"' in response.text
-    assert "Found ${data.dashboard_cards.length} opportunities" in response.text
+    assert "finalized product groups" in response.text
     assert 'href="/opportunities"' in response.text
 
 

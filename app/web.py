@@ -71,10 +71,12 @@ from app.application.production_safety_evaluation import (
 )
 from app.application.production_safety_runtime_adapter import ProductionSafetyRuntimeAdapter
 from app.application.discovery import (
+    FOUNDER_CONSERVATIVE_EBAY_US_V1,
     DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryResultReader,
+    resolve_founder_discovery_policy_profile,
 )
 from app.application.ocr import (
     AdmitExternalOCRExecution,
@@ -391,6 +393,55 @@ class AuthoritativeDiscoveryRequest(BaseModel):
             ),
             requested_at=self.requested_at,
         )
+
+
+def _founder_discovery_profile_payload() -> dict[str, object]:
+    profile = FOUNDER_CONSERVATIVE_EBAY_US_V1
+    return {
+        "profile_name": profile.profile_name,
+        "profile_version": profile.profile_version,
+        "purpose": profile.purpose,
+        "marketplace": profile.marketplace,
+        "marketplace_source_reference": profile.marketplace_source_reference,
+        "selling_price_multiplier": str(profile.selling_price_multiplier),
+        "shipping_cost": str(profile.shipping_cost),
+        "marketplace_fee_rate": str(profile.marketplace_fee_rate),
+        "payment_fee_rate": str(profile.payment_fee_rate),
+        "fixed_fee": str(profile.fixed_fee),
+        "marketplace_fee_known": profile.marketplace_fee_known,
+        "payment_fee_known": profile.payment_fee_known,
+        "fixed_fee_known": profile.fixed_fee_known,
+        "tax_rate": str(profile.tax_rate),
+        "other_cost": str(profile.other_cost),
+        "minimum_net_profit": str(profile.minimum_net_profit),
+        "minimum_roi": str(profile.minimum_roi),
+        "estimated_monthly_sales": profile.estimated_monthly_sales,
+        "competitor_count": profile.competitor_count,
+        "risk_level": profile.risk_level,
+        "match_threshold": str(profile.match_threshold),
+        "target_currency": profile.target_currency,
+        "policy_references": profile.required_policy_references,
+        "source_references": profile.required_source_references,
+    }
+
+
+def _validate_referenced_founder_profile(
+    command: DiscoveryCommand,
+) -> DiscoveryCommand:
+    references = dict(command.parameters.policy_references)
+    profile_name = references.get("founder_discovery_profile")
+    profile_version = references.get("founder_discovery_profile_version")
+    if profile_name is None and profile_version is None:
+        return command
+    if profile_name is None or profile_version is None:
+        raise ValueError(
+            "founder discovery profile name and version must be referenced together"
+        )
+    profile = resolve_founder_discovery_policy_profile(
+        profile_name,
+        profile_version,
+    )
+    return profile.validate_command(command)
 
 
 class AuthoritativeFinalizedGroupResponse(BaseModel):
@@ -1632,6 +1683,9 @@ def index(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="index.html",
+        context={
+            "founder_discovery_profile": _founder_discovery_profile_payload(),
+        },
     )
 
 
@@ -1753,7 +1807,8 @@ def execute_authoritative_discovery(
     ),
 ) -> AuthoritativeDiscoveryResponse:
     try:
-        result = entry.execute(request.to_command())
+        command = _validate_referenced_founder_profile(request.to_command())
+        result = entry.execute(command)
     except (
         DiscoveryReplayConflict,
         DuplicateDiscoveryExecutionError,
