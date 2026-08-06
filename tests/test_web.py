@@ -26,13 +26,18 @@ def test_index_renders_html_landing_page() -> None:
 def test_index_contains_api_first_search_controls() -> None:
     response = client.get("/")
 
+    assert 'id="marketplace"' in response.text
+    assert '<option value="ebay">eBay</option>' in response.text
     assert 'id="query"' in response.text
+    assert 'id="limit"' in response.text
     assert 'id="search-button"' in response.text
     assert 'id="results"' in response.text
     assert 'id="error-message"' in response.text
     assert 'id="loading"' in response.text
     assert "async function searchOpportunities()" in response.text
     assert 'fetch("/api/v1/opportunities/search"' in response.text
+    assert "limit: Number(limitSelect.value)" in response.text
+    assert "top: Number(limitSelect.value)" in response.text
 
 
 def test_index_contains_opportunity_dashboard_contract() -> None:
@@ -41,21 +46,33 @@ def test_index_contains_opportunity_dashboard_contract() -> None:
     assert 'id="results"' in response.text
     assert 'className = "opportunity-card"' in response.text
     assert "Final Opportunity Score" in response.text
-    assert "No opportunities found." in response.text
-    assert "Searching..." in response.text
-    assert "Search failed." in response.text
+    assert "No opportunities found for" in response.text
+    assert "Searching eBay for opportunities" in response.text
+    assert "eBay is temporarily unavailable" in response.text
 
 
 def test_index_contains_dashboard_ux_accessibility_contract() -> None:
     response = client.get("/")
 
     assert 'id="summary"' in response.text
-    assert "Start searching to discover opportunities." in response.text
+    assert "Find your next product opportunity" in response.text
+    assert "Enter a product keyword, choose a collection limit" in response.text
     assert 'id="loading" class="state-message" role="status"' in response.text
     assert 'id="summary" class="state-message" role="status"' in response.text
     assert 'aria-live="polite"' in response.text
     assert 'id="error-message" class="state-message" role="alert"' in response.text
     assert "Found ${data.dashboard_cards.length} opportunities" in response.text
+    assert 'href="/opportunities"' in response.text
+
+
+def test_index_exposes_zero_result_and_collector_failure_recovery_guidance() -> None:
+    response = client.get("/")
+
+    assert "Try another keyword or a larger collection limit." in response.text
+    assert "Check collector credentials or try again later." in response.text
+    assert "Check the keyword and limit, then try again." in response.text
+    assert "searchButton.disabled = true" in response.text
+    assert "searchButton.disabled = false" in response.text
 
 
 def make_result(

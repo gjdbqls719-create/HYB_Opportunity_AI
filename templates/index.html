@@ -3,106 +3,268 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HYB Opportunity AI</title>
+    <title>Founder Home · HYB Opportunity AI</title>
     <style>
+        :root {
+            color-scheme: light;
+            --ink: #13231d;
+            --muted: #5b6a64;
+            --surface: #ffffff;
+            --canvas: #f4f1e9;
+            --line: #d9d6cc;
+            --brand: #0b6044;
+            --brand-dark: #06432f;
+            --accent: #f0a33a;
+            --danger: #a43c32;
+            --shadow: 0 1.25rem 3rem rgba(27, 45, 37, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+
         body {
             margin: 0;
-            padding: 1rem;
-            font-family: sans-serif;
-            line-height: 1.5;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 88% 4%, #dce9d8 0, transparent 28rem),
+                var(--canvas);
+            font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         main {
-            max-width: 60rem;
+            width: min(72rem, 100%);
             margin: 0 auto;
+            padding: 1.5rem clamp(1rem, 4vw, 3rem) 4rem;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: clamp(3rem, 8vw, 7rem);
+        }
+
+        .wordmark {
+            margin: 0;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        a { color: var(--brand-dark); }
+
+        nav a {
+            font-weight: 700;
+            text-underline-offset: 0.25rem;
+        }
+
+        .hero {
+            max-width: 48rem;
+            margin-bottom: 2rem;
+        }
+
+        .eyebrow {
+            margin: 0 0 0.75rem;
+            color: var(--brand);
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            max-width: 13ch;
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(2.6rem, 8vw, 5.7rem);
+            font-weight: 500;
+            letter-spacing: -0.055em;
+            line-height: 0.95;
+        }
+
+        .intro {
+            max-width: 41rem;
+            margin: 1.5rem 0 0;
+            color: var(--muted);
+            font-size: clamp(1rem, 2vw, 1.2rem);
+        }
+
+        .search-panel {
+            padding: clamp(1rem, 3vw, 2rem);
+            border: 1px solid rgba(19, 35, 29, 0.08);
+            border-radius: 1.25rem;
+            background: var(--surface);
+            box-shadow: var(--shadow);
         }
 
         #search-form {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
+            display: grid;
+            grid-template-columns: minmax(9rem, 0.7fr) minmax(15rem, 2fr) minmax(8rem, 0.65fr) auto;
+            gap: 0.9rem;
             align-items: end;
         }
 
-        #query {
-            flex: 1 1 18rem;
-            min-width: 0;
-            padding: 0.5rem;
+        label {
+            display: grid;
+            gap: 0.4rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+            font-weight: 750;
         }
 
-        #search-button {
-            padding: 0.5rem 1rem;
+        input, select, button {
+            min-height: 3.15rem;
+            border-radius: 0.65rem;
+            font: inherit;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.65rem 0.8rem;
+            border: 1px solid var(--line);
+            color: var(--ink);
+            background: #fff;
+        }
+
+        button {
+            padding: 0.65rem 1.25rem;
+            border: 0;
+            color: #fff;
+            background: var(--brand);
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        button:hover { background: var(--brand-dark); }
+        button:disabled { cursor: wait; opacity: 0.65; }
+
+        a:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
         }
 
         .state-message {
-            margin: 1rem 0;
-            padding: 0.75rem;
-            background: #f5f5f5;
+            margin: 1rem 0 0;
+            padding: 0.9rem 1rem;
+            border-left: 0.3rem solid var(--brand);
+            border-radius: 0.3rem;
+            background: #edf4ef;
         }
 
         #error-message {
-            border-left: 0.25rem solid #a00000;
+            border-left-color: var(--danger);
+            background: #fbefed;
         }
 
         #results {
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
             gap: 1rem;
-            margin-top: 1rem;
+            margin-top: 1.25rem;
         }
+
+        #initial-empty-state { grid-column: 1 / -1; }
 
         .opportunity-card {
-            border: 1px solid #cccccc;
-            border-radius: 0.25rem;
-            padding: 1rem;
+            padding: 1.25rem;
+            border: 1px solid var(--line);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.78);
         }
 
+        .opportunity-card h2 {
+            margin: 0 0 0.5rem;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 1.35rem;
+            line-height: 1.2;
+        }
+
+        .marketplace { color: var(--muted); }
+
         .opportunity-score {
-            font-size: 1.25rem;
-            font-weight: bold;
+            color: var(--brand);
+            font-size: 1.1rem;
+            font-weight: 800;
         }
 
         .opportunity-card dl {
             display: grid;
             grid-template-columns: max-content 1fr;
-            gap: 0.5rem 1rem;
+            gap: 0.4rem 0.8rem;
         }
 
-        .opportunity-card dd {
-            margin: 0;
+        .opportunity-card dt { color: var(--muted); }
+        .opportunity-card dd { margin: 0; font-weight: 700; }
+
+        @media (max-width: 52rem) {
+            nav { margin-bottom: 3.5rem; }
+            #search-form { grid-template-columns: 1fr 1fr; }
+            .query-field { grid-column: 1 / -1; grid-row: 1; }
+            #search-button { align-self: stretch; }
         }
 
-        @media (max-width: 36rem) {
-            .opportunity-card dl {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 32rem) {
+            nav { align-items: flex-start; flex-direction: column; }
+            #search-form { grid-template-columns: 1fr; }
+            .query-field { grid-column: auto; }
         }
     </style>
 </head>
 <body>
     <main>
-        <h1>HYB Opportunity AI</h1>
-        <form id="search-form">
-            <label for="query">Search products</label>
-            <input id="query" name="query" type="search">
-            <button id="search-button" type="submit">Search</button>
-        </form>
-        <p id="loading" class="state-message" role="status" hidden>
-            Searching...
-        </p>
-        <p id="summary" class="state-message" role="status"
-           aria-live="polite" hidden></p>
-        <p id="error-message" class="state-message" role="alert" hidden>
-            Search failed.
-        </p>
+        <nav aria-label="Primary navigation">
+            <p class="wordmark">HYB Opportunity AI</p>
+            <a href="/opportunities">Open admitted opportunities</a>
+        </nav>
+
+        <header class="hero">
+            <p class="eyebrow">Founder Home</p>
+            <h1>Find your next product opportunity</h1>
+            <p class="intro">
+                Enter a product keyword, choose a collection limit, and let HYB scan the marketplace for products worth investigating.
+            </p>
+        </header>
+
+        <section class="search-panel" aria-label="Discover opportunities">
+            <form id="search-form">
+                <label for="marketplace">
+                    Marketplace
+                    <select id="marketplace" name="marketplace">
+                        <option value="ebay">eBay</option>
+                    </select>
+                </label>
+                <label class="query-field" for="query">
+                    Product keyword
+                    <input id="query" name="query" type="search" required
+                           autocomplete="off" placeholder="e.g. mirrorless camera">
+                </label>
+                <label for="limit">
+                    Collection limit
+                    <select id="limit" name="limit">
+                        <option value="10">10 products</option>
+                        <option value="25">25 products</option>
+                        <option value="50">50 products</option>
+                    </select>
+                </label>
+                <button id="search-button" type="submit">Discover</button>
+            </form>
+            <p id="loading" class="state-message" role="status" hidden>
+                Searching eBay for opportunities…
+            </p>
+            <p id="summary" class="state-message" role="status"
+               aria-live="polite" hidden></p>
+            <p id="error-message" class="state-message" role="alert" hidden></p>
+        </section>
+
         <section id="results" aria-live="polite">
             <p id="initial-empty-state" class="state-message">
-                Start searching to discover opportunities.
+                Start with a product you understand or a category you want to explore.
             </p>
         </section>
     </main>
     <script>
         const searchForm = document.getElementById("search-form");
         const queryInput = document.getElementById("query");
+        const limitSelect = document.getElementById("limit");
         const searchButton = document.getElementById("search-button");
         const loadingIndicator = document.getElementById("loading");
         const summary = document.getElementById("summary");
@@ -113,12 +275,14 @@
             return `${value} ${currency}`.trim();
         }
 
-        function renderOpportunities(opportunities) {
+        function renderOpportunities(opportunities, query) {
             resultsContainer.replaceChildren();
 
             if (opportunities.length === 0) {
                 const emptyMessage = document.createElement("p");
-                emptyMessage.textContent = "No opportunities found.";
+                emptyMessage.className = "state-message";
+                emptyMessage.textContent =
+                    `No opportunities found for “${query}”. Try another keyword or a larger collection limit.`;
                 resultsContainer.append(emptyMessage);
                 return;
             }
@@ -133,33 +297,20 @@
                 const details = document.createElement("dl");
                 const values = [
                     ["ROI", `${metrics.roi}%`],
-                    [
-                        "Expected Selling Price",
-                        formatAmount(
-                            metrics.expected_selling_price,
-                            product.currency,
-                        ),
-                    ],
-                    [
-                        "Net Profit",
-                        formatAmount(
-                            metrics.net_profit,
-                            product.currency,
-                        ),
-                    ],
+                    ["Expected selling price", formatAmount(metrics.expected_selling_price, product.currency)],
+                    ["Net profit", formatAmount(metrics.net_profit, product.currency)],
                 ];
 
                 card.className = "opportunity-card";
                 title.textContent = product.title;
+                marketplace.className = "marketplace";
                 marketplace.textContent = `Marketplace: ${product.marketplace}`;
                 score.className = "opportunity-score";
-                score.textContent =
-                    `Final Opportunity Score: ${metrics.final_opportunity_score}`;
+                score.textContent = `Final Opportunity Score: ${metrics.final_opportunity_score}`;
 
                 for (const [label, value] of values) {
                     const term = document.createElement("dt");
                     const description = document.createElement("dd");
-
                     term.textContent = label;
                     description.textContent = value;
                     details.append(term, description);
@@ -172,10 +323,7 @@
 
         async function searchOpportunities() {
             const query = queryInput.value.trim();
-
-            if (!query) {
-                return;
-            }
+            if (!query) return;
 
             searchButton.disabled = true;
             loadingIndicator.hidden = false;
@@ -186,26 +334,36 @@
             try {
                 const response = await fetch("/api/v1/opportunities/search", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         query,
-                        limit: 10,
-                        top: 5,
+                        limit: Number(limitSelect.value),
+                        top: Number(limitSelect.value),
                     }),
                 });
 
                 if (!response.ok) {
-                    throw new Error("Search request failed");
+                    const error = new Error("Discovery request failed");
+                    error.status = response.status;
+                    throw error;
                 }
 
                 const data = await response.json();
-                renderOpportunities(data.dashboard_cards);
+                renderOpportunities(data.dashboard_cards, data.query);
                 summary.textContent =
-                    `Found ${data.dashboard_cards.length} opportunities for "${data.query}"`;
+                    `Found ${data.dashboard_cards.length} opportunities for “${data.query}”.`;
                 summary.hidden = false;
             } catch (error) {
+                if (error.status === 502) {
+                    errorMessage.textContent =
+                        "eBay is temporarily unavailable. Check collector credentials or try again later.";
+                } else if (error.status === 422) {
+                    errorMessage.textContent =
+                        "Check the keyword and limit, then try again.";
+                } else {
+                    errorMessage.textContent =
+                        "Discovery could not be completed. Try again.";
+                }
                 errorMessage.hidden = false;
             } finally {
                 searchButton.disabled = false;
