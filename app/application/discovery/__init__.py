@@ -9,6 +9,17 @@ from app.application.discovery.ports import (
     ObservationIdentityProvider,
     OpportunityDiscoveryGateway,
 )
+from app.application.discovery.founder_policy import (
+    FOUNDER_CONSERVATIVE_EBAY_US_V1,
+    PRODUCTION_FOUNDER_DISCOVERY_POLICY_RESOLVER,
+    FounderDiscoveryCommandProfileMismatchError,
+    FounderDiscoveryPolicyConflictError,
+    FounderDiscoveryPolicyError,
+    FounderDiscoveryPolicyNotFoundError,
+    FounderDiscoveryPolicyProfile,
+    FounderDiscoveryPolicyResolver,
+    resolve_founder_discovery_policy_profile,
+)
 from app.application.discovery.production_execution import (
     CollectionCheckpointHandler,
     DiscoveryCompletionReplayError,
@@ -45,6 +56,14 @@ __all__ = [
     "DiscoveryCompletionReplayError",
     "DiscoveryCompletionClock",
     "FinalizedGroupIdentityProvider",
+    "FOUNDER_CONSERVATIVE_EBAY_US_V1",
+    "PRODUCTION_FOUNDER_DISCOVERY_POLICY_RESOLVER",
+    "FounderDiscoveryCommandProfileMismatchError",
+    "FounderDiscoveryPolicyConflictError",
+    "FounderDiscoveryPolicyError",
+    "FounderDiscoveryPolicyNotFoundError",
+    "FounderDiscoveryPolicyProfile",
+    "FounderDiscoveryPolicyResolver",
     "GroupFinalizationClock",
     "GroupingCorrelation",
     "GroupingCheckpointHandler",
@@ -56,4 +75,5 @@ __all__ = [
     "PersistedDiscoveryExecutionResult",
     "PersistedDiscoveryExecutionEntry",
     "PersistedDiscoveryResultReader",
+    "resolve_founder_discovery_policy_profile",
 ]
