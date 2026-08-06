@@ -15,6 +15,7 @@ from app.application.discovery_persistence import (
 )
 from app.infrastructure.discovery import (
     SQLiteDiscoveryGroupRepository,
+    SQLiteDiscoveryObservationRepository,
     SQLiteDiscoveryResultRepository,
 )
 from app.web import (
@@ -65,7 +66,7 @@ def seed(path, *, zero=False, two_groups=False):
     return result, repositories
 
 
-def test_read_composition_uses_only_result_and_group_repositories_and_closes_scope(
+def test_read_composition_uses_only_persisted_discovery_repositories_and_closes_scope(
     tmp_path, monkeypatch
 ) -> None:
     monkeypatch.setattr(web, "DEFAULT_DATABASE_PATH", tmp_path / "read.db")
@@ -74,6 +75,9 @@ def test_read_composition_uses_only_result_and_group_repositories_and_closes_sco
 
     assert isinstance(reader._result_repository, SQLiteDiscoveryResultRepository)
     assert isinstance(reader._group_repository, SQLiteDiscoveryGroupRepository)
+    assert isinstance(
+        reader._observation_repository, SQLiteDiscoveryObservationRepository
+    )
     assert not hasattr(reader, "_runtime")
     assert not hasattr(reader, "_persist_command")
     paths = {
@@ -81,6 +85,7 @@ def test_read_composition_uses_only_result_and_group_repositories_and_closes_sco
         for repository in (
             reader._result_repository,
             reader._group_repository,
+            reader._observation_repository,
         )
     }
     assert paths == {str(tmp_path / "read.db")}
@@ -89,6 +94,7 @@ def test_read_composition_uses_only_result_and_group_repositories_and_closes_sco
     for repository in (
         reader._result_repository,
         reader._group_repository,
+        reader._observation_repository,
     ):
         with pytest.raises(sqlite3.ProgrammingError, match="closed"):
             repository._connection.execute("SELECT 1")
@@ -101,6 +107,7 @@ def test_completed_result_and_groups_are_read_in_result_authoritative_order(
     reader = PersistedDiscoveryResultReader(
         result_repository=repositories[3],
         group_repository=repositories[2],
+        observation_repository=repositories[1],
     )
     client = use(reader)
     try:
@@ -137,6 +144,7 @@ def test_zero_result_read_is_successful_with_empty_authoritative_groups(tmp_path
     reader = PersistedDiscoveryResultReader(
         result_repository=repositories[3],
         group_repository=repositories[2],
+        observation_repository=repositories[1],
     )
     client = use(reader)
     try:
@@ -160,6 +168,7 @@ def test_reads_are_replay_consistent_and_do_not_mutate_repositories(tmp_path) ->
     reader = PersistedDiscoveryResultReader(
         result_repository=repositories[3],
         group_repository=repositories[2],
+        observation_repository=repositories[1],
     )
     app.dependency_overrides[get_authoritative_discovery_entry] = lambda: entry
     app.dependency_overrides[get_authoritative_discovery_reader] = lambda: reader
@@ -168,7 +177,7 @@ def test_reads_are_replay_consistent_and_do_not_mutate_repositories(tmp_path) ->
         post = client.post("/api/v1/discovery/executions", json=payload())
         before = tuple(
             repository._connection.total_changes
-            for repository in (repositories[2], repositories[3])
+            for repository in (repositories[1], repositories[2], repositories[3])
         )
         first = client.get("/api/v1/discovery/executions/execution-1")
         groups = client.get(
@@ -177,7 +186,7 @@ def test_reads_are_replay_consistent_and_do_not_mutate_repositories(tmp_path) ->
         second = client.get("/api/v1/discovery/executions/execution-1")
         after = tuple(
             repository._connection.total_changes
-            for repository in (repositories[2], repositories[3])
+            for repository in (repositories[1], repositories[2], repositories[3])
         )
     finally:
         clear_overrides()
@@ -191,17 +200,27 @@ def test_reads_are_replay_consistent_and_do_not_mutate_repositories(tmp_path) ->
     assert first.json()["finalized_group_ids"] == [
         value["finalized_group_id"] for value in post.json()["finalized_groups"]
     ]
-    assert groups.json()["finalized_groups"] == post.json()["finalized_groups"]
+    read_groups = groups.json()["finalized_groups"]
+    post_groups = post.json()["finalized_groups"]
+    assert [value["finalized_group_id"] for value in read_groups] == [
+        value["finalized_group_id"] for value in post_groups
+    ]
+    assert read_groups[0]["representative_observation"]["title"] == "Product one"
+    assert read_groups[0]["observation_count"] == 2
     assert before == after
 
 
 def test_missing_completion_is_404_for_result_and_groups(tmp_path) -> None:
     result_repository = SQLiteDiscoveryResultRepository(tmp_path / "missing.db")
     group_repository = SQLiteDiscoveryGroupRepository(tmp_path / "missing.db")
+    observation_repository = SQLiteDiscoveryObservationRepository(
+        tmp_path / "missing.db"
+    )
     client = use(
         PersistedDiscoveryResultReader(
             result_repository=result_repository,
             group_repository=group_repository,
+            observation_repository=observation_repository,
         )
     )
     try:
@@ -213,6 +232,7 @@ def test_missing_completion_is_404_for_result_and_groups(tmp_path) -> None:
         clear_overrides()
         result_repository.close()
         group_repository.close()
+        observation_repository.close()
     assert result_response.status_code == groups_response.status_code == 404
     assert result_response.json()["detail"] == "completed discovery execution not found: missing"
 
@@ -225,6 +245,9 @@ class FailingReader:
         raise self.error
 
     def get_finalized_groups(self, execution_id):
+        raise self.error
+
+    def get_finalized_group_read_models(self, execution_id):
         raise self.error
 
 

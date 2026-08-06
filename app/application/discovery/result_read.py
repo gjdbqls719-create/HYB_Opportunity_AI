@@ -2,18 +2,39 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from app.application.discovery.production_execution import (
     DiscoveryCompletionReplayError,
 )
 from app.application.discovery_persistence import (
     DiscoveryExecutionResultNotFound,
     DiscoveryGroupRepository,
+    DiscoveryObservationRepository,
     DiscoveryResultRepository,
 )
 from app.domain.discovery_identity import (
+    CollectedProductObservation,
     DiscoveryExecutionResult,
     FinalizedProductGroup,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class RepresentativeObservationPreview:
+    title: str
+    image_url: str
+    marketplace: str
+    price: float
+    currency: str
+    url: str
+
+
+@dataclass(frozen=True, slots=True)
+class FinalizedGroupReadModel:
+    group: FinalizedProductGroup
+    representative_observation: RepresentativeObservationPreview
+    observation_count: int
 
 
 class PersistedDiscoveryResultReader:
@@ -24,9 +45,11 @@ class PersistedDiscoveryResultReader:
         *,
         result_repository: DiscoveryResultRepository,
         group_repository: DiscoveryGroupRepository,
+        observation_repository: DiscoveryObservationRepository,
     ) -> None:
         self._result_repository = result_repository
         self._group_repository = group_repository
+        self._observation_repository = observation_repository
 
     def get_execution_result(
         self, discovery_execution_id: str
@@ -71,5 +94,50 @@ class PersistedDiscoveryResultReader:
             groups.append(group)
         return tuple(groups)
 
+    def get_finalized_group_read_models(
+        self, discovery_execution_id: str
+    ) -> tuple[FinalizedGroupReadModel, ...]:
+        read_models = []
+        for group in self.get_finalized_groups(discovery_execution_id):
+            observation = self._observation_repository.get_observation(
+                group.representative_observation_id
+            )
+            if observation is None:
+                raise DiscoveryCompletionReplayError(
+                    "completed group references a missing representative observation"
+                )
+            if not isinstance(observation, CollectedProductObservation):
+                raise DiscoveryCompletionReplayError(
+                    "observation repository returned malformed representative lineage"
+                )
+            if (
+                observation.observation_id != group.representative_observation_id
+                or observation.discovery_execution_id
+                != group.discovery_execution_id
+            ):
+                raise DiscoveryCompletionReplayError(
+                    "representative observation conflicts with finalized group lineage"
+                )
+            product = observation.product
+            read_models.append(
+                FinalizedGroupReadModel(
+                    group=group,
+                    representative_observation=RepresentativeObservationPreview(
+                        title=product.title,
+                        image_url=product.image_url,
+                        marketplace=product.marketplace,
+                        price=product.price,
+                        currency=product.currency,
+                        url=product.url,
+                    ),
+                    observation_count=len(group.observation_ids),
+                )
+            )
+        return tuple(read_models)
 
-__all__ = ["PersistedDiscoveryResultReader"]
+
+__all__ = [
+    "FinalizedGroupReadModel",
+    "PersistedDiscoveryResultReader",
+    "RepresentativeObservationPreview",
+]

@@ -193,6 +193,7 @@ def test_founder_profile_fresh_replay_and_authoritative_reads(tmp_path) -> None:
     reader = PersistedDiscoveryResultReader(
         result_repository=repositories[3],
         group_repository=repositories[2],
+        observation_repository=repositories[1],
     )
     app.dependency_overrides[get_authoritative_discovery_entry] = lambda: entry
     app.dependency_overrides[get_authoritative_discovery_reader] = lambda: reader
@@ -237,6 +238,7 @@ def test_founder_profile_zero_result_is_completed_and_readable(tmp_path) -> None
     reader = PersistedDiscoveryResultReader(
         result_repository=repositories[3],
         group_repository=repositories[2],
+        observation_repository=repositories[1],
     )
     app.dependency_overrides[get_authoritative_discovery_entry] = lambda: entry
     app.dependency_overrides[get_authoritative_discovery_reader] = lambda: reader

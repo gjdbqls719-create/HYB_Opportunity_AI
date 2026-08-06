@@ -31,7 +31,11 @@ from app.application.discovery.production_execution import (
     ProductionDiscoveryRuntime,
     ProductionDiscoveryRuntimeResult,
 )
-from app.application.discovery.result_read import PersistedDiscoveryResultReader
+from app.application.discovery.result_read import (
+    FinalizedGroupReadModel,
+    PersistedDiscoveryResultReader,
+    RepresentativeObservationPreview,
+)
 from app.application.discovery.session import (
     DiscoverySession,
     DiscoverySessionStatus,
@@ -56,6 +60,7 @@ __all__ = [
     "DiscoveryCompletionReplayError",
     "DiscoveryCompletionClock",
     "FinalizedGroupIdentityProvider",
+    "FinalizedGroupReadModel",
     "FOUNDER_CONSERVATIVE_EBAY_US_V1",
     "PRODUCTION_FOUNDER_DISCOVERY_POLICY_RESOLVER",
     "FounderDiscoveryCommandProfileMismatchError",
@@ -75,5 +80,6 @@ __all__ = [
     "PersistedDiscoveryExecutionResult",
     "PersistedDiscoveryExecutionEntry",
     "PersistedDiscoveryResultReader",
+    "RepresentativeObservationPreview",
     "resolve_founder_discovery_policy_profile",
 ]

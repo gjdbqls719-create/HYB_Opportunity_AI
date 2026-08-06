@@ -453,6 +453,20 @@ class AuthoritativeFinalizedGroupResponse(BaseModel):
     finalized_at: datetime
 
 
+class RepresentativeObservationPreviewResponse(BaseModel):
+    title: str
+    image_url: str
+    marketplace: str
+    price: float
+    currency: str
+    url: str
+
+
+class FounderFinalizedGroupReadResponse(AuthoritativeFinalizedGroupResponse):
+    representative_observation: RepresentativeObservationPreviewResponse
+    observation_count: int
+
+
 class AuthoritativeDiscoveryResponse(BaseModel):
     command_id: str
     discovery_execution_id: str
@@ -472,7 +486,7 @@ class DiscoveryExecutionResultReadResponse(BaseModel):
 
 class DiscoveryFinalizedGroupsReadResponse(BaseModel):
     discovery_execution_id: str
-    finalized_groups: tuple[AuthoritativeFinalizedGroupResponse, ...]
+    finalized_groups: tuple[FounderFinalizedGroupReadResponse, ...]
 
 
 class OCRArtifactReferenceDTO(BaseModel):
@@ -1217,9 +1231,13 @@ def get_authoritative_discovery_reader():
         result_repository = resources.enter_context(
             SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
         )
+        observation_repository = resources.enter_context(
+            SQLiteDiscoveryObservationRepository(DEFAULT_DATABASE_PATH)
+        )
         reader = PersistedDiscoveryResultReader(
             result_repository=result_repository,
             group_repository=group_repository,
+            observation_repository=observation_repository,
         )
     except sqlite3.Error as error:
         resources.close()
@@ -1923,7 +1941,7 @@ def get_authoritative_discovery_groups(
     ),
 ) -> DiscoveryFinalizedGroupsReadResponse:
     try:
-        groups = reader.get_finalized_groups(discovery_execution_id)
+        groups = reader.get_finalized_group_read_models(discovery_execution_id)
     except DiscoveryExecutionResultNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except (
@@ -1943,10 +1961,11 @@ def get_authoritative_discovery_groups(
             status_code=503,
             detail="discovery persistence unavailable",
         ) from error
-    return DiscoveryFinalizedGroupsReadResponse(
-        discovery_execution_id=discovery_execution_id,
-        finalized_groups=tuple(
-            AuthoritativeFinalizedGroupResponse(
+    finalized_groups = []
+    for read_model in groups:
+        group = read_model.group
+        finalized_groups.append(
+            FounderFinalizedGroupReadResponse(
                 finalized_group_id=group.finalized_group_id,
                 discovery_execution_id=group.discovery_execution_id,
                 observation_ids=group.observation_ids,
@@ -1955,9 +1974,20 @@ def get_authoritative_discovery_groups(
                 ),
                 grouping_policy_version=group.grouping_policy_version,
                 finalized_at=group.finalized_at,
+                representative_observation=RepresentativeObservationPreviewResponse(
+                    title=read_model.representative_observation.title,
+                    image_url=read_model.representative_observation.image_url,
+                    marketplace=read_model.representative_observation.marketplace,
+                    price=read_model.representative_observation.price,
+                    currency=read_model.representative_observation.currency,
+                    url=read_model.representative_observation.url,
+                ),
+                observation_count=read_model.observation_count,
             )
-            for group in groups
-        ),
+        )
+    return DiscoveryFinalizedGroupsReadResponse(
+        discovery_execution_id=discovery_execution_id,
+        finalized_groups=tuple(finalized_groups),
     )
 
 

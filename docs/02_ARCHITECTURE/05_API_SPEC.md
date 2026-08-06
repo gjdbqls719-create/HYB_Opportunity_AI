@@ -1,5 +1,21 @@
 # HYB API Specification
 
+## Discovery Result Read API
+
+`GET /api/v1/discovery/executions/{discovery_execution_id}` returns the
+persisted `DiscoveryExecutionResult`. `GET
+/api/v1/discovery/executions/{discovery_execution_id}/finalized-groups`
+returns its Finalized Groups in the exact result order.
+
+Each Finalized Group read item includes a Founder-facing representative
+observation preview loaded by the persisted
+`representative_observation_id`. The preview copies only `title`, `image_url`,
+`marketplace`, `price`, `currency`, and `url` from the immutable collected
+Product observation. `observation_count` is the persisted Group membership
+count. The read model does not calculate a price range, score, minimum,
+maximum, or other aggregate. A committed zero-result returns an empty Group
+tuple.
+
 API는 Engine 외부 계층이다.
 
 API
