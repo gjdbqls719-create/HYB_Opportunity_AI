@@ -1278,6 +1278,7 @@ def get_decision_composition_finalizer():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     market_repository = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
     safety_repository = SQLiteProductionSafetyEvaluationRepository(DEFAULT_DATABASE_PATH)
+    review_repository = SQLiteReviewSessionRepository(DEFAULT_DATABASE_PATH)
     try:
         yield FinalizeOpportunityDecisionComposition(
             FinalizeDecisionComposition(
@@ -1285,10 +1286,12 @@ def get_decision_composition_finalizer():
                 assessment_repository=market_repository,
                 composition_repository=repository,
                 production_safety_repository=safety_repository,
+                review_repository=review_repository,
             ),
             clock=lambda: datetime.now(timezone.utc),
         )
     finally:
+        review_repository.close()
         safety_repository.close()
         market_repository.close()
         repository.close()

@@ -1,8 +1,11 @@
 from dataclasses import replace
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 import pytest
+import sqlite3
 
+import app.web as web
 from app.application.dashboard_api import ProductionOpportunityDecisionDashboardProvider
 from app.application.decision_composition import FinalizeDecisionComposition
 from app.application.decision_composition import (
@@ -16,7 +19,9 @@ from app.application.decision_composition import (
     UnsupportedDecisionCompositionVersionError,
 )
 from app.application.decision_composition_api import FinalizeOpportunityDecisionComposition
+from app.application.decision_readiness import DecisionReadinessService
 from app.domain.market_intelligence import MarketEvidenceStatus
+from app.infrastructure.review import SQLiteReviewSessionRepository
 from app.web import (
     app,
     get_decision_composition_finalizer,
@@ -36,12 +41,36 @@ from test_production_safety_snapshot_binding import safety_command
 from test_market_observation_repository import external
 
 
-def use_case(validation, market):
+class ReviewBindings:
+    def __init__(self, bindings):
+        self._bindings = tuple(bindings)
+
+    def list_opportunity_bindings(self, opportunity_id):
+        return self._bindings
+
+
+def valid_review_binding(validation, market_identity):
+    item = validation.get_queue_item("opp-bound")
+    return SimpleNamespace(
+        opportunity_id=item.opportunity_id,
+        discovery_reference=item.discovery_reference,
+        market_observation_identity=market_identity,
+        schema_version="opportunity-review-binding-v1",
+    )
+
+
+def use_case(validation, market, reviews=None):
+    identity = validation.get_market_identity_binding("opp-bound")
+    if reviews is None and identity is not None:
+        reviews = ReviewBindings(
+            (valid_review_binding(validation, identity.market_observation_identity),)
+        )
     return FinalizeOpportunityDecisionComposition(
         FinalizeDecisionComposition(
             source_repository=validation,
             assessment_repository=market,
             composition_repository=validation,
+            review_repository=reviews,
         ),
         clock=lambda: NOW,
     )
@@ -85,6 +114,75 @@ def test_successful_finalization_returns_exact_201_dto_and_only_composition_writ
     changed = {table for table in before if before[table] != after[table]}
     assert changed == {"decision_composition_history", "decision_composition_current"}
     validation.close(); market.close()
+
+
+def test_missing_review_binding_blocks_readiness_and_composition_without_writes() -> None:
+    validation, market = repositories(); identity = seed_required_sources(validation, market)
+    reviews = ReviewBindings(())
+    readiness = DecisionReadinessService(validation, market, reviews).execute("opp-bound")
+    app.dependency_overrides[get_decision_composition_finalizer] = lambda: use_case(
+        validation, market, reviews
+    )
+    try:
+        response = TestClient(app).post(
+            "/api/v1/opportunities/opp-bound/decision-compositions", json={}
+        )
+    finally:
+        clear_overrides()
+
+    assert readiness["sources"]["opportunity_review_binding"]["status"] == "missing"
+    assert readiness["finalize_allowed"] is False
+    assert response.status_code == 409
+    assert response.json()["detail"] == "opportunity review binding not found"
+    assert validation.get_decision_composition_history("opp-bound") == ()
+    validation.close(); market.close()
+
+
+@pytest.mark.parametrize(
+    ("changes", "detail"),
+    (
+        ({"opportunity_id": "other"}, "review binding opportunity identity mismatch"),
+        ({"discovery_reference": "other"}, "review binding discovery reference mismatch"),
+        ({"market_observation_identity": replace(listing_identity(), marketplace_item_id="other")},
+         "review binding market identity mismatch"),
+    ),
+)
+def test_invalid_review_binding_lineage_blocks_composition(changes, detail) -> None:
+    validation, market = repositories(); identity = seed_required_sources(validation, market)
+    binding = valid_review_binding(validation, identity)
+    reviews = ReviewBindings((SimpleNamespace(**{**vars(binding), **changes}),))
+    readiness = DecisionReadinessService(validation, market, reviews).execute("opp-bound")
+    app.dependency_overrides[get_decision_composition_finalizer] = lambda: use_case(
+        validation, market, reviews
+    )
+    try:
+        response = TestClient(app).post(
+            "/api/v1/opportunities/opp-bound/decision-compositions", json={}
+        )
+    finally:
+        clear_overrides()
+
+    assert readiness["sources"]["opportunity_review_binding"]["status"] == "error"
+    assert readiness["finalize_allowed"] is False
+    assert response.status_code == 409
+    assert response.json()["detail"] == detail
+    assert validation.get_decision_composition_history("opp-bound") == ()
+    validation.close(); market.close()
+
+
+def test_production_composition_injects_and_closes_review_repository(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(web, "DEFAULT_DATABASE_PATH", tmp_path / "production.db")
+    dependency = web.get_decision_composition_finalizer()
+    use_case_value = next(dependency)
+    reviews = use_case_value._finalizer._reviews
+
+    assert isinstance(reviews, SQLiteReviewSessionRepository)
+    with pytest.raises(StopIteration):
+        next(dependency)
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        reviews._connection.execute("SELECT 1")
 
 
 def test_post_then_production_dashboard_get_returns_200_and_get_is_read_only() -> None:

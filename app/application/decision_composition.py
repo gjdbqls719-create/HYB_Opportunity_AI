@@ -13,6 +13,11 @@ from app.application.opportunity_market_identity import (
     OpportunityMarketIdentityBindingNotFoundError,
     OpportunityMarketIdentityConflictError,
 )
+from app.application.opportunity_review_binding import (
+    OpportunityReviewBindingConflictError,
+    OpportunityReviewBindingNotFoundError,
+    validate_opportunity_review_binding,
+)
 from app.domain.decision_engine import (
     DecisionDimension,
     DecisionEvidenceAvailability,
@@ -96,11 +101,12 @@ class DecisionCompositionRepository(Protocol):
 
 
 class FinalizeDecisionComposition:
-    def __init__(self, *, source_repository, assessment_repository: AssessmentSnapshotRepository, composition_repository: DecisionCompositionRepository, production_safety_repository=None):
+    def __init__(self, *, source_repository, assessment_repository: AssessmentSnapshotRepository, composition_repository: DecisionCompositionRepository, production_safety_repository=None, review_repository=None):
         self._sources = source_repository
         self._assessments = assessment_repository
         self._compositions = composition_repository
         self._production_safety = production_safety_repository
+        self._reviews = review_repository
 
     def execute(self, opportunity_id: str, *, generated_at: datetime, schema_version: str, policy_version: str, external_signal_ids: tuple[str, ...] | None = None):
         self._validate_requested_versions(schema_version, policy_version)
@@ -113,6 +119,26 @@ class FinalizeDecisionComposition:
             raise MissingDecisionCompositionSourceError("market identity binding not found") from error
         except OpportunityMarketIdentityConflictError as error:
             raise DecisionCompositionIdentityConflictError(str(error)) from error
+        if self._reviews is not None:
+            try:
+                validate_opportunity_review_binding(
+                    self._reviews.list_opportunity_bindings(opportunity_id),
+                    opportunity_id=item.opportunity_id,
+                    discovery_reference=item.discovery_reference,
+                    market_observation_identity=market_identity,
+                )
+            except OpportunityReviewBindingNotFoundError as error:
+                raise MissingDecisionCompositionSourceError(str(error)) from error
+            except OpportunityReviewBindingConflictError as error:
+                raise DecisionCompositionIdentityConflictError(str(error)) from error
+            except sqlite3.Error as error:
+                raise DecisionCompositionPersistenceError(
+                    "opportunity review binding persistence is unavailable"
+                ) from error
+            except (KeyError, TypeError, ValueError) as error:
+                raise MalformedDecisionCompositionError(
+                    "opportunity review binding is malformed"
+                ) from error
         try:
             economics = self._sources.get_verified_economics_snapshot(opportunity_id)
             safety = (

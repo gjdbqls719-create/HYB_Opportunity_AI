@@ -18,6 +18,8 @@ Route에 분석 로직을 넣지 않는다.
 
 The endpoint delegates all source selection, metadata, provenance, versioning, and atomic persistence to the application/repository boundaries. It writes only `decision_composition_history` and `decision_composition_current`. Repeated identical provenance returns HTTP 409. The existing Dashboard GET remains read-only and returns HTTP 200 after successful finalization.
 
+Production finalization requires exactly one persisted Opportunity–Review binding before source composition. The binding's Opportunity ID, discovery reference, schema, and complete Market identity must match the authoritative Opportunity and Market identity records; a missing or conflicting binding returns HTTP 409 and writes no composition. The binding is a finalization prerequisite rather than a field in `DecisionCompositionSnapshot`: the existing manifest continues to preserve the exact selected HUMAN_VERIFIED External Signal IDs, while isolated legacy finalizers that do not opt into the production Review repository retain their compatibility contract.
+
 ## Founder Review Read API
 
 `GET /api/v1/reviews` returns a deterministic list DTO with `items` and `total_count`. `GET /api/v1/reviews/{session_id}` returns one Session summary or HTTP 404 when no authoritative current projection exists. Persistence and malformed-storage failures return HTTP 503.

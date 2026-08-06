@@ -12,7 +12,12 @@ from tests.test_opportunity_market_identity_binding import command, identity, se
 class Reviews:
     def __init__(self, market_identity): self.identity=market_identity
     def list_opportunity_bindings(self, opportunity_id):
-        return (SimpleNamespace(market_observation_identity=self.identity),)
+        return (SimpleNamespace(
+            opportunity_id=opportunity_id,
+            discovery_reference="ebay:item-1",
+            market_observation_identity=self.identity,
+            schema_version="opportunity-review-binding-v1",
+        ),)
 
 
 def test_missing_sources_are_truthful_and_block_finalization():

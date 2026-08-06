@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from app.application.decision_composition import ASSESSMENT_SCHEMA_VERSION, COMPETITION_POLICY_VERSION, DEMAND_POLICY_VERSION, EXTERNAL_SIGNAL_SCHEMA_VERSION
+from app.application.decision_composition import (
+    ASSESSMENT_SCHEMA_VERSION,
+    COMPETITION_POLICY_VERSION,
+    DEMAND_POLICY_VERSION,
+    EXTERNAL_SIGNAL_SCHEMA_VERSION,
+)
+from app.application.opportunity_review_binding import (
+    OpportunityReviewBindingConflictError,
+    OpportunityReviewBindingNotFoundError,
+    validate_opportunity_review_binding,
+)
 from app.application.production_safety_snapshot import PRODUCTION_SAFETY_SNAPSHOT_SCHEMA_VERSION
 from app.application.verified_economics_snapshot import VERIFIED_ECONOMICS_SNAPSHOT_SCHEMA_VERSION
 
@@ -14,7 +24,8 @@ class DecisionReadinessService:
         self._safety_evaluations = safety_evaluations
 
     def execute(self, opportunity_id: str) -> dict[str, object]:
-        if self._sources.get_queue_item(opportunity_id) is None:
+        item = self._sources.get_queue_item(opportunity_id)
+        if item is None:
             raise DecisionReadinessNotFoundError(opportunity_id)
         blockers=[]; states={}
         def missing(name, reason):
@@ -27,12 +38,21 @@ class DecisionReadinessService:
             market_binding=None; states["opportunity_market_identity"]={"status":"error","description":"Opportunity Market Identity could not be validated."};blockers.append(states["opportunity_market_identity"]["description"])
         try:
             bindings=self._reviews.list_opportunity_bindings(opportunity_id)
-            if not bindings: missing("opportunity_review_binding","Opportunity–Review binding is missing.")
-            elif market_binding is not None and any(v.market_observation_identity != market_binding.market_observation_identity for v in bindings):
-                states["opportunity_review_binding"]={"status":"error","description":"Review binding identity conflicts with the Opportunity."};blockers.append(states["opportunity_review_binding"]["description"])
-            else: states["opportunity_review_binding"]={"status":"ready","description":"Authoritative Opportunity–Review binding is available."}
+            if market_binding is None:
+                raise OpportunityReviewBindingConflictError("Opportunity Market Identity binding is missing.")
+            validate_opportunity_review_binding(
+                bindings,
+                opportunity_id=item.opportunity_id,
+                discovery_reference=item.discovery_reference,
+                market_observation_identity=market_binding.market_observation_identity,
+            )
+            states["opportunity_review_binding"]={"status":"ready","description":"Authoritative Opportunity-Review binding is available."}
+        except OpportunityReviewBindingNotFoundError:
+            missing("opportunity_review_binding","Opportunity-Review binding is missing.")
+        except OpportunityReviewBindingConflictError:
+            states["opportunity_review_binding"]={"status":"error","description":"Review binding identity conflicts with the Opportunity."};blockers.append(states["opportunity_review_binding"]["description"])
         except Exception:
-            states["opportunity_review_binding"]={"status":"error","description":"Opportunity–Review binding could not be validated."};blockers.append(states["opportunity_review_binding"]["description"])
+            states["opportunity_review_binding"]={"status":"error","description":"Opportunity-Review binding could not be validated."};blockers.append(states["opportunity_review_binding"]["description"])
         identity=market_binding.market_observation_identity if market_binding else None
         self._snapshot(states, blockers, "verified_economics", lambda:self._sources.get_verified_economics_snapshot(opportunity_id),
             lambda v:v.opportunity_id==opportunity_id and v.schema_version==VERIFIED_ECONOMICS_SNAPSHOT_SCHEMA_VERSION, "Verified Economics snapshot is missing.")
