@@ -216,11 +216,14 @@ def search_products(
 ) -> list[Product]:
     """eBay 상품을 검색하고 검증된 공통 Product 목록으로 반환한다."""
 
-    raw_items = search_items(
-        query=query,
-        limit=limit,
-        marketplace_id=marketplace_id,
-    )
+    try:
+        raw_items = search_items(
+            query=query,
+            limit=limit,
+            marketplace_id=marketplace_id,
+        )
+    except requests.RequestException as error:
+        raise RuntimeError("eBay collection transport failed") from error
 
     return [
         ebay_item_to_product(
