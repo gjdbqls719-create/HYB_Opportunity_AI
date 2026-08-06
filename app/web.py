@@ -76,6 +76,16 @@ from app.application.discovery import (
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryResultReader,
 )
+from app.application.ocr import (
+    AdmitExternalOCRExecution,
+    ArtifactAdmissionConflictError,
+    ExternalOCRAdmissionResult,
+    ExternalOCRCandidateAdmission,
+    OCRAdmissionDependencyError,
+    OCRAdmissionValidationError,
+    OCRExecutionConflictError,
+    OCRExecutionPersistenceError,
+)
 from app.application.candidate_issuance import (
     CandidateDiscoveryCommandNotFoundError,
     CandidateDiscoveryReferenceConflictError,
@@ -226,14 +236,22 @@ from app.application.review_api import (
     ReviewSessionResponseDTO,
 )
 from app.domain.market_intelligence import (
+    ArtifactOrigin,
+    ArtifactReference,
+    ArtifactType,
     CompetitionObservation,
     DemandObservation,
     ExternalSignalDirection,
+    ExternalSignalSourceType,
     InvalidReviewSessionTransitionError,
     MarketObservationIdentity,
     MarketObservationScope,
     MarketEvidence,
     MarketEvidenceStatus,
+    OCRField,
+    OCRFieldResult,
+    OCRProvider,
+    OCRResult,
 )
 from app.domain.opportunity import (
     EconomicEvidence,
@@ -277,6 +295,10 @@ from app.infrastructure.economics_calculation import (
 from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
 from app.infrastructure.snapshot_chain_identity import (
     ProductionSnapshotChainBindingIdentityGenerator,
+)
+from app.infrastructure.external_signal_ledger import (
+    ProductionOCRCandidateIdentityGenerator,
+    SQLiteExternalSignalLedgerRepository,
 )
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
@@ -400,6 +422,140 @@ class DiscoveryExecutionResultReadResponse(BaseModel):
 class DiscoveryFinalizedGroupsReadResponse(BaseModel):
     discovery_execution_id: str
     finalized_groups: tuple[AuthoritativeFinalizedGroupResponse, ...]
+
+
+class OCRArtifactReferenceDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_id: str = Field(min_length=1)
+    artifact_type: ArtifactType
+    artifact_origin: ArtifactOrigin
+    source_type: ExternalSignalSourceType
+    sha256: str = Field(min_length=64, max_length=64)
+    captured_at: datetime
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    mime_type: str = Field(min_length=1)
+    file_size: int = Field(ge=0)
+    schema_version: str = Field(min_length=1)
+
+    def to_domain(self) -> ArtifactReference:
+        return ArtifactReference(
+            artifact_id=self.artifact_id,
+            artifact_type=self.artifact_type,
+            artifact_origin=self.artifact_origin,
+            source_type=self.source_type,
+            sha256=self.sha256,
+            captured_at=self.captured_at,
+            width=self.width,
+            height=self.height,
+            mime_type=self.mime_type,
+            file_size=self.file_size,
+            schema_version=self.schema_version,
+        )
+
+    @classmethod
+    def from_domain(cls, artifact: ArtifactReference) -> "OCRArtifactReferenceDTO":
+        return cls(
+            artifact_id=artifact.artifact_id,
+            artifact_type=artifact.artifact_type,
+            artifact_origin=artifact.artifact_origin,
+            source_type=artifact.source_type,
+            sha256=artifact.sha256,
+            captured_at=artifact.captured_at,
+            width=artifact.width,
+            height=artifact.height,
+            mime_type=artifact.mime_type,
+            file_size=artifact.file_size,
+            schema_version=artifact.schema_version,
+        )
+
+
+class OCRFieldResultDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field_name: OCRField
+    raw_text: str
+    normalized_value: Any
+    confidence: Decimal
+    bounding_box: tuple[int, int, int, int] | None = None
+
+    def to_domain(self) -> OCRFieldResult:
+        return OCRFieldResult(
+            field_name=self.field_name,
+            raw_text=self.raw_text,
+            normalized_value=self.normalized_value,
+            confidence=self.confidence,
+            bounding_box=self.bounding_box,
+        )
+
+    @classmethod
+    def from_domain(cls, field: OCRFieldResult) -> "OCRFieldResultDTO":
+        return cls(
+            field_name=field.field_name,
+            raw_text=field.raw_text,
+            normalized_value=field.normalized_value,
+            confidence=field.confidence,
+            bounding_box=field.bounding_box,
+        )
+
+
+class ExternalOCRAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifact: OCRArtifactReferenceDTO
+    provider: OCRProvider
+    provider_version: str = Field(min_length=1)
+    request_id: str = Field(min_length=1)
+    executed_at: datetime
+    result_confidence: Decimal
+    fields: tuple[OCRFieldResultDTO, ...]
+    execution_schema_version: str = Field(min_length=1)
+
+    def to_command(self) -> AdmitExternalOCRExecution:
+        artifact = self.artifact.to_domain()
+        return AdmitExternalOCRExecution(
+            artifact=artifact,
+            result=OCRResult(
+                request_id=self.request_id,
+                artifact_id=artifact.artifact_id,
+                provider=self.provider,
+                provider_version=self.provider_version,
+                executed_at=self.executed_at,
+                fields=tuple(field.to_domain() for field in self.fields),
+                confidence=self.result_confidence,
+                schema_version=self.execution_schema_version,
+            ),
+        )
+
+
+class OCRExecutionReplayKeyResponse(BaseModel):
+    provider: OCRProvider
+    request_id: str
+    artifact_id: str
+
+
+class OCRExecutionProvenanceResponse(BaseModel):
+    provider: OCRProvider
+    provider_version: str
+    request_id: str
+    artifact_id: str
+    executed_at: datetime
+    result_confidence: Decimal
+    fields: tuple[OCRFieldResultDTO, ...]
+    schema_version: str
+
+
+class ExternalOCRAdmissionResponse(BaseModel):
+    execution_replay_key: OCRExecutionReplayKeyResponse
+    artifact_sha256: str
+    ordered_candidate_ids: tuple[str, ...]
+    artifact: OCRArtifactReferenceDTO
+    execution: OCRExecutionProvenanceResponse
+    candidate_schema_version: str
+    committed_at: datetime
+    receipt_schema_version: str
+    replayed: bool
 
 
 class ValidationQueueAdmissionRequest(BaseModel):
@@ -1025,6 +1181,32 @@ def get_authoritative_discovery_reader():
         raise
     try:
         yield reader
+    finally:
+        resources.close()
+
+
+def get_external_ocr_admission_entry():
+    resources = ExitStack()
+    try:
+        repository = SQLiteExternalSignalLedgerRepository(DEFAULT_DATABASE_PATH)
+        resources.callback(repository.close)
+        entry = ExternalOCRCandidateAdmission(
+            persistence=repository,
+            candidate_identity_supplier=ProductionOCRCandidateIdentityGenerator(),
+            artifact_admission_clock=lambda: datetime.now(timezone.utc),
+            receipt_clock=lambda: datetime.now(timezone.utc),
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="OCR admission persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
     finally:
         resources.close()
 
@@ -1721,6 +1903,81 @@ def get_authoritative_discovery_groups(
             )
             for group in groups
         ),
+    )
+
+
+@app.post(
+    "/api/v1/ocr/executions",
+    response_model=ExternalOCRAdmissionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_external_ocr_execution(
+    request: ExternalOCRAdmissionRequest,
+    response: Response,
+    entry: ExternalOCRCandidateAdmission = Depends(
+        get_external_ocr_admission_entry
+    ),
+) -> ExternalOCRAdmissionResponse:
+    try:
+        result = entry.execute(request.to_command())
+    except (
+        ArtifactAdmissionConflictError,
+        OCRExecutionConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except OCRAdmissionValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        OCRAdmissionDependencyError,
+        OCRExecutionPersistenceError,
+    ) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="OCR admission persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return _external_ocr_admission_response(result)
+
+
+def _external_ocr_admission_response(
+    result: ExternalOCRAdmissionResult,
+) -> ExternalOCRAdmissionResponse:
+    execution = result.execution.result
+    receipt = result.receipt
+    return ExternalOCRAdmissionResponse(
+        execution_replay_key=OCRExecutionReplayKeyResponse(
+            provider=receipt.provider,
+            request_id=receipt.request_id,
+            artifact_id=receipt.artifact_id,
+        ),
+        artifact_sha256=receipt.artifact_sha256,
+        ordered_candidate_ids=receipt.ordered_candidate_ids,
+        artifact=OCRArtifactReferenceDTO.from_domain(
+            result.artifact_admission.artifact
+        ),
+        execution=OCRExecutionProvenanceResponse(
+            provider=execution.provider,
+            provider_version=execution.provider_version,
+            request_id=execution.request_id,
+            artifact_id=execution.artifact_id,
+            executed_at=execution.executed_at,
+            result_confidence=execution.confidence,
+            fields=tuple(
+                OCRFieldResultDTO.from_domain(field)
+                for field in execution.fields
+            ),
+            schema_version=execution.schema_version,
+        ),
+        candidate_schema_version=receipt.candidate_schema_version,
+        committed_at=receipt.committed_at,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
     )
 
 
