@@ -39,3 +39,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0030: OCR Artifact Authority](ADR-0030-ocr-artifact-authority.md)
 - [ADR-0031: OCR Execution Persistence and Replay](ADR-0031-ocr-execution-persistence-and-replay.md)
 - [ADR-0032: OCR Candidate Identity Authority](ADR-0032-ocr-candidate-identity-authority.md)
+- [ADR-0033: Founder Discovery Command Authority](ADR-0033-founder-discovery-command-authority.md)
