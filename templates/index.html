@@ -165,35 +165,94 @@
         #initial-empty-state { grid-column: 1 / -1; }
 
         .opportunity-card {
-            padding: 1.25rem;
+            display: flex;
+            min-width: 0;
+            overflow: hidden;
             border: 1px solid var(--line);
             border-radius: 0.9rem;
             background: rgba(255, 255, 255, 0.78);
+            flex-direction: column;
         }
 
         .opportunity-card h2 {
-            margin: 0 0 0.5rem;
+            margin: 0;
+            padding: 1.25rem 1.25rem 0;
             font-family: Georgia, "Times New Roman", serif;
             font-size: 1.35rem;
             line-height: 1.2;
         }
 
-        .marketplace { color: var(--muted); }
+        .product-title-link {
+            color: var(--ink);
+            text-decoration-thickness: 0.08em;
+            text-underline-offset: 0.18em;
+        }
 
-        .opportunity-score {
+        .product-media {
+            display: grid;
+            width: 100%;
+            margin-top: 1rem;
+            aspect-ratio: 4 / 3;
+            place-items: center;
+            overflow: hidden;
+            background: #e9ede8;
+        }
+
+        .product-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-placeholder {
+            color: var(--muted);
+            font-weight: 750;
+        }
+
+        .product-price {
+            margin: 1rem 1.25rem 0;
             color: var(--brand);
-            font-size: 1.1rem;
+            font-size: 1.35rem;
             font-weight: 800;
         }
 
-        .opportunity-card dl {
-            display: grid;
-            grid-template-columns: max-content 1fr;
-            gap: 0.4rem 0.8rem;
+        .marketplace {
+            margin: 0.25rem 1.25rem 0;
+            color: var(--muted);
         }
 
-        .opportunity-card dt { color: var(--muted); }
-        .opportunity-card dd { margin: 0; font-weight: 700; }
+        .observation-count {
+            margin: 0.75rem 1.25rem 0;
+            font-size: 0.9rem;
+        }
+
+        .card-actions {
+            margin: auto 1.25rem 1.25rem;
+            padding-top: 1rem;
+        }
+
+        .detail-button {
+            display: inline-flex;
+            min-height: 2.75rem;
+            padding: 0.6rem 1rem;
+            border: 0;
+            border-radius: 0.65rem;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            background: var(--brand);
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .detail-button:hover { background: var(--brand-dark); }
+
+        button.detail-button:disabled {
+            color: var(--muted);
+            background: #e4e6e2;
+            cursor: not-allowed;
+            opacity: 1;
+        }
 
         @media (max-width: 52rem) {
             nav { margin-bottom: 3.5rem; }
@@ -388,29 +447,78 @@
                 return;
             }
 
-            for (const [index, group] of groups.entries()) {
+            for (const group of groups) {
+                const preview = group.representative_observation;
                 const card = document.createElement("article");
                 const title = document.createElement("h2");
-                const groupId = document.createElement("p");
-                const details = document.createElement("dl");
-                const values = [
-                    ["Observations", String(group.observation_ids.length)],
-                    ["Representative observation", group.representative_observation_id],
-                    ["Grouping policy", group.grouping_policy_version],
-                ];
+                const media = document.createElement("div");
+                const imagePlaceholder = document.createElement("span");
+                const price = document.createElement("p");
+                const marketplace = document.createElement("p");
+                const observationCount = document.createElement("p");
+                const actions = document.createElement("p");
+                let detailButton;
 
                 card.className = "opportunity-card";
-                title.textContent = `Finalized product group ${index + 1}`;
-                groupId.className = "marketplace";
-                groupId.textContent = `Group ID: ${group.finalized_group_id}`;
-                for (const [label, value] of values) {
-                    const term = document.createElement("dt");
-                    const description = document.createElement("dd");
-                    term.textContent = label;
-                    description.textContent = value;
-                    details.append(term, description);
+                media.className = "product-media";
+                imagePlaceholder.className = "image-placeholder";
+                imagePlaceholder.textContent = "Image unavailable";
+                if (preview.url) {
+                    const titleLink = document.createElement("a");
+                    titleLink.className = "product-title-link";
+                    titleLink.href = preview.url;
+                    titleLink.target = "_blank";
+                    titleLink.rel = "noopener noreferrer";
+                    titleLink.textContent = preview.title;
+                    title.append(titleLink);
+                } else {
+                    title.textContent = preview.title;
                 }
-                card.append(title, groupId, details);
+                card.append(title);
+
+                if (preview.image_url) {
+                    const image = document.createElement("img");
+                    image.src = preview.image_url;
+                    image.alt = preview.title;
+                    image.loading = "lazy";
+                    image.addEventListener("error", () => {
+                        media.replaceChildren(imagePlaceholder);
+                    });
+                    media.append(image);
+                } else {
+                    media.append(imagePlaceholder);
+                }
+                card.append(media);
+
+                price.className = "product-price";
+                price.textContent = `${preview.price} ${preview.currency}`;
+                card.append(price);
+
+                marketplace.className = "marketplace";
+                marketplace.textContent = preview.marketplace;
+                card.append(marketplace);
+
+                observationCount.className = "observation-count";
+                observationCount.textContent = group.observation_count === 1
+                    ? "1 observed product"
+                    : `${group.observation_count} observed products`;
+                card.append(observationCount);
+
+                actions.className = "card-actions";
+                if (preview.url) {
+                    detailButton = document.createElement("a");
+                    detailButton.href = preview.url;
+                    detailButton.target = "_blank";
+                    detailButton.rel = "noopener noreferrer";
+                } else {
+                    detailButton = document.createElement("button");
+                    detailButton.type = "button";
+                    detailButton.disabled = true;
+                }
+                detailButton.className = "detail-button";
+                detailButton.textContent = "View product";
+                actions.append(detailButton);
+                card.append(actions);
                 resultsContainer.append(card);
             }
         }

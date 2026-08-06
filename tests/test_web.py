@@ -44,7 +44,9 @@ def test_index_contains_opportunity_dashboard_contract() -> None:
 
     assert 'id="results"' in response.text
     assert 'className = "opportunity-card"' in response.text
-    assert "Representative observation" in response.text
+    assert "group.representative_observation" in response.text
+    assert "View product" in response.text
+    assert "Representative observation" not in response.text
     assert "No opportunities found for" in response.text
     assert "Searching eBay..." in response.text
     assert "eBay is temporarily unavailable" in response.text
