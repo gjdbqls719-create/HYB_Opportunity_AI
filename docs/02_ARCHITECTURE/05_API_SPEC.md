@@ -82,6 +82,24 @@ The first commit returns 201. An exact restart-safe replay returns 200 with the 
 Missing Opportunities return 404, existing snapshot or changed-command conflicts return
 409, malformed/domain-invalid input returns 422, and bounded persistence failures return
 503.
+
+In the production Founder Journey this admission is an explicit prerequisite between
+Candidate Promotion and Economics Calculation:
+
+```text
+Candidate Promotion
+    -> Verified Economics Admission
+    -> Economics Calculation
+    -> Complete Snapshot Chain
+```
+
+The Promotion response supplies the authoritative `opportunity_id` used in the admission
+path. Economics loads the immutable Verified Economics snapshot by that same Opportunity
+identity and returns 404 when it is absent; it never creates or infers the source. The
+Opportunity Detail page exposes the admission form, and Decision Readiness reports the
+persisted source as `missing`, `ready`, or `error` without performing admission or
+calculation.
+
 ## Competition operational admission
 
 `POST /api/v1/opportunities/{opportunity_id}/competition-observations` accepts only an
