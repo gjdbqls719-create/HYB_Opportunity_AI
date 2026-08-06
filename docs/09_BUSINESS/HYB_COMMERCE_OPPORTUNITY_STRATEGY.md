@@ -267,3 +267,140 @@ Founder가 아침에 HYB를 열었을 때:
 - false positive / false negative cause taxonomy
 
 아직 KPI threshold는 실제 데이터가 없으므로 확정하지 않는다.
+
+## 11. Capital-Ready Commerce MVP — CONFIRMED DIRECTION
+
+장기 Commerce automation 전체를 완성한 뒤에야 실전으로 가는 것이 아니다.
+첫 실제 자본 투입 직전에 필요한 판단 흐름을 충분한 근거와 함께 제공하는
+`HYB Capital-Ready Commerce MVP`를 단기 목표로 둔다.
+
+Candidate Universe
+→ Screening
+→ Market Validation
+→ Sourcing Validation
+→ Conservative Economics
+→ Risk / Evidence / Unknown Safety
+→ Explainable Ranking
+→ Capital Readiness
+→ Founder Decision
+
+핵심 요구 방향:
+
+- Candidate Universe에서 HYB가 먼저 Top Opportunities를 제안한다.
+- 싸고 넓은 screening으로 약한 후보를 먼저 제거하고 소수 후보를 정밀 검증한다.
+- Demand, Competition, Trend / Seasonality, Change signals를 점진적으로 검증한다.
+- 실제 자본 투입 전 공급처와 조달 가능성을 검증한다. 초기에는 Founder-assisted sourcing도 허용할 수 있다.
+- 낙관적인 ROI 하나보다 보수적 경제성 판단을 중요하게 취급한다.
+
+Best / Base / Conservative scenario 구분은 검토 대상이다.
+정확한 scenario algorithm과 Founder-facing 표현 계약은 아직 확정하지 않는다.
+
+## 12. Unknown Data Safety — CONFIRMED PRINCIPLE
+
+실제 자본 판단에 중요한 비용이나 evidence가 `UNKNOWN`이면 이를 0으로 가장하지 않는다.
+
+예를 들어 국제배송비나 광고비가 확인되지 않았을 때 0원으로 authoritative calculation에 넣어
+높은 ROI 또는 BUY 판단을 만드는 방향은 금지한다.
+
+필수 정보가 부족하면 투자 판단을 보류할 수 있어야 한다.
+`NOT READY`, `NEEDS VERIFICATION`, `INVESTMENT HOLD`는 의미 후보이며,
+구체적인 enum, API, Domain contract는 아직 결정하지 않는다.
+
+## 13. Evidence and Explainability — CONFIRMED DIRECTION
+
+Capital-Ready MVP는 최종 점수 하나로 실제 투자 결정을 유도하지 않는다.
+
+Founder는 최소한 다음 질문에 답을 얻을 수 있어야 한다.
+
+- 왜 추천했는가?
+- 무엇을 알고 있는가?
+- 무엇을 아직 모르는가?
+- 무엇이 가장 큰 위험인가?
+
+검토할 evidence dimensions:
+
+- profitability
+- demand
+- competition advantage
+- trend
+- sourcing confidence
+- cost confidence
+- evidence completeness
+- major risks
+- unknown facts
+
+## 14. Capital Gate — CONFIRMED DIRECTION, OPEN CONTRACT
+
+좋은 상품과 좋은 투자는 같은 의미가 아니다.
+
+Opportunity가 좋아도 Founder의 전체 validation capital 대비 초기 exposure가 과도하면
+투자를 차단하거나 축소할 수 있어야 한다.
+
+향후 검토할 요소:
+
+- total validation capital
+- requested investment
+- single-opportunity exposure
+- reserve capital
+- confidence / evidence completeness
+- downside risk
+- MOQ constraints
+
+정확한 threshold, allocation algorithm, 상태 계약은 아직 확정하지 않는다.
+
+## 15. Initial Validation Capital — PLANNING HYPOTHESIS
+
+첫 실전 검증 자본으로 약 100~200만 원 범위를 논의했다.
+
+이 범위는 절대적인 project contract나 최적 자본 보장이 아니다.
+생활비와 비상자금에서 분리된 risk capital을 전제로 한 planning assumption이며,
+실제 상품, MOQ, 비용과 Capital Safety 분석에 따라 달라질 수 있다.
+
+## 16. Shadow Mode and Paper Portfolio — STRONG CANDIDATES
+
+Shadow Mode는 실제 자본 투입 전에 HYB가 실제처럼 Opportunity를 추천하고,
+추천 당시 facts, prediction, ranking을 immutable하게 보존한 뒤
+recommendation 유지, downgrade, reject, prediction error를 추적하는 후보 기능이다.
+
+Paper Portfolio는 가상 validation capital을 Opportunity별로 배분하여
+position size, reserve, concentration, capital exposure를 함께 검증하는 후보 기능이다.
+예시 자본 1,500,000 KRW는 개념 설명이며 확정 정책 값이 아니다.
+
+두 기능의 mandatory 여부, architecture, portfolio algorithm은 확정하지 않는다.
+
+## 17. Experience Data Direction — ACTIVE HYPOTHESIS
+
+좋은 Engine만큼 좋은 Experience Data가 중요하다.
+
+검토할 evidence hierarchy:
+
+Market Observation
+→ Shadow Decision Outcome
+→ Founder-reviewed Decision
+→ Real Capital Decision
+→ Actual Commerce Outcome
+
+Shadow Experience와 Real Commerce Experience를 동일하게 취급하지 않는다.
+실제 결과는 conversion, advertising, returns, logistics, inventory turnover,
+realized profit/loss와 같은 현실 마찰을 포함하므로 더 강한 evidence가 될 수 있다.
+Shadow data는 real outcome을 대체하지 않는다.
+
+## 18. Real-Money Readiness and Next Step
+
+검토할 전략 흐름:
+
+Discovery Ready
+→ Capital Ready
+→ Shadow Mode / Paper Portfolio
+→ Real-Money Readiness
+→ Staged Real Capital Validation
+→ Actual Outcome
+→ Learning Loop
+
+Real-Money Ready 이후에도 전체 validation pool을 한 번에 투입하지 않고,
+일부 자본 투입과 실제 결과 확인 뒤 다음 자본을 release하는 staged deployment를
+Capital Safety 후보 전략으로 둔다. 정확한 비율은 결정하지 않는다.
+
+다음 공식 단계는 production 구현이 아니라 `Capital-Ready MVP Gap Analysis`다.
+현재 capability를 `Already Exists`, `Reusable`, `Partially Exists`, `Needs Extension`,
+`Missing`, `Architecture Decision Required`로 분류한 뒤 Roadmap 재정렬 여부를 판단한다.

@@ -380,3 +380,105 @@ Screenshot OCR을 버리지 않는다.
 어떤 경우에 쿠팡까지 들어가 검토했는가?”
 
 Founder의 실제 과거 행동을 가능한 구체적으로 재현한다.
+
+## 17. 후속 Discussion — Capital-Ready Commerce MVP
+
+Founder는 장기 기능 전체를 완성한 뒤에야 실제 돈을 투입하자는 뜻이 아니었다고 명확히 했다.
+실제 돈이 들어가기 직전까지 필요한 시스템을 높은 완성도로 만들고,
+그 근거를 확인한 뒤 제한된 자본으로 Commerce validation을 시작하려는 의미였다.
+
+이 단기 목표를 `HYB Capital-Ready Commerce MVP`로 정리했다.
+
+Candidate Universe
+→ Screening
+→ Market Validation
+→ Sourcing Validation
+→ Conservative Economics
+→ Risk / Evidence / Unknown Safety
+→ Explainable Ranking
+→ Capital Readiness
+→ Founder Decision
+
+### 17.1 CONFIRMED
+
+- Recommendation-first Discovery가 Capital-Ready MVP의 출발 방향이다.
+- 대량 후보에는 cheap screening을 먼저 적용하고 소수 후보를 정밀 분석한다.
+- 실제 투자 전 demand, competition, trend/change, sourcing 가능성과 economics를 검증해야 한다.
+- 중요한 비용이나 evidence의 `UNKNOWN`을 0으로 가장하지 않는다.
+- 단순 점수보다 추천 이유, 알려진 사실, unknown, 주요 위험을 Founder에게 설명해야 한다.
+- 좋은 상품과 좋은 투자는 같지 않으며, 전체 자본 대비 exposure를 보는 Capital Gate가 필요하다.
+- Shadow Experience와 Real Commerce Experience는 동일한 evidence가 아니다.
+- 실제 production 변경 전 `Capital-Ready MVP Gap Analysis`를 수행한다.
+- 공식 Roadmap 재정렬은 Gap Analysis 이후 별도 단계로 남긴다.
+
+### 17.2 Initial Validation Capital — PLANNING HYPOTHESIS
+
+첫 실전 validation capital로 약 100~200만 원 범위를 논의했다.
+
+이 숫자는 절대적 project contract나 보장된 최적 자본이 아니다.
+생활비·비상자금과 분리된 risk capital을 전제로 한 현실적 planning range이며,
+실제 상품, MOQ, 비용과 Capital Safety 분석에 따라 변경할 수 있다.
+
+### 17.3 Shadow Mode — STRONG CANDIDATE
+
+실제 돈을 투입하기 전에 HYB가 매일 Opportunity를 추천하고,
+추천 당시 facts, prediction, ranking을 immutable하게 보존한 뒤
+실제 시장 변화와 비교하는 아이디어를 논의했다.
+
+Founder는 실제 자본으로 실험할 수 있는 수보다 훨씬 많은 판단 경험을
+손실 없이 축적할 가능성을 높게 평가했다.
+
+분석 후보:
+
+- recommendation 유지
+- downgrade
+- reject
+- prediction error
+
+Shadow Mode의 mandatory 여부와 architecture는 아직 확정하지 않는다.
+
+### 17.4 Paper Portfolio — STRONG CANDIDATE
+
+가상 validation capital을 Opportunity별로 배분하여
+position size, reserve, concentration, capital exposure를 검증하는 아이디어를 논의했다.
+
+1,500,000 KRW 예시는 개념 설명을 위한 planning example이며 정책 값이 아니다.
+구체적인 portfolio algorithm은 확정하지 않는다.
+
+### 17.5 Experience Data Direction — ACTIVE HYPOTHESIS
+
+Founder와 AI Partner는 좋은 Engine만큼 좋은 Experience Data가 중요하다는 데 동의했다.
+
+검토할 evidence hierarchy:
+
+Market Observation
+→ Shadow Decision Outcome
+→ Founder-reviewed Decision
+→ Real Capital Decision
+→ Actual Commerce Outcome
+
+실제 Commerce Outcome은 conversion, advertising, returns, logistics,
+inventory turnover, realized profit/loss 같은 현실 마찰을 포함한다.
+따라서 Shadow data는 실제 결과를 대체하지 않는다.
+
+### 17.6 Capital Gate and Staged Deployment
+
+Opportunity가 좋아도 Founder의 전체 validation capital 대비 초기 투자 exposure가 과도하면
+투자를 차단하거나 축소할 수 있어야 한다는 방향에 동의했다.
+
+Real-Money Ready 이후에도 validation pool 전체를 한 번에 투입하지 않고,
+일부 자본 투입 → 실제 결과 확인 → 다음 capital release 순서의 staged deployment를
+Capital Safety 후보로 남겼다. 정확한 threshold와 비율은 미결이다.
+
+### 17.7 OPEN QUESTIONS
+
+- Capital-Ready capability 중 현재 저장소에 이미 존재하거나 재사용 가능한 것은 무엇인가?
+- Shadow Mode와 Paper Portfolio 중 무엇이 Real-Money Readiness의 필수 gate인가?
+- Best / Base / Conservative scenario를 어떤 authoritative facts로 구성할 수 있는가?
+- 핵심 unknown이 있을 때 readiness를 어떤 Domain/API 의미로 표현할 것인가?
+- Capital Gate의 exposure, reserve, MOQ, downside threshold는 무엇인가?
+- staged deployment의 release evidence와 비율은 무엇인가?
+- Shadow와 Real Experience를 어떤 신뢰도 및 학습 가중치로 구분할 것인가?
+
+다음 단계는 위 계약을 임의로 설계하는 것이 아니라,
+실제 저장소 전체를 대상으로 `Capital-Ready MVP Gap Analysis`를 수행하는 것이다.

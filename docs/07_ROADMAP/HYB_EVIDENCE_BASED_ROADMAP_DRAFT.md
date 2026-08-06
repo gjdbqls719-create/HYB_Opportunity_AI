@@ -9,6 +9,35 @@
 공식 현재 계획은 [ROADMAP.md](ROADMAP.md)와 [MVP_ROADMAP.md](MVP_ROADMAP.md)가 소유한다.
 아래 phase는 승인된 일정이나 구현 완료 선언이 아니라 evidence gate를 검토하기 위한 addendum다.
 
+## Next Analysis Gate — Capital-Ready MVP Gap Analysis
+
+상태: CONFIRMED PROCESS / ROADMAP NOT YET REALIGNED
+
+다음 production 개발이나 공식 Roadmap 재정렬 전에 실제 저장소를 기준으로
+Capital-Ready Commerce MVP capability를 감사한다.
+
+Candidate Universe
+→ Screening
+→ Market Validation
+→ Sourcing Validation
+→ Conservative Economics
+→ Risk / Evidence / Unknown Safety
+→ Explainable Ranking
+→ Capital Readiness
+→ Founder Decision
+
+각 capability를 다음 중 하나로 분류한다.
+
+- Already Exists
+- Reusable
+- Partially Exists
+- Needs Extension
+- Missing
+- Architecture Decision Required
+
+Shadow Mode와 Paper Portfolio는 강력한 후보지만 mandatory phase 또는 architecture로 확정하지 않는다.
+Gap Analysis가 reuse, extension, missing contract를 밝힌 뒤 별도 Roadmap Realignment를 진행한다.
+
 ## Phase 0 — Current Baseline
 
 현재 HYB는:
