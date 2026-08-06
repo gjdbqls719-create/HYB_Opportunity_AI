@@ -14,6 +14,9 @@ Research 문서는 HYB의 사업 아이디어, 판매 경험, 시장 조사, 가
 HYB_DISCUSSION_LOG.md
 토론 내용 원본 기록
 
+[FOUNDER_DISCUSSION_RECORD_2026-08-07.md](FOUNDER_DISCUSSION_RECORD_2026-08-07.md)
+2026-08-07 North Star 재정렬의 상세 토론 기록
+
 HYB_SELLER_KNOWLEDGE_BASE.md
 정리된 판매 지식
 

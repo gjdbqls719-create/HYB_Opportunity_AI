@@ -21,3 +21,6 @@ HYB는 Opportunity Discovery Platform을 넘어
 장기적인 비전은 완전한 사업 의사결정 자동화이며,
 단기적인 목표는 실제 판매자가 더 좋은 투자 판단을 내리고
 지속적인 수익을 만들 수 있도록 돕는 것입니다.
+
+Commerce-first 실행 순서와 evidence-based 확장 원칙은
+[HYB Long-term Vision](HYB_LONG_TERM_VISION.md)에서 구체화합니다.

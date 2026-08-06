@@ -20,6 +20,7 @@
 - [AI Partner](00_FOUNDATION/07_AI_PARTNER.md)
 - [Decision Framework](00_FOUNDATION/08_DECISION_FRAMEWORK.md)
 - [Project North Star](00_FOUNDATION/09_PROJECT_NORTH_STAR.md)
+- [HYB Long-term Vision](00_FOUNDATION/HYB_LONG_TERM_VISION.md)
 
 ---
 
@@ -78,6 +79,15 @@
 
 ---
 
+## Research
+
+사업 아이디어, Founder 토론 원문과 검증 전 가설을 관리합니다.
+
+- [Research README](RESEARCH/README.md)
+- [Founder Discussion Record — 2026-08-07](RESEARCH/FOUNDER_DISCUSSION_RECORD_2026-08-07.md)
+
+---
+
 ## Operations and Security
 
 - [Deployment](05_OPERATIONS/DEPLOYMENT.md)
@@ -90,9 +100,11 @@
 ## Product, Business, and Roadmap
 
 - [Roadmap](07_ROADMAP/ROADMAP.md)
+- [Evidence-Based Roadmap — Draft](07_ROADMAP/HYB_EVIDENCE_BASED_ROADMAP_DRAFT.md)
 - [Future Ideas](07_ROADMAP/FUTURE_IDEAS.md)
 - [Product README](08_PRODUCT/README.md)
 - [Business README](09_BUSINESS/README.md)
+- [Commerce Opportunity Strategy](09_BUSINESS/HYB_COMMERCE_OPPORTUNITY_STRATEGY.md)
 
 ---
 

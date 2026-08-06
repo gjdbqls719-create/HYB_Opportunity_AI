@@ -194,3 +194,6 @@ HYB는 한 번에 완성되는 단기 실험이 아니라
 
 기술적 완성도와 사업적 검증을 함께 추구하며,
 잘못된 지름길보다 더 강하고 신뢰할 수 있는 경로를 선택한다.
+
+2026-08-07 North Star 재정렬의 전체 논의 맥락은
+[Founder Discussion Record — North Star Realignment](../RESEARCH/FOUNDER_DISCUSSION_RECORD_2026-08-07.md)에 보존한다.

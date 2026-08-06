@@ -69,3 +69,11 @@ Independent Commerce Decision Engine
 The current objective is no longer to build an ROI calculator.
 
 The objective is to build the first MVP capable of making explainable commerce decisions using multiple independent decision dimensions.
+
+---
+
+## Strategy Realignment Reference
+
+[HYB Evidence-Based Roadmap — Draft](HYB_EVIDENCE_BASED_ROADMAP_DRAFT.md)는
+Founder Discussion에서 정리된 evidence gate와 장기 phase를 보존하는 addendum다.
+현재 공식 Roadmap을 대체하지 않는다.
