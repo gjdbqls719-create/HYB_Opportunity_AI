@@ -143,6 +143,22 @@ from app.application.economics_calculation_owner import (
     EconomicsSnapshotProductionEntry,
     EconomicsSnapshotProductionRequest,
 )
+from app.application.snapshot_chain_binding import (
+    CompleteSnapshotChainProductionEntry,
+    CompleteSnapshotChainProductionRequest,
+    SnapshotChainBindingCommandConflictError,
+    SnapshotChainBindingConflictError,
+    SnapshotChainBindingNotFoundError,
+    SnapshotChainBindingPersistenceError,
+    SnapshotChainCandidateMismatchError,
+    SnapshotChainEconomicsSourceConflictError,
+    SnapshotChainIncompleteError,
+    SnapshotChainMarketIdentityConflictError,
+    SnapshotChainOpportunityMismatchError,
+    SnapshotChainPriceSourceConflictError,
+    SnapshotChainProductSourceConflictError,
+    SnapshotChainVerifiedSourceConflictError,
+)
 from app.application.discovery_persistence import (
     DiscoveryExecutionIdentityConflictError,
     DiscoveryExecutionNotFoundError,
@@ -257,6 +273,10 @@ from app.infrastructure.price_intelligence import (
 from app.infrastructure.economics_calculation import (
     ProductionEconomicsSnapshotIdentityGenerator,
     SQLiteEconomicsCalculationOwnerRepository,
+)
+from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
+from app.infrastructure.snapshot_chain_identity import (
+    ProductionSnapshotChainBindingIdentityGenerator,
 )
 from app.infrastructure.production_safety_evaluation import SQLiteProductionSafetyEvaluationRepository
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
@@ -804,6 +824,50 @@ class EconomicsSnapshotResponse(BaseModel):
     replayed: bool
 
 
+class SnapshotChainRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    opportunity_id: str = Field(min_length=1)
+    product_snapshot_capture_command_id: str = Field(min_length=1)
+    price_analysis_command_id: str = Field(min_length=1)
+    economics_calculation_command_id: str = Field(min_length=1)
+    requested_at: datetime
+
+    def to_application_request(self) -> CompleteSnapshotChainProductionRequest:
+        return CompleteSnapshotChainProductionRequest(
+            command_id=self.command_id,
+            opportunity_id=self.opportunity_id,
+            product_snapshot_capture_command_id=(
+                self.product_snapshot_capture_command_id
+            ),
+            price_analysis_command_id=self.price_analysis_command_id,
+            economics_calculation_command_id=(
+                self.economics_calculation_command_id
+            ),
+            requested_at=self.requested_at,
+        )
+
+
+class SnapshotChainResponse(BaseModel):
+    command_id: str
+    binding_id: str
+    candidate_opportunity_binding_id: str
+    candidate_id: str
+    opportunity_id: str
+    chain_version: int
+    product_snapshot_ids: tuple[str, ...]
+    price_snapshot_id: str
+    economics_snapshot_id: str
+    verified_economics_opportunity_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    requested_at: datetime
+    bound_at: datetime
+    committed_at: datetime
+    replayed: bool
+    aliased: bool
+
+
 class ReviewCommandContextRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1138,6 +1202,52 @@ def get_economics_snapshot_entry():
         raise HTTPException(
             status_code=503,
             detail="economics persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_snapshot_chain_entry():
+    resources = ExitStack()
+    try:
+        promotion_repository = SQLiteCandidatePromotionRepository(
+            DEFAULT_DATABASE_PATH
+        )
+        resources.callback(promotion_repository.close)
+        capture_repository = resources.enter_context(
+            SQLiteProductSnapshotCaptureRepository(DEFAULT_DATABASE_PATH)
+        )
+        price_analysis_repository = resources.enter_context(
+            SQLitePriceAnalysisRepository(DEFAULT_DATABASE_PATH)
+        )
+        economics_repository = resources.enter_context(
+            SQLiteEconomicsCalculationOwnerRepository(DEFAULT_DATABASE_PATH)
+        )
+        snapshot_chain_repository = resources.enter_context(
+            SQLiteSnapshotChainBindingRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = CompleteSnapshotChainProductionEntry(
+            source_repository=promotion_repository,
+            product_snapshot_capture_repository=capture_repository,
+            price_analysis_repository=price_analysis_repository,
+            economics_repository=economics_repository,
+            snapshot_chain_repository=snapshot_chain_repository,
+            binding_id_generator=(
+                ProductionSnapshotChainBindingIdentityGenerator()
+            ),
+            bound_clock=lambda: datetime.now(timezone.utc),
+            receipt_clock=lambda: datetime.now(timezone.utc),
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="snapshot chain persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -2033,6 +2143,89 @@ def calculate_opportunity_economics(
         passes_roi_filter=profitability.passes_roi_filter,
         passes_profitability_filter=profitability.passes_profitability_filter,
         replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/snapshot-chains",
+    response_model=SnapshotChainResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def bind_opportunity_snapshot_chain(
+    request: SnapshotChainRequest,
+    response: Response,
+    entry: CompleteSnapshotChainProductionEntry = Depends(
+        get_snapshot_chain_entry
+    ),
+) -> SnapshotChainResponse:
+    try:
+        result = entry.execute(request.to_application_request())
+    except (
+        SnapshotChainBindingNotFoundError,
+        SnapshotChainIncompleteError,
+    ) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        SnapshotChainBindingCommandConflictError,
+        SnapshotChainBindingConflictError,
+        SnapshotChainCandidateMismatchError,
+        SnapshotChainEconomicsSourceConflictError,
+        SnapshotChainMarketIdentityConflictError,
+        SnapshotChainOpportunityMismatchError,
+        SnapshotChainPriceSourceConflictError,
+        SnapshotChainProductSourceConflictError,
+        SnapshotChainVerifiedSourceConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except SnapshotChainBindingPersistenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="snapshot chain persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    binding = result.binding
+    receipt = result.receipt
+    aliased = binding.binding_command_id != receipt.command_id
+    if result.replayed or aliased:
+        response.status_code = status.HTTP_200_OK
+    identity = binding.market_observation_identity
+    return SnapshotChainResponse(
+        command_id=receipt.command_id,
+        binding_id=binding.binding_id,
+        candidate_opportunity_binding_id=(
+            binding.candidate_opportunity_binding_id
+        ),
+        candidate_id=binding.candidate_id,
+        opportunity_id=binding.opportunity_id,
+        chain_version=binding.chain_version,
+        product_snapshot_ids=binding.product_snapshot_ids,
+        price_snapshot_id=binding.price_snapshot_id,
+        economics_snapshot_id=binding.economics_snapshot_id,
+        verified_economics_opportunity_id=(
+            binding.verified_economics_opportunity_id
+        ),
+        market_observation_identity=MarketObservationIdentityRequest(
+            scope=identity.scope,
+            market=identity.market,
+            marketplace=identity.marketplace,
+            canonical_product_id=identity.canonical_product_id,
+            marketplace_item_id=identity.marketplace_item_id,
+            normalized_query=identity.normalized_query,
+            category=identity.category,
+            variant_identity=identity.variant_identity,
+            condition=identity.condition,
+            window_started_at=identity.window_started_at,
+            window_ended_at=identity.window_ended_at,
+        ),
+        requested_at=receipt.requested_at,
+        bound_at=binding.bound_at,
+        committed_at=receipt.committed_at,
+        replayed=result.replayed,
+        aliased=aliased,
     )
 
 
