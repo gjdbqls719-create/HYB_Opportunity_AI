@@ -41,3 +41,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0032: OCR Candidate Identity Authority](ADR-0032-ocr-candidate-identity-authority.md)
 - [ADR-0033: Founder Discovery Command Authority](ADR-0033-founder-discovery-command-authority.md)
 - [ADR-0034: Founder-Assisted Sourcing Authority](ADR-0034-founder-assisted-sourcing-authority.md)
+- [ADR-0035: Sourcing Admission Timestamp Authority](ADR-0035-sourcing-admission-timestamp-authority.md)

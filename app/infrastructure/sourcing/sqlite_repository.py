@@ -394,6 +394,7 @@ def _admission(value: FounderSourcingAdmission) -> dict[str, object]:
         "quote_revision": _quote(value.quote_revision),
         "match_verification": _match(value.match_verification),
         "admitted_by": value.admitted_by,
+        "requested_at": value.requested_at.isoformat(),
         "admitted_at": value.admitted_at.isoformat(),
         "schema_version": value.schema_version,
     }
@@ -411,6 +412,7 @@ def _load_admission(value: object) -> FounderSourcingAdmission:
         _load_product(value["sourcing_product_identity"]),
         _load_quote(value["quote_revision"]),
         _load_match(value["match_verification"]), value["admitted_by"],
+        _dt(value["requested_at"], "requested_at"),
         _dt(value["admitted_at"], "admitted_at"), value["schema_version"],
     )
 

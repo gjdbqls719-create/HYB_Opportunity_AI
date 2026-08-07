@@ -54,11 +54,13 @@ class AdmitFounderSourcing:
         quote_id_generator: Callable[[], str],
         match_verification_id_generator: Callable[[], str],
         admission_id_generator: Callable[[], str],
+        admission_clock: Callable[[], datetime],
         committed_clock: Callable[[], datetime],
     ) -> None:
         generators = (
             supplier_id_generator, sourcing_product_id_generator, quote_id_generator,
-            match_verification_id_generator, admission_id_generator, committed_clock,
+            match_verification_id_generator, admission_id_generator,
+            admission_clock, committed_clock,
         )
         if any(not callable(value) for value in generators):
             raise TypeError("identity generators and clock must be callable")
@@ -68,6 +70,7 @@ class AdmitFounderSourcing:
         self._quote_id = quote_id_generator
         self._verification_id = match_verification_id_generator
         self._admission_id = admission_id_generator
+        self._admission_clock = admission_clock
         self._committed_clock = committed_clock
 
     def execute(self, command: AdmitFounderSourcingCommand) -> SourcingAdmissionResult:
@@ -103,12 +106,13 @@ class AdmitFounderSourcing:
         )
         verification = ProductMatchVerification(
             verification_id, command.selling_product_lineage, product_id,
-            command.match_status, command.operator_id, command.requested_at,
+            command.match_status, command.operator_id, command.verified_at,
             command.match_evidence, command.proposal_score, command.proposal_version,
         )
         admission = FounderSourcingAdmission(
             admission_id, 1, command.selling_product_lineage, supplier, product,
             quote, verification, command.operator_id, command.requested_at,
+            _time(self._admission_clock, "admitted_at"),
         )
         receipt = SourcingAdmissionReceipt(
             command.command_id, admission_id, 1, command.fingerprint,
@@ -124,11 +128,13 @@ class ReviseFounderSourcingQuote:
         self,
         repository: SourcingAuthorityRepository,
         *,
+        admission_clock: Callable[[], datetime],
         committed_clock: Callable[[], datetime],
     ) -> None:
-        if not callable(committed_clock):
-            raise TypeError("committed_clock must be callable")
+        if not callable(admission_clock) or not callable(committed_clock):
+            raise TypeError("admission and committed clocks must be callable")
         self._repository = repository
+        self._admission_clock = admission_clock
         self._committed_clock = committed_clock
 
     def execute(self, command: ReviseFounderSourcingQuoteCommand) -> SourcingAdmissionResult:
@@ -158,6 +164,7 @@ class ReviseFounderSourcingQuote:
             current.admission_id, revision, current.selling_product_lineage,
             current.supplier_identity, current.sourcing_product_identity, quote,
             current.match_verification, command.operator_id, command.requested_at,
+            _time(self._admission_clock, "admitted_at"),
         )
         receipt = SourcingAdmissionReceipt(
             command.command_id, admission.admission_id, revision,

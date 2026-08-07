@@ -113,6 +113,7 @@ def command(**changes) -> AdmitFounderSourcingCommand:
         quote_evidence=evidence(),
         match_status=MatchVerificationStatus.VERIFIED_MATCH,
         match_evidence=evidence(),
+        verified_at=NOW,
         proposal_score=Decimal("91.25"),
         proposal_version="product-matching-v2",
         operator_id="founder-1",
@@ -171,7 +172,7 @@ class Supplier:
         return self.value
 
 
-def service(repository=None):
+def service(repository=None, *, admitted_at=NOW, committed_at=NOW):
     repository = repository or MemoryRepository()
     suppliers = tuple(Supplier(value) for value in (
         "supplier-opaque-1", "sourcing-product-opaque-1", "quote-opaque-1",
@@ -184,9 +185,47 @@ def service(repository=None):
         quote_id_generator=suppliers[2],
         match_verification_id_generator=suppliers[3],
         admission_id_generator=suppliers[4],
-        committed_clock=lambda: NOW,
+        admission_clock=lambda: admitted_at,
+        committed_clock=lambda: committed_at,
     )
     return boundary, repository, suppliers
+
+
+def test_requested_verified_admitted_and_committed_times_have_distinct_authority():
+    admitted_at = NOW.replace(hour=9)
+    committed_at = NOW.replace(hour=10)
+    result = service(admitted_at=admitted_at, committed_at=committed_at)[0].execute(
+        command(verified_at=NOW.replace(hour=7))
+    )
+
+    assert result.admission.requested_at == NOW
+    assert result.admission.match_verification.verified_at == NOW.replace(hour=7)
+    assert result.admission.admitted_at == admitted_at
+    assert result.receipt.committed_at == committed_at
+
+
+def test_fresh_path_calls_each_server_clock_once_and_requested_at_is_fingerprinted():
+    repository = MemoryRepository()
+    admission_clock = Supplier(NOW.replace(hour=9))
+    receipt_clock = Supplier(NOW.replace(hour=10))
+    identities = tuple(Supplier(f"opaque-{index}") for index in range(5))
+    boundary = AdmitFounderSourcing(
+        repository,
+        supplier_id_generator=identities[0],
+        sourcing_product_id_generator=identities[1],
+        quote_id_generator=identities[2],
+        match_verification_id_generator=identities[3],
+        admission_id_generator=identities[4],
+        admission_clock=admission_clock,
+        committed_clock=receipt_clock,
+    )
+    first = boundary.execute(command())
+    assert admission_clock.calls == receipt_clock.calls == 1
+    assert all(value.calls == 1 for value in identities)
+    assert first.receipt.command_fingerprint == command().fingerprint
+    with pytest.raises(SourcingAdmissionReplayConflictError):
+        boundary.execute(command(requested_at=NOW.replace(hour=6)))
+    assert admission_clock.calls == receipt_clock.calls == 1
 
 
 def test_valid_manual_admission_preserves_identity_quote_moq_and_evidence():
@@ -277,6 +316,7 @@ def test_exact_replay_returns_committed_facts_without_generators_or_clock():
         quote_id_generator=lambda: pytest.fail("quote generator called"),
         match_verification_id_generator=lambda: pytest.fail("match generator called"),
         admission_id_generator=lambda: pytest.fail("admission generator called"),
+        admission_clock=lambda: pytest.fail("admission clock called"),
         committed_clock=lambda: pytest.fail("clock called"),
     ).execute(command())
     assert replay == replace(first, replayed=True)
@@ -340,6 +380,7 @@ def test_quote_revision_value_semantics_keep_identity_and_increment_revision():
         quote_revision=revised_quote,
         match_verification=first.match_verification,
         admitted_by=first.admitted_by,
+        requested_at=first.requested_at,
         admitted_at=first.admitted_at,
     )
     assert revised.quote_revision.quote_id == first.quote_revision.quote_id
@@ -373,12 +414,15 @@ def test_quote_revision_boundary_keeps_ids_and_appends_next_revision():
         requested_at=NOW,
     )
     revised = ReviseFounderSourcingQuote(
-        repository, committed_clock=lambda: NOW
+        repository, admission_clock=lambda: NOW.replace(hour=9),
+        committed_clock=lambda: NOW
     ).execute(revision_command)
     assert revised.admission.admission_id == first.admission_id
     assert revised.admission.quote_revision.quote_id == first.quote_revision.quote_id
     assert revised.admission.revision == revised.admission.quote_revision.revision == 2
     assert revised.admission.quote_revision.unit_price.amount == Decimal("11.90")
+    assert revised.admission.requested_at == NOW
+    assert revised.admission.admitted_at == NOW.replace(hour=9)
 
 
 def test_repository_contract_exposes_only_sourcing_fact_operations():

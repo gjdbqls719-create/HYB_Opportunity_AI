@@ -139,6 +139,7 @@ class AdmitFounderSourcingCommand:
     quote_evidence: SourcingEvidenceReference
     match_status: MatchVerificationStatus
     match_evidence: SourcingEvidenceReference
+    verified_at: datetime
     proposal_score: Decimal | None
     proposal_version: str | None
     operator_id: str
@@ -160,7 +161,9 @@ class AdmitFounderSourcingCommand:
             raise InvalidSourcingCommandError("quote_evidence must be SourcingEvidenceReference")
         if not isinstance(self.match_evidence, SourcingEvidenceReference):
             raise InvalidSourcingCommandError("match_evidence must be SourcingEvidenceReference")
-        for name in ("product_observed_at", "quote_observed_at", "requested_at"):
+        for name in (
+            "product_observed_at", "quote_observed_at", "verified_at", "requested_at"
+        ):
             _aware(getattr(self, name), name)
         if self.quote_valid_until is not None:
             _aware(self.quote_valid_until, "quote_valid_until")

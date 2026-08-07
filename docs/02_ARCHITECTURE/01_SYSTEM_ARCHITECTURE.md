@@ -159,3 +159,10 @@ reconstruct the exact Domain graph and validate source rows, versions, fingerpri
 revision continuity, and the persisted Economics source reference. There is no
 current projection, identity inference, Supplier deduplication, or downstream
 production composition.
+
+CR-0B1 separates Sourcing timestamp authority. `requested_at` remains the
+caller command time and `verified_at` the operator's factual match-verification
+time. An injected Application clock supplies authoritative `admitted_at`, while
+the receipt clock supplies `committed_at`. Admission v2 persists requested and
+admitted times separately. Replay lookup precedes identities and both clocks,
+and the command fingerprint contains no generated identity or server time.

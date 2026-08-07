@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-0B1 - Sourcing Admission Timestamp Authority Hardening
+
+- Separate caller-owned command `requested_at`, operator factual `verified_at`, server-owned Admission `admitted_at`, and Receipt `committed_at`.
+- Preserve requested and admitted times independently in immutable Admission v2 persistence while refusing to infer authority for legacy v1 rows.
+- Keep exact replay lookup ahead of identity issuance and both server clocks; persisted timestamps are reused without new rows or clock calls.
+- Apply the same authority and replay ordering to quote revisions without adding FastAPI, supplier deduplication, Economics, or Capital policy.
+
 ## CR-0C - Sourcing Authority SQLite Persistence and Replay
 
 - Persist exact Founder Sourcing Admission, opaque Supplier and Sourcing Product identities, verified Product match, immutable quote revisions, evidence, Economics source reference, and command receipt in append-only SQLite history.

@@ -1,6 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from decimal import Decimal
+import hashlib
+import json
 import sqlite3
 from threading import Barrier
 
@@ -55,6 +57,10 @@ def boundary(repository, *, fail=False):
         quote_id_generator=value("quote-1"),
         match_verification_id_generator=value("match-1"),
         admission_id_generator=value("admission-1"),
+        admission_clock=(
+            (lambda: pytest.fail("admission clock called during replay"))
+            if fail else (lambda: NOW.replace(hour=9))
+        ),
         committed_clock=(
             (lambda: pytest.fail("clock called during replay"))
             if fail else (lambda: NOW)
@@ -116,6 +122,8 @@ def test_schema_fresh_admission_and_exact_reconstruction(tmp_path):
     assert result.admission.selling_product_lineage == command().selling_product_lineage
     assert result.admission.quote_revision.evidence == command().quote_evidence
     assert result.admission.match_verification.evidence == command().match_evidence
+    assert result.admission.requested_at == command().requested_at
+    assert result.admission.admitted_at == NOW.replace(hour=9)
     repository.close()
 
 
@@ -162,7 +170,8 @@ def test_quote_revision_appends_and_prior_revision_is_exact(tmp_path):
     repository = SQLiteSourcingAuthorityRepository(tmp_path / "revision.db")
     first = boundary(repository).execute(command()).admission
     revised = ReviseFounderSourcingQuote(
-        repository, committed_clock=lambda: NOW
+        repository, admission_clock=lambda: NOW.replace(hour=10),
+        committed_clock=lambda: NOW
     ).execute(revision_command(first)).admission
     assert counts(repository) == (1, 1, 1, 2, 2, 2)
     assert revised.revision == 2
@@ -178,15 +187,22 @@ def test_quote_revision_restart_replay_and_stale_revision_conflict(tmp_path):
     repository = SQLiteSourcingAuthorityRepository(path)
     first = boundary(repository).execute(command()).admission
     revision = revision_command(first)
-    saved = ReviseFounderSourcingQuote(repository, committed_clock=lambda: NOW).execute(revision)
+    saved = ReviseFounderSourcingQuote(
+        repository, admission_clock=lambda: NOW.replace(hour=10),
+        committed_clock=lambda: NOW,
+    ).execute(revision)
     repository.close()
     restarted = SQLiteSourcingAuthorityRepository(path)
     replay = ReviseFounderSourcingQuote(
-        restarted, committed_clock=lambda: pytest.fail("clock called")
+        restarted,
+        admission_clock=lambda: pytest.fail("admission clock called"),
+        committed_clock=lambda: pytest.fail("clock called"),
     ).execute(revision)
     assert replay == replace(saved, replayed=True)
     with pytest.raises(SourcingQuoteRevisionConflictError):
-        ReviseFounderSourcingQuote(restarted, committed_clock=lambda: NOW).execute(
+        ReviseFounderSourcingQuote(
+            restarted, admission_clock=lambda: NOW, committed_clock=lambda: NOW
+        ).execute(
             replace(revision, command_id="other", expected_revision=1)
         )
     assert counts(restarted) == (1, 1, 1, 2, 2, 2)
@@ -240,7 +256,9 @@ def test_quote_revision_atomic_failure_preserves_previous_current(tmp_path, stag
     }[stage]
     setattr(repository, hook, lambda *_: (_ for _ in ()).throw(sqlite3.OperationalError(stage)))
     with pytest.raises(error_type):
-        ReviseFounderSourcingQuote(repository, committed_clock=lambda: NOW).execute(
+        ReviseFounderSourcingQuote(
+            repository, admission_clock=lambda: NOW, committed_clock=lambda: NOW
+        ).execute(
             revision_command(first)
         )
     assert state(repository) == before
@@ -252,7 +270,9 @@ def test_quote_revision_atomic_failure_preserves_previous_current(tmp_path, stag
 def test_append_only_triggers_reject_update_and_delete(tmp_path):
     repository = SQLiteSourcingAuthorityRepository(tmp_path / "append.db")
     first = boundary(repository).execute(command()).admission
-    ReviseFounderSourcingQuote(repository, committed_clock=lambda: NOW).execute(
+    ReviseFounderSourcingQuote(
+        repository, admission_clock=lambda: NOW, committed_clock=lambda: NOW
+    ).execute(
         revision_command(first)
     )
     for table in TABLES:
@@ -272,6 +292,30 @@ def test_malformed_quote_and_broken_reference_fail_explicitly(tmp_path):
     repository._connection.execute(
         "UPDATE sourcing_quote_revision_history SET payload_json='{}' WHERE quote_id=? AND revision=1",
         (admission.quote_revision.quote_id,),
+    )
+    repository._connection.commit()
+    with pytest.raises(MalformedSourcingAuthorityPersistenceError):
+        repository.get_admission(admission.admission_id)
+    repository.close()
+
+
+def test_malformed_admission_timestamp_fails_explicitly(tmp_path):
+    repository = SQLiteSourcingAuthorityRepository(tmp_path / "malformed-time.db")
+    admission = boundary(repository).execute(command()).admission
+    row = repository._connection.execute(
+        "SELECT payload_json FROM founder_sourcing_admission_history WHERE admission_id=?",
+        (admission.admission_id,),
+    ).fetchone()
+    payload = json.loads(row[0])
+    payload["requested_at"] = "not-a-time"
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    fingerprint = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    repository._connection.execute(
+        "DROP TRIGGER trg_founder_sourcing_admission_history_no_update"
+    )
+    repository._connection.execute(
+        "UPDATE founder_sourcing_admission_history SET payload_json=?, payload_fingerprint=? WHERE admission_id=?",
+        (encoded, fingerprint, admission.admission_id),
     )
     repository._connection.commit()
     with pytest.raises(MalformedSourcingAuthorityPersistenceError):
@@ -352,7 +396,7 @@ def test_concurrent_quote_revision_converges_or_conflicts(tmp_path):
         try:
             barrier.wait()
             return ReviseFounderSourcingQuote(
-                repository, committed_clock=lambda: NOW
+                repository, admission_clock=lambda: NOW, committed_clock=lambda: NOW
             ).execute(value)
         except (SourcingAdmissionReplayConflictError, SourcingQuoteRevisionConflictError):
             return "conflict"
@@ -376,7 +420,9 @@ def test_concurrent_quote_revision_converges_or_conflicts(tmp_path):
         repository = SQLiteSourcingAuthorityRepository(conflict_path)
         try:
             barrier.wait()
-            return ReviseFounderSourcingQuote(repository, committed_clock=lambda: NOW).execute(value)
+            return ReviseFounderSourcingQuote(
+                repository, admission_clock=lambda: NOW, committed_clock=lambda: NOW
+            ).execute(value)
         except (SourcingAdmissionReplayConflictError, SourcingQuoteRevisionConflictError):
             return "conflict"
         finally:

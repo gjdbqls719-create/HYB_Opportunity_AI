@@ -11,7 +11,7 @@ from app.domain.decision_engine import OpportunityIdentity
 from app.domain.market_intelligence import ArtifactReference, MarketObservationIdentity
 
 
-SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v1"
+SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v2"
 SUPPLIER_IDENTITY_SCHEMA_VERSION = "supplier-identity-v1"
 SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION = "sourcing-product-identity-v1"
 SUPPLIER_QUOTE_SCHEMA_VERSION = "supplier-quote-revision-v1"
@@ -319,6 +319,7 @@ class FounderSourcingAdmission:
     quote_revision: SupplierQuoteRevision
     match_verification: ProductMatchVerification
     admitted_by: str
+    requested_at: datetime
     admitted_at: datetime
     schema_version: str = SOURCING_AUTHORITY_SCHEMA_VERSION
 
@@ -348,6 +349,7 @@ class FounderSourcingAdmission:
         if self.revision != self.quote_revision.revision:
             raise ValueError("Admission and Quote revisions must match")
         object.__setattr__(self, "admitted_by", _required(self.admitted_by, "admitted_by"))
+        _aware(self.requested_at, "requested_at")
         _aware(self.admitted_at, "admitted_at")
         object.__setattr__(self, "schema_version", _required(self.schema_version, "schema_version"))
 
