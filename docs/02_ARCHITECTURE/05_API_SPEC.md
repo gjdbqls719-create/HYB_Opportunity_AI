@@ -1,5 +1,29 @@
 # HYB API Specification
 
+## Founder-Assisted Sourcing Authority API
+
+`POST /api/v1/sourcing/admissions` commits one Founder-verified Supplier,
+Sourcing Product, quote revision, selling-product lineage, Product Match
+Verification, and evidence graph. `POST
+/api/v1/sourcing/admissions/{admission_id}/quote-revisions` appends the next
+immutable quote revision while retaining Admission, Supplier, Sourcing Product,
+quote, and verified-match identities.
+
+Requests contain only caller factual data, including command ID, requested and
+verified times, exact selling lineage, supplier/product references, explicit
+KNOWN/UNKNOWN/NOT_APPLICABLE commercial facts, and evidence. Sourcing opaque
+identities, `admitted_at`, and `committed_at` are server-owned and rejected as
+extra input. Decimal amounts are JSON strings. Responses are serialized from
+the committed or reconstructed authoritative Domain result rather than echoed
+request data.
+
+Fresh commits return 201 and exact restart-safe replay returns 200 without new
+identities, clocks, or rows. Changed command payloads and revision conflicts
+return 409, missing Admission returns 404, DTO/Domain validation returns 422,
+and bounded persistence failures return 503 without raw SQLite details. The
+routes do not run Economics, Capital policy, matching algorithms, OCR, or
+supplier discovery/deduplication.
+
 ## Discovery Result Read API
 
 `GET /api/v1/discovery/executions/{discovery_execution_id}` returns the

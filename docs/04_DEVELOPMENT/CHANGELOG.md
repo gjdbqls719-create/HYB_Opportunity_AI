@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B1 - Founder-Assisted Sourcing Production Entry
+
+- Expose strict Founder Sourcing Admission and Quote Revision command routes using the existing CR-0B/0C/0B1 Domain, Application, replay, and SQLite contracts.
+- Add Sourcing-specific production UUID identity suppliers, request-scoped repository ownership, and separate UTC admission/receipt clock composition.
+- Return committed or reconstructed authoritative Supplier, Product, quote, verified match, lineage, evidence, requested/verified/admitted/committed timestamps, and schema versions.
+- Preserve exact restart replay, changed-payload conflict, explicit UNKNOWN/NOT_APPLICABLE facts, transaction rollback, and concurrent convergence without adding supplier deduplication, OCR automation, Economics, Capital policy, Snapshot Chain changes, or UI.
+
 ## CR-0B1 - Sourcing Admission Timestamp Authority Hardening
 
 - Separate caller-owned command `requested_at`, operator factual `verified_at`, server-owned Admission `admitted_at`, and Receipt `committed_at`.

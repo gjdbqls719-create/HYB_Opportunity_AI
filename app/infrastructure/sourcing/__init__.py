@@ -11,5 +11,12 @@ from app.infrastructure.sourcing.sqlite_repository import (
     SourcingSupplierHistoryError,
     UnsupportedSourcingAuthorityVersionError,
 )
+from app.infrastructure.sourcing.identity_suppliers import (
+    ProductionFounderSourcingAdmissionIdentityGenerator,
+    ProductionProductMatchVerificationIdentityGenerator,
+    ProductionSourcingProductIdentityGenerator,
+    ProductionSupplierIdentityGenerator,
+    ProductionSupplierQuoteIdentityGenerator,
+)
 
 __all__ = [name for name in globals() if not name.startswith("_")]

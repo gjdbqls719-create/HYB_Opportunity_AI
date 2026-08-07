@@ -19,6 +19,43 @@ from pydantic import BaseModel, ConfigDict, Field
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
 from presentation.dashboard_list import build_opportunity_list_card
+from app.application.sourcing import (
+    AdmitFounderSourcing,
+    AdmitFounderSourcingCommand,
+    InvalidSourcingCommandError,
+    ReviseFounderSourcingQuote,
+    ReviseFounderSourcingQuoteCommand,
+    SourcingAdmissionNotFoundError,
+    SourcingAdmissionReplayConflictError,
+    SourcingAuthorityError,
+    SourcingAuthorityProductionEntry,
+    SourcingIdentityGenerationError,
+    SourcingProductMatchNotVerifiedError,
+    SourcingQuoteRevisionConflictError,
+)
+from app.domain.decision_engine import OpportunityIdentity
+from app.domain.sourcing import (
+    CommercialFactAvailability,
+    MatchVerificationStatus,
+    SellingProductLineage,
+    ShippingScope,
+    ShippingTerm,
+    SourcingEvidenceKind,
+    SourcingEvidenceReference,
+    SourcingMoneyFact,
+    SourcingQuantityFact,
+)
+from app.infrastructure.sourcing import (
+    MalformedSourcingAuthorityPersistenceError,
+    ProductionFounderSourcingAdmissionIdentityGenerator,
+    ProductionProductMatchVerificationIdentityGenerator,
+    ProductionSourcingProductIdentityGenerator,
+    ProductionSupplierIdentityGenerator,
+    ProductionSupplierQuoteIdentityGenerator,
+    SQLiteSourcingAuthorityRepository,
+    SourcingAuthorityPersistenceError,
+    UnsupportedSourcingAuthorityVersionError,
+)
 from app.application.opportunity_lifecycle import (
     LifecycleNotFoundError,
     LifecycleVersionConflictError,
@@ -766,6 +803,117 @@ class MarketObservationIdentityRequest(BaseModel):
     window_ended_at: datetime
 
 
+class SourcingMoneyFactRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    availability: CommercialFactAvailability
+    amount: str | None = None
+    currency: str | None = None
+
+    def to_domain(self) -> SourcingMoneyFact:
+        return SourcingMoneyFact(
+            self.availability,
+            None if self.amount is None else Decimal(self.amount),
+            self.currency,
+        )
+
+
+class SourcingQuantityFactRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    availability: CommercialFactAvailability
+    quantity: int | None = None
+
+    def to_domain(self) -> SourcingQuantityFact:
+        return SourcingQuantityFact(self.availability, self.quantity)
+
+
+class SourcingShippingTermRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scope: ShippingScope
+    cost: SourcingMoneyFactRequest
+
+    def to_domain(self) -> ShippingTerm:
+        return ShippingTerm(self.scope, self.cost.to_domain())
+
+
+class SourcingEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: SourcingEvidenceKind
+    source_reference: str = Field(min_length=1)
+    observed_at: datetime
+    artifact_reference: OCRArtifactReferenceDTO | None = None
+
+    def to_domain(self) -> SourcingEvidenceReference:
+        return SourcingEvidenceReference(
+            self.kind, self.source_reference, self.observed_at,
+            None if self.artifact_reference is None else self.artifact_reference.to_domain(),
+        )
+
+
+class SourcingSellingProductLineageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    opportunity_id: str = Field(min_length=1)
+    discovery_reference: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    candidate_opportunity_binding_id: str = Field(min_length=1)
+    product_observation_snapshot_id: str = Field(min_length=1)
+    market_observation_identity: MarketObservationIdentityRequest
+
+    def to_domain(self) -> SellingProductLineage:
+        return SellingProductLineage(
+            OpportunityIdentity(self.opportunity_id, self.discovery_reference),
+            self.candidate_id, self.candidate_opportunity_binding_id,
+            self.product_observation_snapshot_id,
+            MarketObservationIdentity(**self.market_observation_identity.model_dump()),
+        )
+
+
+class FounderSourcingAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    requested_at: datetime
+    verified_at: datetime
+    operator_id: str = Field(min_length=1)
+    selling_product_lineage: SourcingSellingProductLineageRequest
+    supplier_platform: str = Field(min_length=1)
+    external_supplier_reference: str | None = None
+    supplier_display_name: str | None = None
+    external_product_reference: str = Field(min_length=1)
+    option_reference: str | None = None
+    sku_reference: str | None = None
+    source_url: str | None = None
+    product_observed_at: datetime
+    quoted_unit_price: SourcingMoneyFactRequest
+    minimum_order_quantity: SourcingQuantityFactRequest
+    quoted_quantity: SourcingQuantityFactRequest
+    shipping_terms: tuple[SourcingShippingTermRequest, ...]
+    lead_time_availability: CommercialFactAvailability
+    lead_time_days: int | None = None
+    quote_observed_at: datetime
+    quote_valid_until: datetime | None = None
+    quote_evidence: SourcingEvidenceRequest
+    match_status: MatchVerificationStatus
+    match_evidence: SourcingEvidenceRequest
+    proposal_score: str | None = None
+    proposal_version: str | None = None
+
+
+class SourcingQuoteRevisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    expected_revision: int = Field(ge=1)
+    requested_at: datetime
+    operator_id: str = Field(min_length=1)
+    quoted_unit_price: SourcingMoneyFactRequest
+    minimum_order_quantity: SourcingQuantityFactRequest
+    quoted_quantity: SourcingQuantityFactRequest
+    shipping_terms: tuple[SourcingShippingTermRequest, ...]
+    lead_time_availability: CommercialFactAvailability
+    lead_time_days: int | None = None
+    quote_observed_at: datetime
+    quote_valid_until: datetime | None = None
+    quote_evidence: SourcingEvidenceRequest
+
+
 class CandidateIssuanceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1163,6 +1311,39 @@ def get_validation_queue_repository():
         yield repository
     finally:
         repository.close()
+
+
+def get_sourcing_authority_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteSourcingAuthorityRepository(DEFAULT_DATABASE_PATH)
+        )
+        admission_clock = lambda: datetime.now(timezone.utc)
+        committed_clock = lambda: datetime.now(timezone.utc)
+        yield SourcingAuthorityProductionEntry(
+            AdmitFounderSourcing(
+                repository,
+                supplier_id_generator=ProductionSupplierIdentityGenerator(),
+                sourcing_product_id_generator=ProductionSourcingProductIdentityGenerator(),
+                quote_id_generator=ProductionSupplierQuoteIdentityGenerator(),
+                match_verification_id_generator=ProductionProductMatchVerificationIdentityGenerator(),
+                admission_id_generator=ProductionFounderSourcingAdmissionIdentityGenerator(),
+                admission_clock=admission_clock,
+                committed_clock=committed_clock,
+            ),
+            ReviseFounderSourcingQuote(
+                repository,
+                admission_clock=admission_clock,
+                committed_clock=committed_clock,
+            ),
+        )
+    except (sqlite3.Error, SourcingAuthorityPersistenceError) as error:
+        raise HTTPException(
+            status_code=503, detail="sourcing authority persistence unavailable"
+        ) from error
+    finally:
+        resources.close()
 
 
 def get_authoritative_discovery_entry():
@@ -2857,6 +3038,203 @@ def finalize_demand_observation(opportunity_id: str, request: DemandObservationA
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (DemandAdmissionUnavailableError, sqlite3.Error) as error:
         raise HTTPException(status_code=503, detail="demand admission unavailable") from error
+
+
+def _sourcing_money_payload(value) -> dict[str, object]:
+    return {
+        "availability": value.availability.value,
+        "amount": None if value.amount is None else str(value.amount),
+        "currency": value.currency,
+    }
+
+
+def _sourcing_quantity_payload(value) -> dict[str, object]:
+    return {"availability": value.availability.value, "quantity": value.quantity}
+
+
+def _sourcing_artifact_payload(value) -> dict[str, object] | None:
+    if value is None:
+        return None
+    return {
+        "artifact_id": value.artifact_id, "artifact_type": value.artifact_type.value,
+        "artifact_origin": value.artifact_origin.value, "source_type": value.source_type.value,
+        "sha256": value.sha256, "captured_at": value.captured_at.isoformat(),
+        "width": value.width, "height": value.height, "mime_type": value.mime_type,
+        "file_size": value.file_size, "schema_version": value.schema_version,
+    }
+
+
+def _sourcing_evidence_payload(value) -> dict[str, object]:
+    return {
+        "kind": value.kind.value, "source_reference": value.source_reference,
+        "observed_at": value.observed_at.isoformat(),
+        "artifact_reference": _sourcing_artifact_payload(value.artifact_reference),
+        "schema_version": value.schema_version,
+    }
+
+
+def _market_identity_payload(value) -> dict[str, object]:
+    return {
+        "scope": value.scope.value, "market": value.market,
+        "marketplace": value.marketplace,
+        "canonical_product_id": value.canonical_product_id,
+        "marketplace_item_id": value.marketplace_item_id,
+        "normalized_query": value.normalized_query, "category": value.category,
+        "variant_identity": value.variant_identity, "condition": value.condition,
+        "window_started_at": value.window_started_at.isoformat(),
+        "window_ended_at": value.window_ended_at.isoformat(),
+    }
+
+
+def _sourcing_result_payload(result) -> dict[str, object]:
+    admission = result.admission
+    lineage = admission.selling_product_lineage
+    supplier = admission.supplier_identity
+    product = admission.sourcing_product_identity
+    quote = admission.quote_revision
+    match = admission.match_verification
+    return {
+        "admission_id": admission.admission_id, "revision": admission.revision,
+        "command_id": result.receipt.command_id, "replayed": result.replayed,
+        "selling_product_lineage": {
+            "opportunity_id": lineage.opportunity_identity.opportunity_id,
+            "discovery_reference": lineage.opportunity_identity.discovery_reference,
+            "candidate_id": lineage.candidate_id,
+            "candidate_opportunity_binding_id": lineage.candidate_opportunity_binding_id,
+            "product_observation_snapshot_id": lineage.product_observation_snapshot_id,
+            "market_observation_identity": _market_identity_payload(lineage.market_observation_identity),
+        },
+        "supplier": {
+            "supplier_id": supplier.supplier_id, "source_platform": supplier.source_platform,
+            "external_supplier_reference": supplier.external_supplier_reference,
+            "display_name": supplier.display_name, "schema_version": supplier.schema_version,
+        },
+        "sourcing_product": {
+            "sourcing_product_id": product.sourcing_product_id,
+            "supplier_id": product.supplier_id,
+            "external_product_reference": product.external_product_reference,
+            "option_reference": product.option_reference, "sku_reference": product.sku_reference,
+            "source_url": product.source_url, "observed_at": product.observed_at.isoformat(),
+            "schema_version": product.schema_version,
+        },
+        "quote": {
+            "quote_id": quote.quote_id, "revision": quote.revision,
+            "sourcing_product_id": quote.sourcing_product_id,
+            "unit_price": _sourcing_money_payload(quote.unit_price),
+            "minimum_order_quantity": _sourcing_quantity_payload(quote.minimum_order_quantity),
+            "quoted_quantity": _sourcing_quantity_payload(quote.quoted_quantity),
+            "shipping_terms": tuple({"scope": term.scope.value,
+                "cost": _sourcing_money_payload(term.cost)} for term in quote.shipping_terms),
+            "lead_time_availability": quote.lead_time_availability.value,
+            "lead_time_days": quote.lead_time_days,
+            "observed_at": quote.observed_at.isoformat(),
+            "valid_until": None if quote.valid_until is None else quote.valid_until.isoformat(),
+            "evidence": _sourcing_evidence_payload(quote.evidence),
+            "schema_version": quote.schema_version,
+        },
+        "match_verification": {
+            "verification_id": match.verification_id,
+            "sourcing_product_id": match.sourcing_product_id,
+            "status": match.status.value, "verifier_id": match.verifier_id,
+            "verified_at": match.verified_at.isoformat(),
+            "evidence": _sourcing_evidence_payload(match.evidence),
+            "proposal_score": None if match.proposal_score is None else str(match.proposal_score),
+            "proposal_version": match.proposal_version,
+            "schema_version": match.schema_version,
+        },
+        "requested_at": admission.requested_at.isoformat(),
+        "verified_at": match.verified_at.isoformat(),
+        "admitted_at": admission.admitted_at.isoformat(),
+        "committed_at": result.receipt.committed_at.isoformat(),
+        "admission_schema_version": admission.schema_version,
+        "receipt_schema_version": result.receipt.schema_version,
+    }
+
+
+def _execute_sourcing(operation, command, response: Response):
+    try:
+        result = operation(command)
+        response.status_code = 200 if result.replayed else 201
+        return _sourcing_result_payload(result)
+    except SourcingAdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (SourcingAdmissionReplayConflictError, SourcingQuoteRevisionConflictError) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (InvalidSourcingCommandError, SourcingProductMatchNotVerifiedError,
+            TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (SourcingIdentityGenerationError, SourcingAuthorityPersistenceError,
+            MalformedSourcingAuthorityPersistenceError,
+            UnsupportedSourcingAuthorityVersionError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503, detail="sourcing authority persistence unavailable"
+        ) from error
+    except SourcingAuthorityError as error:
+        raise HTTPException(status_code=503, detail="sourcing authority unavailable") from error
+
+
+@app.post("/api/v1/sourcing/admissions", status_code=201)
+def admit_founder_sourcing(
+    request: FounderSourcingAdmissionRequest,
+    response: Response,
+    entry: SourcingAuthorityProductionEntry = Depends(get_sourcing_authority_entry),
+):
+    try:
+        command = AdmitFounderSourcingCommand(
+            command_id=request.command_id,
+            selling_product_lineage=request.selling_product_lineage.to_domain(),
+            supplier_platform=request.supplier_platform,
+            external_supplier_reference=request.external_supplier_reference,
+            supplier_display_name=request.supplier_display_name,
+            external_product_reference=request.external_product_reference,
+            option_reference=request.option_reference, sku_reference=request.sku_reference,
+            source_url=request.source_url, product_observed_at=request.product_observed_at,
+            quoted_unit_price=request.quoted_unit_price.to_domain(),
+            minimum_order_quantity=request.minimum_order_quantity.to_domain(),
+            quoted_quantity=request.quoted_quantity.to_domain(),
+            shipping_terms=tuple(value.to_domain() for value in request.shipping_terms),
+            lead_time_availability=request.lead_time_availability,
+            lead_time_days=request.lead_time_days,
+            quote_observed_at=request.quote_observed_at,
+            quote_valid_until=request.quote_valid_until,
+            quote_evidence=request.quote_evidence.to_domain(),
+            match_status=request.match_status,
+            match_evidence=request.match_evidence.to_domain(),
+            verified_at=request.verified_at,
+            proposal_score=None if request.proposal_score is None else Decimal(request.proposal_score),
+            proposal_version=request.proposal_version,
+            operator_id=request.operator_id, requested_at=request.requested_at,
+        )
+    except (InvalidSourcingCommandError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return _execute_sourcing(entry.admit, command, response)
+
+
+@app.post("/api/v1/sourcing/admissions/{admission_id}/quote-revisions", status_code=201)
+def revise_founder_sourcing_quote(
+    admission_id: str,
+    request: SourcingQuoteRevisionRequest,
+    response: Response,
+    entry: SourcingAuthorityProductionEntry = Depends(get_sourcing_authority_entry),
+):
+    try:
+        command = ReviseFounderSourcingQuoteCommand(
+            command_id=request.command_id, admission_id=admission_id,
+            expected_revision=request.expected_revision,
+            quoted_unit_price=request.quoted_unit_price.to_domain(),
+            minimum_order_quantity=request.minimum_order_quantity.to_domain(),
+            quoted_quantity=request.quoted_quantity.to_domain(),
+            shipping_terms=tuple(value.to_domain() for value in request.shipping_terms),
+            lead_time_availability=request.lead_time_availability,
+            lead_time_days=request.lead_time_days,
+            quote_observed_at=request.quote_observed_at,
+            quote_valid_until=request.quote_valid_until,
+            quote_evidence=request.quote_evidence.to_domain(),
+            operator_id=request.operator_id, requested_at=request.requested_at,
+        )
+    except (InvalidSourcingCommandError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return _execute_sourcing(entry.revise, command, response)
 
 
 @app.get("/api/v1/reviews/{session_id}")

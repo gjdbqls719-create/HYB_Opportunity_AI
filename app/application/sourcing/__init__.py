@@ -21,5 +21,6 @@ from app.application.sourcing.service import (
     AdmitFounderSourcing,
     ReviseFounderSourcingQuote,
 )
+from app.application.sourcing.production import SourcingAuthorityProductionEntry
 
 __all__ = [name for name in globals() if not name.startswith("_")]

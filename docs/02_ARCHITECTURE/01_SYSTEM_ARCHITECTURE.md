@@ -166,3 +166,13 @@ time. An injected Application clock supplies authoritative `admitted_at`, while
 the receipt clock supplies `committed_at`. Admission v2 persists requested and
 admitted times separately. Replay lookup precedes identities and both clocks,
 and the command fingerprint contains no generated identity or server time.
+
+CR-1B1 exposes this authority through two thin production command routes. A
+request-scoped composition owns one `SQLiteSourcingAuthorityRepository`, five
+Sourcing-specific opaque identity suppliers, and separate UTC admission and
+receipt clocks. FastAPI performs strict DTO conversion and bounded HTTP error
+mapping only; the existing Application services retain replay, identity,
+verification, revision, and persistence behavior. Responses originate from the
+committed/reconstructed result. No supplier lookup, matching calculation,
+Economics, Capital policy, Snapshot Chain mutation, OCR promotion, or UI is
+part of this composition.
