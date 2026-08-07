@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B3B - Critical Cost Completeness and UNKNOWN Safety
+
+- Add an immutable, policy-versioned Critical Cost Completeness assessment over one exact Landed Cost Composition, Sourcing Binding/Admission revision, and Verified Economics Snapshot.
+- Block unknown purchase/shipping, unresolved positive shipping allocation, mixed currency without authoritative FX, missing or weak required Economics evidence, and missing/expired quote validity with deterministic structured reasons.
+- Preserve explicit known zero and authoritative not-applicable shipping without inferring allocation, dividing by MOQ, selecting a later quote, or creating an FX rate.
+- Keep existing Discovery/operational calculator fallback as a non-Capital compatibility path while ensuring an incomplete assessment exposes no profit/ROI and cannot authorize a future Capital calculation.
+- Keep Production Safety, Decision Readiness, Actual Economics, Snapshot Chain, Conservative Economics, Capital Readiness/Gate, Founder approval, API/UI, and assessment persistence unchanged.
+
 ## CR-1B3A - Landed Cost Composition Domain Contract
 
 - Define an immutable acquisition-side composition over one exact Sourcing Economics Binding with four independent canonical cost components.

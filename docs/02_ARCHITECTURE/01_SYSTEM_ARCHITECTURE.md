@@ -202,3 +202,16 @@ calculation. Durable replay reconstructs the committed composition after restart
 changed command payloads conflict, malformed persistence fails explicitly, and
 UPDATE/DELETE triggers protect both histories. No current projection, latest
 binding selection, FX, allocation, Economics, Capital policy, API, or UI is added.
+
+CR-1B3B adds a separate immutable Critical Cost Completeness assessment over one
+exact persisted Landed Cost Composition, its exact Sourcing Binding/Admission,
+and the persisted Verified Economics Snapshot for the same Opportunity. The
+versioned Domestic Commerce policy evaluates availability, evidence trust,
+shipping allocation authority, currency compatibility, and quote validity with
+deterministic structured reasons. UNKNOWN never becomes numeric zero in the
+Capital-facing assessment. Existing Discovery/operational calculator fallback
+remains a compatibility path and is not Capital authority. This assessment
+means source completeness only: it does not calculate Conservative Economics,
+assert Capital Readiness, open a Capital Gate, or grant Founder approval.
+Assessment persistence is intentionally deferred until this source and policy
+contract is stable.
