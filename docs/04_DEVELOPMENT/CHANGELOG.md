@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-0C - Sourcing Authority SQLite Persistence and Replay
+
+- Persist exact Founder Sourcing Admission, opaque Supplier and Sourcing Product identities, verified Product match, immutable quote revisions, evidence, Economics source reference, and command receipt in append-only SQLite history.
+- Use `BEGIN IMMEDIATE` for fresh admission and quote-revision transactions with phase-specific failures, complete rollback, restart-safe exact replay, changed-payload conflict, and separate-connection convergence.
+- Reconstruct and validate every referenced immutable fact, schema version, payload fingerprint, revision relationship, selling/source lineage, and explicit unknown value without correction or numeric fallback.
+- Add no Supplier deduplication, API/UI, collector/OCR wiring, Economics formula, Snapshot Chain, Capital Readiness, Capital Gate, or approval behavior.
+
 ## CR-0B - Founder-Assisted Sourcing Authority Domain Contract
 
 - Add immutable Supplier, Sourcing Product, quote revision, explicit shipping scope, evidence reference, selling-product lineage, and Human-verified match contracts without reusing marketplace seller or grouping semantics.

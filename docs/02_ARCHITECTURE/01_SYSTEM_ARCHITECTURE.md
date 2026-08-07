@@ -151,3 +151,11 @@ and similarity are proposal-only and cannot create match authority. Commands use
 deterministic fingerprints and replay receipts through a repository Protocol;
 SQLite, Economics integration, Capital Readiness, Capital Gate, API, and UI remain
 outside this foundation.
+
+CR-0C implements that Protocol with append-only SQLite Supplier, Sourcing Product,
+Match Verification, Quote Revision, Admission Revision, and Receipt history. Fresh
+admission and quote revision each use one `BEGIN IMMEDIATE` transaction. Reads
+reconstruct the exact Domain graph and validate source rows, versions, fingerprints,
+revision continuity, and the persisted Economics source reference. There is no
+current projection, identity inference, Supplier deduplication, or downstream
+production composition.
