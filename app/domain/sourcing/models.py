@@ -17,6 +17,7 @@ SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION = "sourcing-product-identity-v1"
 SUPPLIER_QUOTE_SCHEMA_VERSION = "supplier-quote-revision-v1"
 PRODUCT_MATCH_VERIFICATION_SCHEMA_VERSION = "sourcing-product-match-v1"
 SOURCING_EVIDENCE_SCHEMA_VERSION = "sourcing-evidence-reference-v1"
+SOURCING_ECONOMICS_SOURCE_REFERENCE_SCHEMA_VERSION = "sourcing-economics-source-reference-v1"
 
 
 def _required(value: str, name: str) -> str:
@@ -310,6 +311,24 @@ class ProductMatchVerification:
 
 
 @dataclass(frozen=True, slots=True)
+class SourcingEconomicsSourceReference:
+    admission_id: str
+    admission_revision: int
+    quote_id: str
+    quote_revision: int
+    schema_version: str = SOURCING_ECONOMICS_SOURCE_REFERENCE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for name in ("admission_id", "quote_id"):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        for name in ("admission_revision", "quote_revision"):
+            _positive(getattr(self, name), name)
+        if self.admission_revision != self.quote_revision:
+            raise ValueError("admission and quote revisions must match")
+        object.__setattr__(self, "schema_version", _required(self.schema_version, "schema_version"))
+
+
+@dataclass(frozen=True, slots=True)
 class FounderSourcingAdmission:
     admission_id: str
     revision: int
@@ -353,6 +372,12 @@ class FounderSourcingAdmission:
         _aware(self.admitted_at, "admitted_at")
         object.__setattr__(self, "schema_version", _required(self.schema_version, "schema_version"))
 
+    def to_economics_source_reference(self) -> SourcingEconomicsSourceReference:
+        return SourcingEconomicsSourceReference(
+            self.admission_id, self.revision,
+            self.quote_revision.quote_id, self.quote_revision.revision,
+        )
+
 
 __all__ = (
     "CommercialFactAvailability",
@@ -364,6 +389,7 @@ __all__ = (
     "ShippingTerm",
     "SourcingEvidenceKind",
     "SourcingEvidenceReference",
+    "SourcingEconomicsSourceReference",
     "SourcingMoneyFact",
     "SourcingProductIdentity",
     "SourcingQuantityFact",
@@ -375,4 +401,5 @@ __all__ = (
     "SUPPLIER_IDENTITY_SCHEMA_VERSION",
     "SUPPLIER_QUOTE_SCHEMA_VERSION",
     "PRODUCT_MATCH_VERIFICATION_SCHEMA_VERSION",
+    "SOURCING_ECONOMICS_SOURCE_REFERENCE_SCHEMA_VERSION",
 )

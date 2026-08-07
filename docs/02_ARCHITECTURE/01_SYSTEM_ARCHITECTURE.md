@@ -176,3 +176,11 @@ verification, revision, and persistence behavior. Responses originate from the
 committed/reconstructed result. No supplier lookup, matching calculation,
 Economics, Capital policy, Snapshot Chain mutation, OCR promotion, or UI is
 part of this composition.
+
+CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
+fact. An immutable binding links one `OpportunityIdentity` to one explicit
+Admission/Quote revision and is persisted with its replay receipt in a single
+`BEGIN IMMEDIATE` transaction. Reads reconstruct the exact historical source;
+there is no latest selection or current projection. The narrow binding reference
+prepares a future Economics handoff without injecting costs, changing formulas,
+or asserting Capital Readiness.

@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B2B - Immutable Exact Sourcing Economics Binding
+
+- Bind an Opportunity explicitly to one exact authoritative Sourcing Admission and Quote revision using an opaque immutable binding identity.
+- Persist append-only binding history and replay receipt atomically with exact restart replay, changed-payload conflict, lineage validation, and no current/latest projection.
+- Preserve caller request time separately from server binding/commit times and expose a narrow future Economics source reference without calculating or mapping costs.
+- Add no Verified Economics creation, formula, UNKNOWN handling, Capital policy, Snapshot Chain, API/UI, or supplier integration changes.
+
 ## CR-1B1 - Founder-Assisted Sourcing Production Entry
 
 - Expose strict Founder Sourcing Admission and Quote Revision command routes using the existing CR-0B/0C/0B1 Domain, Application, replay, and SQLite contracts.

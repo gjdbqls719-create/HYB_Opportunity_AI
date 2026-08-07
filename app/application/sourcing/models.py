@@ -16,6 +16,7 @@ from app.domain.sourcing import (
     SellingProductLineage,
     ShippingTerm,
     SourcingEvidenceReference,
+    SourcingEconomicsSourceReference,
     SourcingMoneyFact,
     SourcingQuantityFact,
 )
@@ -263,24 +264,3 @@ class SourcingAdmissionResult:
             raise ValueError("receipt must preserve resulting revision")
         if not isinstance(self.replayed, bool):
             raise TypeError("replayed must be bool")
-
-
-@dataclass(frozen=True, slots=True)
-class SourcingEconomicsSourceReference:
-    admission_id: str
-    admission_revision: int
-    quote_id: str
-    quote_revision: int
-
-    def __post_init__(self) -> None:
-        for name in ("admission_id", "quote_id"):
-            value = getattr(self, name)
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{name} must be non-empty text")
-            object.__setattr__(self, name, value.strip())
-        for name in ("admission_revision", "quote_revision"):
-            value = getattr(self, name)
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-                raise ValueError(f"{name} must be positive")
-        if self.admission_revision != self.quote_revision:
-            raise ValueError("admission and quote revisions must match")

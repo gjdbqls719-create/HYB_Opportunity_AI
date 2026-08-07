@@ -17,6 +17,8 @@ from app.infrastructure.sourcing.identity_suppliers import (
     ProductionSourcingProductIdentityGenerator,
     ProductionSupplierIdentityGenerator,
     ProductionSupplierQuoteIdentityGenerator,
+    ProductionSourcingEconomicsBindingIdentityGenerator,
 )
+from app.infrastructure.sourcing.sqlite_economics_binding_repository import *
 
 __all__ = [name for name in globals() if not name.startswith("_")]

@@ -42,3 +42,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0033: Founder Discovery Command Authority](ADR-0033-founder-discovery-command-authority.md)
 - [ADR-0034: Founder-Assisted Sourcing Authority](ADR-0034-founder-assisted-sourcing-authority.md)
 - [ADR-0035: Sourcing Admission Timestamp Authority](ADR-0035-sourcing-admission-timestamp-authority.md)
+- [ADR-0036: Exact Sourcing Economics Binding](ADR-0036-exact-sourcing-economics-binding.md)
