@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from decimal import Decimal
+import hashlib
+import json
 from typing import Callable, Protocol
 
 from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
@@ -37,10 +40,117 @@ class CriticalCostSourceMismatchError(CriticalCostCompletenessError):
     pass
 
 
+class CriticalCostCompletenessReplayConflictError(CriticalCostCompletenessError):
+    pass
+
+
+CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION = "critical-cost-completeness-command-v1"
+CRITICAL_COST_COMPLETENESS_RECEIPT_SCHEMA_VERSION = "critical-cost-completeness-receipt-v1"
+
+
+def _text(value: str, name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be non-empty text")
+    return value.strip()
+
+
+def _aware(value: datetime, name: str) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{name} must be timezone-aware")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class PersistCriticalCostCompletenessCommand:
+    command_id: str
+    composition_id: str
+    verified_economics_opportunity_id: str
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    schema_version: str = CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id", "composition_id", "verified_economics_opportunity_id",
+            "verified_economics_schema_version", "policy_name", "policy_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        _aware(self.verified_economics_snapshot_at, "verified_economics_snapshot_at")
+        _aware(self.requested_at, "requested_at")
+        if self.schema_version != CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION:
+            raise ValueError("unsupported Critical Cost Completeness command version")
+
+    @property
+    def fingerprint(self) -> str:
+        payload = {
+            "command_id": self.command_id,
+            "composition_id": self.composition_id,
+            "verified_economics_source": {
+                "opportunity_id": self.verified_economics_opportunity_id,
+                "snapshot_at": self.verified_economics_snapshot_at.astimezone(timezone.utc).isoformat(),
+                "schema_version": self.verified_economics_schema_version,
+            },
+            "policy_name": self.policy_name,
+            "policy_version": self.policy_version,
+            "requested_at": self.requested_at.astimezone(timezone.utc).isoformat(),
+            "schema_version": self.schema_version,
+        }
+        return hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class CriticalCostCompletenessReceipt:
+    command_id: str
+    assessment_id: str
+    command_fingerprint: str
+    committed_at: datetime
+    schema_version: str = CRITICAL_COST_COMPLETENESS_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "command_id", _text(self.command_id, "command_id"))
+        object.__setattr__(self, "assessment_id", _text(self.assessment_id, "assessment_id"))
+        if (
+            not isinstance(self.command_fingerprint, str)
+            or len(self.command_fingerprint) != 64
+            or any(value not in "0123456789abcdef" for value in self.command_fingerprint)
+        ):
+            raise ValueError("command_fingerprint must be SHA-256 text")
+        _aware(self.committed_at, "committed_at")
+        if self.schema_version != CRITICAL_COST_COMPLETENESS_RECEIPT_SCHEMA_VERSION:
+            raise ValueError("unsupported Critical Cost Completeness receipt version")
+
+
+@dataclass(frozen=True, slots=True)
+class CriticalCostCompletenessPersistenceResult:
+    assessment: CriticalCostCompleteness
+    receipt: CriticalCostCompletenessReceipt
+    replayed: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.assessment, CriticalCostCompleteness):
+            raise TypeError("assessment must be CriticalCostCompleteness")
+        if not isinstance(self.receipt, CriticalCostCompletenessReceipt):
+            raise TypeError("receipt must be CriticalCostCompletenessReceipt")
+
+
 class CriticalCostCompletenessRepository(Protocol):
     def get_composition(self, composition_id: str) -> LandedCostComposition | None: ...
     def get_binding(self, reference: SourcingEconomicsBindingReference) -> SourcingEconomicsBinding | None: ...
     def get_source_admission(self, reference: SourcingEconomicsSourceReference) -> FounderSourcingAdmission | None: ...
+
+
+class CriticalCostCompletenessPersistenceRepository(
+    CriticalCostCompletenessRepository, Protocol
+):
+    def validate_replay(self, command_id: str, fingerprint: str) -> CriticalCostCompletenessPersistenceResult | None: ...
+    def save_assessment(self, command: PersistCriticalCostCompletenessCommand,
+                        assessment: CriticalCostCompleteness,
+                        receipt: CriticalCostCompletenessReceipt) -> CriticalCostCompletenessPersistenceResult: ...
 
 
 class CriticalCostVerifiedEconomicsRepository(Protocol):
@@ -218,7 +328,70 @@ class EvaluateCriticalCostCompleteness:
         return reasons
 
 
+class PersistCriticalCostCompleteness:
+    """Replay-first authoritative publication of one evaluated assessment."""
+
+    def __init__(
+        self,
+        repository: CriticalCostCompletenessPersistenceRepository,
+        *,
+        assessment_id_generator: Callable[[], str],
+        evaluated_clock: Callable[[], datetime],
+        committed_clock: Callable[[], datetime],
+        policy: CriticalCostCompletenessPolicy,
+    ) -> None:
+        if not all(callable(value) for value in (
+            assessment_id_generator, evaluated_clock, committed_clock,
+        )):
+            raise TypeError("persistence dependencies must be callable")
+        if not isinstance(policy, CriticalCostCompletenessPolicy):
+            raise TypeError("policy must be CriticalCostCompletenessPolicy")
+        self._repository = repository
+        self._identity = assessment_id_generator
+        self._evaluated = evaluated_clock
+        self._committed = committed_clock
+        self._policy = policy
+
+    def execute(
+        self, command: PersistCriticalCostCompletenessCommand
+    ) -> CriticalCostCompletenessPersistenceResult:
+        if not isinstance(command, PersistCriticalCostCompletenessCommand):
+            raise TypeError("command must be PersistCriticalCostCompletenessCommand")
+        replay = self._repository.validate_replay(command.command_id, command.fingerprint)
+        if replay is not None:
+            return replace(replay, replayed=True)
+        assessment = EvaluateCriticalCostCompleteness(
+            self._repository,
+            self._repository,
+            policy=self._policy,
+            evaluated_clock=self._evaluated,
+        ).execute(command.composition_id)
+        if (
+            assessment.composition_id != command.composition_id
+            or assessment.verified_economics_opportunity_id
+            != command.verified_economics_opportunity_id
+            or assessment.verified_economics_snapshot_at
+            != command.verified_economics_snapshot_at
+            or assessment.verified_economics_schema_version
+            != command.verified_economics_schema_version
+            or assessment.policy_name != command.policy_name
+            or assessment.policy_version != command.policy_version
+        ):
+            raise CriticalCostSourceMismatchError(
+                "evaluated assessment differs from commanded exact sources or policy"
+            )
+        assessment_id = _text(self._identity(), "assessment_id")
+        receipt = CriticalCostCompletenessReceipt(
+            command.command_id,
+            assessment_id,
+            command.fingerprint,
+            _aware(self._committed(), "committed_at"),
+        )
+        return self._repository.save_assessment(command, assessment, receipt)
+
+
 __all__ = [
     name for name in globals()
-    if name.startswith("CriticalCost") or name.startswith("Evaluate") or name.startswith("DOMESTIC")
+    if name.startswith("CriticalCost") or name.startswith("Evaluate")
+    or name.startswith("Persist") or name.startswith("DOMESTIC")
 ]

@@ -38,4 +38,8 @@ class ProductionLandedCostCompositionIdentityGenerator(_OpaqueSourcingIdentityGe
     pass
 
 
+class ProductionCriticalCostCompletenessIdentityGenerator(_OpaqueSourcingIdentityGenerator):
+    __slots__ = ()
+
+
 __all__ = [name for name in globals() if name.startswith("Production")]

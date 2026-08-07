@@ -213,5 +213,14 @@ Capital-facing assessment. Existing Discovery/operational calculator fallback
 remains a compatibility path and is not Capital authority. This assessment
 means source completeness only: it does not calculate Conservative Economics,
 assert Capital Readiness, open a Capital Gate, or grant Founder approval.
-Assessment persistence is intentionally deferred until this source and policy
-contract is stable.
+CR-1B3B intentionally deferred assessment persistence until this source and
+policy contract was stable.
+
+CR-1B3B1 publishes that stable assessment through a replay-first Application
+owner and a dedicated SQLite repository. A server-owned opaque assessment ID is
+receipt/history identity, while the immutable Domain assessment remains
+unchanged. Two new append-only tables atomically preserve the command receipt,
+exact composition and Verified Economics references, policy identity/version,
+evaluation/commit times, state, and ordered reasons. Restart reads validate the
+still-exact source lineage but never re-evaluate policy, substitute latest facts,
+or create Economics results.

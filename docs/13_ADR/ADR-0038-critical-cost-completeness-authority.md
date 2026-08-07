@@ -105,12 +105,14 @@ text or set iteration.
 
 ### Persistence
 
-Assessment persistence is deferred to a separate PR. This PR stabilizes the
-Domain/Application policy and source-validation contract first. The assessment
-therefore has no server identity or replay receipt yet and cannot be used as a
-durable Capital-decision lineage fact. A persistence PR must add immutable exact
-source references, policy version, append-only history, replay, restart,
-rollback, and concurrency without changing this meaning.
+CR-1B3B stabilized the Domain/Application policy and source-validation contract
+before persistence. CR-1B3B1 implements its durable publication without changing
+that meaning: a dedicated server-owned opaque assessment identity is held by the
+history/receipt boundary rather than added to the assessment value. The command
+pins the composition, exact Verified Economics Opportunity/time/version, and
+policy identity/version. Assessment and receipt histories commit atomically,
+remain append-only, replay before evaluation/identity/clocks, and reconstruct the
+persisted ordered reasons without policy re-evaluation or latest-source lookup.
 
 ## Consequences
 

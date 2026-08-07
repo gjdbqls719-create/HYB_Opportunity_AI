@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B3B1 - Critical Cost Completeness SQLite Persistence
+
+- Add replay-first Application publication with a dedicated server-owned opaque assessment identity held by immutable receipt/history persistence rather than the Domain assessment value.
+- Persist exact composition, Sourcing lineage, Verified Economics Opportunity/time/version, policy name/version, evaluation and commit times, state, and ordered structured reasons in two dedicated append-only SQLite tables.
+- Provide atomic fresh publication, exact restart replay, changed-command conflict, rollback cleanup, separate-connection convergence, malformed persistence rejection, and read-only reconstruction without policy re-evaluation.
+- Preserve UNKNOWN blockers and the absence of profit/ROI results without changing Critical Cost policy, existing schemas, Economics, Production Safety, Decision Readiness, Actual Economics, Snapshot Chain, API, or UI.
+
 ## CR-1B3B - Critical Cost Completeness and UNKNOWN Safety
 
 - Add an immutable, policy-versioned Critical Cost Completeness assessment over one exact Landed Cost Composition, Sourcing Binding/Admission revision, and Verified Economics Snapshot.
