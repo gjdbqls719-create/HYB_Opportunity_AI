@@ -1310,3 +1310,9 @@ PR13-C
 - Add read and POST APIs for explicit complete-chain/Product operational Safety evaluation with 201 initial commit and 200 exact replay.
 - Add persisted binding/Product/current Safety DTOs and an accessible Opportunity Detail source-selection form with deterministic retry metadata.
 - Refetch authoritative Safety detail and Decision Readiness after success; do not optimistically mutate state or automatically Finalize.
+
+# CR-1B3A1 - Landed Cost Composition SQLite Persistence
+
+- Persist immutable Landed Cost Composition and replay receipt history atomically with exact Sourcing Economics Binding and Opportunity lineage.
+- Preserve ordered components, distinct known-zero/unknown/not-applicable states, source currencies, allocation bases, MOQ/quoted quantity, evidence, and timestamps without calculation or normalization.
+- Add restart-safe exact replay, changed-payload conflict, append-only triggers, rollback/concurrency convergence, corruption detection, and read-only reconstruction.

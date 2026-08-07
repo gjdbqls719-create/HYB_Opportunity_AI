@@ -193,3 +193,12 @@ explicitly unspecified because the authoritative quote does not own that fact;
 there is no aggregation, FX, profitability, or Capital policy. A repository port
 defines replay semantics, while SQLite remains deferred until this allocation
 contract is stable.
+
+CR-1B3A1 implements that repository port with append-only SQLite composition and
+receipt history. One `BEGIN IMMEDIATE` transaction preserves the exact binding,
+Opportunity lineage, canonical component order, availability, source currency,
+allocation basis, quantities, evidence, timestamps, and versions without
+calculation. Durable replay reconstructs the committed composition after restart;
+changed command payloads conflict, malformed persistence fails explicitly, and
+UPDATE/DELETE triggers protect both histories. No current projection, latest
+binding selection, FX, allocation, Economics, Capital policy, API, or UI is added.
