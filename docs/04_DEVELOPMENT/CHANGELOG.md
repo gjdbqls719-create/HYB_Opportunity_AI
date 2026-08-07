@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-0B - Founder-Assisted Sourcing Authority Domain Contract
+
+- Add immutable Supplier, Sourcing Product, quote revision, explicit shipping scope, evidence reference, selling-product lineage, and Human-verified match contracts without reusing marketplace seller or grouping semantics.
+- Preserve unknown money, MOQ, quoted quantity, shipping, and lead time as explicit absence rather than numeric zero.
+- Add an Application-owned manual admission and quote-revision boundary with opaque injected identities, deterministic command fingerprints, receipts, exact replay, changed-payload conflict, and a narrow repository Protocol.
+- Define a future exact sourcing-to-Economics source reference while adding no SQLite, API/UI, OCR, supplier adapter, formula, Snapshot Chain, Capital Readiness, Capital Gate, or approval changes.
+
 ## PR36-D.1 - Persisted Discovery Execution Entry
 
 - Add an Application workflow owner that commits or exactly replays one immutable `DiscoveryCommand` before invoking the production Discovery runtime.

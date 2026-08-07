@@ -140,3 +140,14 @@ Dashboard therefore share one authoritative source without a legacy fallback.
 PR36-C exposes operational Safety through a thin DTO/API boundary and explicit
 Opportunity Detail controls. Application services retain all source validation,
 runtime reconstruction, engine execution, persistence, and replay responsibility.
+
+## Founder-assisted Sourcing authority (CR-0B)
+
+The Sourcing Application boundary owns manual admission of one opaque Supplier,
+one exact Supplier product/option, immutable commercial quote revisions, explicit
+MOQ/quantity/shipping/lead-time availability, external evidence references, and
+Human-verified selling-to-sourcing Product lineage. Existing marketplace grouping
+and similarity are proposal-only and cannot create match authority. Commands use
+deterministic fingerprints and replay receipts through a repository Protocol;
+SQLite, Economics integration, Capital Readiness, Capital Gate, API, and UI remain
+outside this foundation.
