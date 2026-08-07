@@ -23,5 +23,6 @@ from app.application.sourcing.service import (
 )
 from app.application.sourcing.production import SourcingAuthorityProductionEntry
 from app.application.sourcing.economics_binding import *
+from app.application.sourcing.landed_cost import *
 
 __all__ = [name for name in globals() if not name.startswith("_")]

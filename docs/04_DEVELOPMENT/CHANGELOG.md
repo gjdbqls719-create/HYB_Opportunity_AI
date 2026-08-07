@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B3A - Landed Cost Composition Domain Contract
+
+- Define an immutable acquisition-side composition over one exact Sourcing Economics Binding with four independent canonical cost components.
+- Preserve KNOWN/UNKNOWN/NOT_APPLICABLE, known zero, mixed source currencies, MOQ, quoted quantity, quote evidence, and opaque identity without aggregation.
+- Mark unit price as per-unit while retaining shipping allocation as explicitly unspecified; no MOQ multiplication, FX conversion, or inferred basis is introduced.
+- Add an Application owner and replay repository port while deferring SQLite until allocation semantics are stable.
+- Add no Verified Economics generation, calculator/formula, Critical Cost, Capital policy, Actual Economics, API/UI, collector, or Snapshot Chain changes.
+
 ## CR-1B2B - Immutable Exact Sourcing Economics Binding
 
 - Bind an Opportunity explicitly to one exact authoritative Sourcing Admission and Quote revision using an opaque immutable binding identity.

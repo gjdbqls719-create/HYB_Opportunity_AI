@@ -1,2 +1,3 @@
 from app.domain.sourcing.models import *
 from app.domain.sourcing.economics_binding import *
+from app.domain.sourcing.landed_cost import *

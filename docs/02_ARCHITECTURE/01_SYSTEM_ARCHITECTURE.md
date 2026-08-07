@@ -184,3 +184,12 @@ Admission/Quote revision and is persisted with its replay receipt in a single
 there is no latest selection or current projection. The narrow binding reference
 prepares a future Economics handoff without injecting costs, changing formulas,
 or asserting Capital Readiness.
+
+CR-1B3A defines the acquisition-side `LandedCostComposition` Domain/Application
+contract over one exact Sourcing Economics Binding. Unit purchase and the three
+shipping scopes remain separate, preserve availability and source currency, and
+carry MOQ/quoted quantity as provenance only. Shipping allocation remains
+explicitly unspecified because the authoritative quote does not own that fact;
+there is no aggregation, FX, profitability, or Capital policy. A repository port
+defines replay semantics, while SQLite remains deferred until this allocation
+contract is stable.
