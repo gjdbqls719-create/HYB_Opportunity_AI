@@ -252,3 +252,15 @@ Landed Cost Composition
 Shipping Allocation Authority
 Authoritative FX Observation
 Authoritative Acquisition Cost Normalization
+
+CR-1B4A adds an immutable Economics Source Composition over one exact persisted
+Acquisition Cost Normalization and one exact immutable Verified Economics
+Snapshot. The manifest excludes legacy purchase and shipping fields, preventing
+their double-counting with the normalized acquisition total. It preserves
+expected sale price, marketplace/payment rates, fixed fee, tax rate, duty, and
+other cost with original evidence status/reference. Source readiness is
+deterministic: missing or weak required evidence, currency mismatch, and current
+non-zero unscoped `other_cost` block without becoming zero or invoking FX.
+Dedicated append-only SQLite history and receipts provide atomic replay and
+restart reconstruction without source migration, latest lookup, profit/ROI,
+Conservative assumptions, or Capital judgment.

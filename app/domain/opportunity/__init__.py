@@ -35,6 +35,15 @@ from app.domain.opportunity.production_safety import (
     ProductionSafetyAssessment,
     ProductionSafetyStatus,
 )
+from app.domain.opportunity.economics_source_composition import (
+    ECONOMICS_SOURCE_COMPOSITION_POLICY_NAME,
+    ECONOMICS_SOURCE_COMPOSITION_POLICY_VERSION,
+    ECONOMICS_SOURCE_COMPOSITION_SCHEMA_VERSION,
+    EconomicsSourceBlockingCode,
+    EconomicsSourceBlockingReason,
+    EconomicsSourceComposition,
+    EconomicsSourceCompositionState,
+)
 
 
 from app.domain.opportunity.founder_decision import FounderDecision, FounderDecisionType
@@ -56,6 +65,13 @@ __all__ = [
     "EconomicEvidence",
     "EconomicsCalculation",
     "EconomicsVariance",
+    "EconomicsSourceBlockingCode",
+    "EconomicsSourceBlockingReason",
+    "EconomicsSourceComposition",
+    "EconomicsSourceCompositionState",
+    "ECONOMICS_SOURCE_COMPOSITION_POLICY_NAME",
+    "ECONOMICS_SOURCE_COMPOSITION_POLICY_VERSION",
+    "ECONOMICS_SOURCE_COMPOSITION_SCHEMA_VERSION",
     "EstimatedEconomicsSnapshot",
     "EvidenceStatus",
     "FounderDecision",

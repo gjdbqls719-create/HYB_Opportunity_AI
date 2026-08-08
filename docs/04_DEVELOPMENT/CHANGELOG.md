@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B4A - Authoritative Economics Source Composition
+
+- Bind one exact persisted Acquisition Cost Normalization and one exact immutable Verified Economics Snapshot into a dedicated source-only manifest for future Conservative Economics.
+- Prevent acquisition double-counting by excluding legacy purchase/shipping fields while preserving expected sale price, fee rates, fixed fee, tax, duty, and other-cost evidence exactly.
+- Add deterministic READY/BLOCKED source semantics that preserve missing/unsupported facts, explicit verified zero, estimated sale-price status, currency mismatch, and a blocker for non-zero unscoped `other_cost`.
+- Persist immutable composition and receipt history atomically in dedicated append-only SQLite tables with exact replay, restart reconstruction, rollback, concurrency convergence, malformed-state rejection, and read-only source reconstruction.
+- Add no profit, ROI, margin, Conservative assumptions, Capital Readiness/Gate, Founder approval, Actual Economics change, API, UI, or external integration.
+
 ## CR-1B3E - Authoritative Acquisition Cost Normalization
 
 - Add a dedicated immutable normalization owner over one exact Landed Cost Composition, ordered exact Shipping Allocation Authority facts, exact FX Observations, and an explicit target currency.
