@@ -4,3 +4,4 @@ from app.domain.sourcing.landed_cost import *
 from app.domain.sourcing.critical_cost import *
 from app.domain.sourcing.shipping_allocation import *
 from app.domain.sourcing.fx_observation import *
+from app.domain.sourcing.acquisition_cost_normalization import *

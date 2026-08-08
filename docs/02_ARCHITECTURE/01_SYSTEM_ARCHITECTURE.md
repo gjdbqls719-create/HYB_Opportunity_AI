@@ -236,6 +236,19 @@ source-integrity validation make the result an exact future normalization
 source. No division, FX, Critical Cost mutation, Economics, or Capital judgment
 is performed.
 
+CR-1B3E adds a dedicated authoritative acquisition-cost normalization boundary.
+It consumes one exact persisted Landed Cost Composition, an ordered exact set of
+resolved Shipping Allocation Authority facts, explicit exact FX Observations,
+and caller-owned target currency. Policy v1 uses Decimal-only 34-significant-
+digit `ROUND_HALF_EVEN` arithmetic, preserves original and effective allocation,
+denominator and FX provenance per component, and emits a total only after every
+applicable component is safely expressed per unit in the target currency.
+UNKNOWN blocks; NOT_APPLICABLE and known zero remain distinct. Dedicated
+append-only SQLite history/receipts provide atomic replay and restart
+reconstruction without latest-source selection or recalculation. This boundary
+does not create sale-side Economics, profit/ROI, Capital Readiness, or approval.
+
 Landed Cost Composition
 Shipping Allocation Authority
-Authoritative FX Observation / future Cost Normalization
+Authoritative FX Observation
+Authoritative Acquisition Cost Normalization

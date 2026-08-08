@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B3E - Authoritative Acquisition Cost Normalization
+
+- Add a dedicated immutable normalization owner over one exact Landed Cost Composition, ordered exact Shipping Allocation Authority facts, exact FX Observations, and an explicit target currency.
+- Normalize only the four acquisition components with explicit `PER_UNIT`, resolved `PER_ORDER`, or resolved `PER_QUOTED_QUANTITY` semantics; block `PER_WEIGHT`, `UNSPECIFIED`, missing sources, and UNKNOWN without MOQ or latest-source inference.
+- Preserve direct or explicit inverse use of the same FX observation and deterministic Decimal-only policy v1 arithmetic at 34 significant digits with `ROUND_HALF_EVEN` and no intermediate money quantization.
+- Persist ordered component provenance, exact source manifest, target currency, policy, result, and receipt atomically in dedicated append-only SQLite histories with replay, restart, rollback, concurrency, and malformed-state protection.
+- Add no external FX lookup, sale-side Economics composition, Conservative Economics, Capital Readiness/Gate, Founder approval, Actual Economics change, API, or UI.
+
 ## CR-1B3C1 - Shipping Allocation Authority Reconciliation and Persistence
 
 - Separate explicit allocation-basis authority from denominator authority for one exact persisted Landed Cost shipping component without mutating composition history.

@@ -52,4 +52,10 @@ class ProductionShippingAllocationAuthorityIdentityGenerator(
     pass
 
 
+class ProductionAcquisitionCostNormalizationIdentityGenerator(
+    _OpaqueSourcingIdentityGenerator
+):
+    __slots__ = ()
+
+
 __all__ = [name for name in globals() if name.startswith("Production")]
