@@ -264,3 +264,12 @@ non-zero unscoped `other_cost` block without becoming zero or invoking FX.
 Dedicated append-only SQLite history and receipts provide atomic replay and
 restart reconstruction without source migration, latest lookup, profit/ROI,
 Conservative assumptions, or Capital judgment.
+
+CR-1B4B0 establishes the semantic boundary for future Conservative Economics.
+Current generic non-zero duty and tax facts are not automatically Capital-
+authoritative: only explicit verified zero with evidence may contribute zero;
+all other current cases block until exact scoped authority exists. A new
+`conservative_acquisition_roi` metric will divide conservative unit profit by
+the exact normalized acquisition cost per unit when that denominator is
+positive. It does not redefine legacy purchase-price ROI, legacy landed-cost
+ROI, or Actual ROI, and it carries no Capital Readiness or investment meaning.

@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B4B0 - Conservative Economics Semantic Authority
+
+- Define the safe MVP duty policy: only explicit verified zero contributes zero; unresolved, weak, missing, or non-zero duty blocks until exact per-unit target-currency authority exists.
+- Define the safe MVP tax policy: the legacy gross-sale-price formula is not promoted to Capital authority; only explicit verified zero contributes zero until scoped tax applicability and seller-cost treatment exist.
+- Define new `conservative_acquisition_roi` as conservative unit profit divided by exact normalized acquisition cost per unit, with a strictly positive denominator.
+- Preserve legacy `roi`, `landed_cost_roi`, and Actual ROI meanings without aliases or migration; defer Actual acquisition-ROI symmetry.
+- Add no financial calculation, persistence, API, UI, Capital Readiness/Gate, or investment decision.
+
 ## CR-1B4A - Authoritative Economics Source Composition
 
 - Bind one exact persisted Acquisition Cost Normalization and one exact immutable Verified Economics Snapshot into a dedicated source-only manifest for future Conservative Economics.
