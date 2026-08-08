@@ -26,5 +26,6 @@ from app.application.sourcing.economics_binding import *
 from app.application.sourcing.landed_cost import *
 from app.application.sourcing.critical_cost import *
 from app.application.sourcing.shipping_allocation_authority import *
+from app.application.sourcing.fx_observation import *
 
 __all__ = [name for name in globals() if not name.startswith("_")]

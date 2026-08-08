@@ -1331,3 +1331,11 @@ PR13-C
 - Persist immutable Landed Cost Composition and replay receipt history atomically with exact Sourcing Economics Binding and Opportunity lineage.
 - Preserve ordered components, distinct known-zero/unknown/not-applicable states, source currencies, allocation bases, MOQ/quoted quantity, evidence, and timestamps without calculation or normalization.
 - Add restart-safe exact replay, changed-payload conflict, append-only triggers, rollback/concurrency convergence, corruption detection, and read-only reconstruction.
+
+# CR-1B3D - Authoritative FX Observation Foundation
+
+- Add domain contracts for `FXObservation` and `FXObservationProvenance` with canonical pair semantics (`base/quote`, Decimal rate, timezone-aware timestamps, schema version) and repository-independent admission command/value validation.
+- Add authoritative application boundary `AdmitFXObservation` with replay-first execution, server-owned observation identity, and authoritative admission timestamp.
+- Enforce non-conversion trust boundary: this layer stores raw authoritative FX facts only, does not create inverse rates, freshness policy, or normalization decisions.
+- Defer persistence, inverse derivation, and exchange-rate-based normalization to follow-up PRs; require explicit historical binding in future normalization.
+- Preserve strict authority boundary: no cross-policy coupling, no Capital policy logic, no Currency conversion side effects at this layer.

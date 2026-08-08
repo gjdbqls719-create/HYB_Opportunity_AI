@@ -224,3 +224,7 @@ exact composition and Verified Economics references, policy identity/version,
 evaluation/commit times, state, and ordered reasons. Restart reads validate the
 still-exact source lineage but never re-evaluate policy, substitute latest facts,
 or create Economics results.
+
+Landed Cost Composition
+Shipping Allocation Authority
+Authoritative FX Observation / future Cost Normalization

@@ -45,3 +45,5 @@ Architecture Decision Record 관리 영역.
 - [ADR-0036: Exact Sourcing Economics Binding](ADR-0036-exact-sourcing-economics-binding.md)
 - [ADR-0037: Landed Cost Composition Authority](ADR-0037-landed-cost-composition-authority.md)
 - [ADR-0038: Critical Cost Completeness Authority](ADR-0038-critical-cost-completeness-authority.md)
+- [ADR-0039: Shipping Allocation Authority](ADR-0039-shipping-allocation-authority.md)
+- [ADR-0040: Authoritative FX Observation](ADR-0040-authoritative-fx-observation.md)
