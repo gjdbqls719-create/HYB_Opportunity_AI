@@ -51,3 +51,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0042: Authoritative Economics Source Composition](ADR-0042-authoritative-economics-source-composition.md)
 - [ADR-0043: Conservative Economics Authority](ADR-0043-conservative-economics-authority.md)
 - [ADR-0044: Domestic Market Validation Authority](ADR-0044-domestic-market-validation-authority.md)
+- [ADR-0045: Capital Readiness Authority](ADR-0045-capital-readiness-authority.md)

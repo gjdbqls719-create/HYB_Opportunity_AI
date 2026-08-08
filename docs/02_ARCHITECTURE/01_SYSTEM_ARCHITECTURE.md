@@ -308,3 +308,17 @@ reconstruction, source-lineage integrity checks, rollback and concurrent-command
 convergence without latest-source selection or policy re-evaluation. Production
 API/UI, operator authentication and Capital Readiness consumption remain
 separate future boundaries.
+
+CR-1B5A implements ADR-0045 as a separate Capital evidence-admission boundary.
+One Application command selects exact Conservative Economics, Domestic Market
+Validation, and Critical Cost results; the owner reconstructs their complete
+Economics Normalization and Sourcing lineage, requires `VERIFIED_MATCH`, and
+checks the exact Quote revision at the fresh server evaluation time. Only
+`READY_FOR_CAPITAL_REVIEW` or `BLOCKED` is issued. Negative but `CALCULABLE`
+economics remains eligible because profit, margin, ROI, required capital, and
+investment thresholds belong to a later Capital Gate. A dedicated UUIDv4-style
+identity and two append-only SQLite histories preserve the exact source manifest,
+policy, ordered reasons, evaluation/commit times, replay, and restart
+reconstruction. Historical replay never rechecks Quote expiry or selects latest
+sources. Existing Decision Readiness, Production Safety, Founder approval, and
+API/UI contracts remain isolated and unchanged.

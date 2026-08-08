@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5A - Capital Readiness Authority
+
+- Add a dedicated immutable Capital Readiness Domain/Application authority that answers only whether one exact Opportunity's Capital-facing evidence is complete and internally consistent enough for Capital Gate evaluation.
+- Require exact CALCULABLE Conservative Economics, VALIDATED_FOR_CAPITAL Domestic Market Validation, COMPLETE Critical Cost, VERIFIED_MATCH Sourcing Admission, exact Binding/Quote lineage, and a Quote valid at the fresh evaluation time.
+- Preserve negative-but-calculable economics as eligible without profit, margin, ROI, required-capital, reserve, exposure, investment, or Founder-approval thresholds.
+- Persist exact source manifests and receipts atomically in dedicated append-only SQLite tables with replay-before-identity/time, historical quote-time semantics, restart reconstruction, rollback, concurrency convergence, malformed-state rejection, and read-only source integrity checks.
+- Add ADR-0045 while leaving Decision Readiness, Production Safety, Capital Gate, Founder lifecycle, API/UI, and all source policies unchanged.
+
 ## CR-1B5A0A - Domestic Market Validation Assessment Foundation
 
 - Add the immutable ADR-0044 Domain/Application authority that validates one exact persisted KR Opportunity, Competition source, Demand source, and explicit operator current-use verification event.
