@@ -6,8 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Implemented by CR-1B4B. The production-neutral Domain/Application authority and
-append-only SQLite result/receipt persistence now enforce this ADR. No API or
+Implemented by CR-1B4B and exposed through the thin CR-1B4B1 production entry
+and Opportunity-scoped API. The Domain/Application authority and append-only
+SQLite result/receipt persistence enforce this ADR; the web boundary only
+provides exact source/scenario facts, server identity/clocks, resource
+lifecycle, transport mapping, and authoritative result serialization. No UI or
 Capital decision composition is included.
 
 The implemented policy identity is `conservative-unit-economics` version
@@ -138,5 +141,4 @@ monthly forecasts or Capital decisions.
 - authoritative non-zero per-unit duty admission;
 - explicit tax applicability and seller-cost treatment;
 - actual normalized acquisition-cost symmetry;
-- Conservative Economics implementation and persistence;
 - Capital Readiness, Capital Gate, and Founder capital approval.

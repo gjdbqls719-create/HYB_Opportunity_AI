@@ -41,6 +41,10 @@ class ConservativeEconomicsSourceError(ConservativeEconomicsError):
     pass
 
 
+class ConservativeEconomicsOpportunityConflictError(ConservativeEconomicsError):
+    pass
+
+
 class ConservativeEconomicsPolicyError(ConservativeEconomicsError):
     pass
 
@@ -397,6 +401,68 @@ class EvaluateConservativeEconomics:
             or command.policy_version != CONSERVATIVE_ECONOMICS_POLICY_VERSION
         ):
             raise ConservativeEconomicsPolicyError("unsupported Conservative Economics policy")
+
+
+@dataclass(frozen=True, slots=True)
+class ConservativeEconomicsProductionRequest:
+    command_id: str
+    opportunity_id: str
+    source_composition_id: str
+    scenario: ConservativeEconomicsScenario
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in ("command_id", "opportunity_id", "source_composition_id"):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        if not isinstance(self.scenario, ConservativeEconomicsScenario):
+            raise TypeError("scenario must be ConservativeEconomicsScenario")
+        _aware(self.requested_at, "requested_at")
+
+
+class ConservativeEconomicsProductionEntry:
+    """Resolve one exact source and delegate to the authoritative owner."""
+
+    def __init__(
+        self,
+        *,
+        repository: ConservativeEconomicsRepository,
+        result_id_generator: Callable[[], str],
+        calculated_clock: Callable[[], datetime],
+        committed_clock: Callable[[], datetime],
+    ) -> None:
+        self._repository = repository
+        self._evaluate = EvaluateConservativeEconomics(
+            repository,
+            result_id_generator=result_id_generator,
+            calculated_clock=calculated_clock,
+            committed_clock=committed_clock,
+        )
+
+    def execute(
+        self, request: ConservativeEconomicsProductionRequest
+    ) -> ConservativeEconomicsPublication:
+        if not isinstance(request, ConservativeEconomicsProductionRequest):
+            raise TypeError("request must be ConservativeEconomicsProductionRequest")
+        source = self._repository.get_source_composition(request.source_composition_id)
+        if source is None:
+            raise ConservativeEconomicsSourceError(
+                "exact Economics Source Composition is missing"
+            )
+        if source.opportunity_identity.opportunity_id != request.opportunity_id:
+            raise ConservativeEconomicsOpportunityConflictError(
+                "source Opportunity differs from request"
+            )
+        return self._evaluate.execute(
+            EvaluateConservativeEconomicsCommand(
+                command_id=request.command_id,
+                opportunity_identity=source.opportunity_identity,
+                source_composition_id=source.composition_id,
+                scenario=request.scenario,
+                requested_at=request.requested_at,
+                policy_name=CONSERVATIVE_ECONOMICS_POLICY_NAME,
+                policy_version=CONSERVATIVE_ECONOMICS_POLICY_VERSION,
+            )
+        )
 
 __all__ = [
     name

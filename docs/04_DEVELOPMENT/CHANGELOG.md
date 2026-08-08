@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B4B1 - Conservative Economics Production Entry and API
+
+- Add an Opportunity-scoped production entry and `POST /api/v1/opportunities/{opportunity_id}/conservative-economics` over the existing exact-source Conservative Economics authority.
+- Accept only caller-owned command, exact source, explicit scenario, and request-time facts; inject the authoritative policy, UUIDv4 result identity, and separate UTC calculation/commit clocks server-side.
+- Return committed/reconstructed Decimal economics and lineage with HTTP 201 fresh or 200 replay; preserve BLOCKED and negative CALCULABLE results as successful business outcomes.
+- Bound missing source, conflict, validation, and persistence failures to 404/409/422/503 while hiding SQLite details and closing request-scoped resources.
+- Add no formula/policy/schema change, latest-source selection, legacy calculator call, UI, Capital Readiness/Gate, Founder approval, or investment decision.
+
 ## CR-1B4B - Conservative Economics Implementation
 
 - Add a dedicated immutable Conservative Economics Domain/Application authority that consumes only one exact Economics Source Composition and an explicit sale-price-factor scenario.

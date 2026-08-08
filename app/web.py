@@ -192,6 +192,15 @@ from app.application.economics_calculation_owner import (
     EconomicsSnapshotProductionEntry,
     EconomicsSnapshotProductionRequest,
 )
+from app.application.conservative_economics import (
+    ConservativeEconomicsOpportunityConflictError,
+    ConservativeEconomicsPolicyError,
+    ConservativeEconomicsProductionEntry,
+    ConservativeEconomicsProductionRequest,
+    ConservativeEconomicsReplayConflictError,
+    ConservativeEconomicsScenario,
+    ConservativeEconomicsSourceError,
+)
 from app.application.snapshot_chain_binding import (
     CompleteSnapshotChainProductionEntry,
     CompleteSnapshotChainProductionRequest,
@@ -330,6 +339,11 @@ from app.infrastructure.price_intelligence import (
 from app.infrastructure.economics_calculation import (
     ProductionEconomicsSnapshotIdentityGenerator,
     SQLiteEconomicsCalculationOwnerRepository,
+)
+from app.infrastructure.conservative_economics import (
+    ConservativeEconomicsPersistenceError,
+    ProductionConservativeEconomicsIdentityGenerator,
+    SQLiteConservativeEconomicsRepository,
 )
 from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
 from app.infrastructure.snapshot_chain_identity import (
@@ -1193,6 +1207,95 @@ class EconomicsSnapshotResponse(BaseModel):
     replayed: bool
 
 
+class ConservativeEconomicsScenarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scenario_name: str = Field(min_length=1)
+    scenario_version: str = Field(min_length=1)
+    sale_price_factor: Decimal
+    assumption_owner: str = Field(min_length=1)
+
+    def to_domain(self) -> ConservativeEconomicsScenario:
+        return ConservativeEconomicsScenario(
+            scenario_name=self.scenario_name,
+            scenario_version=self.scenario_version,
+            sale_price_factor=self.sale_price_factor,
+            assumption_owner=self.assumption_owner,
+        )
+
+
+class ConservativeEconomicsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    source_composition_id: str = Field(min_length=1)
+    scenario: ConservativeEconomicsScenarioRequest
+    requested_at: datetime
+
+    def to_application_request(
+        self, opportunity_id: str
+    ) -> ConservativeEconomicsProductionRequest:
+        return ConservativeEconomicsProductionRequest(
+            command_id=self.command_id,
+            opportunity_id=opportunity_id,
+            source_composition_id=self.source_composition_id,
+            scenario=self.scenario.to_domain(),
+            requested_at=self.requested_at,
+        )
+
+
+class ConservativeEconomicsAssumptionResponse(BaseModel):
+    kind: str
+    value: Decimal
+    owner: str
+
+
+class ConservativeEconomicsBlockingReasonResponse(BaseModel):
+    code: str
+    category: str
+    source_reference: str | None
+
+
+class ConservativeEconomicsResponse(BaseModel):
+    command_id: str
+    result_id: str
+    opportunity_id: str
+    discovery_reference: str
+    source_composition_id: str
+    source_composition_schema_version: str
+    status: str
+    economics_currency: str
+    authoritative_expected_sale_price: Decimal | None
+    expected_sale_price_evidence_status: str
+    expected_sale_price_evidence_reference: str | None
+    conservative_sale_price: Decimal | None
+    acquisition_cost_per_unit: Decimal
+    marketplace_fee: Decimal | None
+    payment_fee: Decimal | None
+    fixed_fee: Decimal | None
+    accepted_tax_cost: Decimal | None
+    accepted_duty_cost: Decimal | None
+    accepted_other_cost: Decimal | None
+    total_unit_cost: Decimal | None
+    conservative_profit_per_unit: Decimal | None
+    conservative_margin: Decimal | None
+    conservative_acquisition_roi: Decimal | None
+    assumptions: tuple[ConservativeEconomicsAssumptionResponse, ...]
+    scenario_name: str
+    scenario_version: str
+    blocking_reasons: tuple[ConservativeEconomicsBlockingReasonResponse, ...]
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    requested_at: datetime
+    calculated_at: datetime
+    committed_at: datetime
+    result_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -1634,6 +1737,33 @@ def get_economics_snapshot_entry():
         raise HTTPException(
             status_code=503,
             detail="economics persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_conservative_economics_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteConservativeEconomicsRepository(DEFAULT_DATABASE_PATH)
+        )
+        entry = ConservativeEconomicsProductionEntry(
+            repository=repository,
+            result_id_generator=ProductionConservativeEconomicsIdentityGenerator(),
+            calculated_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+    except (sqlite3.Error, ConservativeEconomicsPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="conservative economics persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -2669,6 +2799,110 @@ def calculate_opportunity_economics(
         passes_roi_filter=profitability.passes_roi_filter,
         passes_profitability_filter=profitability.passes_profitability_filter,
         replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/conservative-economics",
+    response_model=ConservativeEconomicsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def evaluate_conservative_economics(
+    opportunity_id: str,
+    request: ConservativeEconomicsRequest,
+    response: Response,
+    entry: ConservativeEconomicsProductionEntry = Depends(
+        get_conservative_economics_entry
+    ),
+) -> ConservativeEconomicsResponse:
+    try:
+        publication = entry.execute(request.to_application_request(opportunity_id))
+    except ConservativeEconomicsSourceError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ConservativeEconomicsOpportunityConflictError,
+        ConservativeEconomicsReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ConservativeEconomicsPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except ConservativeEconomicsPersistenceError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="conservative economics persistence unavailable",
+        ) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="conservative economics persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    result = publication.result
+    receipt = publication.receipt
+    return ConservativeEconomicsResponse(
+        command_id=receipt.command_id,
+        result_id=result.result_id,
+        opportunity_id=result.opportunity_identity.opportunity_id,
+        discovery_reference=result.opportunity_identity.discovery_reference,
+        source_composition_id=result.source_composition_id,
+        source_composition_schema_version=(
+            result.source_composition_schema_version
+        ),
+        status=result.status.value,
+        economics_currency=result.economics_currency,
+        authoritative_expected_sale_price=(
+            result.authoritative_expected_sale_price
+        ),
+        expected_sale_price_evidence_status=(
+            result.expected_sale_price_evidence_status.value
+        ),
+        expected_sale_price_evidence_reference=(
+            result.expected_sale_price_evidence_reference
+        ),
+        conservative_sale_price=result.conservative_sale_price,
+        acquisition_cost_per_unit=result.acquisition_cost_per_unit,
+        marketplace_fee=result.marketplace_fee,
+        payment_fee=result.payment_fee,
+        fixed_fee=result.fixed_fee,
+        accepted_tax_cost=result.accepted_tax_cost,
+        accepted_duty_cost=result.accepted_duty_cost,
+        accepted_other_cost=result.accepted_other_cost,
+        total_unit_cost=result.total_unit_cost,
+        conservative_profit_per_unit=result.conservative_profit_per_unit,
+        conservative_margin=result.conservative_margin,
+        conservative_acquisition_roi=result.conservative_acquisition_roi,
+        assumptions=tuple(
+            ConservativeEconomicsAssumptionResponse(
+                kind=value.kind.value,
+                value=value.value,
+                owner=value.owner,
+            )
+            for value in result.assumptions
+        ),
+        scenario_name=result.scenario_name,
+        scenario_version=result.scenario_version,
+        blocking_reasons=tuple(
+            ConservativeEconomicsBlockingReasonResponse(
+                code=value.code.value,
+                category=value.category,
+                source_reference=value.source_reference,
+            )
+            for value in result.blocking_reasons
+        ),
+        policy_name=result.policy_name,
+        policy_version=result.policy_version,
+        policy_precision=result.policy_precision,
+        policy_rounding=result.policy_rounding,
+        requested_at=result.requested_at,
+        calculated_at=result.calculated_at,
+        committed_at=receipt.committed_at,
+        result_schema_version=result.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
     )
 
 

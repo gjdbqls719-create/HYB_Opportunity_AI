@@ -1,5 +1,31 @@
 # HYB API Specification
 
+## Conservative Economics API
+
+`POST /api/v1/opportunities/{opportunity_id}/conservative-economics` executes
+the existing Conservative Economics authority against one exact persisted
+`EconomicsSourceComposition`. The strict request contains `command_id`, the
+exact `source_composition_id`, timezone-aware `requested_at`, and an explicit
+scenario name, version, assumption owner, and Decimal `sale_price_factor`.
+There is no default haircut or latest-source lookup. Result identity,
+calculation/commit times, policy identity/version, and all financial outputs are
+server-owned and rejected as extra request fields.
+
+The response is serialized from the committed or restart-reconstructed result
+and receipt. It preserves exact Opportunity/source lineage, scenario manifest,
+policy, evidence, Decimal unit economics, ordered blockers, schema versions,
+and replay status. The only ROI field is
+`conservative_acquisition_roi`; legacy ROI aliases and Capital readiness or
+investment recommendations are absent. A committed `BLOCKED` result and a
+CALCULABLE result with negative economics are both successful business results.
+
+Fresh commits return 201 and exact replay returns 200 without new identity,
+clock calls, or rows. Missing exact source returns 404, Opportunity/source or
+changed-command conflict returns 409, DTO/Domain validation returns 422, and
+bounded persistence failure returns 503 without SQLite details. The endpoint
+does not call legacy Economics calculators, mutate its exact source, or perform
+Capital Readiness/Gate/approval.
+
 ## Founder-Assisted Sourcing Authority API
 
 `POST /api/v1/sourcing/admissions` commits one Founder-verified Supplier,

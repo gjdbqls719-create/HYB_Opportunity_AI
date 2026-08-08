@@ -283,3 +283,14 @@ unsupported semantics produce ordered BLOCKED reasons with no profit, margin,
 or ROI values. Dedicated append-only SQLite result/receipt histories preserve
 exact source, scenario, policy, calculation, replay, and restart reconstruction.
 The legacy calculator and existing ROI/Actual contracts remain unchanged.
+
+CR-1B4B1 exposes that owner through an Opportunity-scoped production entry and
+FastAPI route. Request scope opens one dedicated Conservative Economics SQLite
+repository against the production database, supplies the existing UUIDv4 result
+identity and separate UTC calculation/commit clocks, and always closes owned
+resources. The entry resolves only the named exact Economics Source Composition
+and injects the current authoritative policy; FastAPI maps transport errors and
+serializes the committed/reconstructed result without performing calculations.
+Fresh execution is HTTP 201, exact replay is HTTP 200, and a committed BLOCKED
+result remains a successful authoritative response. No Capital decision meaning
+or legacy calculator path is introduced.
