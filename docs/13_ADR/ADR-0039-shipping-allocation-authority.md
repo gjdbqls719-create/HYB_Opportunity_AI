@@ -1,98 +1,98 @@
 # ADR-0039 — Shipping Allocation Authority
 
 ## Status
-Accepted
+
+Accepted; reconciled and persisted by CR-1B3C1.
 
 ## Context
 
-HYB must not convert non-per-unit shipping costs into unit economics
-without an authoritative allocation denominator.
+HYB must not convert non-per-unit shipping costs into unit economics without
+authoritative allocation basis and denominator facts. Production
+`LandedCostComposition` deliberately records existing shipping terms with an
+`UNSPECIFIED` basis because the Supplier quote does not own that meaning. The
+original Shipping Allocation foundation merely read that basis, so real
+production facts could never reach `PER_ORDER` or `PER_QUOTED_QUANTITY`.
 
-The existing LandedCostComposition preserves allocation basis but does
-not own the denominator authority required for PER_ORDER and similar costs.
+The original foundation was also ephemeral. It had no durable identity,
+receipt, restart reconstruction, or exact replay and therefore could not serve
+as a historical financial-calculation source.
 
 ## Decision
 
-Introduce a separate Shipping Allocation Authority boundary.
+Shipping Allocation Authority is an immutable overlay on one exact persisted
+Landed Cost composition and shipping component. It does not mutate composition
+history.
 
-The authority records whether a specific landed-cost shipping component
-has sufficient allocation facts to be used later by cost normalization.
+### Basis and denominator authority
 
-Supported semantics:
+Allocation basis and allocation denominator are separate facts:
 
-- PER_UNIT
-  - resolved
-  - no denominator required
+- basis answers what the shipping amount applies to;
+- denominator answers the exact positive quantity to which a non-per-unit
+  amount may be allocated.
 
-- PER_QUOTED_QUANTITY
-  - may use the exact persisted quoted quantity
-  - only when that quantity is explicitly known
+A denominator never infers a basis, and a basis never invents a denominator.
+For a source component already carrying an explicit basis, the same basis may be
+reaffirmed but a different basis is rejected. For a production `UNSPECIFIED`
+component, an operator must explicitly admit the effective basis with evidence
+and factual verification time.
 
-- PER_ORDER
-  - requires an explicit founder/operator-admitted denominator
-  - MOQ is never inferred as the denominator
-  - quoted quantity is not reused implicitly
+### Supported MVP semantics
 
-- PER_WEIGHT
-  - unresolved/unsupported until authoritative weight facts exist
+- `PER_UNIT` resolves without a denominator.
+- `PER_ORDER` requires an explicit positive founder/operator-admitted
+  denominator and its evidence provenance.
+- `PER_QUOTED_QUANTITY` may resolve only from the exact composition's known
+  quoted quantity and preserves that source-derived provenance.
+- `PER_WEIGHT` remains unresolved until authoritative weight facts exist.
+- `UNSPECIFIED` remains unresolved and is never inferred.
 
-- UNSPECIFIED
-  - unresolved
-  - no automatic inference
+MOQ is never an allocation denominator. Quoted quantity is not reused for
+`PER_ORDER` and is eligible only for explicit `PER_QUOTED_QUANTITY`.
 
-## Authority Boundary
+### Provenance and time
 
-Shipping Allocation Authority does not:
+Operator-admitted basis facts preserve operator identity, factual
+`verified_at`, and one existing `SourcingEvidenceReference`. Caller
+`requested_at`, server `admitted_at`, and persistence `committed_at` remain
+separate. A generated string is not evidence.
 
-- perform division
-- normalize shipping to per-unit cost
-- perform FX conversion
-- calculate landed-cost totals
-- determine profitability
-- determine Capital Readiness
-- determine Capital Gate or investment approval
+### Identity, replay, and persistence
 
-It only records whether the denominator authority exists and its provenance.
+Each authority receives a dedicated server-owned opaque UUIDv4-style identity.
+Identity is not derived from composition, component, denominator, fingerprint,
+or SQLite row ID.
 
-## Quantity Semantics
+The caller command fingerprint includes exact composition, Opportunity,
+component, effective basis, denominator, operator/evidence, factual timestamps,
+and command version. Server identity and server timestamps are excluded.
 
-MOQ and allocation denominator are separate facts.
+- same command and payload returns the exact persisted authority and receipt;
+- changed payload under the same command conflicts;
+- replay occurs before identity or server clocks.
 
-MOQ means the minimum quantity that may be ordered.
-Allocation denominator means the quantity to which a specific total cost
-actually applies.
+Dedicated SQLite history and receipt tables commit atomically under
+`BEGIN IMMEDIATE`. Both tables are append-only. Reads reconstruct the exact
+original/effective basis, denominator, provenance, timestamps, and version and
+revalidate the exact composition, Opportunity, component, and quoted-quantity
+source without selecting latest facts.
 
-HYB must not assume they are equal.
+## Boundaries
 
-## Trust / Evidence
+Shipping Allocation Authority does not divide costs, perform FX conversion,
+calculate totals, determine profitability, change Critical Cost assessment,
+or assert Capital Readiness, Capital Gate, or investment approval.
 
-Source-derived allocation may use exact admitted sourcing facts such as
-quoted quantity when the allocation basis explicitly permits it.
+## Consequences
 
-Founder/operator-admitted allocation remains a separate factual authority.
-
-Existing sourcing evidence references are reused.
-No new evidence system is introduced.
-
-## Immutability / Replay
-
-The contract is immutable.
-
-Replay semantics follow the existing sourcing authority pattern:
-
-- same command + same payload → exact replay
-- same command + changed payload → conflict
-
-Persistence is intentionally deferred to a follow-up PR.
+Future normalization can explicitly name one durable allocation authority for
+each applicable shipping component. Existing historical composition remains
+unchanged, concurrent identical commands converge, and failed transactions do
+not create partial financial authority.
 
 ## Deferred
 
-- SQLite persistence
-- production API/UI
-- Critical Cost integration
-- actual shipping division
-- cost normalization
-- FX authority
-- Conservative Economics
-- Capital Readiness
-- Capital Gate
+Cost normalization, Critical Cost consumption of allocation identities, FX
+binding/conversion, rounding, `PER_WEIGHT` logistics, production API/UI,
+Conservative Economics, Capital Readiness/Gate, and Founder capital approval
+remain deferred.

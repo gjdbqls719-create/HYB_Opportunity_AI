@@ -225,6 +225,17 @@ evaluation/commit times, state, and ordered reasons. Restart reads validate the
 still-exact source lineage but never re-evaluate policy, substitute latest facts,
 or create Economics results.
 
+CR-1B3C1 reconciles production shipping allocation without mutating Landed Cost
+history. One explicit Application command separates effective basis authority
+from denominator authority for an exact persisted composition/component.
+Operator-admitted `PER_ORDER` preserves its positive denominator and factual
+evidence; explicit `PER_QUOTED_QUANTITY` may use only the exact known quoted
+quantity. MOQ is never substituted. A dedicated opaque identity, immutable
+authority/receipt history, `BEGIN IMMEDIATE` transaction, restart replay, and
+source-integrity validation make the result an exact future normalization
+source. No division, FX, Critical Cost mutation, Economics, or Capital judgment
+is performed.
+
 Landed Cost Composition
 Shipping Allocation Authority
 Authoritative FX Observation / future Cost Normalization

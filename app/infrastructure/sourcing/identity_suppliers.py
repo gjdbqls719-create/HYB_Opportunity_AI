@@ -46,4 +46,10 @@ class ProductionFXObservationIdentityGenerator(_OpaqueSourcingIdentityGenerator)
     pass
 
 
+class ProductionShippingAllocationAuthorityIdentityGenerator(
+    _OpaqueSourcingIdentityGenerator
+):
+    pass
+
+
 __all__ = [name for name in globals() if name.startswith("Production")]

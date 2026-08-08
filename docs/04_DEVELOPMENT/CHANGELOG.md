@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B3C1 - Shipping Allocation Authority Reconciliation and Persistence
+
+- Separate explicit allocation-basis authority from denominator authority for one exact persisted Landed Cost shipping component without mutating composition history.
+- Reconcile production `UNSPECIFIED` shipping through operator/evidence-backed `PER_UNIT`, `PER_ORDER`, or `PER_QUOTED_QUANTITY` admission while keeping `PER_WEIGHT` and unapproved `UNSPECIFIED` unresolved.
+- Preserve the non-negotiable MOQ separation, exact quoted-quantity provenance, operator factual time, server admission/commit times, and a dedicated opaque authority identity.
+- Persist authority and receipt histories atomically in append-only SQLite with exact replay, restart reconstruction, rollback, concurrency convergence, malformed-state rejection, and no latest-source selection.
+- Add no division, FX conversion, rounding, Critical Cost policy change, Economics calculation, Capital Readiness/Gate, API, or UI.
+
 ## CR-1B3B1 - Critical Cost Completeness SQLite Persistence
 
 - Add replay-first Application publication with a dedicated server-owned opaque assessment identity held by immutable receipt/history persistence rather than the Domain assessment value.

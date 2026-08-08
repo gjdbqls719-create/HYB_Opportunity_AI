@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, fields, is_dataclass
+from datetime import datetime, timezone
+from decimal import Decimal
 from enum import StrEnum
+import hashlib
+import json
 
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.sourcing.landed_cost import CostAllocationBasis, LandedCostComponentKind
 from app.domain.sourcing.models import SourcingEvidenceReference
 
 
-SHIPPING_ALLOCATION_AUTHORITY_SCHEMA_VERSION = "shipping-allocation-authority-v1"
+SHIPPING_ALLOCATION_AUTHORITY_SCHEMA_VERSION = "shipping-allocation-authority-v2"
 SHIPPING_ALLOCATION_AUTHORITY_COMMAND_SCHEMA_VERSION = (
-    "shipping-allocation-authority-command-v1"
+    "shipping-allocation-authority-command-v2"
 )
 
 
@@ -25,6 +28,11 @@ class ShippingAllocationAuthorityStatus(StrEnum):
 class ShippingAllocationAuthorityDenominatorSource(StrEnum):
     SOURCE_DERIVED = "source_derived"
     FOUNDER_ADMITTED = "founder_admitted"
+
+
+class ShippingAllocationBasisAuthoritySource(StrEnum):
+    SOURCE_DECLARED = "source_declared"
+    OPERATOR_ADMITTED = "operator_admitted"
 
 
 class ShippingAllocationAuthorityCode(StrEnum):
@@ -55,6 +63,23 @@ def _positive(value: int, name: str) -> int:
     return value
 
 
+def _canonical(value: object) -> object:
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            field.name: _canonical(getattr(value, field.name))
+            for field in fields(value)
+        }
+    if isinstance(value, (tuple, list)):
+        return [_canonical(item) for item in value]
+    if isinstance(value, StrEnum):
+        return value.value
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).isoformat()
+    if isinstance(value, Decimal):
+        return format(value, "f")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ShippingAllocationDenominator:
     quantity: int
@@ -77,28 +102,50 @@ class ShippingAllocationDenominator:
 
 @dataclass(frozen=True, slots=True)
 class ShippingAllocationAuthority:
+    authority_id: str
     composition_id: str
     opportunity_identity: OpportunityIdentity
     component_kind: LandedCostComponentKind
+    original_allocation_basis: CostAllocationBasis
     allocation_basis: CostAllocationBasis
+    basis_authority_source: ShippingAllocationBasisAuthoritySource
     status: ShippingAllocationAuthorityStatus
     evidence_reference: SourcingEvidenceReference
     requested_at: datetime
+    admitted_at: datetime
+    operator_id: str | None = None
+    verified_at: datetime | None = None
     schema_version: str = SHIPPING_ALLOCATION_AUTHORITY_SCHEMA_VERSION
     denominator: ShippingAllocationDenominator | None = None
     unresolved_code: ShippingAllocationAuthorityCode | None = None
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "authority_id", _text(self.authority_id, "authority_id"))
         object.__setattr__(self, "composition_id", _text(self.composition_id, "composition_id"))
         if not isinstance(self.opportunity_identity, OpportunityIdentity):
             raise TypeError("opportunity_identity must be OpportunityIdentity")
         if not isinstance(self.component_kind, LandedCostComponentKind):
             raise TypeError("component_kind must be LandedCostComponentKind")
+        object.__setattr__(
+            self,
+            "original_allocation_basis",
+            CostAllocationBasis(self.original_allocation_basis),
+        )
         object.__setattr__(self, "allocation_basis", CostAllocationBasis(self.allocation_basis))
+        object.__setattr__(
+            self,
+            "basis_authority_source",
+            ShippingAllocationBasisAuthoritySource(self.basis_authority_source),
+        )
         object.__setattr__(self, "status", ShippingAllocationAuthorityStatus(self.status))
         if not isinstance(self.evidence_reference, SourcingEvidenceReference):
             raise TypeError("evidence_reference must be SourcingEvidenceReference")
         object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
+        object.__setattr__(self, "admitted_at", _aware(self.admitted_at, "admitted_at"))
+        if self.operator_id is not None:
+            object.__setattr__(self, "operator_id", _text(self.operator_id, "operator_id"))
+        if self.verified_at is not None:
+            object.__setattr__(self, "verified_at", _aware(self.verified_at, "verified_at"))
         object.__setattr__(self, "schema_version", _text(self.schema_version, "schema_version"))
         if self.schema_version != SHIPPING_ALLOCATION_AUTHORITY_SCHEMA_VERSION:
             raise ValueError("unsupported shipping allocation authority schema")
@@ -107,6 +154,17 @@ class ShippingAllocationAuthority:
             self.denominator, ShippingAllocationDenominator
         ):
             raise TypeError("denominator must be ShippingAllocationDenominator")
+
+        if self.original_allocation_basis is not CostAllocationBasis.UNSPECIFIED:
+            if self.allocation_basis is not self.original_allocation_basis:
+                raise ValueError("explicit source allocation basis cannot be overridden")
+            if self.basis_authority_source is not ShippingAllocationBasisAuthoritySource.SOURCE_DECLARED:
+                raise ValueError("explicit source basis must remain source-declared")
+        elif self.allocation_basis is not CostAllocationBasis.UNSPECIFIED:
+            if self.basis_authority_source is not ShippingAllocationBasisAuthoritySource.OPERATOR_ADMITTED:
+                raise ValueError("UNSPECIFIED source requires operator-admitted basis")
+            if self.operator_id is None or self.verified_at is None:
+                raise ValueError("operator-admitted basis requires operator and verified_at")
 
         if self.status is ShippingAllocationAuthorityStatus.RESOLVED:
             if (
@@ -123,6 +181,27 @@ class ShippingAllocationAuthority:
                 )
             if self.unresolved_code is not None:
                 raise ValueError("resolved authority cannot carry unresolved_code")
+            if self.allocation_basis in {
+                CostAllocationBasis.PER_WEIGHT,
+                CostAllocationBasis.UNSPECIFIED,
+            }:
+                raise ValueError("unsupported allocation basis cannot be resolved")
+            if (
+                self.allocation_basis is CostAllocationBasis.PER_ORDER
+                and self.denominator is not None
+                and self.denominator.source
+                is not ShippingAllocationAuthorityDenominatorSource.FOUNDER_ADMITTED
+            ):
+                raise ValueError("PER_ORDER denominator must be founder-admitted")
+            if (
+                self.allocation_basis is CostAllocationBasis.PER_QUOTED_QUANTITY
+                and self.denominator is not None
+                and self.denominator.source
+                is not ShippingAllocationAuthorityDenominatorSource.SOURCE_DERIVED
+            ):
+                raise ValueError(
+                    "PER_QUOTED_QUANTITY denominator must be source-derived"
+                )
         else:
             if self.denominator is not None:
                 raise ValueError("unresolved authority cannot carry a denominator")
@@ -133,6 +212,23 @@ class ShippingAllocationAuthority:
                 "unresolved_code",
                 ShippingAllocationAuthorityCode(self.unresolved_code),
             )
+            expected_code = {
+                CostAllocationBasis.PER_ORDER: {
+                    ShippingAllocationAuthorityCode.PER_ORDER_DENOMINATOR_MISSING,
+                    ShippingAllocationAuthorityCode.PER_ORDER_DENOMINATOR_INVALID,
+                },
+                CostAllocationBasis.PER_QUOTED_QUANTITY: {
+                    ShippingAllocationAuthorityCode.PER_QUOTED_QUANTITY_DENOMINATOR_MISSING,
+                },
+                CostAllocationBasis.PER_WEIGHT: {
+                    ShippingAllocationAuthorityCode.PER_WEIGHT_UNSUPPORTED,
+                },
+                CostAllocationBasis.UNSPECIFIED: {
+                    ShippingAllocationAuthorityCode.UNSPECIFIED_UNRESOLVED,
+                },
+            }.get(self.allocation_basis, set())
+            if self.unresolved_code not in expected_code:
+                raise ValueError("unresolved code must match allocation basis")
 
     @property
     def is_resolved(self) -> bool:
@@ -146,8 +242,12 @@ class ShippingAllocationAuthorityCommand:
     opportunity_identity: OpportunityIdentity
     component_kind: LandedCostComponentKind
     requested_at: datetime
+    effective_allocation_basis: CostAllocationBasis | None = None
     per_order_denominator: int | None = None
     per_order_denominator_unit: str | None = None
+    operator_id: str | None = None
+    verified_at: datetime | None = None
+    evidence_reference: SourcingEvidenceReference | None = None
     schema_version: str = SHIPPING_ALLOCATION_AUTHORITY_COMMAND_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -158,6 +258,12 @@ class ShippingAllocationAuthorityCommand:
         if not isinstance(self.component_kind, LandedCostComponentKind):
             raise TypeError("component_kind must be LandedCostComponentKind")
         object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
+        if self.effective_allocation_basis is not None:
+            object.__setattr__(
+                self,
+                "effective_allocation_basis",
+                CostAllocationBasis(self.effective_allocation_basis),
+            )
         if self.per_order_denominator is not None and not isinstance(
             self.per_order_denominator, int
         ):
@@ -182,15 +288,28 @@ class ShippingAllocationAuthorityCommand:
                 "per_order_denominator_unit",
                 self.per_order_denominator_unit.strip(),
             )
+        if self.operator_id is not None:
+            object.__setattr__(self, "operator_id", _text(self.operator_id, "operator_id"))
+        if self.verified_at is not None:
+            object.__setattr__(self, "verified_at", _aware(self.verified_at, "verified_at"))
+        if self.evidence_reference is not None and not isinstance(
+            self.evidence_reference,
+            SourcingEvidenceReference,
+        ):
+            raise TypeError("evidence_reference must be SourcingEvidenceReference")
         object.__setattr__(self, "schema_version", _text(self.schema_version, "schema_version"))
         if self.schema_version != SHIPPING_ALLOCATION_AUTHORITY_COMMAND_SCHEMA_VERSION:
             raise ValueError("unsupported shipping allocation authority command schema")
 
-
-@dataclass(frozen=True, slots=True)
-class ShippingAllocationAuthorityResult:
-    authority: ShippingAllocationAuthority
-    replayed: bool
+    @property
+    def fingerprint(self) -> str:
+        encoded = json.dumps(
+            _canonical(self),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
 
 
 class ShippingAllocationAuthorityValidationError(ValueError):
@@ -203,9 +322,9 @@ __all__ = [
     "ShippingAllocationAuthority",
     "ShippingAllocationAuthorityCode",
     "ShippingAllocationAuthorityCommand",
+    "ShippingAllocationBasisAuthoritySource",
     "ShippingAllocationDenominator",
     "ShippingAllocationAuthorityDenominatorSource",
-    "ShippingAllocationAuthorityResult",
     "ShippingAllocationAuthorityStatus",
     "ShippingAllocationAuthorityValidationError",
 ]

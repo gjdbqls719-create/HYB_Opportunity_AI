@@ -4,6 +4,7 @@ import pytest
 
 from app.application.sourcing import (
     AdmitShippingAllocationAuthority,
+    ShippingAllocationAuthorityResult,
     ShippingAllocationOpportunityMismatchError,
     ShippingAllocationSourceNotFoundError,
 )
@@ -23,9 +24,26 @@ from test_sourcing_authority_contract import NOW
 class MemoryCompositions:
     def __init__(self, composition: LandedCostComposition | None):
         self.composition = composition
+        self.saved = None
 
     def get_composition(self, composition_id: str) -> LandedCostComposition | None:
         return self.composition if self.composition and self.composition.composition_id == composition_id else None
+
+    def validate_replay(self, command_id, fingerprint):
+        return None
+
+    def save_authority(self, command, authority, receipt):
+        self.saved = ShippingAllocationAuthorityResult(authority, receipt, False)
+        return self.saved
+
+
+def allocation_owner(repository):
+    return AdmitShippingAllocationAuthority(
+        repository,
+        authority_id_generator=lambda: "allocation-authority-legacy-test",
+        admitted_clock=lambda: NOW,
+        committed_clock=lambda: NOW,
+    )
 
 
 def build_composition():
@@ -66,7 +84,7 @@ def test_per_unit_basis_is_resolved_without_denominator():
         LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING,
         CostAllocationBasis.PER_UNIT,
     )
-    result = AdmitShippingAllocationAuthority(MemoryCompositions(composition)).execute(
+    result = allocation_owner(MemoryCompositions(composition)).execute(
         command(composition, LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING)
     )
 
@@ -82,7 +100,7 @@ def test_per_order_requires_explicit_founder_denominator_and_keeps_authority_sou
         LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING,
         CostAllocationBasis.PER_ORDER,
     )
-    boundary = AdmitShippingAllocationAuthority(MemoryCompositions(composition))
+    boundary = allocation_owner(MemoryCompositions(composition))
     missing = boundary.execute(
         command(
             composition,
@@ -129,7 +147,7 @@ def test_per_order_does_not_use_moq_for_denominator():
         LandedCostComponentKind.DOMESTIC_INBOUND,
         CostAllocationBasis.PER_ORDER,
     )
-    authority = AdmitShippingAllocationAuthority(MemoryCompositions(composition)).execute(
+    authority = allocation_owner(MemoryCompositions(composition)).execute(
         command(
             composition,
             LandedCostComponentKind.DOMESTIC_INBOUND,
@@ -147,7 +165,7 @@ def test_per_quoted_quantity_uses_source_quoted_quantity_when_known():
         LandedCostComponentKind.INTERNATIONAL_FREIGHT,
         CostAllocationBasis.PER_QUOTED_QUANTITY,
     )
-    boundary = AdmitShippingAllocationAuthority(MemoryCompositions(composition))
+    boundary = allocation_owner(MemoryCompositions(composition))
     resolved = boundary.execute(
         command(composition, LandedCostComponentKind.INTERNATIONAL_FREIGHT)
     )
@@ -163,7 +181,7 @@ def test_per_quoted_quantity_uses_source_quoted_quantity_when_known():
             quantity=None,
         ),
     )
-    unresolved = AdmitShippingAllocationAuthority(MemoryCompositions(unknown_quoted)).execute(
+    unresolved = allocation_owner(MemoryCompositions(unknown_quoted)).execute(
         command(unknown_quoted, LandedCostComponentKind.INTERNATIONAL_FREIGHT)
     )
     assert unresolved.authority.unresolved_code is ShippingAllocationAuthorityCode.PER_QUOTED_QUANTITY_DENOMINATOR_MISSING
@@ -174,7 +192,7 @@ def test_per_weight_is_unresolved_and_unspecified_is_unresolved():
     weight_basis = with_basis(
         composition, LandedCostComponentKind.DOMESTIC_INBOUND, CostAllocationBasis.PER_WEIGHT
     )
-    weight = AdmitShippingAllocationAuthority(
+    weight = allocation_owner(
         MemoryCompositions(weight_basis)
     ).execute(
         command(weight_basis, LandedCostComponentKind.DOMESTIC_INBOUND)
@@ -187,7 +205,7 @@ def test_per_weight_is_unresolved_and_unspecified_is_unresolved():
         LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING,
         CostAllocationBasis.UNSPECIFIED,
     )
-    unresolved = AdmitShippingAllocationAuthority(MemoryCompositions(unspecified)).execute(
+    unresolved = allocation_owner(MemoryCompositions(unspecified)).execute(
         command(unspecified, LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING)
     )
     assert unresolved.authority.unresolved_code is ShippingAllocationAuthorityCode.UNSPECIFIED_UNRESOLVED
@@ -199,7 +217,7 @@ def test_invalid_basis_component_is_not_supported_without_inference():
         LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING,
         CostAllocationBasis.UNSPECIFIED,
     )
-    authority = AdmitShippingAllocationAuthority(MemoryCompositions(composition)).execute(
+    authority = allocation_owner(MemoryCompositions(composition)).execute(
         command(composition, LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING)
     ).authority
     assert authority.denominator is None
@@ -208,7 +226,7 @@ def test_invalid_basis_component_is_not_supported_without_inference():
 
 def test_opportunity_mismatch_and_missing_composition_rejected_before_any_calculation():
     composition = build_composition()
-    boundary = AdmitShippingAllocationAuthority(MemoryCompositions(composition))
+    boundary = allocation_owner(MemoryCompositions(composition))
     mismatch = command(
         composition,
         LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING,
@@ -217,7 +235,7 @@ def test_opportunity_mismatch_and_missing_composition_rejected_before_any_calcul
     with pytest.raises(ShippingAllocationOpportunityMismatchError):
         boundary.execute(mismatch)
 
-    missing = AdmitShippingAllocationAuthority(MemoryCompositions(None))
+    missing = allocation_owner(MemoryCompositions(None))
     with pytest.raises(ShippingAllocationSourceNotFoundError):
         missing.execute(command(composition, LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING))
 
@@ -228,7 +246,7 @@ def test_application_contracts_do_not_convert_or_normalize_values():
         LandedCostComponentKind.INTERNATIONAL_FREIGHT,
         CostAllocationBasis.PER_WEIGHT,
     )
-    value = AdmitShippingAllocationAuthority(MemoryCompositions(composition)).execute(
+    value = allocation_owner(MemoryCompositions(composition)).execute(
         command(composition, LandedCostComponentKind.INTERNATIONAL_FREIGHT)
     ).authority
     assert value.denominator is None
@@ -241,7 +259,7 @@ def test_application_contracts_do_not_convert_or_normalize_values():
 
 def test_contracts_are_immutable():
     composition = build_composition()
-    issued = AdmitShippingAllocationAuthority(MemoryCompositions(composition)).execute(
+    issued = allocation_owner(MemoryCompositions(composition)).execute(
         command(composition, LandedCostComponentKind.SUPPLIER_SIDE_SHIPPING)
     )
     with pytest.raises(FrozenInstanceError):
