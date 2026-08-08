@@ -12,6 +12,7 @@ from typing import Callable, Protocol
 from app.domain.sourcing import FXObservation, FXObservationProvenance, FX_OBSERVATION_SCHEMA_VERSION
 
 FX_OBSERVATION_COMMAND_SCHEMA_VERSION = "fx-observation-command-v1"
+FX_OBSERVATION_RECEIPT_SCHEMA_VERSION = "fx-observation-receipt-v1"
 
 
 class FXObservationAuthorityError(RuntimeError):
@@ -20,6 +21,10 @@ class FXObservationAuthorityError(RuntimeError):
 
 class FXObservationReplayConflictError(FXObservationAuthorityError):
     """Raised when replay payload is semantically different from persisted history."""
+
+
+class FXObservationReceiptIntegrityError(FXObservationAuthorityError):
+    """Raised when persisted FX observation receipt is malformed."""
 
 
 def _text(value: str, name: str) -> str:
@@ -63,7 +68,32 @@ class FXObservationRepository(Protocol):
         self,
         command: "AdmitFXObservationCommand",
         observation: FXObservation,
+        receipt: "FXObservationReceipt",
     ) -> "FXObservationAdmissionResult": ...
+
+
+@dataclass(frozen=True, slots=True)
+class FXObservationReceipt:
+    command_id: str
+    observation_id: str
+    command_fingerprint: str
+    committed_at: datetime
+    schema_version: str = FX_OBSERVATION_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "command_id", _text(self.command_id, "command_id"))
+        object.__setattr__(self, "observation_id", _text(self.observation_id, "observation_id"))
+        if (
+            not isinstance(self.command_fingerprint, str)
+            or len(self.command_fingerprint) != 64
+            or any(value not in "0123456789abcdef" for value in self.command_fingerprint)
+        ):
+            raise ValueError("command_fingerprint must be SHA-256 text")
+        object.__setattr__(self, "command_fingerprint", self.command_fingerprint.lower())
+        object.__setattr__(self, "schema_version", _text(self.schema_version, "schema_version"))
+        if self.schema_version != FX_OBSERVATION_RECEIPT_SCHEMA_VERSION:
+            raise ValueError("unsupported FX observation receipt version")
+        _aware(self.committed_at, "committed_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,13 +149,18 @@ class AdmitFXObservationCommand:
 @dataclass(frozen=True, slots=True)
 class FXObservationAdmissionResult:
     observation: FXObservation
+    receipt: FXObservationReceipt
     replayed: bool
 
     def __post_init__(self) -> None:
         if not isinstance(self.observation, FXObservation):
             raise TypeError("observation must be FXObservation")
+        if not isinstance(self.receipt, FXObservationReceipt):
+            raise TypeError("receipt must be FXObservationReceipt")
         if not isinstance(self.replayed, bool):
             raise TypeError("replayed must be bool")
+        if self.observation.observation_id != self.receipt.observation_id:
+            raise ValueError("receipt must reference observation")
 
 
 class AdmitFXObservation:
@@ -143,14 +178,18 @@ class AdmitFXObservation:
         *,
         observation_id_generator: Callable[[], str],
         admitted_clock: Callable[[], datetime],
+        committed_clock: Callable[[], datetime],
     ) -> None:
         if not callable(observation_id_generator):
             raise TypeError("observation_id_generator must be callable")
         if not callable(admitted_clock):
             raise TypeError("admitted_clock must be callable")
+        if not callable(committed_clock):
+            raise TypeError("committed_clock must be callable")
         self._repository = repository
         self._identity = observation_id_generator
         self._admitted_clock = admitted_clock
+        self._committed_clock = committed_clock
 
     def execute(self, command: AdmitFXObservationCommand) -> FXObservationAdmissionResult:
         if not isinstance(command, AdmitFXObservationCommand):
@@ -160,6 +199,7 @@ class AdmitFXObservation:
         if replay is not None:
             return FXObservationAdmissionResult(
                 observation=replay.observation,
+                receipt=replay.receipt,
                 replayed=True,
             )
 
@@ -177,7 +217,13 @@ class AdmitFXObservation:
             ),
             schema_version=FX_OBSERVATION_SCHEMA_VERSION,
         )
-        return self._repository.save_observation(command, observation)
+        receipt = FXObservationReceipt(
+            command_id=command.command_id,
+            observation_id=observation.observation_id,
+            command_fingerprint=command.fingerprint,
+            committed_at=_aware(self._committed_clock(), "committed_at"),
+        )
+        return self._repository.save_observation(command, observation, receipt)
 
 
 __all__ = [
@@ -185,7 +231,10 @@ __all__ = [
     "AdmitFXObservationCommand",
     "FXObservationAuthorityError",
     "FXObservationReplayConflictError",
+    "FXObservationReceipt",
+    "FXObservationReceiptIntegrityError",
     "FXObservationRepository",
     "FXObservationAdmissionResult",
     "FX_OBSERVATION_COMMAND_SCHEMA_VERSION",
+    "FX_OBSERVATION_RECEIPT_SCHEMA_VERSION",
 ]

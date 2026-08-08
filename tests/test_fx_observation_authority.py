@@ -60,27 +60,37 @@ class MemoryRepository:
         stored_fingerprint, stored_result = stored
         if stored_fingerprint != fingerprint:
             raise FXObservationReplayConflictError("payload conflict")
-        return stored_result
+        return FXObservationAdmissionResult(
+            observation=stored_result.observation,
+            receipt=stored_result.receipt,
+            replayed=True,
+        )
 
     def save_observation(
         self,
         command: AdmitFXObservationCommand,
         observation: FXObservation,
+        receipt,
     ) -> FXObservationAdmissionResult:
         self.save_calls += 1
-        result = FXObservationAdmissionResult(observation, False)
+        result = FXObservationAdmissionResult(observation, receipt, False)
         self._history[command.command_id] = (command.fingerprint, result)
         return result
 
 
 def owner_with(
-    *, repository: MemoryRepository | None = None, identity: str = "fx-obs-1", admitted_at: datetime = NOW,
+    *,
+    repository: MemoryRepository | None = None,
+    identity: str = "fx-obs-1",
+    admitted_at: datetime = NOW,
+    committed_at: datetime = NOW,
 ):
     repository = repository or MemoryRepository()
     owner = AdmitFXObservation(
         repository,
         observation_id_generator=Identity(identity),
         admitted_clock=lambda: admitted_at,
+        committed_clock=lambda: committed_at,
     )
     return owner, repository
 
@@ -119,6 +129,7 @@ def test_exact_replay_returns_stored_observation_without_identity_or_clock_calls
         repository,
         observation_id_generator=replay_identity,
         admitted_clock=lambda: pytest.fail("admitted clock must not be called"),
+        committed_clock=lambda: pytest.fail("committed clock must not be called"),
     )
     replay = replay_owner.execute(command())
 
@@ -127,6 +138,26 @@ def test_exact_replay_returns_stored_observation_without_identity_or_clock_calls
     assert replay.observation == first.observation
     assert repository.save_calls == 1
     assert replay_identity.calls == 0
+
+
+def test_replay_does_not_reinvoke_committed_clock_or_admitted_clock():
+    repository = MemoryRepository()
+    owner = AdmitFXObservation(
+        repository,
+        observation_id_generator=Identity("obs-1"),
+        admitted_clock=lambda: NOW,
+        committed_clock=lambda: NOW,
+    )
+    first = owner.execute(command())
+    replay = AdmitFXObservation(
+        repository,
+        observation_id_generator=Identity("replay"),
+        admitted_clock=lambda: pytest.fail("admitted clock must not be called"),
+        committed_clock=lambda: pytest.fail("committed clock must not be called"),
+    ).execute(command())
+    assert first.receipt == replay.receipt
+    assert first.observation == replay.observation
+    assert replay.replayed is True
 
 
 def test_replay_requires_matching_fingerprint_and_conflicts_on_changed_payload():
@@ -139,6 +170,7 @@ def test_replay_requires_matching_fingerprint_and_conflicts_on_changed_payload()
         repository,
         observation_id_generator=identity,
         admitted_clock=lambda: NOW,
+        committed_clock=lambda: NOW,
     )
 
     with pytest.raises(FXObservationReplayConflictError):

@@ -42,4 +42,8 @@ class ProductionCriticalCostCompletenessIdentityGenerator(_OpaqueSourcingIdentit
     __slots__ = ()
 
 
+class ProductionFXObservationIdentityGenerator(_OpaqueSourcingIdentityGenerator):
+    pass
+
+
 __all__ = [name for name in globals() if name.startswith("Production")]
