@@ -50,3 +50,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0041: Authoritative Acquisition Cost Normalization](ADR-0041-authoritative-acquisition-cost-normalization.md)
 - [ADR-0042: Authoritative Economics Source Composition](ADR-0042-authoritative-economics-source-composition.md)
 - [ADR-0043: Conservative Economics Authority](ADR-0043-conservative-economics-authority.md)
+- [ADR-0044: Domestic Market Validation Authority](ADR-0044-domestic-market-validation-authority.md)
