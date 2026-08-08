@@ -4,6 +4,17 @@
 
 Accepted
 
+## Implementation Status
+
+Implemented by CR-1B4B. The production-neutral Domain/Application authority and
+append-only SQLite result/receipt persistence now enforce this ADR. No API or
+Capital decision composition is included.
+
+The implemented policy identity is `conservative-unit-economics` version
+`1.0.0`. Its only scenario assumption is an explicitly caller-supplied Decimal
+sale-price factor greater than zero and at most one. There is no default or
+automatic haircut.
+
 ## Context
 
 ADR-0042 provides an immutable, exact-source `EconomicsSourceComposition`, but

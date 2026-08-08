@@ -273,3 +273,13 @@ all other current cases block until exact scoped authority exists. A new
 the exact normalized acquisition cost per unit when that denominator is
 positive. It does not redefine legacy purchase-price ROI, legacy landed-cost
 ROI, or Actual ROI, and it carries no Capital Readiness or investment meaning.
+
+CR-1B4B implements that boundary as a dedicated Conservative Economics owner.
+One exact Economics Source Composition and one explicit sale-price-factor
+scenario produce immutable unit economics under a 34-significant-digit
+`ROUND_HALF_EVEN` Decimal policy. The only calculable v1 path has a positive
+normalized acquisition cost and verified-zero tax, duty, and other cost;
+unsupported semantics produce ordered BLOCKED reasons with no profit, margin,
+or ROI values. Dedicated append-only SQLite result/receipt histories preserve
+exact source, scenario, policy, calculation, replay, and restart reconstruction.
+The legacy calculator and existing ROI/Actual contracts remain unchanged.

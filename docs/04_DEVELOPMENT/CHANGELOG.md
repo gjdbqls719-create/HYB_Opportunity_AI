@@ -1,5 +1,14 @@
 # HYB Changelog
 
+## CR-1B4B - Conservative Economics Implementation
+
+- Add a dedicated immutable Conservative Economics Domain/Application authority that consumes only one exact Economics Source Composition and an explicit sale-price-factor scenario.
+- Calculate unit sale price, marketplace/payment fees, fixed fee, total cost, profit, margin, and new `conservative_acquisition_roi` with a 34-significant-digit `ROUND_HALF_EVEN` Decimal policy.
+- Enforce ADR-0043: only verified-zero tax and duty are calculable, non-zero/untrusted tax or duty blocks, unresolved other cost blocks, and non-positive acquisition cost never produces ROI.
+- Preserve estimated sale-price evidence, explicit assumptions, negative-but-calculable economics, exact source lineage, policy/version, and no legacy purchase/shipping or ROI aliases.
+- Persist immutable result and receipt history atomically in dedicated append-only SQLite tables with exact replay, restart reconstruction, rollback, concurrency convergence, malformed arithmetic rejection, and read-only reconstruction.
+- Add no legacy calculator change, Actual Economics change, monthly forecast, API/UI, Capital Readiness/Gate, position sizing, Founder approval, or investment decision.
+
 ## CR-1B4B0 - Conservative Economics Semantic Authority
 
 - Define the safe MVP duty policy: only explicit verified zero contributes zero; unresolved, weak, missing, or non-zero duty blocks until exact per-unit target-currency authority exists.
