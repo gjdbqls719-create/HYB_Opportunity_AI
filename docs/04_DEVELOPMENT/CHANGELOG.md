@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5A0A - Domestic Market Validation Assessment Foundation
+
+- Add the immutable ADR-0044 Domain/Application authority that validates one exact persisted KR Opportunity, Competition source, Demand source, and explicit operator current-use verification event.
+- Require complete v1 Competition/Demand metrics with observation-bearing status, exact provenance, non-future factual times, deterministic blockers, and no numeric freshness window.
+- Persist assessment and receipt history atomically in dedicated append-only SQLite tables with replay-before-identity/time, restart reconstruction, rollback, concurrency convergence, corruption detection, and exact source-lineage checks.
+- Preserve optional human-verified External Signals as assisted exact references only; they cannot replace required Competition or Demand sources.
+- Add no API/UI, source collection, profitability calculation, Capital Readiness/Gate, Founder capital approval, Decision Readiness change, or automatic trust policy.
+
 ## CR-1B4B1 - Conservative Economics Production Entry and API
 
 - Add an Opportunity-scoped production entry and `POST /api/v1/opportunities/{opportunity_id}/conservative-economics` over the existing exact-source Conservative Economics authority.

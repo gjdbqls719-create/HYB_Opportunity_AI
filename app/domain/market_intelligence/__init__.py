@@ -48,6 +48,21 @@ from app.domain.market_intelligence.review_session import (
     ReviewSession,
     ReviewSessionStatus,
 )
+from app.domain.market_intelligence.domestic_market_validation import (
+    DOMESTIC_MARKET_SOURCE_MANIFEST_SCHEMA_VERSION,
+    DOMESTIC_MARKET_VALIDATION_POLICY_NAME,
+    DOMESTIC_MARKET_VALIDATION_POLICY_VERSION,
+    DOMESTIC_MARKET_VALIDATION_SCHEMA_VERSION,
+    DOMESTIC_MARKET_VERIFICATION_SCHEMA_VERSION,
+    DomesticMarketAnalysisSourceManifest,
+    DomesticMarketMetricEvidence,
+    DomesticMarketValidationAssessment,
+    DomesticMarketValidationReason,
+    DomesticMarketValidationReasonCode,
+    DomesticMarketValidationSourceManifest,
+    DomesticMarketValidationState,
+    DomesticMarketVerification,
+)
 
 __all__ = [
     "CandidateSkipRecord",
@@ -86,4 +101,17 @@ __all__ = [
     "ReviewSessionStatus",
     "analyze_competition",
     "analyze_demand",
+    "DOMESTIC_MARKET_SOURCE_MANIFEST_SCHEMA_VERSION",
+    "DOMESTIC_MARKET_VALIDATION_POLICY_NAME",
+    "DOMESTIC_MARKET_VALIDATION_POLICY_VERSION",
+    "DOMESTIC_MARKET_VALIDATION_SCHEMA_VERSION",
+    "DOMESTIC_MARKET_VERIFICATION_SCHEMA_VERSION",
+    "DomesticMarketAnalysisSourceManifest",
+    "DomesticMarketMetricEvidence",
+    "DomesticMarketValidationAssessment",
+    "DomesticMarketValidationReason",
+    "DomesticMarketValidationReasonCode",
+    "DomesticMarketValidationSourceManifest",
+    "DomesticMarketValidationState",
+    "DomesticMarketVerification",
 ]

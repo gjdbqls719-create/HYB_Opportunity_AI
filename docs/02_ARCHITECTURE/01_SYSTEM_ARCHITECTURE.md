@@ -294,3 +294,17 @@ serializes the committed/reconstructed result without performing calculations.
 Fresh execution is HTTP 201, exact replay is HTTP 200, and a committed BLOCKED
 result remains a successful authoritative response. No Capital decision meaning
 or legacy calculator path is introduced.
+
+CR-1B5A0A implements the ADR-0044 Domestic Market Validation authority. A
+dedicated Application owner reconstructs only named persisted Competition and
+Demand observations and assessment snapshots, verifies their exact
+Opportunity/KR Market lineage, required metric provenance, supported evidence
+status and factual timing, then combines them with an explicit operator
+current-use verification event. It issues only `VALIDATED_FOR_CAPITAL` or
+`BLOCKED` with ordered reasons; it does not calculate profitability or imply
+Capital readiness. Dedicated append-only SQLite assessment and receipt tables
+provide replay-first identity/time issuance, atomic commit, restart
+reconstruction, source-lineage integrity checks, rollback and concurrent-command
+convergence without latest-source selection or policy re-evaluation. Production
+API/UI, operator authentication and Capital Readiness consumption remain
+separate future boundaries.

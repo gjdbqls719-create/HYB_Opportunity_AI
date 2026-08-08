@@ -6,10 +6,14 @@ Accepted
 
 ## Implementation Status
 
-Decision only. Domain/Application implementation, SQLite persistence, production
-composition, and Capital Readiness integration are deferred to subsequent PRs.
-Existing Competition, Demand, Review, Decision Readiness, and web contracts are
-unchanged by this ADR.
+Implemented in CR-1B5A0A at the Domain/Application and SQLite persistence
+boundary. The implementation pins exact persisted Competition and Demand
+sources, records explicit operator current-use verification, determines only
+`VALIDATED_FOR_CAPITAL` or `BLOCKED`, and preserves immutable assessment and
+receipt history with replay and restart reconstruction. Production composition,
+API/UI, trusted operator authentication/injection, and Capital Readiness
+integration remain deferred. Existing Competition, Demand, Review, Decision
+Readiness, and web contracts remain unchanged.
 
 ## Context
 
@@ -330,9 +334,6 @@ multi-market fusion, generalized crawler, or multi-country policy is required.
 
 ## Deferred Work
 
-- Domain/Application assessment, command, policy, identity supplier, and reason
-  contracts;
-- append-only SQLite assessment and receipt persistence;
 - production entry and any API/UI exposure;
 - trusted operator authentication/injection at a production boundary;
 - automated evidence collection and provider trust scoring;
