@@ -26,6 +26,15 @@ that manifest before issuing identities, still requires a separate verified
 Supplier Product Match, and persists the O2-owned admission without copying O1
 quotes or Economics.
 
+CR-1B5D2D implements the thin production wiring. The Opportunity-scoped
+Domestic Selling admission route composes the existing owner, SQLite authority,
+dedicated identity suppliers and UTC clocks per request. The existing Sourcing
+route accepts an explicit domestic admission-ID reference while preserving the
+legacy Candidate payload; the Application reconstructs the full persisted
+lineage and retains the independent verified Product Match requirement. The
+private Founder/operator boundary remains caller-identified and does not claim
+authentication or authorization.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate
@@ -313,8 +322,7 @@ automatically.
 
 ## Deferred
 
-- production API wiring for the domestic Sourcing lineage
-- API/UI and trusted operator injection
+- UI and authenticated/trusted operator injection
 - direct KR Opportunity ingress
 - automatic cross-market matching and canonical-product reconciliation
 - generalized cross-market graphs and non-KR target policies

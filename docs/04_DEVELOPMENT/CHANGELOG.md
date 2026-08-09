@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2D - Domestic Selling Opportunity and O2 Sourcing Production Wiring
+
+- Add the request-scoped `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` production boundary with exact persisted O1 reconstruction, server-owned O2/admission identities and times, bounded HTTP errors, replay, rollback and cleanup.
+- Extend the existing Sourcing admission API additively with an explicit domestic admission-ID lineage variant; reconstruct exact O1/O2/KR provenance in the Application while preserving the legacy Candidate request and required verified Supplier Product Match.
+- Verify the API-only O1-to-O2-to-Sourcing journey, restart and concurrent replay, failure isolation and legacy compatibility without adding Economics, Market Validation, Capital, execution, UI, authentication, crawling or autonomous behavior.
+
 ## CR-1B5D2C - Domestic Selling Opportunity to Sourcing Lineage Handoff
 
 - Add an immutable `DomesticSellingProductLineage` variant that binds a new O2-owned Founder Sourcing Admission to one exact persisted Domestic Selling Opportunity Admission while preserving O1 only as provenance.

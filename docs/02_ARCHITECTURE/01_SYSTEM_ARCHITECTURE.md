@@ -187,6 +187,17 @@ v2 payload bytes while domestic admissions use a discriminated v3 payload;
 existing Sourcing Economics Binding consumes either through the same exact
 Founder Sourcing Admission reference.
 
+CR-1B5D2D exposes the accepted O1-to-O2 authority through a request-scoped
+FastAPI composition. One `SQLiteDomesticSellingOpportunityAdmissionRepository`
+owns the O1 source reads and atomic O2 lifecycle, KR Market binding, admission,
+and receipt transaction; independent UUIDv4 suppliers and UTC clocks remain
+server-owned. The existing Sourcing route accepts an explicit admission-ID-only
+domestic variant, and the Sourcing Application reconstructs the exact persisted
+lineage before identity issuance while preserving the legacy Candidate request
+and the independent `VERIFIED_MATCH` requirement. The two HTTP calls are
+separate committed authorities; there is no cross-request transaction or
+automatic Economics, Market Validation, Capital, execution, UI, or auth flow.
+
 CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
 fact. An immutable binding links one `OpportunityIdentity` to one explicit
 Admission/Quote revision and is persisted with its replay receipt in a single
@@ -331,8 +342,8 @@ similarity, copies Economics, or creates Capital state. SQLite atomic
 persistence now reuses the existing lifecycle and Market-binding tables on one
 shared connection while dedicated append-only admission/receipt tables preserve
 exact replay, restart reconstruction, rollback and durable one-O1-to-one-O2
-cardinality. The additive O2 Sourcing-lineage handoff and production API remain
-separate follow-ups.
+cardinality. CR-1B5D2C and CR-1B5D2D subsequently add the exact O2 Sourcing
+lineage handoff and thin production API wiring without changing this authority.
 
 CR-1B5A implements ADR-0045 as a separate Capital evidence-admission boundary.
 One Application command selects exact Conservative Economics, Domestic Market

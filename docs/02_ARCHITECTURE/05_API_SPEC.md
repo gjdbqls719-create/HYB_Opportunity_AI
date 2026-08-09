@@ -1,5 +1,29 @@
 # HYB API Specification
 
+## Domestic Selling Opportunity Admission API
+
+`POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions`
+admits one exact persisted foreign/source Opportunity O1 as the source of a
+distinct KR domestic-selling Opportunity O2. The strict request contains the
+command ID, exact source Product Snapshot ID, exact KR listing or canonical-
+product Market identity, explicit product-equivalence confirmation and evidence,
+operator ID, verification/request times, and supported policy identity/version.
+O2 identity, admission identity, lifecycle, binding, and server times are not
+caller fields.
+
+The response is serialized from the committed or restart-reconstructed
+publication and includes the O1/O2 identities, admission ID, O2 `DISCOVERED`
+version 1 lifecycle, exact KR Market binding, equivalence verification, policy,
+timestamps, receipt versions, and replay state. Fresh creation returns 201,
+exact replay returns 200, command/cardinality/lineage conflict returns 409,
+missing source facts return 404, invalid request or policy facts return 422, and
+bounded SQLite failure returns 503 without storage details.
+
+This is a Founder-operated local/private boundary. `operator_id` is retained as
+a caller-supplied factual audit value; the route does not provide authentication,
+authorization, or multi-user security. It does not create Sourcing, Market
+Validation, Economics, Capital, or execution facts automatically.
+
 ## Conservative Economics API
 
 `POST /api/v1/opportunities/{opportunity_id}/conservative-economics` executes
@@ -42,6 +66,16 @@ identities, `admitted_at`, and `committed_at` are server-owned and rejected as
 extra input. Decimal amounts are JSON strings. Responses are serialized from
 the committed or reconstructed authoritative Domain result rather than echoed
 request data.
+
+The legacy Candidate-Promotion lineage object is accepted unchanged. An
+additive domestic variant is selected explicitly with
+`{"kind":"domestic_selling_admission","domestic_selling_admission_id":"..."}`.
+No nullable-field inference is used. The Application reconstructs the exact O1,
+O2, KR Market, source Product Snapshot, and equivalence provenance from that
+persisted admission; callers do not repeat those claims. The resulting Sourcing
+Admission is owned by O2 and its response exposes the domestic lineage kind and
+exact admission reference. Existing `VERIFIED_MATCH` Supplier Product Match is
+still mandatory and is not implied by domestic product-equivalence confirmation.
 
 Fresh commits return 201 and exact restart-safe replay returns 200 without new
 identities, clocks, or rows. Changed command payloads and revision conflicts

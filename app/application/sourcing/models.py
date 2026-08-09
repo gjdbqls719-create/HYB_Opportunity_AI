@@ -120,9 +120,28 @@ def _fingerprint(value: object) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class DomesticSellingProductLineageReference:
+    """Ingress reference resolved by the Sourcing owner from authoritative persistence."""
+
+    domestic_selling_admission_id: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "domestic_selling_admission_id",
+            _required(
+                self.domestic_selling_admission_id,
+                "domestic_selling_admission_id",
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class AdmitFounderSourcingCommand:
     command_id: str
-    selling_product_lineage: SellingProductLineageValue
+    selling_product_lineage: (
+        SellingProductLineageValue | DomesticSellingProductLineageReference
+    )
     supplier_platform: str
     external_supplier_reference: str | None
     supplier_display_name: str | None
@@ -154,7 +173,11 @@ class AdmitFounderSourcingCommand:
             object.__setattr__(self, name, _required(getattr(self, name), name))
         if not isinstance(
             self.selling_product_lineage,
-            (SellingProductLineage, DomesticSellingProductLineage),
+            (
+                SellingProductLineage,
+                DomesticSellingProductLineage,
+                DomesticSellingProductLineageReference,
+            ),
         ):
             raise InvalidSourcingCommandError(
                 "selling_product_lineage must be a supported lineage"

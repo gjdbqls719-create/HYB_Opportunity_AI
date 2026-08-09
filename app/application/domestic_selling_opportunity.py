@@ -385,6 +385,11 @@ class AdmitDomesticSellingOpportunity:
         )
         self._validate_source(command, source, promotion, snapshot, source_binding)
         if self._repository.get_admission_by_source(command.source_opportunity_id) is not None:
+            replay = self._repository.validate_replay(
+                command.command_id, command.fingerprint
+            )
+            if replay is not None:
+                return replace(replay, replayed=True)
             raise DomesticSellingOpportunityCardinalityConflictError(
                 "source Opportunity already has a domestic-selling Opportunity"
             )

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from decimal import Decimal
 import sqlite3
-from typing import Any
+from typing import Any, Literal
 
 import requests
 
@@ -22,6 +22,7 @@ from presentation.dashboard_list import build_opportunity_list_card
 from app.application.sourcing import (
     AdmitFounderSourcing,
     AdmitFounderSourcingCommand,
+    DomesticSellingProductLineageReference,
     InvalidSourcingCommandError,
     ReviseFounderSourcingQuote,
     ReviseFounderSourcingQuoteCommand,
@@ -32,10 +33,23 @@ from app.application.sourcing import (
     SourcingIdentityGenerationError,
     SourcingProductMatchNotVerifiedError,
     SourcingQuoteRevisionConflictError,
+    SourcingDomesticSellingLineageError,
+)
+from app.application.domestic_selling_opportunity import (
+    AdmitDomesticSellingOpportunity,
+    AdmitDomesticSellingOpportunityCommand,
+    DomesticSellingOpportunityCardinalityConflictError,
+    DomesticSellingOpportunityError,
+    DomesticSellingOpportunityLineageError,
+    DomesticSellingOpportunityPolicyError,
+    DomesticSellingOpportunityReplayConflictError,
+    DomesticSellingOpportunitySourceNotFoundError,
+    DomesticSellingOpportunityVerificationError,
 )
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.sourcing import (
     CommercialFactAvailability,
+    DomesticSellingProductLineage,
     MatchVerificationStatus,
     SellingProductLineage,
     ShippingScope,
@@ -55,6 +69,13 @@ from app.infrastructure.sourcing import (
     SQLiteSourcingAuthorityRepository,
     SourcingAuthorityPersistenceError,
     UnsupportedSourcingAuthorityVersionError,
+)
+from app.infrastructure.domestic_selling_opportunity import (
+    DomesticSellingOpportunityPersistenceError,
+    MalformedDomesticSellingOpportunityPersistenceError,
+    ProductionDomesticSellingOpportunityAdmissionIdentityGenerator,
+    ProductionDomesticSellingOpportunityIdentityGenerator,
+    SQLiteDomesticSellingOpportunityAdmissionRepository,
 )
 from app.application.opportunity_lifecycle import (
     LifecycleNotFoundError,
@@ -817,6 +838,23 @@ class MarketObservationIdentityRequest(BaseModel):
     window_ended_at: datetime
 
 
+class DomesticSellingOpportunityAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    source_product_snapshot_id: str = Field(min_length=1)
+    target_market_identity: MarketObservationIdentityRequest
+    operator_id: str = Field(min_length=1)
+    product_equivalence_confirmed: bool
+    evidence_reference: str = Field(min_length=1)
+    verified_at: datetime
+    requested_at: datetime
+    policy_name: str = Field(
+        default="domestic-selling-opportunity-admission", min_length=1
+    )
+    policy_version: str = Field(default="1.0.0", min_length=1)
+
+
 class SourcingMoneyFactRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     availability: CommercialFactAvailability
@@ -880,6 +918,20 @@ class SourcingSellingProductLineageRequest(BaseModel):
             MarketObservationIdentity(**self.market_observation_identity.model_dump()),
         )
 
+    def to_application(self) -> SellingProductLineage:
+        return self.to_domain()
+
+
+class SourcingDomesticSellingLineageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["domestic_selling_admission"]
+    domestic_selling_admission_id: str = Field(min_length=1)
+
+    def to_application(self) -> DomesticSellingProductLineageReference:
+        return DomesticSellingProductLineageReference(
+            self.domestic_selling_admission_id
+        )
+
 
 class FounderSourcingAdmissionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -887,7 +939,10 @@ class FounderSourcingAdmissionRequest(BaseModel):
     requested_at: datetime
     verified_at: datetime
     operator_id: str = Field(min_length=1)
-    selling_product_lineage: SourcingSellingProductLineageRequest
+    selling_product_lineage: (
+        SourcingSellingProductLineageRequest
+        | SourcingDomesticSellingLineageRequest
+    )
     supplier_platform: str = Field(min_length=1)
     external_supplier_reference: str | None = None
     supplier_display_name: str | None = None
@@ -1444,6 +1499,33 @@ def get_sourcing_authority_entry():
     except (sqlite3.Error, SourcingAuthorityPersistenceError) as error:
         raise HTTPException(
             status_code=503, detail="sourcing authority persistence unavailable"
+        ) from error
+    finally:
+        resources.close()
+
+
+def get_domestic_selling_opportunity_entry():
+    resources = ExitStack()
+    try:
+        repository = SQLiteDomesticSellingOpportunityAdmissionRepository(
+            DEFAULT_DATABASE_PATH
+        )
+        resources.callback(repository.close)
+        yield AdmitDomesticSellingOpportunity(
+            repository,
+            opportunity_id_generator=(
+                ProductionDomesticSellingOpportunityIdentityGenerator()
+            ),
+            admission_id_generator=(
+                ProductionDomesticSellingOpportunityAdmissionIdentityGenerator()
+            ),
+            admitted_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+    except (sqlite3.Error, DomesticSellingOpportunityPersistenceError) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="domestic selling Opportunity persistence unavailable",
         ) from error
     finally:
         resources.close()
@@ -3320,6 +3402,120 @@ def _market_identity_payload(value) -> dict[str, object]:
     }
 
 
+def _domestic_selling_result_payload(result) -> dict[str, object]:
+    admission = result.admission
+    source = admission.source_opportunity_identity
+    domestic = admission.domestic_opportunity_identity
+    verification = admission.product_equivalence
+    binding = result.market_binding
+    return {
+        "command_id": result.receipt.command_id,
+        "admission_id": admission.admission_id,
+        "source_opportunity_identity": {
+            "opportunity_id": source.opportunity_id,
+            "discovery_reference": source.discovery_reference,
+        },
+        "domestic_opportunity_identity": {
+            "opportunity_id": domestic.opportunity_id,
+            "discovery_reference": domestic.discovery_reference,
+        },
+        "lifecycle": {
+            "status": result.lifecycle.status.value,
+            "version": result.lifecycle.version,
+        },
+        "market_binding": {
+            "opportunity_id": binding.opportunity_id,
+            "discovery_reference": binding.discovery_reference,
+            "market_observation_identity": _market_identity_payload(
+                binding.market_observation_identity
+            ),
+            "bound_at": binding.bound_at.isoformat(),
+            "schema_version": binding.schema_version,
+        },
+        "product_equivalence": {
+            "operator_id": verification.operator_id,
+            "evidence_reference": verification.evidence_reference,
+            "confirmed": verification.confirmed,
+            "verified_at": verification.verified_at.isoformat(),
+            "schema_version": verification.schema_version,
+        },
+        "source_product_snapshot_id": admission.source_product_snapshot_id,
+        "policy_name": admission.policy_name,
+        "policy_version": admission.policy_version,
+        "requested_at": admission.requested_at.isoformat(),
+        "verified_at": verification.verified_at.isoformat(),
+        "admitted_at": admission.admitted_at.isoformat(),
+        "committed_at": result.receipt.committed_at.isoformat(),
+        "admission_schema_version": admission.schema_version,
+        "receipt_schema_version": result.receipt.schema_version,
+        "replayed": result.replayed,
+    }
+
+
+@app.post(
+    "/api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions",
+    status_code=201,
+)
+def admit_domestic_selling_opportunity(
+    source_opportunity_id: str,
+    request: DomesticSellingOpportunityAdmissionRequest,
+    response: Response,
+    entry: AdmitDomesticSellingOpportunity = Depends(
+        get_domestic_selling_opportunity_entry
+    ),
+):
+    try:
+        result = entry.execute(
+            AdmitDomesticSellingOpportunityCommand(
+                command_id=request.command_id,
+                source_opportunity_id=source_opportunity_id,
+                source_product_snapshot_id=request.source_product_snapshot_id,
+                target_market_identity=MarketObservationIdentity(
+                    **request.target_market_identity.model_dump()
+                ),
+                operator_id=request.operator_id,
+                product_equivalence_confirmed=(
+                    request.product_equivalence_confirmed
+                ),
+                evidence_reference=request.evidence_reference,
+                verified_at=request.verified_at,
+                requested_at=request.requested_at,
+                policy_name=request.policy_name,
+                policy_version=request.policy_version,
+            )
+        )
+        response.status_code = 200 if result.replayed else 201
+        return _domestic_selling_result_payload(result)
+    except DomesticSellingOpportunitySourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DomesticSellingOpportunityReplayConflictError,
+        DomesticSellingOpportunityCardinalityConflictError,
+        DomesticSellingOpportunityLineageError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        DomesticSellingOpportunityPolicyError,
+        DomesticSellingOpportunityVerificationError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        DomesticSellingOpportunityPersistenceError,
+        MalformedDomesticSellingOpportunityPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="domestic selling Opportunity persistence unavailable",
+        ) from error
+    except DomesticSellingOpportunityError as error:
+        raise HTTPException(
+            status_code=503, detail="domestic selling Opportunity unavailable"
+        ) from error
+
+
 def _sourcing_result_payload(result) -> dict[str, object]:
     admission = result.admission
     lineage = admission.selling_product_lineage
@@ -3327,17 +3523,42 @@ def _sourcing_result_payload(result) -> dict[str, object]:
     product = admission.sourcing_product_identity
     quote = admission.quote_revision
     match = admission.match_verification
-    return {
-        "admission_id": admission.admission_id, "revision": admission.revision,
-        "command_id": result.receipt.command_id, "replayed": result.replayed,
-        "selling_product_lineage": {
+    if isinstance(lineage, DomesticSellingProductLineage):
+        lineage_payload = {
+            "kind": "domestic_selling_admission",
+            "domestic_selling_admission_id": lineage.domestic_selling_admission_id,
+            "opportunity_id": lineage.opportunity_identity.opportunity_id,
+            "discovery_reference": lineage.opportunity_identity.discovery_reference,
+            "source_opportunity_id": lineage.source_opportunity_identity.opportunity_id,
+            "source_discovery_reference": (
+                lineage.source_opportunity_identity.discovery_reference
+            ),
+            "source_product_observation_snapshot_id": (
+                lineage.source_product_observation_snapshot_id
+            ),
+            "market_observation_identity": _market_identity_payload(
+                lineage.market_observation_identity
+            ),
+            "product_equivalence_evidence_reference": (
+                lineage.product_equivalence_evidence_reference
+            ),
+            "schema_version": lineage.schema_version,
+        }
+    else:
+        lineage_payload = {
             "opportunity_id": lineage.opportunity_identity.opportunity_id,
             "discovery_reference": lineage.opportunity_identity.discovery_reference,
             "candidate_id": lineage.candidate_id,
             "candidate_opportunity_binding_id": lineage.candidate_opportunity_binding_id,
             "product_observation_snapshot_id": lineage.product_observation_snapshot_id,
-            "market_observation_identity": _market_identity_payload(lineage.market_observation_identity),
-        },
+            "market_observation_identity": _market_identity_payload(
+                lineage.market_observation_identity
+            ),
+        }
+    return {
+        "admission_id": admission.admission_id, "revision": admission.revision,
+        "command_id": result.receipt.command_id, "replayed": result.replayed,
+        "selling_product_lineage": lineage_payload,
         "supplier": {
             "supplier_id": supplier.supplier_id, "source_platform": supplier.source_platform,
             "external_supplier_reference": supplier.external_supplier_reference,
@@ -3394,6 +3615,8 @@ def _execute_sourcing(operation, command, response: Response):
         raise HTTPException(status_code=404, detail=str(error)) from error
     except (SourcingAdmissionReplayConflictError, SourcingQuoteRevisionConflictError) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+    except SourcingDomesticSellingLineageError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     except (InvalidSourcingCommandError, SourcingProductMatchNotVerifiedError,
             TypeError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
@@ -3416,7 +3639,7 @@ def admit_founder_sourcing(
     try:
         command = AdmitFounderSourcingCommand(
             command_id=request.command_id,
-            selling_product_lineage=request.selling_product_lineage.to_domain(),
+            selling_product_lineage=request.selling_product_lineage.to_application(),
             supplier_platform=request.supplier_platform,
             external_supplier_reference=request.external_supplier_reference,
             supplier_display_name=request.supplier_display_name,
