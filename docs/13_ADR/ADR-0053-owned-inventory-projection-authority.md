@@ -6,11 +6,11 @@ Accepted
 
 ## Implementation Status
 
-CR-1B6B4 implements the immutable Domain read model, SQLite-independent
-Application query contract and projection owner, Opportunity-indexed committed
-Goods Receipt enumeration, and the read-only production GET API. No mutable or
-materialized inventory table exists. Sale/outbound events, adjustments,
-reservations, Actual Outcome, UI, and external integrations remain unimplemented.
+CR-1B6B4 implements the historical receipt-only v1 Domain/read projection.
+CR-1B6C3 adds the separate v2 Domain/read projection, deterministic COMPLETE
+Actual Sale Settlement enumeration, and the current production GET response.
+No mutable or materialized inventory table exists. Adjustments, reservations,
+Actual Outcome, UI, and external integrations remain unimplemented.
 
 ## Context
 
@@ -167,6 +167,31 @@ event eligibility, arithmetic, or outbound interpretation requires an explicit
 new policy version and compatible read behavior. Historical receipt events and
 their policy/schema versions remain unchanged.
 
+### v2 projection evolution
+
+CR-1B6C3 preserves the v1 contract above and introduces a distinct current
+production projection:
+
+- policy name: `receipt-and-complete-sale-derived-owned-inventory`;
+- policy version: `2.0.0`;
+- response/schema version: `owned-inventory-position-v2`.
+
+For one complete `OwnedInventoryProductKey`, v2 adds only terminal committed
+`ActualSaleSettlement` events whose state is `COMPLETE`. It sums their explicit
+`fulfilled_outbound_quantity`, ordered by normalized UTC `period_end` and then
+settlement ID, and subtracts that total from sellable receipt quantity. BLOCKED
+revisions contribute neither quantity nor source identity. A zero-sale COMPLETE
+event contributes its settlement ID and outbound event count while contributing
+zero quantity. Every position exposes separate inbound/outbound event counts and
+the ordered COMPLETE settlement IDs.
+
+The projection does not re-run overlap or oversell admission policy. A COMPLETE
+sale without an exact receipt key, a non-COMPLETE value returned by the COMPLETE
+read contract, duplicate source identity, or reconstructed negative balance is
+malformed source history and fails closed. The existing production GET now emits
+this explicit v2 contract; the v1 Domain owner remains callable with its original
+receipt-only meaning.
+
 ### Determinism and rebuildability
 
 Integer addition is performed over the complete committed event set for an exact
@@ -275,9 +300,7 @@ sellable on-hand as revenue, loss, or profit.
 
 ## Deferred Work
 
-1. Actual Sale Settlement and exact outbound inventory event decision.
-2. Transactional non-negative outbound admission.
-3. Append-only inventory adjustments and reservation/allocation projections.
-4. Actual Outcome and Conservative-vs-Actual Variance v2.
-5. Optional rebuildable materialized cache, authentication, UI, and marketplace
+1. Append-only inventory adjustments and reservation/allocation projections.
+2. Actual Outcome and Conservative-vs-Actual Variance v2.
+3. Optional rebuildable materialized cache, authentication, UI, and marketplace
    synchronization.

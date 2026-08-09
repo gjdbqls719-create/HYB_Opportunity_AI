@@ -10,7 +10,8 @@ CR-1B6C2 implements the immutable Domain/Application authority, exact Goods
 Receipt/product reconstruction, append-only SQLite revision history and command
 receipts, transactional window/reference/chronological oversell safety,
 production UUID/time ownership, and the thin Opportunity-scoped API. Owned
-Inventory v2, Coupang automation, Actual Outcome, Variance v2, corrections, and
+Inventory v2 now consumes only committed COMPLETE settlement outbound through
+CR-1B6C3. Coupang automation, Actual Outcome, Variance v2, corrections, and
 returned-stock admission remain unimplemented.
 
 ## Context
@@ -488,13 +489,9 @@ This ADR adds no route, automation, crawler, UI, or authentication behavior.
 
 ## Deferred Work
 
-1. Actual Sale Settlement Domain/Application/SQLite authority and production
-   POST API with transactional revision, overlap, deduplication, and oversale
-   enforcement.
-2. Owned Inventory projection policy v2 and compatible production read.
-3. Actual Outcome v2, acquisition-lot attribution, and Conservative-vs-Actual
+1. Actual Outcome v2, acquisition-lot attribution, and Conservative-vs-Actual
    Variance v2.
-4. Post-COMPLETE sale correction, returned-goods inspection, inventory
+2. Post-COMPLETE sale correction, returned-goods inspection, inventory
    adjustment, replacement, reservation, and real-time fulfillment authorities.
-5. Coupang import adapter/API integration, authentication, UI, and automated
+3. Coupang import adapter/API integration, authentication, UI, and automated
    evidence collection.

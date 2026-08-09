@@ -10,6 +10,9 @@ from app.domain.decision_engine import OpportunityIdentity
 OWNED_INVENTORY_POLICY_NAME = "receipt-derived-owned-inventory"
 OWNED_INVENTORY_POLICY_VERSION = "1.0.0"
 OWNED_INVENTORY_POSITION_SCHEMA_VERSION = "owned-inventory-position-v1"
+OWNED_INVENTORY_V2_POLICY_NAME = "receipt-and-complete-sale-derived-owned-inventory"
+OWNED_INVENTORY_V2_POLICY_VERSION = "2.0.0"
+OWNED_INVENTORY_V2_POSITION_SCHEMA_VERSION = "owned-inventory-position-v2"
 
 
 def _text(value: str, name: str) -> str:
@@ -143,6 +146,92 @@ class OwnedInventoryPosition:
             raise ValueError("unsupported Owned Inventory policy")
         if self.schema_version != OWNED_INVENTORY_POSITION_SCHEMA_VERSION:
             raise ValueError("unsupported Owned Inventory Position schema")
+
+    @property
+    def opportunity_identity(self) -> OpportunityIdentity:
+        return self.product_key.opportunity_identity
+
+    @property
+    def quantity_unit(self) -> str:
+        return self.product_key.quantity_unit
+
+
+@dataclass(frozen=True, slots=True)
+class OwnedInventoryPositionV2:
+    product_key: OwnedInventoryProductKey
+    total_received: int
+    total_sellable_received: int
+    total_damaged_received: int
+    total_outbound_quantity: int
+    sellable_on_hand: int
+    contributing_purchase_execution_ids: tuple[str, ...]
+    contributing_goods_receipt_ids: tuple[str, ...]
+    contributing_actual_sale_settlement_ids: tuple[str, ...]
+    inbound_source_event_count: int
+    outbound_source_event_count: int
+    policy_name: str = OWNED_INVENTORY_V2_POLICY_NAME
+    policy_version: str = OWNED_INVENTORY_V2_POLICY_VERSION
+    schema_version: str = OWNED_INVENTORY_V2_POSITION_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.product_key, OwnedInventoryProductKey):
+            raise TypeError("product_key must be OwnedInventoryProductKey")
+        for name in (
+            "total_received",
+            "total_sellable_received",
+            "total_damaged_received",
+            "total_outbound_quantity",
+            "sellable_on_hand",
+            "inbound_source_event_count",
+            "outbound_source_event_count",
+        ):
+            object.__setattr__(
+                self, name, _non_negative_integer(getattr(self, name), name)
+            )
+        for name in (
+            "contributing_purchase_execution_ids",
+            "contributing_goods_receipt_ids",
+        ):
+            object.__setattr__(self, name, _source_ids(getattr(self, name), name))
+        sale_ids = self.contributing_actual_sale_settlement_ids
+        if not isinstance(sale_ids, tuple):
+            raise ValueError(
+                "contributing_actual_sale_settlement_ids must be a tuple"
+            )
+        normalized_sale_ids = tuple(
+            _text(value, "contributing_actual_sale_settlement_ids")
+            for value in sale_ids
+        )
+        if len(set(normalized_sale_ids)) != len(normalized_sale_ids):
+            raise ValueError(
+                "contributing_actual_sale_settlement_ids must be unique"
+            )
+        object.__setattr__(
+            self, "contributing_actual_sale_settlement_ids", normalized_sale_ids
+        )
+        if self.inbound_source_event_count != len(
+            self.contributing_goods_receipt_ids
+        ):
+            raise ValueError("inbound count must equal Goods Receipt source count")
+        if self.outbound_source_event_count != len(normalized_sale_ids):
+            raise ValueError("outbound count must equal Actual Sale source count")
+        if self.inbound_source_event_count == 0 or self.total_received == 0:
+            raise ValueError("Owned Inventory Position v2 requires receipt events")
+        if self.total_sellable_received + self.total_damaged_received != self.total_received:
+            raise ValueError("sellable plus damaged received must equal total received")
+        if self.total_outbound_quantity > self.total_sellable_received:
+            raise ValueError("Owned Inventory Position v2 source history is negative")
+        if self.sellable_on_hand != (
+            self.total_sellable_received - self.total_outbound_quantity
+        ):
+            raise ValueError("sellable_on_hand differs from authoritative calculation")
+        if (
+            self.policy_name != OWNED_INVENTORY_V2_POLICY_NAME
+            or self.policy_version != OWNED_INVENTORY_V2_POLICY_VERSION
+        ):
+            raise ValueError("unsupported Owned Inventory v2 policy")
+        if self.schema_version != OWNED_INVENTORY_V2_POSITION_SCHEMA_VERSION:
+            raise ValueError("unsupported Owned Inventory Position v2 schema")
 
     @property
     def opportunity_identity(self) -> OpportunityIdentity:

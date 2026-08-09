@@ -575,15 +575,18 @@ sale, reservation, settlement, marketplace availability, or manual balance is
 subtracted. There is no v1 owned-inventory SQLite table; a future materialized
 cache must be disposable and fully rebuildable from immutable events.
 
-`GET /api/v1/opportunities/{opportunity_id}/owned-inventory` uses one
-request-owned connection and returns a deterministic collection because one O2
-may contain multiple exact product keys. The repository enumerates committed
-Goods Receipt history through an Opportunity index; Application sorts source
-events by UTC receipt time and Receipt ID, groups only complete matching keys,
-and preserves every contributing Receipt and Purchase Execution ID. Missing O2
-returns 404, an existing O2 without receipts returns an empty collection, source
-conflict returns 409, and bounded read failure returns 503. Repeated reads and
-restart reconstruction perform no writes and produce the same positions.
+CR-1B6C3 preserves that v1 behavior as an explicit historical Domain owner and
+adds current production v2 policy
+`receipt-and-complete-sale-derived-owned-inventory / 2.0.0` with schema
+`owned-inventory-position-v2`. The unchanged GET uses one request-owned
+connection to enumerate committed receipts plus COMPLETE sale settlements,
+sorts inbound by UTC receipt time/ID and outbound by UTC period-end/settlement
+ID, and subtracts only exact-key COMPLETE fulfilled outbound. BLOCKED revisions
+are absent. Zero-sale COMPLETE events remain traceable with zero quantity.
+Missing O2 returns 404, an existing O2 without receipts returns an empty
+collection, source conflict returns 409, and bounded read failure returns 503.
+Repeated reads and restart reconstruction perform no writes and produce the
+same positions.
 
 The decision-level closed-loop sequence is:
 
@@ -591,10 +594,10 @@ The decision-level closed-loop sequence is:
 PurchaseExecutionRecord (implemented)
 |-- ActualAcquisitionSettlement (implemented; independent money fact)
 `-- GoodsReceiptRecord(s) (implemented physical facts)
-    `-- OwnedInventoryPosition (implemented derived read model)
+    `-- OwnedInventoryPosition v1 (implemented historical receipt-only read)
 
 ActualSaleSettlement (implemented authoritative outbound source)
-    `-- OwnedInventoryPosition v2 outbound subtraction (future)
+    `-- OwnedInventoryPosition v2 (implemented current production read)
 
 ActualAcquisitionSettlement
 + GoodsReceiptRecord
@@ -625,9 +628,9 @@ and chronological COMPLETE outbound not exceeding eligible sellable receipts
 at every period-end boundary. One `BEGIN IMMEDIATE` transaction repeats replay,
 revision, source, overlap/reference and oversale checks before committing
 history plus command receipt. It rejects v1 backorder/oversale and never clamps
-a negative balance. A future
-`receipt-and-complete-sale-derived-owned-inventory / 2.0.0` projection will
-subtract only COMPLETE settlement outbound; receipt-only v1 remains unchanged.
+a negative balance. CR-1B6C3's
+`receipt-and-complete-sale-derived-owned-inventory / 2.0.0` projection now
+subtracts only COMPLETE settlement outbound; receipt-only v1 remains unchanged.
 Unknown fees, refunds, advertising, fulfillment/storage, other material costs,
 or finality keep a revision `BLOCKED` and contribute no outbound.
 
@@ -645,4 +648,4 @@ fresh BLOCKED/COMPLETE revisions return 201, replay returns 200, and missing,
 conflict, structural and bounded persistence failures map to 404/409/422/503.
 Zero-sale COMPLETE windows are valid. No route calls Coupang, calculates
 profit/margin/ROI, creates Actual Outcome, mutates legacy Actual Economics, or
-changes receipt-only Owned Inventory v1.
+reinterprets receipt-only Owned Inventory v1.

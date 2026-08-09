@@ -7,17 +7,18 @@ import pytest
 
 import app.web as web_module
 from app.application.owned_inventory import (
-    GetOwnedInventoryPositions,
+    GetOwnedInventoryPositionsV2,
     OwnedInventoryOpportunityNotFoundError,
 )
-from app.infrastructure.goods_receipt import (
-    GoodsReceiptHistoryError,
-    SQLiteGoodsReceiptRepository,
+from app.infrastructure.actual_sale_settlement import (
+    ActualSaleSettlementHistoryError,
+    SQLiteActualSaleSettlementRepository,
 )
 from app.web import app
 from test_goods_receipt_production_api import _payload, _prepare
 from test_o2_economics_production_chain_api import economics_chain_client
-from test_owned_inventory import MemoryOwnedInventoryRepository, O2, NOW, _receipt
+from test_owned_inventory import O2, NOW, _receipt
+from test_owned_inventory_v2 import MemoryOwnedInventoryV2Repository
 
 
 def _route(opportunity_id: str) -> str:
@@ -75,9 +76,12 @@ def test_get_empty_then_partial_damaged_projection_and_restart_rebuild(
         [first.json()["record_id"], second.json()["record_id"]]
     )
     assert position["source_event_count"] == 2
-    assert position["policy_name"] == "receipt-derived-owned-inventory"
-    assert position["policy_version"] == "1.0.0"
-    assert position["schema_version"] == "owned-inventory-position-v1"
+    assert position["inbound_source_event_count"] == 2
+    assert position["outbound_source_event_count"] == 0
+    assert position["contributing_actual_sale_settlement_ids"] == []
+    assert position["policy_name"] == "receipt-and-complete-sale-derived-owned-inventory"
+    assert position["policy_version"] == "2.0.0"
+    assert position["schema_version"] == "owned-inventory-position-v2"
     assert isinstance(position["sellable_on_hand"], int)
     assert "available" not in position
     assert not any("amount" in key for key in position)
@@ -113,7 +117,7 @@ def test_get_multiple_product_positions_are_not_merged_and_are_deterministic():
         _receipt("receipt-sku-b", sku_reference="sku-b", received=7, sellable=7),
         _receipt("receipt-sku-a", sku_reference="sku-a", received=3, sellable=3),
     )
-    query = GetOwnedInventoryPositions(MemoryOwnedInventoryRepository(records))
+    query = GetOwnedInventoryPositionsV2(MemoryOwnedInventoryV2Repository(records))
     app.dependency_overrides[web_module.get_owned_inventory_query] = lambda: query
     try:
         first = TestClient(app).get(_route(O2.opportunity_id))
@@ -138,8 +142,8 @@ def test_get_source_order_uses_received_time_then_record_id():
     later = _receipt(
         "receipt-c", received=4, sellable=4, received_at=NOW + timedelta(minutes=1)
     )
-    query = GetOwnedInventoryPositions(
-        MemoryOwnedInventoryRepository((later, same_time_b, same_time_a))
+    query = GetOwnedInventoryPositionsV2(
+        MemoryOwnedInventoryV2Repository((later, same_time_b, same_time_a))
     )
     app.dependency_overrides[web_module.get_owned_inventory_query] = lambda: query
     try:
@@ -160,7 +164,7 @@ def test_get_infrastructure_failure_is_bounded_503_and_closes_connection(
 ):
     result = _prepare(economics_chain_client)
     captured = []
-    real_repository = SQLiteGoodsReceiptRepository
+    real_repository = SQLiteActualSaleSettlementRepository
 
     class FailingRepository(real_repository):
         def __init__(self, value):
@@ -168,9 +172,9 @@ def test_get_infrastructure_failure_is_bounded_503_and_closes_connection(
             captured.append(self)
 
         def list_goods_receipts_for_opportunity(self, _opportunity_id):
-            raise GoodsReceiptHistoryError("private sqlite detail")
+            raise ActualSaleSettlementHistoryError("private sqlite detail")
 
-    monkeypatch.setattr(web_module, "SQLiteGoodsReceiptRepository", FailingRepository)
+    monkeypatch.setattr(web_module, "SQLiteActualSaleSettlementRepository", FailingRepository)
     response = result["client"].get(_route(result["opportunity_id"]))
 
     assert response.status_code == 503
@@ -184,7 +188,7 @@ def test_get_partial_composition_conflict_is_409_and_closes_connection(
 ):
     result = _prepare(economics_chain_client)
     captured = []
-    real_repository = SQLiteGoodsReceiptRepository
+    real_repository = SQLiteActualSaleSettlementRepository
 
     class ConflictingRepository(real_repository):
         def __init__(self, value):
@@ -194,7 +198,7 @@ def test_get_partial_composition_conflict_is_409_and_closes_connection(
         def list_goods_receipts_for_opportunity(self, _opportunity_id):
             return (_receipt("conflicting-receipt", identity=O2),)
 
-    monkeypatch.setattr(web_module, "SQLiteGoodsReceiptRepository", ConflictingRepository)
+    monkeypatch.setattr(web_module, "SQLiteActualSaleSettlementRepository", ConflictingRepository)
     response = result["client"].get(_route(result["opportunity_id"]))
 
     assert response.status_code == 409

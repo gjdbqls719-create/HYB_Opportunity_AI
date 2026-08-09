@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B6C3 - Owned Inventory Projection v2
+
+- Preserve receipt-only `receipt-derived-owned-inventory / 1.0.0` as the historical v1 Domain/read owner and add immutable `receipt-and-complete-sale-derived-owned-inventory / 2.0.0`, schema `owned-inventory-position-v2`, without a mutable or materialized inventory table.
+- Extend the read contract over existing history to aggregate exact-key committed Goods Receipts and only terminal COMPLETE Actual Sale Settlements, preserve ordered Purchase/Receipt/Sale source IDs and separate event counts, ignore BLOCKED quantity, retain zero-sale provenance, and fail closed on unmatched or negative reconstruction.
+- Evolve the existing production `GET /api/v1/opportunities/{opportunity_id}/owned-inventory` response to v2 and prove receipt-to-sale subtraction, BLOCKED exclusion, multiple/zero-sale windows, read purity, restart rebuildability, variant isolation, and bounded errors without changing Actual Sale admission, InventorySnapshot, Actual Acquisition, or Actual Outcome.
+
 ## CR-1B6C2 - Actual Sale Settlement Authority and Production API
 
 - Implement ADR-0054 as immutable marketplace-generic `BLOCKED`/`COMPLETE` actual-sale settlement revisions over one exact Goods Receipt-derived O2/product, explicit evaluation window/report reference, fulfilled outbound quantity, canonical gross proceeds, distinct sale-side monetary scopes, ordered other costs, payout reconciliation, finality, evidence, and Decimal/currency policy.

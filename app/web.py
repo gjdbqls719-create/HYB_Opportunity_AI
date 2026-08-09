@@ -310,7 +310,7 @@ from app.application.actual_sale_settlement import (
     ActualSaleSettlementWindowConflictError,
 )
 from app.application.owned_inventory import (
-    GetOwnedInventoryPositions,
+    GetOwnedInventoryPositionsV2,
     OwnedInventoryOpportunityNotFoundError,
     OwnedInventorySourceConflictError,
 )
@@ -2709,7 +2709,10 @@ class OwnedInventoryPositionResponse(BaseModel):
     sellable_on_hand: int
     contributing_purchase_execution_ids: tuple[str, ...]
     contributing_goods_receipt_ids: tuple[str, ...]
+    contributing_actual_sale_settlement_ids: tuple[str, ...]
     source_event_count: int
+    inbound_source_event_count: int
+    outbound_source_event_count: int
     policy_name: str
     policy_version: str
     schema_version: str
@@ -3791,10 +3794,14 @@ def get_owned_inventory_query():
     resources = ExitStack()
     try:
         repository = resources.enter_context(
-            SQLiteGoodsReceiptRepository(DEFAULT_DATABASE_PATH)
+            SQLiteActualSaleSettlementRepository(DEFAULT_DATABASE_PATH)
         )
-        query = GetOwnedInventoryPositions(repository)
-    except (sqlite3.Error, GoodsReceiptPersistenceError) as error:
+        query = GetOwnedInventoryPositionsV2(repository)
+    except (
+        sqlite3.Error,
+        GoodsReceiptPersistenceError,
+        ActualSaleSettlementPersistenceError,
+    ) as error:
         resources.close()
         raise HTTPException(
             status_code=503,
@@ -6528,7 +6535,12 @@ def _owned_inventory_position_response(position) -> OwnedInventoryPositionRespon
             position.contributing_purchase_execution_ids
         ),
         contributing_goods_receipt_ids=position.contributing_goods_receipt_ids,
-        source_event_count=position.source_event_count,
+        contributing_actual_sale_settlement_ids=(
+            position.contributing_actual_sale_settlement_ids
+        ),
+        source_event_count=position.inbound_source_event_count,
+        inbound_source_event_count=position.inbound_source_event_count,
+        outbound_source_event_count=position.outbound_source_event_count,
         policy_name=position.policy_name,
         policy_version=position.policy_version,
         schema_version=position.schema_version,
@@ -6541,7 +6553,7 @@ def _owned_inventory_position_response(position) -> OwnedInventoryPositionRespon
 )
 def get_owned_inventory(
     opportunity_id: str,
-    query: GetOwnedInventoryPositions = Depends(get_owned_inventory_query),
+    query: GetOwnedInventoryPositionsV2 = Depends(get_owned_inventory_query),
 ) -> OwnedInventoryResponse:
     try:
         positions = query.execute(opportunity_id)
@@ -6551,7 +6563,11 @@ def get_owned_inventory(
         raise HTTPException(
             status_code=409, detail="Owned Inventory source conflict"
         ) from error
-    except (GoodsReceiptPersistenceError, sqlite3.Error) as error:
+    except (
+        GoodsReceiptPersistenceError,
+        ActualSaleSettlementPersistenceError,
+        sqlite3.Error,
+    ) as error:
         raise HTTPException(
             status_code=503,
             detail="Owned Inventory persistence unavailable",

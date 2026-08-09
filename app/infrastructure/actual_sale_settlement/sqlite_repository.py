@@ -235,6 +235,7 @@ class SQLiteActualSaleSettlementRepository:
                 BEGIN SELECT RAISE(ABORT,'COMPLETE actual sale settlement is terminal'); END""")
 
     def get_goods_receipt(self, record_id: str): return self._goods.get_record(record_id)
+    def get_opportunity_identity(self, opportunity_id: str): return self._goods.get_opportunity_identity(opportunity_id)
     def list_goods_receipts_for_opportunity(self, opportunity_id: str): return self._goods.list_goods_receipts_for_opportunity(opportunity_id)
 
     def _row(self, settlement_id: str):
@@ -336,6 +337,18 @@ class SQLiteActualSaleSettlementRepository:
 
     def list_complete_settlements_for_product(self, product_key):
         rows = self._connection.execute(f"SELECT * FROM {HISTORY_TABLE} WHERE product_fingerprint=? AND state='complete' ORDER BY period_end,settlement_id", (_key_fingerprint(product_key),)).fetchall()
+        return tuple(self.get_settlement(row["settlement_id"]) for row in rows)
+
+    def list_complete_actual_sale_settlements_for_opportunity(self, opportunity_id):
+        try:
+            rows = self._connection.execute(
+                f"SELECT * FROM {HISTORY_TABLE} WHERE opportunity_id=? AND state='complete' ORDER BY period_end,settlement_id",
+                (opportunity_id,),
+            ).fetchall()
+        except sqlite3.Error as error:
+            raise ActualSaleSettlementHistoryError(
+                "Actual Sale Settlement Opportunity history query failed"
+            ) from error
         return tuple(self.get_settlement(row["settlement_id"]) for row in rows)
 
     def _receipt_row(self, command_id: str):

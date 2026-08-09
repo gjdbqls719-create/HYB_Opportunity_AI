@@ -541,19 +541,24 @@ It has no request body or manual quantity parameters. One O2 may own more than
 one exact stock key, so the response contains an ordered `positions` collection
 rather than one ambiguous balance.
 
-Each position key contains the exact O2 identity, source platform, Supplier ID,
+Each current-production v2 position key contains the exact O2 identity, source platform, Supplier ID,
 sourcing product ID, external product/option/SKU references, and quantity unit.
-Only complete identical keys aggregate across Purchase Executions. Position and
-source ordering is deterministic; every contributing Purchase Execution ID and
-Goods Receipt ID is returned with its source-event count.
+Only complete identical keys aggregate across Purchase Executions and COMPLETE
+sale windows. Position and source ordering is deterministic; every contributing
+Purchase Execution, Goods Receipt, and COMPLETE Actual Sale Settlement ID is
+returned with separate inbound and outbound source-event counts.
 
-v1 returns integer `total_received`, `total_sellable_received`,
-`total_damaged_received`, explicit `total_outbound_quantity` zero, and
-`sellable_on_hand == total_sellable_received`. Policy
-`receipt-derived-owned-inventory` version `1.0.0` and schema
-`owned-inventory-position-v1` are server-owned. No hypothetical sale,
-settlement status, marketplace availability, reservation, adjustment, or
-financial amount affects the result.
+The production GET returns integer `total_received`, `total_sellable_received`,
+`total_damaged_received`, `total_outbound_quantity`, and
+`sellable_on_hand == total_sellable_received - total_outbound_quantity` under
+policy `receipt-and-complete-sale-derived-owned-inventory` version `2.0.0` and
+schema `owned-inventory-position-v2`. Only committed COMPLETE
+`ActualSaleSettlement.fulfilled_outbound_quantity` contributes outbound.
+BLOCKED revisions are excluded; zero-sale COMPLETE sources remain listed with
+zero quantity. Historical v1 remains `receipt-derived-owned-inventory / 1.0.0`,
+schema `owned-inventory-position-v1`, with outbound zero and is not
+reinterpreted. No marketplace availability, reservation, adjustment, financial
+amount, refund, or return adds or subtracts inventory.
 
 An existing Opportunity with no Goods Receipt events returns 200 with an empty
 positions collection and no fabricated product identity. Missing Opportunity
@@ -561,7 +566,9 @@ returns 404, exact source conflict returns bounded 409, and persistence or
 reconstruction failure returns bounded 503. The request-owned connection closes
 for every result. The GET performs no writes, creates no materialized inventory
 table, selects no latest business source, and rebuilds the same result after
-restart from immutable receipt history.
+restart from immutable receipt and COMPLETE sale history. A reconstructed
+negative position or COMPLETE sale without a matching exact receipt key fails
+closed rather than being clamped or ignored.
 
 ## Actual Sale Settlement
 
