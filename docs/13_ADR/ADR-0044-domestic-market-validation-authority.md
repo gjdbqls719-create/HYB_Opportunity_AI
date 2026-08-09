@@ -317,6 +317,18 @@ Opportunities remain `BLOCKED`.
 No ML prediction, provider reputation system, automated trust scoring,
 multi-market fusion, generalized crawler, or multi-country policy is required.
 
+## Production Implementation Status
+
+CR-1B5D2G exposes this existing authority through the Opportunity-scoped
+`POST /api/v1/opportunities/{opportunity_id}/domestic-market-validations` route.
+One request-owned SQLite connection reconstructs the exact lifecycle, immutable KR
+Market binding, and named Competition/Demand sources before the existing Application
+owner evaluates them. The Founder/operator supplies factual review and current-use
+verification inputs at a private, currently unauthenticated boundary; the server owns
+assessment identity, final state, ordered reasons, and evaluation/commit times. The
+route adds no latest-source selection, raw evidence policy, Economics interpretation,
+Capital state, UI, authentication, or automated execution.
+
 ## Consequences
 
 - Existing operational APIs and Decision Readiness remain backward compatible,
@@ -334,7 +346,7 @@ multi-market fusion, generalized crawler, or multi-country policy is required.
 
 ## Deferred Work
 
-- production entry and any API/UI exposure;
+- UI exposure;
 - trusted operator authentication/injection at a production boundary;
 - automated evidence collection and provider trust scoring;
 - any approved numeric Capital freshness window;

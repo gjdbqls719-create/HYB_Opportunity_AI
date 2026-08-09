@@ -273,6 +273,15 @@ from app.application.demand_observation_admission import (
     DemandAdmissionUnavailableError, FinalizeDemandObservationAdmission,
     FinalizeDemandObservationAdmissionCommand,
 )
+from app.application.domestic_market_validation import (
+    DomesticMarketValidationPolicyError,
+    DomesticMarketValidationProductionEntry,
+    DomesticMarketValidationProductionRequest,
+    DomesticMarketValidationReplayConflictError,
+    DomesticMarketValidationSourceConflictError,
+    DomesticMarketValidationSourceNotFoundError,
+    ValidateDomesticMarketForCapital,
+)
 from app.application.review import (
     ApproveCandidateCommand,
     CancelReviewCommand,
@@ -310,6 +319,7 @@ from app.domain.market_intelligence import (
     ArtifactType,
     CompetitionObservation,
     DemandObservation,
+    DomesticMarketVerification,
     ExternalSignalDirection,
     ExternalSignalSourceType,
     InvalidReviewSessionTransitionError,
@@ -365,6 +375,11 @@ from app.infrastructure.conservative_economics import (
     ConservativeEconomicsPersistenceError,
     ProductionConservativeEconomicsIdentityGenerator,
     SQLiteConservativeEconomicsRepository,
+)
+from app.infrastructure.domestic_market_validation import (
+    DomesticMarketValidationPersistenceError,
+    ProductionDomesticMarketValidationIdentityGenerator,
+    SQLiteDomesticMarketValidationRepository,
 )
 from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
 from app.infrastructure.snapshot_chain_identity import (
@@ -836,6 +851,104 @@ class MarketObservationIdentityRequest(BaseModel):
     condition: str | None = None
     window_started_at: datetime
     window_ended_at: datetime
+
+
+class DomesticMarketValidationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    competition_observation_id: str = Field(min_length=1)
+    competition_assessment_id: str = Field(min_length=1)
+    demand_observation_id: str = Field(min_length=1)
+    demand_assessment_id: str = Field(min_length=1)
+    accepted_external_signal_ids: tuple[str, ...] = ()
+    operator_id: str = Field(min_length=1)
+    reviewed_source_ids: tuple[str, ...]
+    current_use_confirmed: bool
+    verified_at: datetime
+    requested_at: datetime
+    policy_name: str = Field(default="domestic-market-validation", min_length=1)
+    policy_version: str = Field(default="1.0.0", min_length=1)
+
+    def to_application_request(
+        self,
+        opportunity_id: str,
+    ) -> DomesticMarketValidationProductionRequest:
+        return DomesticMarketValidationProductionRequest(
+            command_id=self.command_id,
+            opportunity_id=opportunity_id,
+            competition_observation_id=self.competition_observation_id,
+            competition_assessment_id=self.competition_assessment_id,
+            demand_observation_id=self.demand_observation_id,
+            demand_assessment_id=self.demand_assessment_id,
+            accepted_external_signal_ids=self.accepted_external_signal_ids,
+            verification=DomesticMarketVerification(
+                operator_id=self.operator_id,
+                verified_at=self.verified_at,
+                current_use_confirmed=self.current_use_confirmed,
+                reviewed_source_ids=self.reviewed_source_ids,
+            ),
+            requested_at=self.requested_at,
+            policy_name=self.policy_name,
+            policy_version=self.policy_version,
+        )
+
+
+class DomesticMarketMetricEvidenceResponse(BaseModel):
+    metric: str
+    value: int | str
+    source: str | None
+    reference: str | None
+    observed_at: datetime | None
+    collection_method: str
+    status: str
+    confidence: str
+    unit: str | None
+
+
+class DomesticMarketAnalysisSourceResponse(BaseModel):
+    observation_id: str
+    assessment_id: str
+    observation_schema_version: str | None
+    assessment_schema_version: str | None
+    assessment_policy_version: str | None
+    availability: str | None
+    evidence: tuple[DomesticMarketMetricEvidenceResponse, ...]
+
+
+class DomesticMarketSourceManifestResponse(BaseModel):
+    opportunity_id: str
+    discovery_reference: str
+    market_identity: MarketObservationIdentityRequest
+    competition: DomesticMarketAnalysisSourceResponse
+    demand: DomesticMarketAnalysisSourceResponse
+    accepted_external_signal_ids: tuple[str, ...]
+    schema_version: str
+
+
+class DomesticMarketVerificationResponse(BaseModel):
+    operator_id: str
+    verified_at: datetime
+    current_use_confirmed: bool
+    reviewed_source_ids: tuple[str, ...]
+    schema_version: str
+
+
+class DomesticMarketValidationResponse(BaseModel):
+    command_id: str
+    assessment_id: str
+    source_manifest: DomesticMarketSourceManifestResponse
+    verification: DomesticMarketVerificationResponse
+    state: str
+    blocking_reasons: tuple[str, ...]
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    committed_at: datetime
+    assessment_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
 
 
 class DomesticSellingOpportunityAdmissionRequest(BaseModel):
@@ -2018,6 +2131,27 @@ def get_verified_economics_admission_service():
         yield FinalizeVerifiedEconomicsAdmission(repository)
     finally:
         repository.close()
+
+
+def get_domestic_market_validation_entry():
+    repository = None
+    try:
+        repository = SQLiteDomesticMarketValidationRepository(DEFAULT_DATABASE_PATH)
+        owner = ValidateDomesticMarketForCapital(
+            repository,
+            assessment_id_generator=ProductionDomesticMarketValidationIdentityGenerator(),
+            evaluated_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        yield DomesticMarketValidationProductionEntry(repository, owner)
+    except (sqlite3.Error, DomesticMarketValidationPersistenceError) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="domestic market validation persistence unavailable",
+        ) from error
+    finally:
+        if repository is not None:
+            repository.close()
 
 
 def get_competition_admission_service():
@@ -3400,6 +3534,107 @@ def _market_identity_payload(value) -> dict[str, object]:
         "window_started_at": value.window_started_at.isoformat(),
         "window_ended_at": value.window_ended_at.isoformat(),
     }
+
+
+def _domestic_market_evidence_payload(value) -> dict[str, object]:
+    return {
+        "metric": value.metric,
+        "value": str(value.value) if isinstance(value.value, Decimal) else value.value,
+        "source": value.source,
+        "reference": value.reference,
+        "observed_at": value.observed_at,
+        "collection_method": value.collection_method,
+        "status": value.status.value,
+        "confidence": str(value.confidence),
+        "unit": value.unit,
+    }
+
+
+def _domestic_market_source_payload(value) -> dict[str, object]:
+    return {
+        "observation_id": value.observation_id,
+        "assessment_id": value.assessment_id,
+        "observation_schema_version": value.observation_schema_version,
+        "assessment_schema_version": value.assessment_schema_version,
+        "assessment_policy_version": value.assessment_policy_version,
+        "availability": value.availability,
+        "evidence": tuple(
+            _domestic_market_evidence_payload(item) for item in value.evidence
+        ),
+    }
+
+
+def _domestic_market_validation_payload(result) -> dict[str, object]:
+    assessment = result.assessment
+    manifest = assessment.source_manifest
+    verification = assessment.verification
+    return {
+        "command_id": result.receipt.command_id,
+        "assessment_id": assessment.assessment_id,
+        "source_manifest": {
+            "opportunity_id": manifest.opportunity_id,
+            "discovery_reference": manifest.discovery_reference,
+            "market_identity": _market_identity_payload(manifest.market_identity),
+            "competition": _domestic_market_source_payload(manifest.competition),
+            "demand": _domestic_market_source_payload(manifest.demand),
+            "accepted_external_signal_ids": manifest.accepted_external_signal_ids,
+            "schema_version": manifest.schema_version,
+        },
+        "verification": {
+            "operator_id": verification.operator_id,
+            "verified_at": verification.verified_at,
+            "current_use_confirmed": verification.current_use_confirmed,
+            "reviewed_source_ids": verification.reviewed_source_ids,
+            "schema_version": verification.schema_version,
+        },
+        "state": assessment.state.value,
+        "blocking_reasons": tuple(
+            value.code.value for value in assessment.blocking_reasons
+        ),
+        "policy_name": assessment.policy_name,
+        "policy_version": assessment.policy_version,
+        "requested_at": assessment.requested_at,
+        "evaluated_at": assessment.evaluated_at,
+        "committed_at": result.receipt.committed_at,
+        "assessment_schema_version": assessment.schema_version,
+        "receipt_schema_version": result.receipt.schema_version,
+        "replayed": result.replayed,
+    }
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/domestic-market-validations",
+    response_model=DomesticMarketValidationResponse,
+    status_code=201,
+)
+def validate_domestic_market_for_capital(
+    opportunity_id: str,
+    request: DomesticMarketValidationRequest,
+    response: Response,
+    entry: DomesticMarketValidationProductionEntry = Depends(
+        get_domestic_market_validation_entry
+    ),
+) -> DomesticMarketValidationResponse:
+    try:
+        result = entry.execute(request.to_application_request(opportunity_id))
+    except DomesticMarketValidationSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DomesticMarketValidationSourceConflictError,
+        DomesticMarketValidationReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (DomesticMarketValidationPolicyError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (DomesticMarketValidationPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="domestic market validation persistence unavailable",
+        ) from error
+    response.status_code = 200 if result.replayed else 201
+    return DomesticMarketValidationResponse.model_validate(
+        _domestic_market_validation_payload(result)
+    )
 
 
 def _domestic_selling_result_payload(result) -> dict[str, object]:

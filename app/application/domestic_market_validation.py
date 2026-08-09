@@ -74,6 +74,14 @@ class DomesticMarketValidationPolicyError(DomesticMarketValidationError):
     pass
 
 
+class DomesticMarketValidationSourceNotFoundError(DomesticMarketValidationError):
+    pass
+
+
+class DomesticMarketValidationSourceConflictError(DomesticMarketValidationError):
+    pass
+
+
 def _text(value: str, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be non-empty text")
@@ -209,6 +217,156 @@ class DomesticMarketValidationRepository(Protocol):
     def save_assessment(self, command, assessment, receipt) -> DomesticMarketValidationPublication: ...
     def get_assessment(self, assessment_id: str) -> DomesticMarketValidationAssessment | None: ...
     def get_receipt(self, command_id: str) -> DomesticMarketValidationReceipt | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class DomesticMarketValidationProductionRequest:
+    command_id: str
+    opportunity_id: str
+    competition_observation_id: str
+    competition_assessment_id: str
+    demand_observation_id: str
+    demand_assessment_id: str
+    accepted_external_signal_ids: tuple[str, ...]
+    verification: DomesticMarketVerification
+    requested_at: datetime
+    policy_name: str = DOMESTIC_MARKET_VALIDATION_POLICY_NAME
+    policy_version: str = DOMESTIC_MARKET_VALIDATION_POLICY_VERSION
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "competition_observation_id",
+            "competition_assessment_id",
+            "demand_observation_id",
+            "demand_assessment_id",
+            "policy_name",
+            "policy_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        if not isinstance(self.accepted_external_signal_ids, tuple):
+            raise TypeError("accepted_external_signal_ids must be tuple")
+        normalized = tuple(
+            _text(value, "external signal id")
+            for value in self.accepted_external_signal_ids
+        )
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("accepted_external_signal_ids must be unique")
+        object.__setattr__(self, "accepted_external_signal_ids", normalized)
+        if not isinstance(self.verification, DomesticMarketVerification):
+            raise TypeError("verification must be DomesticMarketVerification")
+        object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
+
+
+class DomesticMarketValidationProductionRepository(
+    DomesticMarketValidationRepository,
+    Protocol,
+):
+    def get_opportunity_lifecycle(self, opportunity_id: str): ...
+
+
+class DomesticMarketValidationProductionEntry:
+    def __init__(
+        self,
+        repository: DomesticMarketValidationProductionRepository,
+        owner: "ValidateDomesticMarketForCapital",
+    ) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(
+        self,
+        request: DomesticMarketValidationProductionRequest,
+    ) -> DomesticMarketValidationPublication:
+        if not isinstance(request, DomesticMarketValidationProductionRequest):
+            raise TypeError("request must be DomesticMarketValidationProductionRequest")
+        lifecycle = self._repository.get_opportunity_lifecycle(request.opportunity_id)
+        if lifecycle is None or lifecycle.is_archived:
+            raise DomesticMarketValidationSourceNotFoundError(
+                "exact Opportunity is missing"
+            )
+        binding = self._repository.get_market_identity_binding(request.opportunity_id)
+        if (
+            binding is None
+            or binding.opportunity_id != lifecycle.opportunity_id
+            or binding.discovery_reference != lifecycle.discovery_reference
+        ):
+            raise DomesticMarketValidationSourceConflictError(
+                "Opportunity Market binding conflicts with exact lifecycle"
+            )
+        command = ValidateDomesticMarketCommand(
+            command_id=request.command_id,
+            opportunity_identity=OpportunityIdentity(
+                lifecycle.opportunity_id,
+                lifecycle.discovery_reference,
+            ),
+            market_identity=binding.market_observation_identity,
+            competition_observation_id=request.competition_observation_id,
+            competition_assessment_id=request.competition_assessment_id,
+            demand_observation_id=request.demand_observation_id,
+            demand_assessment_id=request.demand_assessment_id,
+            accepted_external_signal_ids=request.accepted_external_signal_ids,
+            verification=request.verification,
+            requested_at=request.requested_at,
+            policy_name=request.policy_name,
+            policy_version=request.policy_version,
+        )
+        replay = self._repository.validate_replay(
+            command.command_id,
+            command.fingerprint,
+        )
+        if replay is not None:
+            return replay
+        self._validate_exact_sources(command)
+        return self._owner.execute(command)
+
+    def _validate_exact_sources(self, command: ValidateDomesticMarketCommand) -> None:
+        competition_observation = self._repository.get_observation_by_id(
+            command.competition_observation_id
+        )
+        competition_assessment = self._repository.get_competition_assessment_snapshot(
+            command.competition_assessment_id
+        )
+        demand_observation = self._repository.get_observation_by_id(
+            command.demand_observation_id
+        )
+        demand_assessment = self._repository.get_demand_assessment_snapshot(
+            command.demand_assessment_id
+        )
+        if competition_observation is None or competition_assessment is None:
+            raise DomesticMarketValidationSourceNotFoundError(
+                "exact Competition source is missing"
+            )
+        if demand_observation is None or demand_assessment is None:
+            raise DomesticMarketValidationSourceNotFoundError(
+                "exact Demand source is missing"
+            )
+        expected_identity = command.market_identity
+        if (
+            not isinstance(competition_observation, CompetitionObservation)
+            or not isinstance(competition_assessment, CompetitionAssessmentSnapshot)
+            or competition_observation.observation_id
+            != command.competition_observation_id
+            or competition_assessment.source_observation_id
+            != command.competition_observation_id
+            or competition_observation.identity != expected_identity
+            or competition_assessment.identity != expected_identity
+        ):
+            raise DomesticMarketValidationSourceConflictError(
+                "Competition source lineage conflicts with Opportunity"
+            )
+        if (
+            not isinstance(demand_observation, DemandObservation)
+            or not isinstance(demand_assessment, DemandAssessmentSnapshot)
+            or demand_observation.observation_id != command.demand_observation_id
+            or demand_assessment.source_observation_id != command.demand_observation_id
+            or demand_observation.identity != expected_identity
+            or demand_assessment.identity != expected_identity
+        ):
+            raise DomesticMarketValidationSourceConflictError(
+                "Demand source lineage conflicts with Opportunity"
+            )
 
 
 class ValidateDomesticMarketForCapital:

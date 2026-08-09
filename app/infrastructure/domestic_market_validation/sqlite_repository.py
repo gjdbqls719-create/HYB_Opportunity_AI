@@ -348,6 +348,9 @@ class SQLiteDomesticMarketValidationRepository:
     def get_market_identity_binding(self, opportunity_id):
         return self._opportunities.get_market_identity_binding(opportunity_id)
 
+    def get_opportunity_lifecycle(self, opportunity_id):
+        return self._opportunities.get(opportunity_id)
+
     def get_observation_by_id(self, observation_id):
         return self._market.get_observation_by_id(observation_id)
 

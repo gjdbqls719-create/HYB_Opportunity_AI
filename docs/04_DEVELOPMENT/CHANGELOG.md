@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2G - O2 Domestic Market Validation Production API Wiring
+
+- Add the request-scoped `POST /api/v1/opportunities/{opportunity_id}/domestic-market-validations` production entry over the existing ADR-0044 Application owner and one shared SQLite connection.
+- Require exact persisted Opportunity/KR Market and Competition/Demand source lineage while keeping Founder/operator review facts factual and all validation state, reason, identity, and server times authoritative.
+- Verify API-only O1-to-O2-to-Competition-to-Demand-to-Domestic-Validation operation, VALIDATED and BLOCKED outcomes, replay/restart/concurrency, bounded errors, rollback, cleanup, legacy KR compatibility, and Economics/Capital/Validation Queue isolation.
+
 ## CR-1B5D2F - O2 Operational Market and Verified Economics Ingress Eligibility
 
 - Replace Validation Queue membership as the Competition, Demand, and Verified Economics Opportunity-existence test with one shared exact non-archived Opportunity lifecycle and immutable Market-binding read contract.

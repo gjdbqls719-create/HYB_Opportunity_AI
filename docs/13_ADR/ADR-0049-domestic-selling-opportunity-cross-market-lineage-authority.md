@@ -42,6 +42,12 @@ of treating Validation Queue membership as Opportunity existence. Legacy
 queue-backed ingress remains unchanged, no queue snapshot is fabricated for O2,
 and O2 must admit its own Economics facts rather than copying O1 Economics.
 
+CR-1B5D2G completes the next production Market step without changing this ADR:
+the Domestic Market Validation route reconstructs O2's exact lifecycle, KR Market
+binding, and named O2 Competition/Demand sources, then delegates final state to the
+existing ADR-0044 owner. O1 remains immutable provenance and is never used as a
+fallback source or rewritten into KR.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate

@@ -206,6 +206,16 @@ validation. This admits both legacy queue-backed Opportunities and Domestic
 Selling O2 without fabricating queue snapshots or changing queue, assessment,
 evidence, or Economics semantics.
 
+CR-1B5D2G exposes the existing ADR-0044 owner through one request-scoped FastAPI
+entry. A single `SQLiteDomesticMarketValidationRepository` connection reads the
+exact Opportunity lifecycle, immutable KR Market binding, and caller-selected
+Competition/Demand observation-assessment pairs, while the Application remains
+the sole owner of evidence policy and `VALIDATED_FOR_CAPITAL`/`BLOCKED` state.
+Founder/operator review facts are explicit factual inputs at a private unauthenticated
+MVP boundary; assessment identity and evaluation/commit times remain server-owned.
+The entry performs no latest selection, Verified Economics interpretation, Validation
+Queue admission, or Capital creation.
+
 CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
 fact. An immutable binding links one `OpportunityIdentity` to one explicit
 Admission/Quote revision and is persisted with its replay receipt in a single
@@ -335,8 +345,8 @@ Capital readiness. Dedicated append-only SQLite assessment and receipt tables
 provide replay-first identity/time issuance, atomic commit, restart
 reconstruction, source-lineage integrity checks, rollback and concurrent-command
 convergence without latest-source selection or policy re-evaluation. Production
-API/UI, operator authentication and Capital Readiness consumption remain
-separate future boundaries.
+API exposure is added by CR-1B5D2G without changing that policy. UI, operator
+authentication and Capital Readiness consumption remain separate future boundaries.
 
 CR-1B5D2B implements the ADR-0049 Domain/Application foundation that preserves
 one foreign/source Opportunity O1 and admits a distinct KR domestic-selling

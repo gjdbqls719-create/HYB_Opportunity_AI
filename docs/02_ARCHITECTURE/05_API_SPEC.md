@@ -240,6 +240,31 @@ quality result, confidence result, availability, freshness, readiness, or Decisi
 Observation history/current, assessment history/current, and receipt are one transaction.
 First commit returns 201, exact replay 200, missing Opportunity 404, identity/provenance/
 command conflict 409, malformed domain input 422, and bounded infrastructure failure 503.
+
+## Domestic Market Validation production entry
+
+`POST /api/v1/opportunities/{opportunity_id}/domestic-market-validations` submits one
+explicit validation command against exact persisted Competition observation/assessment and
+Demand observation/assessment IDs. The server reconstructs the exact non-archived
+Opportunity lifecycle and immutable KR Market binding, verifies that both source pairs have
+that identity, and delegates all evidence, provenance, timing, completeness, and state
+decisions to `ValidateDomesticMarketForCapital`. It never selects latest sources, reads
+Verified Economics, creates Validation Queue membership, or creates Capital state.
+
+The caller supplies factual Founder/operator review inputs: `operator_id`, ordered
+`reviewed_source_ids`, `current_use_confirmed`, `verified_at`, `requested_at`, and the
+current policy name/version. This private Founder-operated MVP has no authentication or
+multi-user trust enforcement yet. The caller cannot submit an assessment ID, final state,
+blocking reasons, evaluation time, or commit time; `VALIDATED_FOR_CAPITAL` and `BLOCKED`
+are Application-derived committed outcomes and both are successful responses.
+
+Fresh commit returns 201 and exact replay returns 200 with the original identity, manifest,
+state, reasons, and timestamps. Missing Opportunity or exact source returns 404; changed
+command or Opportunity/source/Market lineage conflict returns 409; malformed request or
+domain validation returns 422; bounded persistence failure returns 503 without SQLite
+details. The response exposes the assessment ID, exact Opportunity/KR Market and source
+manifest, ordered reasons, operator verification facts, policy/times/schema versions, and
+replay indicator, but no internal fingerprint or SQLite payload.
 # Operational Production Safety
 
 `GET /api/v1/opportunities/{opportunity_id}/production-safety-evaluations`
