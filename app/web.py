@@ -309,6 +309,14 @@ from app.application.actual_sale_settlement import (
     ActualSaleSettlementTerminalConflictError,
     ActualSaleSettlementWindowConflictError,
 )
+from app.application.actual_outcome import (
+    ActualOutcomeOpportunityConflictError,
+    ActualOutcomeReplayConflictError,
+    ActualOutcomeSourceConflictError,
+    ActualOutcomeSourceIntegrityError,
+    ActualOutcomeSourceNotFoundError,
+    CalculateActualOutcome,
+)
 from app.application.owned_inventory import (
     GetOwnedInventoryPositionsV2,
     OwnedInventoryOpportunityNotFoundError,
@@ -321,6 +329,8 @@ from app.application.capital_production import (
     GoodsReceiptProductionRequest,
     ActualSaleSettlementProductionEntry,
     ActualSaleSettlementProductionRequest,
+    ActualOutcomeProductionEntry,
+    ActualOutcomeProductionRequest,
     CapitalGateProductionEntry,
     CapitalGateProductionRequest,
     CapitalProductionOpportunityConflictError,
@@ -614,6 +624,11 @@ from app.infrastructure.actual_sale_settlement import (
     ActualSaleSettlementPersistenceError,
     ProductionActualSaleSettlementIdentityGenerator,
     SQLiteActualSaleSettlementRepository,
+)
+from app.infrastructure.actual_outcome import (
+    ActualOutcomePersistenceError,
+    ProductionActualOutcomeIdentityGenerator,
+    SQLiteActualOutcomeRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -2913,6 +2928,101 @@ class ActualSaleSettlementResponse(BaseModel):
     replayed: bool
 
 
+class ActualOutcomeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    actual_acquisition_settlement_id: str = Field(min_length=1)
+    actual_sale_settlement_ids: tuple[str, ...] = Field(min_length=1)
+    requested_at: datetime
+
+
+class ActualOutcomeSaleWindowResponse(BaseModel):
+    settlement_id: str
+    period_start: datetime
+    period_end: datetime
+
+
+class ActualOutcomeAcquisitionAllocationResponse(BaseModel):
+    category: str
+    batch_amount: str
+    per_executed_unit: str
+    sold_cogs: str
+    remaining_sellable_basis: str
+    damaged_loss: str
+    unreceived_exposure: str
+
+
+class ActualOutcomeSaleComponentResponse(BaseModel):
+    category: str
+    amount: str
+
+
+class ActualOutcomeMetricResponse(BaseModel):
+    available: bool
+    value: str | None
+
+
+class ActualOutcomeResponse(BaseModel):
+    command_id: str
+    outcome_id: str
+    product_key: OwnedInventoryProductKeyResponse
+    purchase_execution_record_id: str
+    actual_acquisition_settlement_id: str
+    goods_receipt_ids: tuple[str, ...]
+    actual_sale_settlement_ids: tuple[str, ...]
+    sale_windows: tuple[ActualOutcomeSaleWindowResponse, ...]
+    state: str
+    inventory_resolution: str
+    blocking_reasons: tuple[str, ...]
+    executed_quantity: int
+    received_quantity: int
+    sellable_received_quantity: int
+    damaged_quantity: int
+    sold_quantity: int
+    remaining_sellable_quantity: int
+    returned_quantity: int
+    unreceived_quantity: int
+    quantity_unit: str
+    currency: str
+    acquisition_allocations: tuple[ActualOutcomeAcquisitionAllocationResponse, ...]
+    sale_components: tuple[ActualOutcomeSaleComponentResponse, ...]
+    other_sale_side_costs: str | None
+    acquisition_batch_total: str | None
+    actual_cogs: str | None
+    remaining_sellable_inventory_cost_basis: str | None
+    damaged_acquisition_loss: str | None
+    unreceived_acquisition_cost_basis: str | None
+    gross_realized_merchandise_revenue: str | None
+    recognized_sale_credits: str | None
+    recognized_sale_side_costs: str | None
+    net_realized_sale_contribution: str | None
+    actual_realized_profit: str | None
+    actual_margin: ActualOutcomeMetricResponse
+    actual_acquisition_roi: ActualOutcomeMetricResponse
+    known_payout_total: str | None
+    payout_reconciliation_states: tuple[str, ...]
+    evaluation_start: datetime
+    evaluation_through: datetime
+    acquisition_policy_version: str
+    acquisition_schema_version: str
+    goods_receipt_policy_versions: tuple[str, ...]
+    goods_receipt_schema_versions: tuple[str, ...]
+    sale_policy_versions: tuple[str, ...]
+    sale_schema_versions: tuple[str, ...]
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    source_manifest_schema_version: str
+    outcome_schema_version: str
+    receipt_schema_version: str
+    requested_at: datetime
+    calculated_at: datetime
+    committed_at: datetime
+    replayed: bool
+    aliased: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3780,6 +3890,36 @@ def get_actual_sale_settlement_entry():
         raise HTTPException(
             status_code=503,
             detail="Actual Sale Settlement persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_actual_outcome_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteActualOutcomeRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = ActualOutcomeProductionEntry(
+            CalculateActualOutcome(
+                repository,
+                outcome_id_generator=ProductionActualOutcomeIdentityGenerator(),
+                calculated_clock=clock,
+                committed_clock=clock,
+            )
+        )
+    except (sqlite3.Error, ActualOutcomePersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Outcome persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -7087,6 +7227,155 @@ def admit_actual_sale_settlement(
         admitted_at=settlement.admitted_at,
         committed_at=receipt.committed_at,
         replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/actual-outcomes",
+    response_model=ActualOutcomeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def calculate_actual_outcome(
+    opportunity_id: str,
+    request: ActualOutcomeRequest,
+    response: Response,
+    entry: ActualOutcomeProductionEntry = Depends(get_actual_outcome_entry),
+) -> ActualOutcomeResponse:
+    try:
+        publication = entry.execute(
+            ActualOutcomeProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                actual_acquisition_settlement_id=request.actual_acquisition_settlement_id,
+                actual_sale_settlement_ids=request.actual_sale_settlement_ids,
+                requested_at=request.requested_at,
+            )
+        )
+    except ActualOutcomeSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ActualOutcomeOpportunityConflictError,
+        ActualOutcomeReplayConflictError,
+        ActualOutcomeSourceConflictError,
+        ActualOutcomeSourceIntegrityError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (ActualOutcomePersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Outcome persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    outcome, receipt = publication.outcome, publication.receipt
+    manifest = outcome.source_manifest
+    key = manifest.product_key
+    identity = key.opportunity_identity
+
+    def money(value):
+        return None if value is None else str(value)
+
+    return ActualOutcomeResponse(
+        command_id=receipt.command_id,
+        outcome_id=outcome.outcome_id,
+        product_key=OwnedInventoryProductKeyResponse(
+            opportunity_id=identity.opportunity_id,
+            discovery_reference=identity.discovery_reference,
+            source_platform=key.source_platform,
+            supplier_id=key.supplier_id,
+            sourcing_product_id=key.sourcing_product_id,
+            external_product_reference=key.external_product_reference,
+            option_reference=key.option_reference,
+            sku_reference=key.sku_reference,
+            quantity_unit=key.quantity_unit,
+        ),
+        purchase_execution_record_id=manifest.purchase_execution_record_id,
+        actual_acquisition_settlement_id=manifest.actual_acquisition_settlement_id,
+        goods_receipt_ids=manifest.goods_receipt_ids,
+        actual_sale_settlement_ids=manifest.actual_sale_settlement_ids,
+        sale_windows=tuple(
+            ActualOutcomeSaleWindowResponse(
+                settlement_id=value.settlement_id,
+                period_start=value.period_start,
+                period_end=value.period_end,
+            )
+            for value in manifest.sale_windows
+        ),
+        state=outcome.state.value,
+        inventory_resolution=outcome.inventory_resolution.value,
+        blocking_reasons=tuple(value.value for value in outcome.blocking_reasons),
+        executed_quantity=manifest.executed_quantity,
+        received_quantity=manifest.received_quantity,
+        sellable_received_quantity=manifest.sellable_received_quantity,
+        damaged_quantity=manifest.damaged_quantity,
+        sold_quantity=manifest.sold_quantity,
+        remaining_sellable_quantity=manifest.remaining_sellable_quantity,
+        returned_quantity=manifest.returned_quantity,
+        unreceived_quantity=manifest.unreceived_quantity,
+        quantity_unit=manifest.quantity_unit,
+        currency=manifest.currency,
+        acquisition_allocations=tuple(
+            ActualOutcomeAcquisitionAllocationResponse(
+                category=value.category.value,
+                batch_amount=str(value.batch_amount),
+                per_executed_unit=str(value.per_executed_unit),
+                sold_cogs=str(value.sold_cogs),
+                remaining_sellable_basis=str(value.remaining_sellable_basis),
+                damaged_loss=str(value.damaged_loss),
+                unreceived_exposure=str(value.unreceived_exposure),
+            )
+            for value in outcome.acquisition_allocations
+        ),
+        sale_components=tuple(
+            ActualOutcomeSaleComponentResponse(
+                category=value.category.value,
+                amount=str(value.amount),
+            )
+            for value in outcome.sale_components
+        ),
+        other_sale_side_costs=money(outcome.other_sale_side_costs),
+        acquisition_batch_total=money(outcome.acquisition_batch_total),
+        actual_cogs=money(outcome.actual_cogs),
+        remaining_sellable_inventory_cost_basis=money(outcome.remaining_sellable_inventory_cost_basis),
+        damaged_acquisition_loss=money(outcome.damaged_acquisition_loss),
+        unreceived_acquisition_cost_basis=money(outcome.unreceived_acquisition_cost_basis),
+        gross_realized_merchandise_revenue=money(outcome.gross_realized_merchandise_revenue),
+        recognized_sale_credits=money(outcome.recognized_sale_credits),
+        recognized_sale_side_costs=money(outcome.recognized_sale_side_costs),
+        net_realized_sale_contribution=money(outcome.net_realized_sale_contribution),
+        actual_realized_profit=money(outcome.actual_realized_profit),
+        actual_margin=ActualOutcomeMetricResponse(
+            available=outcome.actual_margin.available,
+            value=money(outcome.actual_margin.value),
+        ),
+        actual_acquisition_roi=ActualOutcomeMetricResponse(
+            available=outcome.actual_acquisition_roi.available,
+            value=money(outcome.actual_acquisition_roi.value),
+        ),
+        known_payout_total=money(outcome.known_payout_total),
+        payout_reconciliation_states=outcome.payout_reconciliation_states,
+        evaluation_start=manifest.evaluation_start,
+        evaluation_through=manifest.evaluation_through,
+        acquisition_policy_version=manifest.acquisition_policy_version,
+        acquisition_schema_version=manifest.acquisition_schema_version,
+        goods_receipt_policy_versions=manifest.goods_receipt_policy_versions,
+        goods_receipt_schema_versions=manifest.goods_receipt_schema_versions,
+        sale_policy_versions=manifest.sale_policy_versions,
+        sale_schema_versions=manifest.sale_schema_versions,
+        policy_name=outcome.policy_name,
+        policy_version=outcome.policy_version,
+        policy_precision=outcome.policy_precision,
+        policy_rounding=outcome.policy_rounding,
+        source_manifest_schema_version=manifest.schema_version,
+        outcome_schema_version=outcome.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        requested_at=outcome.requested_at,
+        calculated_at=outcome.calculated_at,
+        committed_at=outcome.committed_at,
+        replayed=publication.replayed,
+        aliased=publication.aliased,
     )
 
 

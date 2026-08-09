@@ -165,8 +165,8 @@ exact Purchase Execution, one terminal COMPLETE Actual Acquisition Settlement,
 the exact Goods Receipt set, and an explicit cumulative COMPLETE Actual Sale
 Settlement prefix. It separates sold COGS and realized profit from remaining
 sellable basis, damaged loss, and unreceived exposure. Multi-purchase allocation
-is blocked until a separate lot/pool policy exists. Owned Inventory v2 is already
-implemented; ActualOutcome Domain/Application/SQLite/API remains the next PR.
+is blocked until a separate lot/pool policy exists. Owned Inventory v2 and the
+ActualOutcome Domain/Application/SQLite/API are now implemented by CR-1B6D2.
 
 The milestones are distinct:
 
@@ -179,6 +179,21 @@ The milestones are distinct:
   result, ActualOutcome, and future Variance v2.
 
 No real-world validation is claimed by this decision-only CR.
+
+#### CR-1B6D2 Actual Outcome implementation and production API
+
+ADR-0055 is implemented through immutable Domain/Application authority,
+append-only SQLite history and replay/alias receipts, production UUID/time
+suppliers, and `POST /api/v1/opportunities/{opportunity_id}/actual-outcomes`.
+The result freezes exact acquisition, receipt, and sale snapshots and exposes
+conserved cost basis, realized operating economics, ratio availability, and
+separate inventory resolution without planned or legacy fallback.
+
+This establishes software capability only. Real-Money Validated MVP is not
+achieved until one genuine O2 completes the real purchase, settlement, receipt,
+sale, and CALCULABLE ActualOutcome evidence chain. The next architecture task is
+Variance v2 authority for exact ConservativeEconomics versus exact
+ActualOutcome; no Variance v2 behavior is implemented here.
 
 ### Real-Money Ready Gate
 

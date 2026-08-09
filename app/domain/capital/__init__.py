@@ -9,5 +9,6 @@ from .actual_acquisition_settlement import *
 from .goods_receipt import *
 from .owned_inventory import *
 from .actual_sale_settlement import *
+from .actual_outcome import *
 
 __all__ = [name for name in globals() if not name.startswith("_")]

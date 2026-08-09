@@ -619,3 +619,46 @@ This route does not update receipt-only Owned Inventory policy v1, Goods Receipt
 Actual Acquisition Settlement, marketplace `InventorySnapshot`, legacy Actual
 Economics, Actual Outcome, or Variance. A separate small change may introduce
 Owned Inventory v2 as receipts minus COMPLETE sale outbound.
+
+## Actual Outcome
+
+`POST /api/v1/opportunities/{opportunity_id}/actual-outcomes` calculates and
+persists one immutable cumulative Actual Outcome. The strict request contains
+only `command_id`, one exact `actual_acquisition_settlement_id`, a non-empty
+ordered `actual_sale_settlement_ids` tuple, and timezone-aware `requested_at`.
+Caller-supplied product, Purchase Execution, receipts, quantities, money, COGS,
+profit, ratios, state, resolution, reasons, identity, or server times are
+forbidden.
+
+The server reconstructs one exact O2/product/Purchase Execution, all committed
+Goods Receipts for that purchase with `inspected_at < evaluation_through`, and
+the complete chronological COMPLETE-sale prefix through the selected terminal
+window. Omission, duplication, reordering, wrong lineage, or impossible
+quantity history fails closed. A named non-COMPLETE source, currency mismatch,
+or unsupported multi-purchase attribution creates a deterministic BLOCKED
+result with no profitability values. Negative profit, remaining inventory, and
+zero-denominator ratio unavailability remain CALCULABLE.
+
+CALCULABLE responses expose integer executed/received/sellable/damaged/sold/
+remaining/returned/unreceived quantities; six category-level acquisition
+allocations and exact batch conservation; 15 sale component totals and ordered
+other cost total; sale credits/costs, COGS, remaining inventory basis, damaged
+loss, unreceived exposure, profit, explicit margin/ROI availability, payout
+reconciliation facts, and `PARTIAL`/`FULLY_RESOLVED` resolution. All Decimal
+values are strings. Customer tax, seller-funded discount, and cancellation
+reversal remain traceable source facts but are not double-counted; payout is
+reconciliation only.
+
+Fresh CALCULABLE/BLOCKED results return 201 and exact command replay returns
+200. Missing exact sources return 404; changed replay, prefix/lineage/quantity
+conflicts return 409; malformed structures return 422; bounded persistence
+failure returns 503. Equivalent exact source manifests under the same policy
+alias one persisted outcome while receiving a distinct command receipt.
+History, receipts, and complete canonical upstream source snapshots are
+append-only and integrity checked. Reads/replay do not select latest sales,
+consult current inventory, perform FX, or recalculate from current upstream
+state.
+
+This route does not mutate Acquisition/Sale Settlement, Goods Receipt, Owned
+Inventory, Conservative Economics, legacy Actual Economics, or legacy
+Variance. Variance v2 is not part of this contract.

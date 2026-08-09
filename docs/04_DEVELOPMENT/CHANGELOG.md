@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B6D2 - Actual Outcome Authority and Production API
+
+- Implement ADR-0055 as immutable persisted `CALCULABLE`/`BLOCKED` Actual Outcomes for one exact O2/product/Purchase Execution, one exact acquisition settlement, all eligible exact-purchase receipts, and an explicit ordered cumulative sale prefix.
+- Derive conserved category-level sold COGS, remaining sellable basis, damaged loss, and unreceived exposure under Decimal precision 34/ROUND_HALF_EVEN; aggregate canonical sale credits/costs without payout, discount, cancellation, or tax double-counting; preserve negative-profit and zero-denominator semantics.
+- Add complete canonical upstream source snapshots, UUID identity, append-only SQLite history/alias receipts, replay-first behavior, restart/rollback/concurrency/malformed-persistence safety, and `POST /api/v1/opportunities/{opportunity_id}/actual-outcomes` with Decimal-string results and bounded 404/409/422/503 errors.
+- Keep Conservative Economics, planned FX/values, Owned Inventory, Goods Receipt, Acquisition/Sale Settlement, legacy Actual Economics, and legacy Variance unchanged; Variance v2 remains the next architecture decision.
+
 ## CR-1B6C3 - Owned Inventory Projection v2
 
 - Preserve receipt-only `receipt-derived-owned-inventory / 1.0.0` as the historical v1 Domain/read owner and add immutable `receipt-and-complete-sale-derived-owned-inventory / 2.0.0`, schema `owned-inventory-position-v2`, without a mutable or materialized inventory table.

@@ -6,9 +6,12 @@ Accepted
 
 ## Implementation Status
 
-CR-1B6D1 is an architecture decision only. `ActualOutcome` Domain,
-Application, SQLite persistence, production API, Variance v2, and calibration
-remain unimplemented.
+CR-1B6D2 implements `ActualOutcome` as an immutable Domain result, a dedicated
+Application calculation owner, append-only SQLite history and command receipts,
+production UUID identity, and the thin Opportunity-scoped production API.
+Exact acquisition, receipt, and sale source snapshots are frozen in the
+manifest; replay and reads return persisted historical results without current
+source recalculation. Variance v2 and calibration remain unimplemented.
 
 ## Context
 
@@ -392,7 +395,7 @@ ActualOutcome is a persisted immutable result, not a pure current read. Future
 Variance and calibration must bind the exact historical policy, source set, and
 values even after later sales or receipts exist.
 
-The future implementation uses an opaque server-owned outcome ID, append-only
+The implementation uses an opaque server-owned outcome ID, append-only
 result history, and command receipts. Replay is checked before source reads,
 calculation, identity, or clocks. Same command ID and payload returns the exact
 historical result. A changed payload conflicts. An equivalent exact source
@@ -465,7 +468,7 @@ restriction or a product/spend selection.
 
 ### Future API direction
 
-The likely thin boundary is:
+The implemented thin boundary is:
 
 ```text
 POST /api/v1/opportunities/{opportunity_id}/actual-outcomes
@@ -473,8 +476,9 @@ POST /api/v1/opportunities/{opportunity_id}/actual-outcomes
 
 The request supplies exact acquisition settlement ID, ordered exact sale
 settlement IDs, command ID, and requested time. It accepts no manually supplied
-financial result, COGS, inventory value, ratio, state, or reason. No API is
-implemented by this decision.
+financial result, COGS, inventory value, ratio, state, or reason. Fresh
+CALCULABLE/BLOCKED results return 201, exact replay returns 200, and bounded
+not-found/conflict/structural/persistence failures return 404/409/422/503.
 
 ## Arithmetic examples
 
@@ -513,9 +517,8 @@ remaining basis, 10,000 damaged loss, and 40,000 unreceived exposure.
 
 ## Deferred Work
 
-1. ActualOutcome Domain/Application/SQLite authority and production API.
-2. Conservative-vs-Actual Variance v2 and calibration data products.
-3. Multi-purchase lot/pool allocation policy.
-4. Seller-side tax, damaged-goods recovery, delivery exception, returned-stock,
+1. Conservative-vs-Actual Variance v2 and calibration data products.
+2. Multi-purchase lot/pool allocation policy.
+3. Seller-side tax, damaged-goods recovery, delivery exception, returned-stock,
    correction, and inventory-adjustment authorities.
-5. Coupang automation, authentication, UI, and generalized accounting exports.
+4. Coupang automation, authentication, UI, and generalized accounting exports.

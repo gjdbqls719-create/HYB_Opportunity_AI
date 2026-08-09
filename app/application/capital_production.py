@@ -48,6 +48,10 @@ from app.application.actual_sale_settlement import (
     AdmitActualSaleSettlement,
     AdmitActualSaleSettlementCommand,
 )
+from app.application.actual_outcome import (
+    CalculateActualOutcome,
+    CalculateActualOutcomeCommand,
+)
 from app.domain.capital import (
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
@@ -467,6 +471,27 @@ class ActualSaleSettlementProductionEntry:
     def execute(self, request: ActualSaleSettlementProductionRequest):
         return self._owner.execute(
             AdmitActualSaleSettlementCommand(
+                **{field.name: getattr(request, field.name) for field in fields(request)}
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ActualOutcomeProductionRequest:
+    command_id: str
+    opportunity_id: str
+    actual_acquisition_settlement_id: str
+    actual_sale_settlement_ids: tuple[str, ...]
+    requested_at: datetime
+
+
+class ActualOutcomeProductionEntry:
+    def __init__(self, owner: CalculateActualOutcome) -> None:
+        self._owner = owner
+
+    def execute(self, request: ActualOutcomeProductionRequest):
+        return self._owner.execute(
+            CalculateActualOutcomeCommand(
                 **{field.name: getattr(request, field.name) for field in fields(request)}
             )
         )
