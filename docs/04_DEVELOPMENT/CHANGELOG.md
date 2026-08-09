@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2L - Capital Gate, Approval, and Execution Intent Production Wiring
+
+- Expose Intended Order Quantity, Deployable Capital Snapshot, Planned Acquisition Capital Requirement, Capital Gate, Founder Capital Approval, and Real-Money Execution Intent through six independent request-scoped FastAPI boundaries with production UUID identities and one reusable UTC clock.
+- Preserve exact O2/Sourcing/Quote/Normalization/Readiness lineage, Decimal-string money, explicit upfront-scope verification and Founder approval, the mandatory post-Approval capital snapshot, business-state 2xx responses, historical replay, and one-READY-per-Approval cardinality without latest lookup or automatic chaining.
+- Prove an API-created O2 can move from `READY_FOR_CAPITAL_REVIEW` to `READY_FOR_MANUAL_EXECUTION` with no direct DB mutation or private Application invocation between calls; this remains a manual-purchase handoff and does not create a Purchase Execution Record, execute payment, or mutate Actual Economics/inventory.
+
 ## CR-1B5D2J - Critical Cost v2 and Capital Readiness Production Wiring
 
 - Expose the existing Critical Cost v2 and Capital Readiness v2 owners through thin Opportunity-scoped FastAPI routes with one owned SQLite connection per request and exact persisted source IDs only.

@@ -15,7 +15,9 @@ CALCULABLE/BLOCKED semantics, and append-only SQLite replay persistence.
 CR-1B5B implements the exact-source Capital Gate with PASS/REJECTED/BLOCKED
 semantics and append-only SQLite replay persistence. Capital-bound Founder
 Approval is implemented by CR-1B5C as a separate exact-Gate human authorization
-fact. Production API/UI and purchase execution remain unimplemented.
+fact. CR-1B5D2L exposes Intended Order Quantity, Deployable Capital Snapshot,
+Planned Requirement, Capital Gate, and explicit Founder Capital Approval through
+independent production APIs. UI and purchase execution remain unimplemented.
 
 ## Context
 

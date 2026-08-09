@@ -482,3 +482,22 @@ transactional alias/conflict handling enforce at most one distinct READY action
 per Approval. The intent remains a pre-execution authorization fact: it does not
 place an order, transmit payment, create a Purchase Execution Record, or mutate
 Actual Economics, inventory, Approval, Gate, or upstream evidence.
+
+CR-1B5D2L wires those existing Capital authorities into the production
+composition root without changing Domain policy. Six explicit POST boundaries
+admit Intended Order Quantity, Founder-declared Deployable Capital, Planned
+Requirement, Gate, Founder Approval, and Execution Intent independently. Each
+request owns one top-level SQLite repository/connection, injects an existing
+production identity supplier plus the reusable timezone-aware UTC clock, commits
+only its own authority, and closes the connection on every result or failure.
+Opportunity-scoped adapters derive the complete immutable identity from the
+named persisted source and reject O1/O2 mixing before invoking the owner.
+
+The production sequence intentionally has two Deployable Capital snapshots:
+snapshot A is evaluated by Gate, while a distinct Founder-owned post-Approval
+snapshot B is evaluated by Execution safety. No endpoint selects latest state or
+automatically advances a human-sensitive boundary. The API-only O2 path can now
+end at `READY_FOR_MANUAL_EXECUTION`, whose exact manifest is the durable manual
+purchase handoff. External ordering/payment remains outside HYB and no
+PurchaseExecutionRecord, Actual Economics, inventory mutation, authentication,
+or autonomous commerce behavior is introduced.

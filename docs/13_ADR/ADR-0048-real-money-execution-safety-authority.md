@@ -8,9 +8,11 @@ Accepted
 
 CR-1B5D1 implements the immutable Domain/Application authority, dedicated opaque
 identity supplier, versioned safety policy, and append-only SQLite intent/receipt
-persistence with durable READY-per-Approval cardinality. Production API/UI,
-manual Purchase Execution Record, and Actual Economics handoff remain
-unimplemented.
+persistence with durable READY-per-Approval cardinality. CR-1B5D2L exposes the
+exact-source execution-safety command through production API, including the
+distinct post-Approval capital snapshot and durable READY alias/cardinality
+behavior. UI, manual Purchase Execution Record, and Actual Economics handoff
+remain unimplemented.
 
 ## Context
 

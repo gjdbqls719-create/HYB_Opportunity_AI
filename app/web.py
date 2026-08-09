@@ -14,7 +14,7 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
@@ -234,6 +234,57 @@ from app.application.capital_readiness import (
     CapitalReadinessSourceNotFoundError,
     EvaluateCapitalReadiness,
 )
+from app.application.capital_investment import (
+    AdmitDeployableCapitalSnapshot,
+    AdmitDeployableCapitalSnapshotCommand,
+    AdmitIntendedOrderQuantity,
+    CapitalInvestmentLineageError,
+    CapitalInvestmentReplayConflictError,
+    CapitalInvestmentSourceNotFoundError,
+)
+from app.application.capital_requirement import (
+    CalculatePlannedAcquisitionCapitalRequirement,
+    PlannedAcquisitionCapitalRequirementLineageError,
+    PlannedAcquisitionCapitalRequirementPolicyError,
+    PlannedAcquisitionCapitalRequirementReplayConflictError,
+    PlannedAcquisitionCapitalRequirementSourceNotFoundError,
+)
+from app.application.capital_gate import (
+    CapitalGatePolicyError,
+    CapitalGateReplayConflictError,
+    CapitalGateSourceNotFoundError,
+    EvaluateCapitalGate,
+)
+from app.application.founder_capital_approval import (
+    ApproveFounderCapital,
+    FounderCapitalApprovalAmountError,
+    FounderCapitalApprovalCurrencyError,
+    FounderCapitalApprovalGateStateError,
+    FounderCapitalApprovalPolicyError,
+    FounderCapitalApprovalReplayConflictError,
+    FounderCapitalApprovalSourceNotFoundError,
+)
+from app.application.real_money_execution_intent import (
+    EvaluateRealMoneyExecutionIntent,
+    RealMoneyExecutionIntentPolicyError,
+    RealMoneyExecutionIntentReadyConflictError,
+    RealMoneyExecutionIntentReplayConflictError,
+    RealMoneyExecutionIntentSourceNotFoundError,
+)
+from app.application.capital_production import (
+    CapitalGateProductionEntry,
+    CapitalGateProductionRequest,
+    CapitalProductionOpportunityConflictError,
+    FounderCapitalApprovalProductionEntry,
+    FounderCapitalApprovalProductionRequest,
+    IntendedOrderQuantityProductionEntry,
+    IntendedOrderQuantityProductionRequest,
+    PlannedCapitalRequirementProductionEntry,
+    PlannedCapitalRequirementProductionRequest,
+    RealMoneyExecutionIntentProductionEntry,
+    RealMoneyExecutionIntentProductionRequest,
+)
+from app.domain.capital import UpfrontCostScopeStatus
 from app.application.economics_production import (
     AcquisitionNormalizationProductionEntry,
     AcquisitionNormalizationProductionRequest,
@@ -447,6 +498,33 @@ from app.infrastructure.capital_readiness import (
     ProductionCapitalReadinessIdentityGenerator,
     SQLiteCapitalReadinessRepository,
 )
+from app.infrastructure.capital_investment import (
+    CapitalInvestmentPersistenceError,
+    ProductionDeployableCapitalSnapshotIdentityGenerator,
+    ProductionIntendedOrderQuantityIdentityGenerator,
+    SQLiteCapitalInvestmentFactsRepository,
+)
+from app.infrastructure.capital_requirement import (
+    PlannedAcquisitionCapitalRequirementPersistenceError,
+    ProductionPlannedAcquisitionCapitalRequirementIdentityGenerator,
+    SQLitePlannedAcquisitionCapitalRequirementRepository,
+)
+from app.infrastructure.capital_gate import (
+    CapitalGatePersistenceError,
+    ProductionCapitalGateIdentityGenerator,
+    SQLiteCapitalGateRepository,
+)
+from app.infrastructure.founder_capital_approval import (
+    FounderCapitalApprovalPersistenceError,
+    ProductionFounderCapitalApprovalIdentityGenerator,
+    SQLiteFounderCapitalApprovalRepository,
+)
+from app.infrastructure.real_money_execution_intent import (
+    ProductionRealMoneyExecutionIntentIdentityGenerator,
+    RealMoneyExecutionIntentPersistenceError,
+    SQLiteRealMoneyExecutionIntentRepository,
+)
+from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
     EconomicsSourceCompositionPersistenceError,
     ProductionEconomicsSourceCompositionIdentityGenerator,
@@ -1922,6 +2000,268 @@ class CapitalReadinessAssessmentResponse(BaseModel):
     replayed: bool
 
 
+class IntendedOrderQuantityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    sourcing_admission_id: str = Field(min_length=1)
+    sourcing_admission_revision: int = Field(ge=1)
+    quote_id: str = Field(min_length=1)
+    quote_revision: int = Field(ge=1)
+    quantity: int = Field(ge=1)
+    quantity_unit: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    declared_at: datetime
+    requested_at: datetime
+
+
+class IntendedOrderQuantityResponse(BaseModel):
+    command_id: str
+    intent_id: str
+    opportunity_id: str
+    discovery_reference: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    quantity: int
+    quantity_unit: str
+    operator_id: str
+    declared_at: datetime
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    intent_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class DeployableCapitalSnapshotRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    amount: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    as_of: datetime
+    operator_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class DeployableCapitalSnapshotResponse(BaseModel):
+    command_id: str
+    snapshot_id: str
+    amount: str
+    currency: str
+    as_of: datetime
+    operator_id: str
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    semantics_version: str
+    snapshot_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class PlannedCapitalRequirementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    intended_order_quantity_id: str = Field(min_length=1)
+    acquisition_normalization_id: str = Field(min_length=1)
+    scope_status: UpfrontCostScopeStatus
+    operator_id: str = Field(min_length=1)
+    verified_at: datetime
+    requested_at: datetime
+
+
+class PlannedCapitalRequirementResponse(BaseModel):
+    command_id: str
+    requirement_id: str
+    opportunity_id: str
+    discovery_reference: str
+    state: str
+    blocking_reasons: tuple[str, ...]
+    intended_order_quantity_id: str
+    acquisition_normalization_id: str
+    sourcing_binding_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    quantity: int
+    quantity_unit: str
+    normalized_acquisition_cost_per_unit: str
+    planned_acquisition_capital: str | None
+    currency: str
+    scope_status: str
+    scope_operator_id: str
+    scope_verified_at: datetime
+    scope_semantics_version: str
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    requested_at: datetime
+    calculated_at: datetime
+    committed_at: datetime
+    requirement_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class CapitalGateSourceManifestResponse(BaseModel):
+    opportunity_id: str
+    discovery_reference: str
+    capital_readiness_assessment_id: str
+    capital_requirement_id: str
+    deployable_capital_snapshot_id: str
+    conservative_economics_result_id: str
+    intended_order_quantity_id: str
+    acquisition_normalization_id: str
+    sourcing_binding_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    schema_version: str
+
+
+class CapitalGateEvaluatedFactsResponse(BaseModel):
+    capital_readiness_state: str
+    capital_requirement_state: str
+    conservative_economics_status: str
+    requirement_currency: str
+    deployable_currency: str
+    planned_acquisition_capital: str | None
+    deployable_capital: str
+    conservative_profit_per_unit: str | None
+    conservative_margin: str | None
+    conservative_acquisition_roi: str | None
+    intended_order_quantity: int
+    intended_order_quantity_unit: str
+    minimum_order_quantity_availability: str
+    minimum_order_quantity: int | None
+    deployable_capital_semantics_version: str
+    schema_version: str
+
+
+class CapitalGateAssessmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    capital_readiness_assessment_id: str = Field(min_length=1)
+    capital_requirement_id: str = Field(min_length=1)
+    deployable_capital_snapshot_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class CapitalGateAssessmentResponse(BaseModel):
+    command_id: str
+    gate_id: str
+    state: str
+    blocking_reasons: tuple[str, ...]
+    rejection_reasons: tuple[str, ...]
+    source_manifest: CapitalGateSourceManifestResponse
+    evaluated_facts: CapitalGateEvaluatedFactsResponse
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    committed_at: datetime
+    assessment_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class FounderCapitalApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    capital_gate_id: str = Field(min_length=1)
+    founder_id: str = Field(min_length=1)
+    approved_capital: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    requested_at: datetime
+    approved_at: datetime
+
+
+class FounderCapitalApprovalResponse(BaseModel):
+    command_id: str
+    approval_id: str
+    opportunity_id: str
+    discovery_reference: str
+    capital_gate_id: str
+    capital_gate_policy_name: str
+    capital_gate_policy_version: str
+    capital_requirement_id: str
+    deployable_capital_snapshot_id: str
+    intended_order_quantity_id: str
+    capital_gate_evaluated_at: datetime
+    approved_capital: str
+    currency: str
+    founder_id: str
+    requested_at: datetime
+    approved_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    approval_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class RealMoneyExecutionIntentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    founder_capital_approval_id: str = Field(min_length=1)
+    quote_id: str = Field(min_length=1)
+    quote_revision: int = Field(ge=1)
+    current_deployable_capital_snapshot_id: str = Field(min_length=1)
+    execution_quantity: int = Field(ge=1)
+    execution_quantity_unit: str = Field(min_length=1)
+    planned_execution_amount: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    founder_id: str = Field(min_length=1)
+    current_execution_confirmed: bool
+    confirmed_at: datetime
+    requested_at: datetime
+
+
+class RealMoneyExecutionIntentResponse(BaseModel):
+    command_id: str
+    intent_id: str
+    opportunity_id: str
+    discovery_reference: str
+    founder_capital_approval_id: str
+    capital_gate_id: str
+    capital_requirement_id: str
+    intended_order_quantity_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    current_deployable_capital_snapshot_id: str
+    execution_quantity: int
+    execution_quantity_unit: str
+    planned_execution_amount: str
+    currency: str
+    founder_id: str
+    current_execution_confirmed: bool
+    confirmed_at: datetime
+    state: str
+    blocking_reasons: tuple[str, ...]
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    committed_at: datetime
+    source_manifest_schema_version: str
+    intent_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -2476,6 +2816,194 @@ def get_capital_readiness_entry():
         raise HTTPException(
             status_code=503,
             detail="capital readiness persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_intended_order_quantity_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteCapitalInvestmentFactsRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = IntendedOrderQuantityProductionEntry(
+            repository,
+            AdmitIntendedOrderQuantity(
+                repository,
+                intent_id_generator=ProductionIntendedOrderQuantityIdentityGenerator(),
+                admitted_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (sqlite3.Error, CapitalInvestmentPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503, detail="Capital investment persistence unavailable"
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_deployable_capital_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteCapitalInvestmentFactsRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = AdmitDeployableCapitalSnapshot(
+            repository,
+            snapshot_id_generator=ProductionDeployableCapitalSnapshotIdentityGenerator(),
+            admitted_clock=clock,
+            committed_clock=clock,
+        )
+    except (sqlite3.Error, CapitalInvestmentPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503, detail="Capital investment persistence unavailable"
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_planned_capital_requirement_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLitePlannedAcquisitionCapitalRequirementRepository(
+                DEFAULT_DATABASE_PATH
+            )
+        )
+        clock = ProductionUTCClock()
+        entry = PlannedCapitalRequirementProductionEntry(
+            repository,
+            CalculatePlannedAcquisitionCapitalRequirement(
+                repository,
+                requirement_id_generator=(
+                    ProductionPlannedAcquisitionCapitalRequirementIdentityGenerator()
+                ),
+                calculated_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (
+        sqlite3.Error,
+        PlannedAcquisitionCapitalRequirementPersistenceError,
+    ) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="planned acquisition capital persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_capital_gate_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteCapitalGateRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = CapitalGateProductionEntry(
+            repository,
+            EvaluateCapitalGate(
+                repository,
+                gate_id_generator=ProductionCapitalGateIdentityGenerator(),
+                evaluated_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (sqlite3.Error, CapitalGatePersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503, detail="Capital Gate persistence unavailable"
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_founder_capital_approval_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteFounderCapitalApprovalRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = FounderCapitalApprovalProductionEntry(
+            repository,
+            ApproveFounderCapital(
+                repository,
+                approval_id_generator=ProductionFounderCapitalApprovalIdentityGenerator(),
+                admitted_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (sqlite3.Error, FounderCapitalApprovalPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503, detail="Founder Capital Approval persistence unavailable"
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_real_money_execution_intent_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteRealMoneyExecutionIntentRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = RealMoneyExecutionIntentProductionEntry(
+            repository,
+            EvaluateRealMoneyExecutionIntent(
+                repository,
+                execution_intent_id_generator=(
+                    ProductionRealMoneyExecutionIntentIdentityGenerator()
+                ),
+                evaluated_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (sqlite3.Error, RealMoneyExecutionIntentPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Real-Money Execution Intent persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -4451,6 +4979,500 @@ def evaluate_capital_readiness(
         evaluated_at=assessment.evaluated_at,
         committed_at=receipt.committed_at,
         assessment_schema_version=assessment.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/intended-order-quantities",
+    response_model=IntendedOrderQuantityResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_intended_order_quantity(
+    opportunity_id: str,
+    request: IntendedOrderQuantityRequest,
+    response: Response,
+    entry: IntendedOrderQuantityProductionEntry = Depends(
+        get_intended_order_quantity_entry
+    ),
+) -> IntendedOrderQuantityResponse:
+    try:
+        publication = entry.execute(
+            IntendedOrderQuantityProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                sourcing_admission_id=request.sourcing_admission_id,
+                sourcing_admission_revision=request.sourcing_admission_revision,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                quantity=request.quantity,
+                quantity_unit=request.quantity_unit,
+                operator_id=request.operator_id,
+                declared_at=request.declared_at,
+                requested_at=request.requested_at,
+            )
+        )
+    except CapitalInvestmentSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CapitalInvestmentLineageError,
+        CapitalInvestmentReplayConflictError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (CapitalInvestmentPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503, detail="Capital investment persistence unavailable"
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    intent, receipt = publication.intent, publication.receipt
+    identity = intent.opportunity_identity
+    return IntendedOrderQuantityResponse(
+        command_id=receipt.command_id,
+        intent_id=intent.intent_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        sourcing_admission_id=intent.sourcing_admission_id,
+        sourcing_admission_revision=intent.sourcing_admission_revision,
+        quote_id=intent.quote_id,
+        quote_revision=intent.quote_revision,
+        quantity=intent.quantity,
+        quantity_unit=intent.quantity_unit,
+        operator_id=intent.operator_id,
+        declared_at=intent.declared_at,
+        requested_at=intent.requested_at,
+        admitted_at=intent.admitted_at,
+        committed_at=receipt.committed_at,
+        intent_schema_version=intent.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/deployable-capital-snapshots",
+    response_model=DeployableCapitalSnapshotResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_deployable_capital_snapshot(
+    request: DeployableCapitalSnapshotRequest,
+    response: Response,
+    entry: AdmitDeployableCapitalSnapshot = Depends(get_deployable_capital_entry),
+) -> DeployableCapitalSnapshotResponse:
+    try:
+        publication = entry.execute(
+            AdmitDeployableCapitalSnapshotCommand(
+                command_id=request.command_id,
+                amount=Decimal(request.amount),
+                currency=request.currency,
+                as_of=request.as_of,
+                operator_id=request.operator_id,
+                requested_at=request.requested_at,
+            )
+        )
+    except CapitalInvestmentReplayConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (CapitalInvestmentPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503, detail="Capital investment persistence unavailable"
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    snapshot, receipt = publication.snapshot, publication.receipt
+    return DeployableCapitalSnapshotResponse(
+        command_id=receipt.command_id,
+        snapshot_id=snapshot.snapshot_id,
+        amount=str(snapshot.amount),
+        currency=snapshot.currency,
+        as_of=snapshot.as_of,
+        operator_id=snapshot.operator_id,
+        requested_at=snapshot.requested_at,
+        admitted_at=snapshot.admitted_at,
+        committed_at=receipt.committed_at,
+        semantics_version=snapshot.semantics_version,
+        snapshot_schema_version=snapshot.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/planned-acquisition-capital-requirements",
+    response_model=PlannedCapitalRequirementResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def calculate_planned_capital_requirement(
+    opportunity_id: str,
+    request: PlannedCapitalRequirementRequest,
+    response: Response,
+    entry: PlannedCapitalRequirementProductionEntry = Depends(
+        get_planned_capital_requirement_entry
+    ),
+) -> PlannedCapitalRequirementResponse:
+    try:
+        publication = entry.execute(
+            PlannedCapitalRequirementProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                intended_order_quantity_id=request.intended_order_quantity_id,
+                acquisition_normalization_id=request.acquisition_normalization_id,
+                scope_status=request.scope_status,
+                operator_id=request.operator_id,
+                verified_at=request.verified_at,
+                requested_at=request.requested_at,
+            )
+        )
+    except PlannedAcquisitionCapitalRequirementSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        PlannedAcquisitionCapitalRequirementLineageError,
+        PlannedAcquisitionCapitalRequirementReplayConflictError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except PlannedAcquisitionCapitalRequirementPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        PlannedAcquisitionCapitalRequirementPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="planned acquisition capital persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    requirement, receipt = publication.requirement, publication.receipt
+    identity = requirement.opportunity_identity
+    scope = requirement.scope_verification
+    return PlannedCapitalRequirementResponse(
+        command_id=receipt.command_id,
+        requirement_id=requirement.requirement_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        state=requirement.state.value,
+        blocking_reasons=tuple(value.value for value in requirement.blocking_reasons),
+        intended_order_quantity_id=requirement.intended_order_quantity_id,
+        acquisition_normalization_id=requirement.acquisition_normalization_id,
+        sourcing_binding_id=requirement.sourcing_binding_id,
+        sourcing_admission_id=requirement.sourcing_admission_id,
+        sourcing_admission_revision=requirement.sourcing_admission_revision,
+        quote_id=requirement.quote_id,
+        quote_revision=requirement.quote_revision,
+        quantity=requirement.quantity,
+        quantity_unit=requirement.quantity_unit,
+        normalized_acquisition_cost_per_unit=str(
+            requirement.normalized_acquisition_cost_per_unit
+        ),
+        planned_acquisition_capital=(
+            None
+            if requirement.planned_acquisition_capital is None
+            else str(requirement.planned_acquisition_capital)
+        ),
+        currency=requirement.currency,
+        scope_status=scope.status.value,
+        scope_operator_id=scope.operator_id,
+        scope_verified_at=scope.verified_at,
+        scope_semantics_version=scope.semantics_version,
+        policy_name=requirement.policy_name,
+        policy_version=requirement.policy_version,
+        policy_precision=requirement.policy_precision,
+        policy_rounding=requirement.policy_rounding,
+        requested_at=requirement.requested_at,
+        calculated_at=requirement.calculated_at,
+        committed_at=receipt.committed_at,
+        requirement_schema_version=requirement.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/capital-gate-assessments",
+    response_model=CapitalGateAssessmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def evaluate_capital_gate(
+    opportunity_id: str,
+    request: CapitalGateAssessmentRequest,
+    response: Response,
+    entry: CapitalGateProductionEntry = Depends(get_capital_gate_entry),
+) -> CapitalGateAssessmentResponse:
+    try:
+        publication = entry.execute(
+            CapitalGateProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                capital_readiness_assessment_id=(
+                    request.capital_readiness_assessment_id
+                ),
+                capital_requirement_id=request.capital_requirement_id,
+                deployable_capital_snapshot_id=(
+                    request.deployable_capital_snapshot_id
+                ),
+                requested_at=request.requested_at,
+            )
+        )
+    except CapitalGateSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CapitalGateReplayConflictError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except CapitalGatePolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (CapitalGatePersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503, detail="Capital Gate persistence unavailable"
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    assessment, receipt = publication.assessment, publication.receipt
+    manifest, facts = assessment.source_manifest, assessment.evaluated_facts
+    identity = manifest.opportunity_identity
+    return CapitalGateAssessmentResponse(
+        command_id=receipt.command_id,
+        gate_id=assessment.gate_id,
+        state=assessment.state.value,
+        blocking_reasons=tuple(value.value for value in assessment.blocking_reasons),
+        rejection_reasons=tuple(value.value for value in assessment.rejection_reasons),
+        source_manifest=CapitalGateSourceManifestResponse(
+            opportunity_id=identity.opportunity_id,
+            discovery_reference=identity.discovery_reference,
+            capital_readiness_assessment_id=manifest.capital_readiness_assessment_id,
+            capital_requirement_id=manifest.capital_requirement_id,
+            deployable_capital_snapshot_id=manifest.deployable_capital_snapshot_id,
+            conservative_economics_result_id=manifest.conservative_economics_result_id,
+            intended_order_quantity_id=manifest.intended_order_quantity_id,
+            acquisition_normalization_id=manifest.acquisition_normalization_id,
+            sourcing_binding_id=manifest.sourcing_binding_id,
+            sourcing_admission_id=manifest.sourcing_admission_id,
+            sourcing_admission_revision=manifest.sourcing_admission_revision,
+            quote_id=manifest.quote_id,
+            quote_revision=manifest.quote_revision,
+            schema_version=manifest.schema_version,
+        ),
+        evaluated_facts=CapitalGateEvaluatedFactsResponse(
+            capital_readiness_state=facts.capital_readiness_state.value,
+            capital_requirement_state=facts.capital_requirement_state.value,
+            conservative_economics_status=facts.conservative_economics_status.value,
+            requirement_currency=facts.requirement_currency,
+            deployable_currency=facts.deployable_currency,
+            planned_acquisition_capital=(
+                None
+                if facts.planned_acquisition_capital is None
+                else str(facts.planned_acquisition_capital)
+            ),
+            deployable_capital=str(facts.deployable_capital),
+            conservative_profit_per_unit=(
+                None
+                if facts.conservative_profit_per_unit is None
+                else str(facts.conservative_profit_per_unit)
+            ),
+            conservative_margin=(
+                None
+                if facts.conservative_margin is None
+                else str(facts.conservative_margin)
+            ),
+            conservative_acquisition_roi=(
+                None
+                if facts.conservative_acquisition_roi is None
+                else str(facts.conservative_acquisition_roi)
+            ),
+            intended_order_quantity=facts.intended_order_quantity,
+            intended_order_quantity_unit=facts.intended_order_quantity_unit,
+            minimum_order_quantity_availability=(
+                facts.minimum_order_quantity.availability.value
+            ),
+            minimum_order_quantity=facts.minimum_order_quantity.quantity,
+            deployable_capital_semantics_version=(
+                facts.deployable_capital_semantics_version
+            ),
+            schema_version=facts.schema_version,
+        ),
+        policy_name=assessment.policy_name,
+        policy_version=assessment.policy_version,
+        requested_at=assessment.requested_at,
+        evaluated_at=assessment.evaluated_at,
+        committed_at=receipt.committed_at,
+        assessment_schema_version=assessment.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/founder-capital-approvals",
+    response_model=FounderCapitalApprovalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def approve_founder_capital(
+    opportunity_id: str,
+    request: FounderCapitalApprovalRequest,
+    response: Response,
+    entry: FounderCapitalApprovalProductionEntry = Depends(
+        get_founder_capital_approval_entry
+    ),
+) -> FounderCapitalApprovalResponse:
+    try:
+        publication = entry.execute(
+            FounderCapitalApprovalProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                capital_gate_id=request.capital_gate_id,
+                founder_id=request.founder_id,
+                approved_capital=Decimal(request.approved_capital),
+                currency=request.currency,
+                requested_at=request.requested_at,
+                approved_at=request.approved_at,
+            )
+        )
+    except FounderCapitalApprovalSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        FounderCapitalApprovalGateStateError,
+        FounderCapitalApprovalAmountError,
+        FounderCapitalApprovalCurrencyError,
+        FounderCapitalApprovalReplayConflictError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except FounderCapitalApprovalPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (FounderCapitalApprovalPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503, detail="Founder Capital Approval persistence unavailable"
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    approval, receipt = publication.approval, publication.receipt
+    identity = approval.opportunity_identity
+    return FounderCapitalApprovalResponse(
+        command_id=receipt.command_id,
+        approval_id=approval.approval_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        capital_gate_id=approval.capital_gate_id,
+        capital_gate_policy_name=approval.capital_gate_policy_name,
+        capital_gate_policy_version=approval.capital_gate_policy_version,
+        capital_requirement_id=approval.capital_requirement_id,
+        deployable_capital_snapshot_id=approval.deployable_capital_snapshot_id,
+        intended_order_quantity_id=approval.intended_order_quantity_id,
+        capital_gate_evaluated_at=approval.capital_gate_evaluated_at,
+        approved_capital=str(approval.approved_capital),
+        currency=approval.currency,
+        founder_id=approval.founder_id,
+        requested_at=approval.requested_at,
+        approved_at=approval.approved_at,
+        admitted_at=approval.admitted_at,
+        committed_at=receipt.committed_at,
+        approval_schema_version=approval.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/real-money-execution-intents",
+    response_model=RealMoneyExecutionIntentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def evaluate_real_money_execution_intent(
+    opportunity_id: str,
+    request: RealMoneyExecutionIntentRequest,
+    response: Response,
+    entry: RealMoneyExecutionIntentProductionEntry = Depends(
+        get_real_money_execution_intent_entry
+    ),
+) -> RealMoneyExecutionIntentResponse:
+    try:
+        publication = entry.execute(
+            RealMoneyExecutionIntentProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                founder_capital_approval_id=request.founder_capital_approval_id,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                current_deployable_capital_snapshot_id=(
+                    request.current_deployable_capital_snapshot_id
+                ),
+                execution_quantity=request.execution_quantity,
+                execution_quantity_unit=request.execution_quantity_unit,
+                planned_execution_amount=Decimal(request.planned_execution_amount),
+                currency=request.currency,
+                founder_id=request.founder_id,
+                current_execution_confirmed=request.current_execution_confirmed,
+                confirmed_at=request.confirmed_at,
+                requested_at=request.requested_at,
+            )
+        )
+    except RealMoneyExecutionIntentSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        RealMoneyExecutionIntentReplayConflictError,
+        RealMoneyExecutionIntentReadyConflictError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except RealMoneyExecutionIntentPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (RealMoneyExecutionIntentPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Real-Money Execution Intent persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    intent, receipt = publication.intent, publication.receipt
+    manifest = intent.source_manifest
+    identity = manifest.opportunity_identity
+    return RealMoneyExecutionIntentResponse(
+        command_id=receipt.command_id,
+        intent_id=intent.intent_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        founder_capital_approval_id=manifest.founder_capital_approval_id,
+        capital_gate_id=manifest.capital_gate_id,
+        capital_requirement_id=manifest.capital_requirement_id,
+        intended_order_quantity_id=manifest.intended_order_quantity_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        current_deployable_capital_snapshot_id=(
+            manifest.current_deployable_capital_snapshot_id
+        ),
+        execution_quantity=manifest.execution_quantity,
+        execution_quantity_unit=manifest.execution_quantity_unit,
+        planned_execution_amount=str(manifest.planned_execution_amount),
+        currency=manifest.currency,
+        founder_id=manifest.founder_id,
+        current_execution_confirmed=manifest.current_execution_confirmed,
+        confirmed_at=manifest.confirmed_at,
+        state=intent.state.value,
+        blocking_reasons=tuple(value.value for value in intent.blocking_reasons),
+        policy_name=manifest.policy_name,
+        policy_version=manifest.policy_version,
+        requested_at=intent.requested_at,
+        evaluated_at=intent.evaluated_at,
+        committed_at=receipt.committed_at,
+        source_manifest_schema_version=manifest.schema_version,
+        intent_schema_version=intent.schema_version,
         receipt_schema_version=receipt.schema_version,
         replayed=publication.replayed,
     )

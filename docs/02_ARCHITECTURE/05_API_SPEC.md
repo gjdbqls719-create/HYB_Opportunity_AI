@@ -354,3 +354,73 @@ accepts `command_id`, `snapshot_chain_binding_id`,
 returns 201; exact replay returns 200. Missing Opportunity/chain/Product is 404,
 lineage or command conflict is 409, malformed input is 422, and genuine
 persistence failure is 503. Raw SQLite details are never returned.
+
+## Capital execution production path
+
+CR-1B5D2L exposes the existing Capital authorities through six independent
+production commands:
+
+- `POST /api/v1/opportunities/{opportunity_id}/intended-order-quantities`
+- `POST /api/v1/deployable-capital-snapshots`
+- `POST /api/v1/opportunities/{opportunity_id}/planned-acquisition-capital-requirements`
+- `POST /api/v1/opportunities/{opportunity_id}/capital-gate-assessments`
+- `POST /api/v1/opportunities/{opportunity_id}/founder-capital-approvals`
+- `POST /api/v1/opportunities/{opportunity_id}/real-money-execution-intents`
+
+Intended Order Quantity requires caller-owned `command_id`, exact Sourcing
+Admission ID/revision, exact Quote ID/revision, positive quantity and unit,
+operator, `declared_at`, and `requested_at`. It derives the complete O2 identity
+from that exact Admission and never derives quantity from MOQ, quoted quantity,
+or a shipping denominator.
+
+Deployable Capital Snapshot requires `command_id`, Decimal-string `amount`,
+currency, factual `as_of`, operator, and `requested_at`. Explicit zero is valid.
+The server fixes semantics to `founder-declared-reserve-adjusted-v1`; the same
+route creates both historical Gate snapshot A and a distinct post-Approval
+snapshot B. Snapshot B must name the approving Founder as operator and satisfy
+the existing Approval/confirmation/evaluation temporal rules.
+
+Planned Requirement requires the exact Intended Quantity and Acquisition
+Normalization IDs plus explicit upfront scope status `complete` or `unresolved`,
+operator, verification time, and request time. The server fixes arithmetic
+policy and reconstructs Landed Cost, Binding, Admission, and Quote lineage.
+`calculable` and `blocked` are successful business responses; the server never
+assumes that upfront scope is complete.
+
+Capital Gate requires exact Capital Readiness, Planned Requirement, and
+Deployable Capital snapshot IDs. The server fixes policy
+`domestic-commerce-capital-gate/1.0.0`; callers cannot provide thresholds.
+`pass`, `rejected`, and `blocked` are committed 2xx outcomes. Pass means only
+eligibility for the separate Founder Approval request.
+
+Founder Capital Approval requires an exact Gate ID, Founder ID, Decimal-string
+approved amount, currency, `requested_at`, and factual `approved_at`. Only Gate
+`pass` may be approved and v1 requires exact equality with the full Planned
+Requirement in the authoritative currency. Approval is never automatic and is
+historical authorization, not proof of transferred or spent funds.
+
+Real-Money Execution Intent requires the exact Approval, exact Quote
+ID/revision, exact post-Approval snapshot B, exact quantity/unit,
+Decimal-string amount, currency, Founder, explicit current confirmation, and
+confirmation/request times. `ready_for_manual_execution` and `blocked` are
+successful business results. Equivalent READY actions under a new command alias
+the existing READY intent and return 200; a different second READY action for
+the same Approval conflicts. The response preserves the exact Approval, Gate,
+Requirement, Intended Quantity, Admission, Quote, current snapshot, and action
+manifest needed to join back to Supplier/Product references already exposed by
+the Sourcing Admission response.
+
+All six routes use exact persisted IDs only. They do not select latest sources,
+fall back to O1, or share a workflow-wide transaction. A fresh commit returns
+201, exact replay returns 200, and a READY alias returns 200. Missing sources
+return 404; command, O2-lineage, or READY-cardinality conflicts return 409;
+invalid request/domain data returns 422; bounded persistence failure returns
+503. Monetary JSON values are strings and authoritative timestamps are
+timezone-aware.
+
+This is a private Founder-operated MVP. `founder_id` and `operator_id` are
+caller-provided factual audit references, not authenticated identities. HYB
+authority ends at `READY_FOR_MANUAL_EXECUTION`; the Founder performs the
+external purchase manually. READY does not mean ordered, paid, purchased, or
+executed. `PurchaseExecutionRecord` remains the next required authority for
+recording the actual commercial event.

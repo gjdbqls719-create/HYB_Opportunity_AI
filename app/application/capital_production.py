@@ -1,0 +1,282 @@
+"""Thin exact-source production entries for the Capital execution path."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+
+from app.application.capital_gate import (
+    CapitalGateSourceNotFoundError,
+    EvaluateCapitalGate,
+    EvaluateCapitalGateCommand,
+)
+from app.application.capital_investment import (
+    AdmitIntendedOrderQuantity,
+    AdmitIntendedOrderQuantityCommand,
+    CapitalInvestmentSourceNotFoundError,
+)
+from app.application.capital_requirement import (
+    CalculatePlannedAcquisitionCapitalRequirement,
+    CalculatePlannedAcquisitionCapitalRequirementCommand,
+    PlannedAcquisitionCapitalRequirementSourceNotFoundError,
+)
+from app.application.founder_capital_approval import (
+    ApproveFounderCapital,
+    ApproveFounderCapitalCommand,
+    FounderCapitalApprovalSourceNotFoundError,
+)
+from app.application.real_money_execution_intent import (
+    EvaluateRealMoneyExecutionIntent,
+    EvaluateRealMoneyExecutionIntentCommand,
+    RealMoneyExecutionIntentSourceNotFoundError,
+)
+from app.domain.capital import (
+    PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
+    PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
+    UpfrontCostScopeStatus,
+)
+
+
+class CapitalProductionOpportunityConflictError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class IntendedOrderQuantityProductionRequest:
+    command_id: str
+    opportunity_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    quantity: int
+    quantity_unit: str
+    operator_id: str
+    declared_at: datetime
+    requested_at: datetime
+
+
+class IntendedOrderQuantityProductionEntry:
+    def __init__(self, repository, owner: AdmitIntendedOrderQuantity) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: IntendedOrderQuantityProductionRequest):
+        admission = self._repository.get_sourcing_admission(
+            request.sourcing_admission_id, request.sourcing_admission_revision
+        )
+        if admission is None:
+            raise CapitalInvestmentSourceNotFoundError(
+                "exact Sourcing Admission revision is missing"
+            )
+        identity = admission.selling_product_lineage.opportunity_identity
+        if identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Sourcing Admission differs from route Opportunity"
+            )
+        return self._owner.execute(
+            AdmitIntendedOrderQuantityCommand(
+                command_id=request.command_id,
+                opportunity_identity=identity,
+                sourcing_admission_id=request.sourcing_admission_id,
+                sourcing_admission_revision=request.sourcing_admission_revision,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                quantity=request.quantity,
+                quantity_unit=request.quantity_unit,
+                operator_id=request.operator_id,
+                declared_at=request.declared_at,
+                requested_at=request.requested_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PlannedCapitalRequirementProductionRequest:
+    command_id: str
+    opportunity_id: str
+    intended_order_quantity_id: str
+    acquisition_normalization_id: str
+    scope_status: UpfrontCostScopeStatus
+    operator_id: str
+    verified_at: datetime
+    requested_at: datetime
+
+
+class PlannedCapitalRequirementProductionEntry:
+    def __init__(
+        self, repository, owner: CalculatePlannedAcquisitionCapitalRequirement
+    ) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: PlannedCapitalRequirementProductionRequest):
+        intent = self._repository.get_intent(request.intended_order_quantity_id)
+        if intent is None:
+            raise PlannedAcquisitionCapitalRequirementSourceNotFoundError(
+                "exact Intended Order Quantity is missing"
+            )
+        identity = intent.opportunity_identity
+        if identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Intended Order Quantity differs from route Opportunity"
+            )
+        return self._owner.execute(
+            CalculatePlannedAcquisitionCapitalRequirementCommand(
+                command_id=request.command_id,
+                opportunity_identity=identity,
+                intended_order_quantity_id=request.intended_order_quantity_id,
+                acquisition_normalization_id=request.acquisition_normalization_id,
+                scope_status=request.scope_status,
+                operator_id=request.operator_id,
+                verified_at=request.verified_at,
+                requested_at=request.requested_at,
+                policy_name=PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
+                policy_version=PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalGateProductionRequest:
+    command_id: str
+    opportunity_id: str
+    capital_readiness_assessment_id: str
+    capital_requirement_id: str
+    deployable_capital_snapshot_id: str
+    requested_at: datetime
+
+
+class CapitalGateProductionEntry:
+    def __init__(self, repository, owner: EvaluateCapitalGate) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: CapitalGateProductionRequest):
+        readiness = self._repository.get_capital_readiness(
+            request.capital_readiness_assessment_id
+        )
+        if readiness is None:
+            raise CapitalGateSourceNotFoundError(
+                "exact Capital Readiness assessment is missing"
+            )
+        identity = readiness.source_manifest.opportunity_identity
+        if identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Capital Readiness differs from route Opportunity"
+            )
+        return self._owner.execute(
+            EvaluateCapitalGateCommand(
+                command_id=request.command_id,
+                opportunity_identity=identity,
+                capital_readiness_assessment_id=request.capital_readiness_assessment_id,
+                capital_requirement_id=request.capital_requirement_id,
+                deployable_capital_snapshot_id=request.deployable_capital_snapshot_id,
+                requested_at=request.requested_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class FounderCapitalApprovalProductionRequest:
+    command_id: str
+    opportunity_id: str
+    capital_gate_id: str
+    founder_id: str
+    approved_capital: Decimal
+    currency: str
+    requested_at: datetime
+    approved_at: datetime
+
+
+class FounderCapitalApprovalProductionEntry:
+    def __init__(self, repository, owner: ApproveFounderCapital) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: FounderCapitalApprovalProductionRequest):
+        gate = self._repository.get_capital_gate(request.capital_gate_id)
+        if gate is None:
+            raise FounderCapitalApprovalSourceNotFoundError(
+                "exact Capital Gate assessment is missing"
+            )
+        if gate.source_manifest.opportunity_identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Capital Gate differs from route Opportunity"
+            )
+        return self._owner.execute(
+            ApproveFounderCapitalCommand(
+                command_id=request.command_id,
+                capital_gate_id=request.capital_gate_id,
+                founder_id=request.founder_id,
+                approved_capital=request.approved_capital,
+                currency=request.currency,
+                requested_at=request.requested_at,
+                approved_at=request.approved_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RealMoneyExecutionIntentProductionRequest:
+    command_id: str
+    opportunity_id: str
+    founder_capital_approval_id: str
+    quote_id: str
+    quote_revision: int
+    current_deployable_capital_snapshot_id: str
+    execution_quantity: int
+    execution_quantity_unit: str
+    planned_execution_amount: Decimal
+    currency: str
+    founder_id: str
+    current_execution_confirmed: bool
+    confirmed_at: datetime
+    requested_at: datetime
+
+
+class RealMoneyExecutionIntentProductionEntry:
+    def __init__(self, repository, owner: EvaluateRealMoneyExecutionIntent) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: RealMoneyExecutionIntentProductionRequest):
+        approval = self._repository.get_founder_capital_approval(
+            request.founder_capital_approval_id
+        )
+        if approval is None:
+            raise RealMoneyExecutionIntentSourceNotFoundError(
+                "exact Founder Capital Approval is missing"
+            )
+        if approval.opportunity_identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Founder Capital Approval differs from route Opportunity"
+            )
+        return self._owner.execute(
+            EvaluateRealMoneyExecutionIntentCommand(
+                command_id=request.command_id,
+                founder_capital_approval_id=request.founder_capital_approval_id,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                current_deployable_capital_snapshot_id=(
+                    request.current_deployable_capital_snapshot_id
+                ),
+                execution_quantity=request.execution_quantity,
+                execution_quantity_unit=request.execution_quantity_unit,
+                planned_execution_amount=request.planned_execution_amount,
+                currency=request.currency,
+                founder_id=request.founder_id,
+                requested_at=request.requested_at,
+                confirmed_at=request.confirmed_at,
+                current_execution_confirmed=request.current_execution_confirmed,
+            )
+        )
+
+
+__all__ = [
+    name
+    for name in globals()
+    if name.endswith(("ProductionEntry", "ProductionRequest"))
+    or name == "CapitalProductionOpportunityConflictError"
+]

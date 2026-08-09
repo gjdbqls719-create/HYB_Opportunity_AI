@@ -7,8 +7,10 @@ Accepted
 ## Implementation Status
 
 CR-1B5C implements the immutable Domain/Application authority, dedicated opaque
-identity supplier, and append-only SQLite approval/receipt persistence. Production
-API/UI and purchase or capital-deployment execution remain unimplemented.
+identity supplier, and append-only SQLite approval/receipt persistence.
+CR-1B5D2L exposes the explicit exact-Gate Approval through production API and
+keeps it separate from Gate evaluation and Execution Intent. UI, purchase, and
+capital-deployment execution remain unimplemented.
 
 ## Context
 
