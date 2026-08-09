@@ -8,10 +8,16 @@ from decimal import Decimal
 from enum import StrEnum
 
 from app.domain.decision_engine import OpportunityIdentity
-from app.domain.market_intelligence import ArtifactReference, MarketObservationIdentity
+from app.domain.market_intelligence import (
+    ArtifactReference,
+    MarketObservationIdentity,
+    MarketObservationScope,
+)
 
 
 SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v2"
+DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v3"
+DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION = "domestic-selling-product-lineage-v1"
 SUPPLIER_IDENTITY_SCHEMA_VERSION = "supplier-identity-v1"
 SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION = "sourcing-product-identity-v1"
 SUPPLIER_QUOTE_SCHEMA_VERSION = "supplier-quote-revision-v1"
@@ -218,6 +224,50 @@ class SellingProductLineage:
 
 
 @dataclass(frozen=True, slots=True)
+class DomesticSellingProductLineage:
+    opportunity_identity: OpportunityIdentity
+    domestic_selling_admission_id: str
+    source_opportunity_identity: OpportunityIdentity
+    source_product_observation_snapshot_id: str
+    market_observation_identity: MarketObservationIdentity
+    product_equivalence_evidence_reference: str
+    schema_version: str = DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for name in ("opportunity_identity", "source_opportunity_identity"):
+            if not isinstance(getattr(self, name), OpportunityIdentity):
+                raise TypeError(f"{name} must be OpportunityIdentity")
+        if self.opportunity_identity == self.source_opportunity_identity:
+            raise ValueError("source and domestic Opportunity identities must differ")
+        if not isinstance(self.market_observation_identity, MarketObservationIdentity):
+            raise TypeError("market_observation_identity must be MarketObservationIdentity")
+        if self.market_observation_identity.market.upper() != "KR":
+            raise ValueError("domestic selling lineage Market identity must be KR")
+        if self.market_observation_identity.scope not in {
+            MarketObservationScope.LISTING,
+            MarketObservationScope.CANONICAL_PRODUCT,
+        }:
+            raise ValueError(
+                "domestic selling lineage must identify a listing or canonical product"
+            )
+        for name in (
+            "domestic_selling_admission_id",
+            "source_product_observation_snapshot_id",
+            "product_equivalence_evidence_reference",
+        ):
+            object.__setattr__(self, name, _required(getattr(self, name), name))
+        if self.schema_version != DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION:
+            raise ValueError("unsupported domestic selling Product lineage version")
+
+
+SellingProductLineageValue = SellingProductLineage | DomesticSellingProductLineage
+
+
+def _is_selling_lineage(value: object) -> bool:
+    return isinstance(value, (SellingProductLineage, DomesticSellingProductLineage))
+
+
+@dataclass(frozen=True, slots=True)
 class SupplierQuoteRevision:
     quote_id: str
     revision: int
@@ -276,7 +326,7 @@ class SupplierQuoteRevision:
 @dataclass(frozen=True, slots=True)
 class ProductMatchVerification:
     verification_id: str
-    selling_product_lineage: SellingProductLineage
+    selling_product_lineage: SellingProductLineageValue
     sourcing_product_id: str
     status: MatchVerificationStatus
     verifier_id: str
@@ -288,8 +338,8 @@ class ProductMatchVerification:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "verification_id", _required(self.verification_id, "verification_id"))
-        if not isinstance(self.selling_product_lineage, SellingProductLineage):
-            raise TypeError("selling_product_lineage must be SellingProductLineage")
+        if not _is_selling_lineage(self.selling_product_lineage):
+            raise TypeError("selling_product_lineage must be a supported lineage")
         object.__setattr__(self, "sourcing_product_id", _required(self.sourcing_product_id, "sourcing_product_id"))
         try:
             object.__setattr__(self, "status", MatchVerificationStatus(self.status))
@@ -332,7 +382,7 @@ class SourcingEconomicsSourceReference:
 class FounderSourcingAdmission:
     admission_id: str
     revision: int
-    selling_product_lineage: SellingProductLineage
+    selling_product_lineage: SellingProductLineageValue
     supplier_identity: SupplierIdentity
     sourcing_product_identity: SourcingProductIdentity
     quote_revision: SupplierQuoteRevision
@@ -345,8 +395,14 @@ class FounderSourcingAdmission:
     def __post_init__(self) -> None:
         object.__setattr__(self, "admission_id", _required(self.admission_id, "admission_id"))
         _positive(self.revision, "revision")
-        if not isinstance(self.selling_product_lineage, SellingProductLineage):
-            raise TypeError("selling_product_lineage must be SellingProductLineage")
+        if not _is_selling_lineage(self.selling_product_lineage):
+            raise TypeError("selling_product_lineage must be a supported lineage")
+        if (
+            isinstance(self.selling_product_lineage, DomesticSellingProductLineage)
+            and self.schema_version
+            != DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
+        ):
+            raise ValueError("Sourcing admission schema does not match lineage kind")
         if not isinstance(self.supplier_identity, SupplierIdentity):
             raise TypeError("supplier_identity must be SupplierIdentity")
         if not isinstance(self.sourcing_product_identity, SourcingProductIdentity):
@@ -382,6 +438,8 @@ class FounderSourcingAdmission:
 __all__ = (
     "CommercialFactAvailability",
     "FounderSourcingAdmission",
+    "DomesticSellingProductLineage",
+    "SellingProductLineageValue",
     "MatchVerificationStatus",
     "ProductMatchVerification",
     "SellingProductLineage",
@@ -396,6 +454,8 @@ __all__ = (
     "SupplierIdentity",
     "SupplierQuoteRevision",
     "SOURCING_AUTHORITY_SCHEMA_VERSION",
+    "DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION",
+    "DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION",
     "SOURCING_EVIDENCE_SCHEMA_VERSION",
     "SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION",
     "SUPPLIER_IDENTITY_SCHEMA_VERSION",

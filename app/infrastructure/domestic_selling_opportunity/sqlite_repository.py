@@ -239,6 +239,13 @@ class SQLiteDomesticSellingOpportunityAdmissionRepository(
         ).fetchone()
         return None if row is None else self._publication(row["admission_id"])
 
+    def get_admission(self, admission_id):
+        row = self._connection.execute(
+            f"SELECT admission_id FROM {HISTORY_TABLE} WHERE admission_id=?",
+            (admission_id,),
+        ).fetchone()
+        return None if row is None else self._publication(row["admission_id"])
+
     def save_admission(self, command, lifecycle, transition, market_binding, admission, receipt):
         candidate = DomesticSellingOpportunityAdmissionPublication(
             lifecycle, transition, market_binding, admission, receipt, False

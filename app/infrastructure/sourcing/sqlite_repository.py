@@ -32,6 +32,9 @@ from app.domain.market_intelligence import (
 )
 from app.domain.sourcing import (
     CommercialFactAvailability,
+    DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION,
+    DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
+    DomesticSellingProductLineage,
     FounderSourcingAdmission,
     MatchVerificationStatus,
     ProductMatchVerification,
@@ -51,6 +54,9 @@ from app.domain.sourcing import (
     SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION,
     SUPPLIER_IDENTITY_SCHEMA_VERSION,
     SUPPLIER_QUOTE_SCHEMA_VERSION,
+)
+from app.infrastructure.domestic_selling_opportunity import (
+    SQLiteDomesticSellingOpportunityAdmissionRepository,
 )
 
 
@@ -182,7 +188,24 @@ def _load_market(value: object) -> MarketObservationIdentity:
     )
 
 
-def _lineage(value: SellingProductLineage) -> dict[str, object]:
+def _lineage(value) -> dict[str, object]:
+    if isinstance(value, DomesticSellingProductLineage):
+        return {
+            "lineage_kind": "domestic_selling_admission",
+            "opportunity_identity": {
+                "opportunity_id": value.opportunity_identity.opportunity_id,
+                "discovery_reference": value.opportunity_identity.discovery_reference,
+            },
+            "domestic_selling_admission_id": value.domestic_selling_admission_id,
+            "source_opportunity_identity": {
+                "opportunity_id": value.source_opportunity_identity.opportunity_id,
+                "discovery_reference": value.source_opportunity_identity.discovery_reference,
+            },
+            "source_product_observation_snapshot_id": value.source_product_observation_snapshot_id,
+            "market_observation_identity": _market(value.market_observation_identity),
+            "product_equivalence_evidence_reference": value.product_equivalence_evidence_reference,
+            "schema_version": value.schema_version,
+        }
     return {
         "opportunity_identity": {
             "opportunity_id": value.opportunity_identity.opportunity_id,
@@ -195,10 +218,35 @@ def _lineage(value: SellingProductLineage) -> dict[str, object]:
     }
 
 
-def _load_lineage(value: object) -> SellingProductLineage:
+def _load_lineage(value: object):
     if not isinstance(value, dict) or not isinstance(value.get("opportunity_identity"), dict):
         raise ValueError("selling lineage must be an object")
     opportunity = value["opportunity_identity"]
+    if value.get("lineage_kind") == "domestic_selling_admission":
+        if value.get("schema_version") != DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION:
+            raise UnsupportedSourcingAuthorityVersionError(
+                "unsupported domestic selling lineage version"
+            )
+        source = value.get("source_opportunity_identity")
+        if not isinstance(source, dict):
+            raise ValueError("source Opportunity identity is malformed")
+        return DomesticSellingProductLineage(
+            opportunity_identity=OpportunityIdentity(
+                opportunity["opportunity_id"], opportunity["discovery_reference"]
+            ),
+            domestic_selling_admission_id=value["domestic_selling_admission_id"],
+            source_opportunity_identity=OpportunityIdentity(
+                source["opportunity_id"], source["discovery_reference"]
+            ),
+            source_product_observation_snapshot_id=value[
+                "source_product_observation_snapshot_id"
+            ],
+            market_observation_identity=_load_market(value["market_observation_identity"]),
+            product_equivalence_evidence_reference=value[
+                "product_equivalence_evidence_reference"
+            ],
+            schema_version=value["schema_version"],
+        )
     return SellingProductLineage(
         opportunity_identity=OpportunityIdentity(
             opportunity["opportunity_id"], opportunity["discovery_reference"]
@@ -403,7 +451,10 @@ def _admission(value: FounderSourcingAdmission) -> dict[str, object]:
 def _load_admission(value: object) -> FounderSourcingAdmission:
     if not isinstance(value, dict):
         raise ValueError("Admission must be an object")
-    if value.get("schema_version") != SOURCING_AUTHORITY_SCHEMA_VERSION:
+    if value.get("schema_version") not in {
+        SOURCING_AUTHORITY_SCHEMA_VERSION,
+        DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
+    }:
         raise UnsupportedSourcingAuthorityVersionError("unsupported Admission version")
     return FounderSourcingAdmission(
         value["admission_id"], value["revision"],
@@ -432,6 +483,13 @@ class SQLiteSourcingAuthorityRepository:
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._initialize_schema()
+
+    def get_domestic_selling_admission(self, admission_id):
+        reader = SQLiteDomesticSellingOpportunityAdmissionRepository(
+            connection=self._connection
+        )
+        publication = reader.get_admission(admission_id)
+        return None if publication is None else publication.admission
 
     def _initialize_schema(self) -> None:
         statements = (
@@ -791,7 +849,7 @@ class SQLiteSourcingAuthorityRepository:
             ) from error
 
     def _from_admission_row(self, row):
-        admission = self._payload(row, SOURCING_AUTHORITY_SCHEMA_VERSION, _load_admission)
+        admission = self._payload(row, row["schema_version"], _load_admission)
         supplier_row = self._fact_row(
             "sourcing_supplier_history", "supplier_id=?", (row["supplier_id"],)
         )

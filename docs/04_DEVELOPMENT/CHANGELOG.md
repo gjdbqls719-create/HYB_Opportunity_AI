@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2C - Domestic Selling Opportunity to Sourcing Lineage Handoff
+
+- Add an immutable `DomesticSellingProductLineage` variant that binds a new O2-owned Founder Sourcing Admission to one exact persisted Domestic Selling Opportunity Admission while preserving O1 only as provenance.
+- Keep the legacy Candidate-Promotion lineage payload and v2 persistence unchanged; persist domestic lineage as an additive discriminated v3 payload with restart/replay integrity.
+- Reuse the existing Founder Sourcing owner, Supplier Quote, verified Product Match and Sourcing Economics Binding without copying O1 quotes/Economics or adding API, UI, automatic matching or Capital behavior.
+
 ## CR-1B5D2B1 - Domestic Selling Opportunity Admission SQLite Persistence
 
 - Add one shared-connection SQLite repository that atomically commits the existing O2 `DISCOVERED` version 1 lifecycle/current transition, immutable KR Market binding, domestic-selling admission and command receipt.

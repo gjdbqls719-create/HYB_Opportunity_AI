@@ -11,9 +11,11 @@ import json
 
 from app.domain.sourcing import (
     CommercialFactAvailability,
+    DomesticSellingProductLineage,
     FounderSourcingAdmission,
     MatchVerificationStatus,
     SellingProductLineage,
+    SellingProductLineageValue,
     ShippingTerm,
     SourcingEvidenceReference,
     SourcingEconomicsSourceReference,
@@ -120,7 +122,7 @@ def _fingerprint(value: object) -> str:
 @dataclass(frozen=True, slots=True)
 class AdmitFounderSourcingCommand:
     command_id: str
-    selling_product_lineage: SellingProductLineage
+    selling_product_lineage: SellingProductLineageValue
     supplier_platform: str
     external_supplier_reference: str | None
     supplier_display_name: str | None
@@ -150,9 +152,12 @@ class AdmitFounderSourcingCommand:
     def __post_init__(self) -> None:
         for name in ("command_id", "supplier_platform", "external_product_reference", "operator_id"):
             object.__setattr__(self, name, _required(getattr(self, name), name))
-        if not isinstance(self.selling_product_lineage, SellingProductLineage):
+        if not isinstance(
+            self.selling_product_lineage,
+            (SellingProductLineage, DomesticSellingProductLineage),
+        ):
             raise InvalidSourcingCommandError(
-                "selling_product_lineage must be SellingProductLineage"
+                "selling_product_lineage must be a supported lineage"
             )
         if not isinstance(self.quoted_unit_price, SourcingMoneyFact):
             raise InvalidSourcingCommandError("quoted_unit_price must be SourcingMoneyFact")

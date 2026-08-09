@@ -20,6 +20,7 @@ from app.application.sourcing.ports import SourcingAuthorityRepository
 from app.application.sourcing.service import (
     AdmitFounderSourcing,
     ReviseFounderSourcingQuote,
+    SourcingDomesticSellingLineageError,
 )
 from app.application.sourcing.production import SourcingAuthorityProductionEntry
 from app.application.sourcing.economics_binding import *

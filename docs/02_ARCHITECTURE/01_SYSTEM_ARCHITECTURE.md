@@ -177,6 +177,16 @@ committed/reconstructed result. No supplier lookup, matching calculation,
 Economics, Capital policy, Snapshot Chain mutation, OCR promotion, or UI is
 part of this composition.
 
+CR-1B5D2C adds a second explicit selling-lineage variant without changing the
+legacy Candidate-Promotion payload. `DomesticSellingProductLineage` pins one
+persisted O1-to-O2 admission, its exact O1/O2 identities, source Product
+Snapshot, KR Market identity and equivalence evidence. The existing Sourcing
+owner validates that source before identity issuance and still creates a normal
+independent Supplier Product Match and Quote under O2. SQLite preserves legacy
+v2 payload bytes while domestic admissions use a discriminated v3 payload;
+existing Sourcing Economics Binding consumes either through the same exact
+Founder Sourcing Admission reference.
+
 CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
 fact. An immutable binding links one `OpportunityIdentity` to one explicit
 Admission/Quote revision and is persisted with its replay receipt in a single

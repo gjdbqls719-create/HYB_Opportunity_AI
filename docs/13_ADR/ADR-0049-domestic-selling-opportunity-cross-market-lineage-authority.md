@@ -17,6 +17,15 @@ restart, rollback, corruption detection and one-O1-to-one-O2 cardinality.
 Sourcing domestic-lineage handoff, production composition, API/UI, and trusted
 operator injection remain deferred.
 
+CR-1B5D2C implements the deferred additive Sourcing handoff. The legacy
+Candidate-Promotion `SellingProductLineage` remains unchanged, while the new
+`DomesticSellingProductLineage` pins the exact persisted admission, O1 and O2
+identities, source Product Snapshot, KR Market identity and embedded product-
+equivalence evidence reference. The existing Founder Sourcing owner validates
+that manifest before issuing identities, still requires a separate verified
+Supplier Product Match, and persists the O2-owned admission without copying O1
+quotes or Economics.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate
@@ -191,12 +200,12 @@ unchanged. O1 and O2 sources cannot be mixed in one Capital manifest.
 Sourcing exists to supply the domestic-selling Opportunity, so new
 Capital-facing Sourcing Admissions must be bound to O2.
 
-The current `SellingProductLineage` is Candidate-Promotion-specific and cannot
-safely attach O1's Candidate binding to O2. A follow-up implementation must add
-an explicit O2 selling-lineage variant/reference that consumes the exact
-`DomesticSellingOpportunityAdmission` while retaining O1 provenance inside that
-admission. It must not fabricate a Candidate-O2 promotion binding or weaken the
-current source checks.
+The legacy `SellingProductLineage` remains Candidate-Promotion-specific and
+cannot attach O1's Candidate binding to O2. The additive
+`DomesticSellingProductLineage` consumes the exact persisted
+`DomesticSellingOpportunityAdmission`, retains O1 provenance, and owns the
+normal Founder Sourcing Admission under O2. It does not fabricate a Candidate-O2
+promotion binding or weaken the existing Product Match requirement.
 
 Existing O1 Sourcing Admissions remain immutable foreign-source history. They
 are not re-keyed to O2. For the first MVP, a new O2-bound Sourcing Admission and
@@ -304,7 +313,7 @@ automatically.
 
 ## Deferred
 
-- Sourcing selling-lineage variant/reference and production wiring
+- production API wiring for the domestic Sourcing lineage
 - API/UI and trusted operator injection
 - direct KR Opportunity ingress
 - automatic cross-market matching and canonical-product reconciliation
