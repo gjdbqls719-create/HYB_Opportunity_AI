@@ -603,7 +603,9 @@ ActualAcquisitionSettlement
 + GoodsReceiptRecord
 + ActualSaleSettlement (implemented sale-side fact)
 `-- ActualOutcome (implemented immutable exact-source result)
-    `-- Variance v2 + ConservativeEconomics binding (future)
+    `-- Variance v2 + exact ConservativeEconomics binding
+        (ADR-0056 decision only; unimplemented)
+        `-- Calibration / policy learning (future)
 ```
 
 Purchase Execution, Actual Acquisition Settlement, and Goods Receipt imply
@@ -665,7 +667,18 @@ sources or selects latest history.
 One CALCULABLE ActualOutcome over genuine purchase, acquisition, receipt, and
 sale evidence defines the Real-Money Validated MVP commerce-fact cut. Closed-Loop
 Learning MVP additionally requires an exact Conservative Economics result and
-future Variance v2; ActualOutcome itself has no predicted-source dependency.
+persisted Variance v2; ActualOutcome itself has no predicted-source dependency.
+
+ADR-0056 defines that future Variance v2 as an immutable exact-pair comparison
+under `conservative-actual-variance / 2.0.0`. It binds explicit persisted
+Conservative and ActualOutcome IDs, reconstructs only named immutable lineage
+and component sources, and never selects latest or recalculates either result.
+Metric comparability, overall comparison state, and calibration eligibility are
+separate. Partial and zero-sale outcomes remain useful without fabricated sale
+values; predictions not calculated strictly before Purchase Execution remain
+numerically comparable where safe but calibration-ineligible. The ADR is
+decision only: no Variance v2 Domain/Application/SQLite/API or calibration
+engine exists yet, and no automatic model or policy update is implied.
 
 `POST /api/v1/opportunities/{opportunity_id}/actual-sale-settlements` exposes
 manual marketplace-generic admission with the first controlled path using

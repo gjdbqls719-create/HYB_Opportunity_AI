@@ -62,3 +62,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0053: Owned Inventory Projection Authority](ADR-0053-owned-inventory-projection-authority.md)
 - [ADR-0054: Actual Sale Settlement Authority](ADR-0054-actual-sale-settlement-authority.md)
 - [ADR-0055: Actual Outcome Authority](ADR-0055-actual-outcome-authority.md)
+- [ADR-0056: Conservative vs Actual Variance v2 Authority](ADR-0056-conservative-actual-variance-v2-authority.md)

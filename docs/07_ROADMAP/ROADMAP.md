@@ -195,6 +195,35 @@ sale, and CALCULABLE ActualOutcome evidence chain. The next architecture task is
 Variance v2 authority for exact ConservativeEconomics versus exact
 ActualOutcome; no Variance v2 behavior is implemented here.
 
+#### CR-1B6E1 Conservative vs Actual Variance v2 authority
+
+ADR-0056 now defines the decision-only `conservative-actual-variance / 2.0.0`
+boundary. A future immutable result will bind one explicit persisted
+ConservativeEconomics result to one explicit persisted ActualOutcome, preserve
+per-metric comparability and actual-only/exposure context, and classify future
+calibration suitability independently from numeric comparison. It performs no
+latest selection, source recalculation, automatic calibration, model training,
+or policy update.
+
+The milestone boundaries remain separate:
+
+- Functional Founder MVP remains the production-callable operational journey.
+- Real-Money Validated MVP still requires one genuine CALCULABLE ActualOutcome;
+  Variance v2 is not required.
+- Closed-Loop Learning MVP software capability additionally requires persisted
+  Variance v2 over an exact persisted Conservative/Actual pair, structured
+  comparability, and calibration eligibility. Operational validation still
+  requires genuine real-world data.
+
+For the first real-world variance, archive/reference the exact Conservative
+result before external purchase, create the genuine ActualOutcome after the
+actual loop, and compare only those two exact IDs. A post-outcome replacement
+prediction is not calibration-eligible.
+
+The exact next implementation CR is the additive Variance v2
+Domain/Application/append-only SQLite/API slice and its replay, restart,
+concurrency, zero-sale, partial/full, and hindsight-safety tests.
+
 ### Real-Money Ready Gate
 
 Real-Money Ready는 기능 목록 완료가 아니라 다음 evidence gate를 모두 통과한 상태다.
