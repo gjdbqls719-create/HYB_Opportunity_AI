@@ -4,6 +4,13 @@
 
 Accepted; reconciled and persisted by CR-1B3C1.
 
+## Implementation Status
+
+CR-1B5D2H exposes the v2 owner through an Opportunity-scoped production API. Founder/
+operator basis, denominator and evidence facts remain explicit; `UNRESOLVED` remains a
+successful authoritative result and no MOQ, quoted-quantity-for-PER_ORDER, or latest
+authority fallback is introduced.
+
 ## Context
 
 HYB must not convert non-per-unit shipping costs into unit economics without

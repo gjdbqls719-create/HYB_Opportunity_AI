@@ -265,6 +265,46 @@ domain validation returns 422; bounded persistence failure returns 503 without S
 details. The response exposes the assessment ID, exact Opportunity/KR Market and source
 manifest, ordered reasons, operator verification facts, policy/times/schema versions, and
 replay indicator, but no internal fingerprint or SQLite payload.
+
+## O2 acquisition and authoritative Economics production chain
+
+CR-1B5D2H exposes the existing exact-source financial authorities through six
+independent request-scoped boundaries:
+
+- `POST /api/v1/opportunities/{opportunity_id}/sourcing-economics-bindings`
+- `POST /api/v1/opportunities/{opportunity_id}/landed-cost-compositions`
+- `POST /api/v1/opportunities/{opportunity_id}/shipping-allocation-authorities`
+- `POST /api/v1/fx-observations`
+- `POST /api/v1/opportunities/{opportunity_id}/acquisition-cost-normalizations`
+- `POST /api/v1/opportunities/{opportunity_id}/economics-source-compositions`
+
+Every Opportunity-scoped route derives the complete `OpportunityIdentity` from its
+named persisted source and requires the path Opportunity to match. O2 works through
+the same generic owners and repositories as legacy Candidate sourcing; O1 is never a
+fallback. Each boundary commits independently, uses exact IDs only, and returns 201
+for a fresh authority or 200 for an exact replay. Missing named sources return 404,
+changed commands or lineage/source-manifest conflicts return 409, invalid factual
+input returns 422, and bounded persistence failures return 503.
+
+The allocation request is an explicit Founder/operator fact. An `UNSPECIFIED`
+shipping component remains `UNRESOLVED` unless the caller names an effective basis;
+`PER_ORDER` also requires an explicit denominator, while
+`PER_QUOTED_QUANTITY` may use only the exact composition quoted quantity. No MOQ,
+latest allocation, or default basis is inferred. `UNRESOLVED` is a successful 2xx
+authority result, but it cannot be consumed by normalization.
+
+FX admission preserves the exact Decimal-string rate, pair, observation time and
+provenance. It performs no provider lookup or inverse-observation fabrication.
+Normalization takes ordered exact allocation and FX IDs plus an explicit target
+currency; a same-currency path requires no fake FX observation. All financial values
+are serialized as Decimal strings.
+
+Economics Source Composition combines one exact normalization with the exact O2
+Verified Economics snapshot time/schema and excludes legacy purchase/shipping fields
+to prevent double counting. `READY` and `BLOCKED` remain successful business results.
+The existing Conservative Economics endpoint consumes the resulting composition
+without formula changes. Critical Cost is not an input to normalization or source
+composition; its production wiring remains part of the later Capital Readiness chain.
 # Operational Production Safety
 
 `GET /api/v1/opportunities/{opportunity_id}/production-safety-evaluations`

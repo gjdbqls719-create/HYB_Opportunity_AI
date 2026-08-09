@@ -216,6 +216,18 @@ MVP boundary; assessment identity and evaluation/commit times remain server-owne
 The entry performs no latest selection, Verified Economics interpretation, Validation
 Queue admission, or Capital creation.
 
+CR-1B5D2H makes the existing exact-source acquisition/Economics authorities
+production-callable without adding an orchestration transaction. Independent
+Opportunity-scoped entries derive the full identity from the named Sourcing Admission,
+Binding, Landed Cost or Normalization source and reject O1/O2 mixing. Shipping
+allocation remains an explicit Founder/operator authority, FX remains an explicit
+observed fact, and normalization/source composition remain mechanical Application
+owners using exact ordered IDs. Each request owns one SQLite connection and one
+append-only transaction; earlier authorities remain historical facts if a later step
+fails. The existing Conservative Economics API consumes the new composition unchanged.
+Critical Cost remains separate and is required later by Capital Readiness, not by
+Acquisition Normalization or Economics Source Composition.
+
 CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
 fact. An immutable binding links one `OpportunityIdentity` to one explicit
 Admission/Quote revision and is persisted with its replay receipt in a single

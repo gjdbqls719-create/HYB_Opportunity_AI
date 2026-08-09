@@ -18,6 +18,10 @@ The implemented policy identity is `conservative-unit-economics` version
 sale-price factor greater than zero and at most one. There is no default or
 automatic haircut.
 
+CR-1B5D2H adds no Conservative Economics behavior. It exposes the exact upstream
+acquisition/source-composition authorities and proves that their O2-owned READY result
+is accepted by this existing production entry as CALCULABLE under the unchanged policy.
+
 ## Context
 
 ADR-0042 provides an immutable, exact-source `EconomicsSourceComposition`, but

@@ -4,6 +4,14 @@
 
 Accepted
 
+## Implementation Status
+
+CR-1B5D2H exposes the existing owner through an Opportunity-scoped production API.
+The entry combines one named normalization with the exact same-Opportunity Verified
+Economics snapshot time/schema, preserves READY/BLOCKED as successful business states,
+and continues to exclude legacy purchase/shipping fields. The existing Conservative
+Economics API consumes the committed result without formula changes.
+
 ## Context
 
 ADR-0041 provides one exact, persisted per-unit acquisition cost in an explicit

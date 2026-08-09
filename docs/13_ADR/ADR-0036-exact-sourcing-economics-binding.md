@@ -4,6 +4,13 @@
 
 Accepted (CR-1B2B)
 
+## Implementation Status
+
+CR-1B5D2H exposes the existing owner through an Opportunity-scoped production API.
+The entry reconstructs the exact named Sourcing Admission/Quote revision, derives its
+Opportunity identity, and delegates binding creation without latest-quote selection or
+O2-specific policy.
+
 ## Context
 
 An admitted sourcing graph can reconstruct the Supplier, exact Sourcing Product,

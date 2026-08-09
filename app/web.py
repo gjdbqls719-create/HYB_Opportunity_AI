@@ -49,7 +49,9 @@ from app.application.domestic_selling_opportunity import (
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.sourcing import (
     CommercialFactAvailability,
+    CostAllocationBasis,
     DomesticSellingProductLineage,
+    LandedCostComponentKind,
     MatchVerificationStatus,
     SellingProductLineage,
     ShippingScope,
@@ -58,6 +60,7 @@ from app.domain.sourcing import (
     SourcingEvidenceReference,
     SourcingMoneyFact,
     SourcingQuantityFact,
+    SourcingEconomicsSourceReference,
 )
 from app.infrastructure.sourcing import (
     MalformedSourcingAuthorityPersistenceError,
@@ -222,6 +225,53 @@ from app.application.conservative_economics import (
     ConservativeEconomicsScenario,
     ConservativeEconomicsSourceError,
 )
+from app.application.economics_production import (
+    AcquisitionNormalizationProductionEntry,
+    AcquisitionNormalizationProductionRequest,
+    EconomicsProductionOpportunityConflictError,
+    EconomicsProductionSourceNotFoundError,
+    EconomicsSourceCompositionProductionEntry,
+    EconomicsSourceCompositionProductionRequest,
+    LandedCostProductionEntry,
+    LandedCostProductionRequest,
+    ShippingAllocationProductionEntry,
+    ShippingAllocationProductionRequest,
+    SourcingEconomicsBindingProductionEntry,
+    SourcingEconomicsBindingProductionRequest,
+)
+from app.application.economics_source_composition import (
+    ComposeEconomicsSources,
+    EconomicsSourceCompositionPolicyError,
+    EconomicsSourceCompositionReplayConflictError,
+    EconomicsSourceCompositionSourceError,
+)
+from app.application.sourcing import (
+    AcquisitionCostNormalizationPolicyError,
+    AcquisitionCostNormalizationReplayConflictError,
+    AcquisitionCostNormalizationSourceError,
+    AdmitFXObservation,
+    AdmitFXObservationCommand,
+    AdmitShippingAllocationAuthority,
+    BindSourcingEconomicsSource,
+    ComposeLandedCost,
+    FXObservationReplayConflictError,
+    LandedCostCompositionExactSourceError,
+    LandedCostCompositionOpportunityMismatchError,
+    LandedCostCompositionReplayConflictError,
+    LandedCostCompositionSourceNotFoundError,
+    NormalizeAcquisitionCosts,
+    ShippingAllocationAuthorityReplayConflictError,
+    ShippingAllocationBasisConflictError,
+    ShippingAllocationComponentNotFoundError,
+    ShippingAllocationOpportunityMismatchError,
+    ShippingAllocationProvenanceError,
+    ShippingAllocationSourceNotFoundError,
+    SourcingEconomicsBindingNotFoundError,
+    SourcingEconomicsBindingOpportunityMismatchError,
+    SourcingEconomicsBindingReplayConflictError,
+    SourcingEconomicsExactRevisionError,
+    SourcingEconomicsSourceNotFoundError,
+)
 from app.application.snapshot_chain_binding import (
     CompleteSnapshotChainProductionEntry,
     CompleteSnapshotChainProductionRequest,
@@ -375,6 +425,32 @@ from app.infrastructure.conservative_economics import (
     ConservativeEconomicsPersistenceError,
     ProductionConservativeEconomicsIdentityGenerator,
     SQLiteConservativeEconomicsRepository,
+)
+from app.infrastructure.economics_source_composition import (
+    EconomicsSourceCompositionPersistenceError,
+    ProductionEconomicsSourceCompositionIdentityGenerator,
+    SQLiteEconomicsSourceCompositionRepository,
+)
+from app.infrastructure.sourcing import (
+    AcquisitionCostNormalizationPersistenceError,
+    LandedCostCompositionPersistenceError,
+    ProductionAcquisitionCostNormalizationIdentityGenerator,
+    ProductionFXObservationIdentityGenerator,
+    ProductionShippingAllocationAuthorityIdentityGenerator,
+    ProductionSourcingEconomicsBindingIdentityGenerator,
+    ShippingAllocationAuthorityPersistenceError,
+    SQLiteAcquisitionCostNormalizationRepository,
+    SQLiteFXObservationRepository,
+    SQLiteLandedCostCompositionRepository,
+    SQLiteShippingAllocationAuthorityRepository,
+    SQLiteSourcingEconomicsBindingRepository,
+    SourcingEconomicsBindingPersistenceError,
+)
+from app.infrastructure.sourcing.sqlite_fx_observation_repository import (
+    FXObservationPersistenceError,
+)
+from app.infrastructure.sourcing.identity_suppliers import (
+    ProductionLandedCostCompositionIdentityGenerator,
 )
 from app.infrastructure.domestic_market_validation import (
     DomesticMarketValidationPersistenceError,
@@ -1094,6 +1170,267 @@ class SourcingQuoteRevisionRequest(BaseModel):
     quote_observed_at: datetime
     quote_valid_until: datetime | None = None
     quote_evidence: SourcingEvidenceRequest
+
+
+class SourcingEconomicsBindingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    admission_id: str = Field(min_length=1)
+    admission_revision: int = Field(ge=1)
+    quote_id: str = Field(min_length=1)
+    quote_revision: int = Field(ge=1)
+    requested_at: datetime
+
+    def to_production(self, opportunity_id: str):
+        return SourcingEconomicsBindingProductionRequest(
+            command_id=self.command_id,
+            opportunity_id=opportunity_id,
+            source_reference=SourcingEconomicsSourceReference(
+                self.admission_id,
+                self.admission_revision,
+                self.quote_id,
+                self.quote_revision,
+            ),
+            requested_at=self.requested_at,
+        )
+
+
+class LandedCostCompositionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    binding_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class ShippingAllocationAuthorityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    composition_id: str = Field(min_length=1)
+    component_kind: LandedCostComponentKind
+    requested_at: datetime
+    effective_allocation_basis: CostAllocationBasis | None = None
+    per_order_denominator: int | None = None
+    per_order_denominator_unit: str | None = None
+    operator_id: str | None = None
+    verified_at: datetime | None = None
+    evidence_reference: SourcingEvidenceRequest | None = None
+
+
+class FXObservationAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    base_currency: str = Field(min_length=1)
+    quote_currency: str = Field(min_length=1)
+    rate: str = Field(min_length=1)
+    observed_at: datetime
+    provider: str = Field(min_length=1)
+    source_reference: str | None = None
+    collection_method: str | None = None
+
+
+class AcquisitionCostNormalizationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    composition_id: str = Field(min_length=1)
+    allocation_authority_ids: tuple[str, ...]
+    fx_observation_ids: tuple[str, ...]
+    target_currency: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class EconomicsSourceCompositionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    acquisition_normalization_id: str = Field(min_length=1)
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class SourcingEconomicsBindingResponse(BaseModel):
+    command_id: str
+    binding_id: str
+    opportunity_id: str
+    discovery_reference: str
+    admission_id: str
+    admission_revision: int
+    quote_id: str
+    quote_revision: int
+    requested_at: datetime
+    bound_at: datetime
+    committed_at: datetime
+    binding_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class LandedCostComponentResponse(BaseModel):
+    kind: str
+    availability: str
+    amount: str | None
+    currency: str | None
+    allocation_basis: str
+
+
+class SourcingQuantityResponse(BaseModel):
+    availability: str
+    quantity: int | None
+
+
+class AuthorityEvidenceResponse(BaseModel):
+    kind: str
+    source_reference: str
+    observed_at: datetime
+    artifact_reference: dict[str, Any] | None
+
+
+class LandedCostCompositionResponse(BaseModel):
+    command_id: str
+    composition_id: str
+    opportunity_id: str
+    discovery_reference: str
+    binding_id: str
+    components: tuple[LandedCostComponentResponse, ...]
+    minimum_order_quantity: SourcingQuantityResponse
+    quoted_quantity: SourcingQuantityResponse
+    evidence_reference: AuthorityEvidenceResponse
+    requested_at: datetime
+    composed_at: datetime
+    committed_at: datetime
+    composition_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class ShippingAllocationDenominatorResponse(BaseModel):
+    quantity: int
+    source: str
+    source_reference: str
+    quantity_unit: str | None
+
+
+class ShippingAllocationAuthorityResponse(BaseModel):
+    command_id: str
+    authority_id: str
+    composition_id: str
+    opportunity_id: str
+    discovery_reference: str
+    component_kind: str
+    original_allocation_basis: str
+    allocation_basis: str
+    basis_authority_source: str
+    status: str
+    denominator: ShippingAllocationDenominatorResponse | None
+    unresolved_code: str | None
+    evidence_reference: AuthorityEvidenceResponse
+    operator_id: str | None
+    verified_at: datetime | None
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    authority_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class FXObservationResponse(BaseModel):
+    command_id: str
+    observation_id: str
+    base_currency: str
+    quote_currency: str
+    rate: str
+    observed_at: datetime
+    admitted_at: datetime
+    provider: str
+    source_reference: str | None
+    collection_method: str | None
+    committed_at: datetime
+    observation_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class NormalizedAcquisitionComponentResponse(BaseModel):
+    kind: str
+    original_availability: str
+    original_amount: str | None
+    original_currency: str | None
+    original_allocation_basis: str
+    effective_allocation_basis: str
+    allocation_authority_id: str | None
+    denominator_quantity: int | None
+    denominator_source: str | None
+    fx_observation_id: str | None
+    fx_direction: str
+    target_currency: str
+    normalized_per_unit_amount: str
+
+
+class AcquisitionCostNormalizationResponse(BaseModel):
+    command_id: str
+    normalization_id: str
+    opportunity_id: str
+    discovery_reference: str
+    composition_id: str
+    allocation_authority_ids: tuple[str, ...]
+    fx_observation_ids: tuple[str, ...]
+    target_currency: str
+    components: tuple[NormalizedAcquisitionComponentResponse, ...]
+    total_per_unit_acquisition_cost: str
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    requested_at: datetime
+    normalized_at: datetime
+    committed_at: datetime
+    normalization_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class EconomicsSourceBlockingReasonResponse(BaseModel):
+    code: str
+    category: str
+    source_reference: str | None
+
+
+class EconomicsSourceCompositionResponse(BaseModel):
+    command_id: str
+    composition_id: str
+    opportunity_id: str
+    discovery_reference: str
+    acquisition_normalization_id: str
+    acquisition_policy_name: str
+    acquisition_policy_version: str
+    acquisition_cost_per_unit: str
+    economics_currency: str
+    verified_economics_opportunity_id: str
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str
+    expected_sale_price: dict[str, Any]
+    marketplace_fee_rate: dict[str, Any]
+    payment_fee_rate: dict[str, Any]
+    fixed_fee: dict[str, Any]
+    tax_rate: dict[str, Any]
+    duty_cost: dict[str, Any]
+    other_cost: dict[str, Any]
+    state: str
+    blocking_reasons: tuple[EconomicsSourceBlockingReasonResponse, ...]
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    composed_at: datetime
+    committed_at: datetime
+    composition_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
 
 
 class CandidateIssuanceRequest(BaseModel):
@@ -1959,6 +2296,179 @@ def get_conservative_economics_entry():
         raise HTTPException(
             status_code=503,
             detail="conservative economics persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_sourcing_economics_binding_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteSourcingEconomicsBindingRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = BindSourcingEconomicsSource(
+            repository,
+            binding_id_generator=ProductionSourcingEconomicsBindingIdentityGenerator(),
+            bound_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = SourcingEconomicsBindingProductionEntry(repository, owner)
+    except (sqlite3.Error, SourcingEconomicsBindingPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="sourcing economics binding persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_landed_cost_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteLandedCostCompositionRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = ComposeLandedCost(
+            repository,
+            composition_id_generator=ProductionLandedCostCompositionIdentityGenerator(),
+            composed_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = LandedCostProductionEntry(repository, owner)
+    except (sqlite3.Error, LandedCostCompositionPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="landed cost persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_shipping_allocation_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteShippingAllocationAuthorityRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = AdmitShippingAllocationAuthority(
+            repository,
+            authority_id_generator=(
+                ProductionShippingAllocationAuthorityIdentityGenerator()
+            ),
+            admitted_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = ShippingAllocationProductionEntry(repository, owner)
+    except (sqlite3.Error, ShippingAllocationAuthorityPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="shipping allocation persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_fx_observation_owner():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteFXObservationRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = AdmitFXObservation(
+            repository,
+            observation_id_generator=ProductionFXObservationIdentityGenerator(),
+            admitted_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+    except (sqlite3.Error, FXObservationPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="FX observation persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield owner
+    finally:
+        resources.close()
+
+
+def get_acquisition_normalization_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteAcquisitionCostNormalizationRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = NormalizeAcquisitionCosts(
+            repository,
+            normalization_id_generator=(
+                ProductionAcquisitionCostNormalizationIdentityGenerator()
+            ),
+            normalized_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = AcquisitionNormalizationProductionEntry(repository, owner)
+    except (sqlite3.Error, AcquisitionCostNormalizationPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="acquisition normalization persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_economics_source_composition_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteEconomicsSourceCompositionRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = ComposeEconomicsSources(
+            repository,
+            composition_id_generator=(
+                ProductionEconomicsSourceCompositionIdentityGenerator()
+            ),
+            composed_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = EconomicsSourceCompositionProductionEntry(repository, owner)
+    except (sqlite3.Error, EconomicsSourceCompositionPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="economics source composition persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -3014,6 +3524,460 @@ def calculate_opportunity_economics(
         passes_net_profit_filter=profitability.passes_net_profit_filter,
         passes_roi_filter=profitability.passes_roi_filter,
         passes_profitability_filter=profitability.passes_profitability_filter,
+        replayed=result.replayed,
+    )
+
+
+def _authority_evidence_payload(value) -> dict[str, object]:
+    return {
+        "kind": value.kind.value,
+        "source_reference": value.source_reference,
+        "observed_at": value.observed_at,
+        "artifact_reference": _sourcing_artifact_payload(value.artifact_reference),
+    }
+
+
+def _economics_evidence_payload(value) -> dict[str, object]:
+    return {
+        "status": value.status.value,
+        "source": value.source,
+        "observed_at": value.observed_at,
+        "reference": value.reference,
+    }
+
+
+def _economics_value_payload(value) -> dict[str, object]:
+    numeric_name = "amount" if hasattr(value, "amount") else "rate"
+    numeric = getattr(value, numeric_name)
+    payload = {
+        numeric_name: None if numeric is None else str(numeric),
+        "evidence": _economics_evidence_payload(value.evidence),
+    }
+    if hasattr(value, "currency"):
+        payload["currency"] = value.currency
+    return payload
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/sourcing-economics-bindings",
+    response_model=SourcingEconomicsBindingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def bind_sourcing_economics_source(
+    opportunity_id: str,
+    request: SourcingEconomicsBindingRequest,
+    response: Response,
+    entry: SourcingEconomicsBindingProductionEntry = Depends(
+        get_sourcing_economics_binding_entry
+    ),
+) -> SourcingEconomicsBindingResponse:
+    try:
+        result = entry.execute(request.to_production(opportunity_id))
+    except SourcingEconomicsSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsProductionOpportunityConflictError,
+        SourcingEconomicsBindingOpportunityMismatchError,
+        SourcingEconomicsExactRevisionError,
+        SourcingEconomicsBindingReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (SourcingEconomicsBindingPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="sourcing economics binding persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    binding, receipt, source = result.binding, result.receipt, result.binding.source_reference
+    return SourcingEconomicsBindingResponse(
+        command_id=receipt.command_id,
+        binding_id=binding.binding_id,
+        opportunity_id=binding.opportunity_identity.opportunity_id,
+        discovery_reference=binding.opportunity_identity.discovery_reference,
+        admission_id=source.admission_id,
+        admission_revision=source.admission_revision,
+        quote_id=source.quote_id,
+        quote_revision=source.quote_revision,
+        requested_at=binding.requested_at,
+        bound_at=binding.bound_at,
+        committed_at=receipt.committed_at,
+        binding_schema_version=binding.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/landed-cost-compositions",
+    response_model=LandedCostCompositionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def compose_landed_cost(
+    opportunity_id: str,
+    request: LandedCostCompositionRequest,
+    response: Response,
+    entry: LandedCostProductionEntry = Depends(get_landed_cost_entry),
+) -> LandedCostCompositionResponse:
+    try:
+        result = entry.execute(
+            LandedCostProductionRequest(
+                request.command_id,
+                opportunity_id,
+                request.binding_id,
+                request.requested_at,
+            )
+        )
+    except (SourcingEconomicsBindingNotFoundError, LandedCostCompositionSourceNotFoundError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsProductionOpportunityConflictError,
+        LandedCostCompositionOpportunityMismatchError,
+        LandedCostCompositionExactSourceError,
+        LandedCostCompositionReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (LandedCostCompositionPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="landed cost persistence unavailable") from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    value, receipt = result.composition, result.receipt
+    return LandedCostCompositionResponse(
+        command_id=receipt.command_id,
+        composition_id=value.composition_id,
+        opportunity_id=value.opportunity_identity.opportunity_id,
+        discovery_reference=value.opportunity_identity.discovery_reference,
+        binding_id=value.binding_reference.binding_id,
+        components=tuple(
+            LandedCostComponentResponse(
+                kind=item.kind.value,
+                availability=item.availability.value,
+                amount=None if item.amount is None else str(item.amount),
+                currency=item.currency,
+                allocation_basis=item.allocation_basis.value,
+            )
+            for item in value.components
+        ),
+        minimum_order_quantity=SourcingQuantityResponse(
+            availability=value.minimum_order_quantity.availability.value,
+            quantity=value.minimum_order_quantity.quantity,
+        ),
+        quoted_quantity=SourcingQuantityResponse(
+            availability=value.quoted_quantity.availability.value,
+            quantity=value.quoted_quantity.quantity,
+        ),
+        evidence_reference=AuthorityEvidenceResponse.model_validate(
+            _authority_evidence_payload(value.evidence_reference)
+        ),
+        requested_at=value.requested_at,
+        composed_at=value.composed_at,
+        committed_at=receipt.committed_at,
+        composition_schema_version=value.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/shipping-allocation-authorities",
+    response_model=ShippingAllocationAuthorityResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_shipping_allocation(
+    opportunity_id: str,
+    request: ShippingAllocationAuthorityRequest,
+    response: Response,
+    entry: ShippingAllocationProductionEntry = Depends(get_shipping_allocation_entry),
+) -> ShippingAllocationAuthorityResponse:
+    try:
+        result = entry.execute(
+            ShippingAllocationProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                composition_id=request.composition_id,
+                component_kind=request.component_kind,
+                requested_at=request.requested_at,
+                effective_allocation_basis=request.effective_allocation_basis,
+                per_order_denominator=request.per_order_denominator,
+                per_order_denominator_unit=request.per_order_denominator_unit,
+                operator_id=request.operator_id,
+                verified_at=request.verified_at,
+                evidence_reference=(
+                    None
+                    if request.evidence_reference is None
+                    else request.evidence_reference.to_domain()
+                ),
+            )
+        )
+    except (ShippingAllocationSourceNotFoundError, ShippingAllocationComponentNotFoundError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsProductionOpportunityConflictError,
+        ShippingAllocationOpportunityMismatchError,
+        ShippingAllocationBasisConflictError,
+        ShippingAllocationAuthorityReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except ShippingAllocationProvenanceError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (ShippingAllocationAuthorityPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="shipping allocation persistence unavailable") from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    value, receipt = result.authority, result.receipt
+    denominator = value.denominator
+    return ShippingAllocationAuthorityResponse(
+        command_id=receipt.command_id,
+        authority_id=value.authority_id,
+        composition_id=value.composition_id,
+        opportunity_id=value.opportunity_identity.opportunity_id,
+        discovery_reference=value.opportunity_identity.discovery_reference,
+        component_kind=value.component_kind.value,
+        original_allocation_basis=value.original_allocation_basis.value,
+        allocation_basis=value.allocation_basis.value,
+        basis_authority_source=value.basis_authority_source.value,
+        status=value.status.value,
+        denominator=(
+            None
+            if denominator is None
+            else ShippingAllocationDenominatorResponse(
+                quantity=denominator.quantity,
+                source=denominator.source.value,
+                source_reference=denominator.source_reference,
+                quantity_unit=denominator.quantity_unit,
+            )
+        ),
+        unresolved_code=(None if value.unresolved_code is None else value.unresolved_code.value),
+        evidence_reference=AuthorityEvidenceResponse.model_validate(
+            _authority_evidence_payload(value.evidence_reference)
+        ),
+        operator_id=value.operator_id,
+        verified_at=value.verified_at,
+        requested_at=value.requested_at,
+        admitted_at=value.admitted_at,
+        committed_at=receipt.committed_at,
+        authority_schema_version=value.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/fx-observations",
+    response_model=FXObservationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_fx_observation(
+    request: FXObservationAdmissionRequest,
+    response: Response,
+    owner: AdmitFXObservation = Depends(get_fx_observation_owner),
+) -> FXObservationResponse:
+    try:
+        result = owner.execute(
+            AdmitFXObservationCommand(
+                command_id=request.command_id,
+                base_currency=request.base_currency,
+                quote_currency=request.quote_currency,
+                rate=Decimal(request.rate),
+                observed_at=request.observed_at,
+                provider=request.provider,
+                source_reference=request.source_reference,
+                collection_method=request.collection_method,
+            )
+        )
+    except FXObservationReplayConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (FXObservationPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="FX observation persistence unavailable") from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    value, receipt = result.observation, result.receipt
+    return FXObservationResponse(
+        command_id=receipt.command_id,
+        observation_id=value.observation_id,
+        base_currency=value.base_currency,
+        quote_currency=value.quote_currency,
+        rate=str(value.rate),
+        observed_at=value.observed_at,
+        admitted_at=value.admitted_at,
+        provider=value.provenance.provider,
+        source_reference=value.provenance.source_reference,
+        collection_method=value.provenance.collection_method,
+        committed_at=receipt.committed_at,
+        observation_schema_version=value.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/acquisition-cost-normalizations",
+    response_model=AcquisitionCostNormalizationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def normalize_acquisition_costs(
+    opportunity_id: str,
+    request: AcquisitionCostNormalizationRequest,
+    response: Response,
+    entry: AcquisitionNormalizationProductionEntry = Depends(
+        get_acquisition_normalization_entry
+    ),
+) -> AcquisitionCostNormalizationResponse:
+    try:
+        result = entry.execute(
+            AcquisitionNormalizationProductionRequest(
+                request.command_id,
+                opportunity_id,
+                request.composition_id,
+                request.allocation_authority_ids,
+                request.fx_observation_ids,
+                request.target_currency,
+                request.requested_at,
+            )
+        )
+    except EconomicsProductionSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsProductionOpportunityConflictError,
+        AcquisitionCostNormalizationSourceError,
+        AcquisitionCostNormalizationReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except AcquisitionCostNormalizationPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (AcquisitionCostNormalizationPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="acquisition normalization persistence unavailable") from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    value, receipt = result.normalization, result.receipt
+    return AcquisitionCostNormalizationResponse(
+        command_id=receipt.command_id,
+        normalization_id=value.normalization_id,
+        opportunity_id=value.opportunity_identity.opportunity_id,
+        discovery_reference=value.opportunity_identity.discovery_reference,
+        composition_id=value.composition_id,
+        allocation_authority_ids=value.allocation_authority_ids,
+        fx_observation_ids=value.fx_observation_ids,
+        target_currency=value.target_currency,
+        components=tuple(
+            NormalizedAcquisitionComponentResponse(
+                kind=item.kind.value,
+                original_availability=item.original_availability.value,
+                original_amount=(None if item.original_amount is None else str(item.original_amount)),
+                original_currency=item.original_currency,
+                original_allocation_basis=item.original_allocation_basis.value,
+                effective_allocation_basis=item.effective_allocation_basis.value,
+                allocation_authority_id=item.allocation_authority_id,
+                denominator_quantity=item.denominator_quantity,
+                denominator_source=(None if item.denominator_source is None else item.denominator_source.value),
+                fx_observation_id=item.fx_observation_id,
+                fx_direction=item.fx_direction.value,
+                target_currency=item.target_currency,
+                normalized_per_unit_amount=str(item.normalized_per_unit_amount),
+            )
+            for item in value.components
+        ),
+        total_per_unit_acquisition_cost=str(value.total_per_unit_acquisition_cost),
+        policy_name=value.policy_name,
+        policy_version=value.policy_version,
+        policy_precision=value.policy_precision,
+        policy_rounding=value.policy_rounding,
+        requested_at=value.requested_at,
+        normalized_at=value.normalized_at,
+        committed_at=receipt.committed_at,
+        normalization_schema_version=value.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/economics-source-compositions",
+    response_model=EconomicsSourceCompositionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def compose_economics_sources(
+    opportunity_id: str,
+    request: EconomicsSourceCompositionRequest,
+    response: Response,
+    entry: EconomicsSourceCompositionProductionEntry = Depends(
+        get_economics_source_composition_entry
+    ),
+) -> EconomicsSourceCompositionResponse:
+    try:
+        result = entry.execute(
+            EconomicsSourceCompositionProductionRequest(
+                request.command_id,
+                opportunity_id,
+                request.acquisition_normalization_id,
+                request.verified_economics_snapshot_at,
+                request.verified_economics_schema_version,
+                request.requested_at,
+            )
+        )
+    except EconomicsProductionSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        EconomicsProductionOpportunityConflictError,
+        EconomicsSourceCompositionSourceError,
+        EconomicsSourceCompositionReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except EconomicsSourceCompositionPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (EconomicsSourceCompositionPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="economics source composition persistence unavailable") from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    value, receipt = result.composition, result.receipt
+    return EconomicsSourceCompositionResponse(
+        command_id=receipt.command_id,
+        composition_id=value.composition_id,
+        opportunity_id=value.opportunity_identity.opportunity_id,
+        discovery_reference=value.opportunity_identity.discovery_reference,
+        acquisition_normalization_id=value.acquisition_normalization_id,
+        acquisition_policy_name=value.acquisition_policy_name,
+        acquisition_policy_version=value.acquisition_policy_version,
+        acquisition_cost_per_unit=str(value.acquisition_cost_per_unit),
+        economics_currency=value.economics_currency,
+        verified_economics_opportunity_id=value.verified_economics_opportunity_id,
+        verified_economics_snapshot_at=value.verified_economics_snapshot_at,
+        verified_economics_schema_version=value.verified_economics_schema_version,
+        expected_sale_price=_economics_value_payload(value.expected_sale_price),
+        marketplace_fee_rate=_economics_value_payload(value.marketplace_fee_rate),
+        payment_fee_rate=_economics_value_payload(value.payment_fee_rate),
+        fixed_fee=_economics_value_payload(value.fixed_fee),
+        tax_rate=_economics_value_payload(value.tax_rate),
+        duty_cost=_economics_value_payload(value.duty_cost),
+        other_cost=_economics_value_payload(value.other_cost),
+        state=value.state.value,
+        blocking_reasons=tuple(
+            EconomicsSourceBlockingReasonResponse(
+                code=item.code.value,
+                category=item.category,
+                source_reference=item.source_reference,
+            )
+            for item in value.blocking_reasons
+        ),
+        policy_name=value.policy_name,
+        policy_version=value.policy_version,
+        requested_at=value.requested_at,
+        composed_at=value.composed_at,
+        committed_at=receipt.committed_at,
+        composition_schema_version=value.schema_version,
+        receipt_schema_version=receipt.schema_version,
         replayed=result.replayed,
     )
 

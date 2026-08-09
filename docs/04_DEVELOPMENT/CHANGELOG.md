@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2H - O2 Acquisition and Economics Production Chain Wiring
+
+- Expose the existing exact Sourcing Economics Binding, Landed Cost, Shipping Allocation, FX Observation, Acquisition Cost Normalization, and Economics Source Composition owners through request-scoped production APIs.
+- Preserve exact O2 lineage, explicit allocation/FX authority, Decimal-string values, independent append-only transactions, replay/restart, bounded errors, and legacy generic sourcing compatibility without latest selection or hidden defaults.
+- Verify an API-only O2 Sourcing-to-Conservative Economics CALCULABLE journey plus unresolved allocation, missing FX, same-currency no-FX, BLOCKED composition, mixed O1/O2, rollback, and connection-cleanup safety paths.
+
 ## CR-1B5D2G - O2 Domestic Market Validation Production API Wiring
 
 - Add the request-scoped `POST /api/v1/opportunities/{opportunity_id}/domestic-market-validations` production entry over the existing ADR-0044 Application owner and one shared SQLite connection.

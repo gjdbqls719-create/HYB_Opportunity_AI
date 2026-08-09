@@ -4,6 +4,13 @@
 
 Accepted (CR-1B3A)
 
+## Implementation Status
+
+CR-1B5D2H exposes the persisted Application owner through an Opportunity-scoped
+production API. The route selects one exact binding ID and preserves the existing
+four-component availability, currency, allocation-basis, quantity and evidence facts;
+it adds no calculation or allocation inference.
+
 ## Context
 
 An exact Sourcing Economics Binding identifies the admitted Supplier quote used

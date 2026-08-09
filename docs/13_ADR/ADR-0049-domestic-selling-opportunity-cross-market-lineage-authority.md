@@ -48,6 +48,12 @@ binding, and named O2 Competition/Demand sources, then delegates final state to 
 existing ADR-0044 owner. O1 remains immutable provenance and is never used as a
 fallback source or rewritten into KR.
 
+CR-1B5D2H completes the production-callable O2 acquisition/Economics continuation.
+Exact O2 Sourcing Admission, Binding, Landed Cost, Allocation, FX, Normalization,
+O2 Verified Economics, Source Composition and Conservative Economics now converge on
+the same O2 through existing generic authorities. O1 remains provenance only, and no
+route contains an O2 fallback or copies O1 Economics.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate

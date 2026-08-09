@@ -4,6 +4,14 @@
 
 Accepted
 
+## Implementation Status
+
+CR-1B5D2H exposes the existing normalization owner through an Opportunity-scoped API.
+The request names the exact ordered allocation/FX manifests and explicit target
+currency; the production entry derives Opportunity identity from the exact Landed Cost
+composition. Same-currency normalization uses no FX fact, and unresolved/unknown or
+incomplete exact manifests remain rejected without fallback.
+
 ## Context
 
 HYB durably preserves one exact `LandedCostComposition`, reconciled
