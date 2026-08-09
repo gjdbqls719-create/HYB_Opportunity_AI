@@ -520,10 +520,9 @@ mutate Actual Economics, or create inventory. Actual shipping, duty/customs,
 FX settlement, realized marketplace facts, and physical goods receipt remain
 separate future authorities.
 
-ADR-0051 accepts the decision contract for a future
-`ActualAcquisitionSettlement` immediately after an exact
-`PurchaseExecutionRecord`; no production implementation exists yet. The future
-owner will preserve actual batch totals for unit purchase, supplier-side
+CR-1B6A2 implements ADR-0051 as `ActualAcquisitionSettlement` immediately after
+an exact `PurchaseExecutionRecord`. The production owner preserves actual batch
+totals for unit purchase, supplier-side
 shipping, international freight, domestic inbound, duty/customs, and scoped
 other mandatory acquisition costs, plus exact actual FX settlement provenance.
 Append-only predecessor-bound revisions may record `BLOCKED` incompleteness,
@@ -531,10 +530,18 @@ while only a category-complete, evidence-backed `COMPLETE` revision is terminal
 and usable downstream. Planned values, planned FX, and the execution committed
 amount are never actual-settlement fallbacks.
 
-The decided and future closed-loop sequence is:
+Each request owns one SQLite connection, uses a dedicated UUID identity and
+server UTC admission/receipt clocks, and persists history plus receipt in one
+`BEGIN IMMEDIATE` transaction. Unique revision/predecessor/COMPLETE indexes and
+a terminal trigger prevent first-revision races, forks, multiple COMPLETE
+settlements, and post-COMPLETE children. Historical reads reconstruct the exact
+Purchase Execution lineage and stored Decimal calculation without external FX,
+current safety reevaluation, or a mutable current projection.
+
+The implemented and future closed-loop sequence is:
 
 `PurchaseExecutionRecord` (implemented) -> `ActualAcquisitionSettlement`
-(decision only) -> Goods Receipt (future) and Actual Sale Settlement (future)
+(implemented) -> Goods Receipt (future) and Actual Sale Settlement (future)
 -> Actual Outcome / Variance v2 (future).
 
 Actual Acquisition Settlement proves neither physical receipt nor sale. It does

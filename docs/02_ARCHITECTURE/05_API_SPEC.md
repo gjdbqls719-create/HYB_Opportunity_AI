@@ -452,3 +452,44 @@ order, transfer funds, track shipment, admit goods receipt, update inventory,
 or calculate Actual Economics. Software tests simulate Founder submission;
 only a genuine Founder order and real reference/evidence can validate the
 real-world procedure.
+
+## Actual Acquisition Settlement
+
+`POST /api/v1/opportunities/{opportunity_id}/actual-acquisition-settlements`
+admits one immutable actual-acquisition settlement revision for one exact
+persisted Purchase Execution Record. The request supplies `command_id`, exact
+Purchase Execution Record ID, optional exact predecessor settlement ID,
+explicit target currency, five canonically ordered fixed cost facts, an
+explicit other-mandatory-cost scope with ordered items, operator, and
+timezone-aware `requested_at`. The caller cannot submit settlement identity,
+revision number, state, blocking reasons, normalized totals, or server times.
+
+Each fixed fact explicitly states `known`, `not_applicable`, or `unknown`.
+Known facts require Decimal-string batch amount, currency, settled time, and
+actual evidence. Non-applicability requires evidence and carries no money.
+Unknown facts never become zero. Other mandatory costs require an explicit
+scope state; known items remain ordered and scoped, while an empty list is not
+an implicit zero. Cross-currency facts use embedded actual payment/charge FX
+provenance with no planned `FXObservation`, latest rate, provider lookup, or
+implicit conversion. Same-currency facts carry no FX object.
+
+The server reconstructs O2, quantity/unit, external order, Capital,
+Supplier/Product, and exact Quote lineage from the Purchase Execution Record.
+It calculates deterministic ordered reasons and returns `blocked` without final
+batch/per-unit totals when facts remain unresolved. A complete revision stores
+target-currency category amounts, batch total, and per-executed-unit total under
+the 34-significant-digit `ROUND_HALF_EVEN` Decimal policy. Actual item amount
+may factually differ from the Purchase Execution committed amount.
+
+Revision 1 may be blocked or complete. A later revision must name the exact
+blocked chain tip, preserves target currency, and cannot regress resolved facts
+to unknown. COMPLETE is terminal. Fresh blocked or complete commits return 201;
+exact replay returns 200. Missing Purchase Execution/predecessor returns 404;
+changed commands, route/source mismatch, stale predecessor, fork, or terminal
+conflict returns 409; malformed input returns 422; bounded persistence failure
+returns 503. Money is serialized as strings and authoritative times are
+timezone-aware.
+
+This route does not create Goods Receipt, update inventory, mutate legacy
+Actual Economics, calculate sales/profit/margin/ROI, or create Actual Outcome
+or Variance.

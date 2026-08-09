@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B6A2 - Actual Acquisition Settlement Authority and Production API
+
+- Implement ADR-0051 as immutable `BLOCKED`/`COMPLETE` actual-acquisition settlement revisions over one exact Purchase Execution Record, preserving the five fixed cost categories, explicit other-mandatory-cost scope/items, dedicated actual evidence and actual FX settlement provenance, original batch money, deterministic normalized batch totals, and executed-quantity per-unit totals.
+- Add exact-predecessor append-only SQLite history/receipts, replay-first command handling, integrity reconstruction, rollback/retry, request-owned connection lifecycle, unique revision/predecessor/COMPLETE cardinality, terminal DB enforcement, and multi-connection no-fork concurrency safety.
+- Expose `POST /api/v1/opportunities/{opportunity_id}/actual-acquisition-settlements` with explicit factual DTOs, Decimal-string responses, BLOCKED-to-COMPLETE API revision journey, same/cross-currency operation, bounded errors, and strict isolation from planned FX, Goods Receipt, inventory, legacy Actual Economics, sale economics, Actual Outcome, and Variance.
+
 ## CR-1B5D2M - Purchase Execution Record Authority and Production API
 
 - Add ADR-0050 and an immutable exact-match `PurchaseExecutionRecord` that binds one Founder-reported external purchase to one exact persisted READY Real-Money Execution Intent and reconstructs its full O2 Capital/Supplier/Product/Quote lineage.

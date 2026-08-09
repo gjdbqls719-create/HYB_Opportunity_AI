@@ -36,11 +36,17 @@ from app.application.purchase_execution import (
     RecordPurchaseExecutionCommand,
     PurchaseExecutionSourceNotFoundError,
 )
+from app.application.actual_acquisition_settlement import (
+    AdmitActualAcquisitionSettlement,
+    AdmitActualAcquisitionSettlementCommand,
+)
 from app.domain.capital import (
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
     UpfrontCostScopeStatus,
     PurchaseExecutionEvidenceReference,
+    ActualAcquisitionCostFact,
+    OtherMandatoryAcquisitionCosts,
 )
 
 
@@ -333,6 +339,39 @@ class PurchaseExecutionProductionEntry:
                 founder_id=request.founder_id,
                 executed_at=request.executed_at,
                 evidence_references=request.evidence_references,
+                requested_at=request.requested_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ActualAcquisitionSettlementProductionRequest:
+    command_id: str
+    opportunity_id: str
+    purchase_execution_record_id: str
+    predecessor_settlement_id: str | None
+    target_currency: str
+    fixed_cost_facts: tuple[ActualAcquisitionCostFact, ...]
+    other_mandatory_costs: OtherMandatoryAcquisitionCosts
+    operator_id: str
+    requested_at: datetime
+
+
+class ActualAcquisitionSettlementProductionEntry:
+    def __init__(self, owner: AdmitActualAcquisitionSettlement) -> None:
+        self._owner = owner
+
+    def execute(self, request: ActualAcquisitionSettlementProductionRequest):
+        return self._owner.execute(
+            AdmitActualAcquisitionSettlementCommand(
+                command_id=request.command_id,
+                opportunity_id=request.opportunity_id,
+                purchase_execution_record_id=request.purchase_execution_record_id,
+                predecessor_settlement_id=request.predecessor_settlement_id,
+                target_currency=request.target_currency,
+                fixed_cost_facts=request.fixed_cost_facts,
+                other_mandatory_costs=request.other_mandatory_costs,
+                operator_id=request.operator_id,
                 requested_at=request.requested_at,
             )
         )

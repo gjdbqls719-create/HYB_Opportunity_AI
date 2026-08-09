@@ -279,7 +279,17 @@ from app.application.purchase_execution import (
     PurchaseExecutionSourceNotFoundError,
     RecordPurchaseExecution,
 )
+from app.application.actual_acquisition_settlement import (
+    ActualAcquisitionSettlementOpportunityConflictError,
+    ActualAcquisitionSettlementReplayConflictError,
+    ActualAcquisitionSettlementRevisionConflictError,
+    ActualAcquisitionSettlementSourceNotFoundError,
+    ActualAcquisitionSettlementTerminalConflictError,
+    AdmitActualAcquisitionSettlement,
+)
 from app.application.capital_production import (
+    ActualAcquisitionSettlementProductionEntry,
+    ActualAcquisitionSettlementProductionRequest,
     CapitalGateProductionEntry,
     CapitalGateProductionRequest,
     CapitalProductionOpportunityConflictError,
@@ -295,6 +305,13 @@ from app.application.capital_production import (
     PurchaseExecutionProductionRequest,
 )
 from app.domain.capital import (
+    ActualAcquisitionCostCategory,
+    ActualAcquisitionCostFact,
+    ActualAcquisitionEvidenceReference,
+    ActualAcquisitionFXSettlement,
+    ActualAcquisitionFactAvailability,
+    OtherMandatoryAcquisitionCosts,
+    OtherMandatoryAcquisitionCostItem,
     PurchaseExecutionEvidenceReference,
     UpfrontCostScopeStatus,
 )
@@ -541,6 +558,11 @@ from app.infrastructure.purchase_execution import (
     ProductionPurchaseExecutionRecordIdentityGenerator,
     PurchaseExecutionPersistenceError,
     SQLitePurchaseExecutionRepository,
+)
+from app.infrastructure.actual_acquisition_settlement import (
+    ActualAcquisitionSettlementPersistenceError,
+    ProductionActualAcquisitionSettlementIdentityGenerator,
+    SQLiteActualAcquisitionSettlementRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -2357,6 +2379,184 @@ class PurchaseExecutionResponse(BaseModel):
     replayed: bool
 
 
+class ActualAcquisitionEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reference: str = Field(min_length=1)
+    observed_at: datetime
+    operator_id: str = Field(min_length=1)
+    collection_method: str = Field(min_length=1)
+
+
+class ActualAcquisitionFXRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_currency: str = Field(min_length=1)
+    target_currency: str = Field(min_length=1)
+    original_amount: StrictStr = Field(min_length=1)
+    target_amount: StrictStr | None = None
+    applied_rate: StrictStr | None = None
+    provider: str | None = None
+    payment_channel: str | None = None
+    external_reference: str = Field(min_length=1)
+    settled_at: datetime
+    evidence: ActualAcquisitionEvidenceRequest
+
+
+class ActualAcquisitionFixedCostRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: str = Field(min_length=1)
+    availability: str = Field(min_length=1)
+    amount: StrictStr | None = None
+    currency: str | None = None
+    settled_at: datetime | None = None
+    evidence: ActualAcquisitionEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+    actual_fx: ActualAcquisitionFXRequest | None = None
+
+
+class OtherMandatoryAcquisitionCostItemRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: str = Field(min_length=1)
+    amount: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    settled_at: datetime
+    evidence: ActualAcquisitionEvidenceRequest
+    actual_fx: ActualAcquisitionFXRequest | None = None
+
+
+class OtherMandatoryAcquisitionCostsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    availability: str = Field(min_length=1)
+    items: tuple[OtherMandatoryAcquisitionCostItemRequest, ...]
+    scope_evidence: ActualAcquisitionEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+
+
+class ActualAcquisitionSettlementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    purchase_execution_record_id: str = Field(min_length=1)
+    predecessor_settlement_id: str | None = None
+    target_currency: str = Field(min_length=1)
+    fixed_cost_facts: tuple[ActualAcquisitionFixedCostRequest, ...] = Field(
+        min_length=5, max_length=5
+    )
+    other_mandatory_costs: OtherMandatoryAcquisitionCostsRequest
+    operator_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class ActualAcquisitionEvidenceResponse(BaseModel):
+    reference: str
+    observed_at: datetime
+    operator_id: str
+    collection_method: str
+    schema_version: str
+
+
+class ActualAcquisitionFXResponse(BaseModel):
+    source_currency: str
+    target_currency: str
+    original_amount: str
+    target_amount: str | None
+    applied_rate: str | None
+    normalized_target_amount: str
+    provider: str | None
+    payment_channel: str | None
+    external_reference: str
+    settled_at: datetime
+    evidence: ActualAcquisitionEvidenceResponse
+    schema_version: str
+
+
+class ActualAcquisitionFixedCostResponse(BaseModel):
+    category: str
+    availability: str
+    amount: str | None
+    currency: str | None
+    settled_at: datetime | None
+    evidence: ActualAcquisitionEvidenceResponse | None
+    unresolved_reason: str | None
+    actual_fx: ActualAcquisitionFXResponse | None
+
+
+class OtherMandatoryAcquisitionCostItemResponse(BaseModel):
+    scope: str
+    amount: str
+    currency: str
+    settled_at: datetime
+    evidence: ActualAcquisitionEvidenceResponse
+    actual_fx: ActualAcquisitionFXResponse | None
+
+
+class OtherMandatoryAcquisitionCostsResponse(BaseModel):
+    availability: str
+    items: tuple[OtherMandatoryAcquisitionCostItemResponse, ...]
+    scope_evidence: ActualAcquisitionEvidenceResponse | None
+    unresolved_reason: str | None
+
+
+class NormalizedActualAcquisitionCategoryResponse(BaseModel):
+    category: str
+    target_currency: str
+    target_batch_amount: str | None
+
+
+class ActualAcquisitionSettlementResponse(BaseModel):
+    command_id: str
+    settlement_id: str
+    revision: int
+    predecessor_settlement_id: str | None
+    opportunity_id: str
+    discovery_reference: str
+    purchase_execution_record_id: str
+    real_money_execution_intent_id: str
+    founder_capital_approval_id: str
+    capital_gate_id: str
+    capital_requirement_id: str
+    intended_order_quantity_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    supplier_id: str
+    source_platform: str
+    external_supplier_reference: str | None
+    sourcing_product_id: str
+    external_product_reference: str
+    option_reference: str | None
+    sku_reference: str | None
+    quote_id: str
+    quote_revision: int
+    executed_quantity: int
+    executed_quantity_unit: str
+    external_order_reference: str
+    purchase_executed_at: datetime
+    target_currency: str
+    state: str
+    blocking_reasons: tuple[str, ...]
+    fixed_cost_facts: tuple[ActualAcquisitionFixedCostResponse, ...]
+    other_mandatory_costs: OtherMandatoryAcquisitionCostsResponse
+    normalized_categories: tuple[NormalizedActualAcquisitionCategoryResponse, ...]
+    acquisition_batch_total: str | None
+    acquisition_per_unit: str | None
+    operator_id: str
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    source_manifest_schema_version: str
+    settlement_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3132,6 +3332,38 @@ def get_purchase_execution_entry():
         raise HTTPException(
             status_code=503,
             detail="Purchase Execution persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_actual_acquisition_settlement_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteActualAcquisitionSettlementRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = ActualAcquisitionSettlementProductionEntry(
+            AdmitActualAcquisitionSettlement(
+                repository,
+                settlement_id_generator=(
+                    ProductionActualAcquisitionSettlementIdentityGenerator()
+                ),
+                admitted_clock=clock,
+                committed_clock=clock,
+            )
+        )
+    except (sqlite3.Error, ActualAcquisitionSettlementPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Acquisition Settlement persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -5717,6 +5949,271 @@ def record_purchase_execution(
         committed_at=receipt.committed_at,
         source_manifest_schema_version=manifest.schema_version,
         record_schema_version=record.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+def _actual_acquisition_evidence(
+    value: ActualAcquisitionEvidenceRequest,
+) -> ActualAcquisitionEvidenceReference:
+    return ActualAcquisitionEvidenceReference(
+        reference=value.reference,
+        observed_at=value.observed_at,
+        operator_id=value.operator_id,
+        collection_method=value.collection_method,
+    )
+
+
+def _actual_acquisition_fx(
+    value: ActualAcquisitionFXRequest | None,
+) -> ActualAcquisitionFXSettlement | None:
+    if value is None:
+        return None
+    return ActualAcquisitionFXSettlement(
+        source_currency=value.source_currency,
+        target_currency=value.target_currency,
+        original_amount=Decimal(value.original_amount),
+        target_amount=(
+            None if value.target_amount is None else Decimal(value.target_amount)
+        ),
+        applied_rate=(
+            None if value.applied_rate is None else Decimal(value.applied_rate)
+        ),
+        provider=value.provider,
+        payment_channel=value.payment_channel,
+        external_reference=value.external_reference,
+        settled_at=value.settled_at,
+        evidence=_actual_acquisition_evidence(value.evidence),
+    )
+
+
+def _actual_acquisition_fact(
+    value: ActualAcquisitionFixedCostRequest,
+) -> ActualAcquisitionCostFact:
+    return ActualAcquisitionCostFact(
+        category=ActualAcquisitionCostCategory(value.category),
+        availability=ActualAcquisitionFactAvailability(value.availability),
+        amount=None if value.amount is None else Decimal(value.amount),
+        currency=value.currency,
+        settled_at=value.settled_at,
+        evidence=(
+            None
+            if value.evidence is None
+            else _actual_acquisition_evidence(value.evidence)
+        ),
+        unresolved_reason=value.unresolved_reason,
+        actual_fx=_actual_acquisition_fx(value.actual_fx),
+    )
+
+
+def _actual_acquisition_other_item(
+    value: OtherMandatoryAcquisitionCostItemRequest,
+) -> OtherMandatoryAcquisitionCostItem:
+    return OtherMandatoryAcquisitionCostItem(
+        scope=value.scope,
+        amount=Decimal(value.amount),
+        currency=value.currency,
+        settled_at=value.settled_at,
+        evidence=_actual_acquisition_evidence(value.evidence),
+        actual_fx=_actual_acquisition_fx(value.actual_fx),
+    )
+
+
+def _actual_evidence_response(value):
+    if value is None:
+        return None
+    return ActualAcquisitionEvidenceResponse(
+        reference=value.reference,
+        observed_at=value.observed_at,
+        operator_id=value.operator_id,
+        collection_method=value.collection_method,
+        schema_version=value.schema_version,
+    )
+
+
+def _actual_fx_response(value):
+    if value is None:
+        return None
+    return ActualAcquisitionFXResponse(
+        source_currency=value.source_currency,
+        target_currency=value.target_currency,
+        original_amount=str(value.original_amount),
+        target_amount=None if value.target_amount is None else str(value.target_amount),
+        applied_rate=None if value.applied_rate is None else str(value.applied_rate),
+        normalized_target_amount=str(value.normalized_target_amount),
+        provider=value.provider,
+        payment_channel=value.payment_channel,
+        external_reference=value.external_reference,
+        settled_at=value.settled_at,
+        evidence=_actual_evidence_response(value.evidence),
+        schema_version=value.schema_version,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/actual-acquisition-settlements",
+    response_model=ActualAcquisitionSettlementResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_actual_acquisition_settlement(
+    opportunity_id: str,
+    request: ActualAcquisitionSettlementRequest,
+    response: Response,
+    entry: ActualAcquisitionSettlementProductionEntry = Depends(
+        get_actual_acquisition_settlement_entry
+    ),
+) -> ActualAcquisitionSettlementResponse:
+    try:
+        other_request = request.other_mandatory_costs
+        publication = entry.execute(
+            ActualAcquisitionSettlementProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                purchase_execution_record_id=request.purchase_execution_record_id,
+                predecessor_settlement_id=request.predecessor_settlement_id,
+                target_currency=request.target_currency,
+                fixed_cost_facts=tuple(
+                    _actual_acquisition_fact(value)
+                    for value in request.fixed_cost_facts
+                ),
+                other_mandatory_costs=OtherMandatoryAcquisitionCosts(
+                    availability=ActualAcquisitionFactAvailability(
+                        other_request.availability
+                    ),
+                    items=tuple(
+                        _actual_acquisition_other_item(value)
+                        for value in other_request.items
+                    ),
+                    scope_evidence=(
+                        None
+                        if other_request.scope_evidence is None
+                        else _actual_acquisition_evidence(
+                            other_request.scope_evidence
+                        )
+                    ),
+                    unresolved_reason=other_request.unresolved_reason,
+                ),
+                operator_id=request.operator_id,
+                requested_at=request.requested_at,
+            )
+        )
+    except ActualAcquisitionSettlementSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ActualAcquisitionSettlementOpportunityConflictError,
+        ActualAcquisitionSettlementReplayConflictError,
+        ActualAcquisitionSettlementRevisionConflictError,
+        ActualAcquisitionSettlementTerminalConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (ActualAcquisitionSettlementPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Acquisition Settlement persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+
+    settlement, receipt = publication.settlement, publication.receipt
+    manifest = settlement.source_manifest
+    identity = manifest.opportunity_identity
+    return ActualAcquisitionSettlementResponse(
+        command_id=receipt.command_id,
+        settlement_id=settlement.settlement_id,
+        revision=settlement.revision,
+        predecessor_settlement_id=settlement.predecessor_settlement_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        purchase_execution_record_id=manifest.purchase_execution_record_id,
+        real_money_execution_intent_id=manifest.real_money_execution_intent_id,
+        founder_capital_approval_id=manifest.founder_capital_approval_id,
+        capital_gate_id=manifest.capital_gate_id,
+        capital_requirement_id=manifest.capital_requirement_id,
+        intended_order_quantity_id=manifest.intended_order_quantity_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        supplier_id=manifest.supplier_id,
+        source_platform=manifest.source_platform,
+        external_supplier_reference=manifest.external_supplier_reference,
+        sourcing_product_id=manifest.sourcing_product_id,
+        external_product_reference=manifest.external_product_reference,
+        option_reference=manifest.option_reference,
+        sku_reference=manifest.sku_reference,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        executed_quantity=manifest.executed_quantity,
+        executed_quantity_unit=manifest.executed_quantity_unit,
+        external_order_reference=manifest.external_order_reference,
+        purchase_executed_at=manifest.purchase_executed_at,
+        target_currency=settlement.target_currency,
+        state=settlement.state.value,
+        blocking_reasons=tuple(value.value for value in settlement.blocking_reasons),
+        fixed_cost_facts=tuple(
+            ActualAcquisitionFixedCostResponse(
+                category=value.category.value,
+                availability=value.availability.value,
+                amount=None if value.amount is None else str(value.amount),
+                currency=value.currency,
+                settled_at=value.settled_at,
+                evidence=_actual_evidence_response(value.evidence),
+                unresolved_reason=value.unresolved_reason,
+                actual_fx=_actual_fx_response(value.actual_fx),
+            )
+            for value in settlement.fixed_cost_facts
+        ),
+        other_mandatory_costs=OtherMandatoryAcquisitionCostsResponse(
+            availability=settlement.other_mandatory_costs.availability.value,
+            items=tuple(
+                OtherMandatoryAcquisitionCostItemResponse(
+                    scope=value.scope,
+                    amount=str(value.amount),
+                    currency=value.currency,
+                    settled_at=value.settled_at,
+                    evidence=_actual_evidence_response(value.evidence),
+                    actual_fx=_actual_fx_response(value.actual_fx),
+                )
+                for value in settlement.other_mandatory_costs.items
+            ),
+            scope_evidence=_actual_evidence_response(
+                settlement.other_mandatory_costs.scope_evidence
+            ),
+            unresolved_reason=settlement.other_mandatory_costs.unresolved_reason,
+        ),
+        normalized_categories=tuple(
+            NormalizedActualAcquisitionCategoryResponse(
+                category=value.category.value,
+                target_currency=value.target_currency,
+                target_batch_amount=(
+                    None
+                    if value.target_batch_amount is None
+                    else str(value.target_batch_amount)
+                ),
+            )
+            for value in settlement.normalized_categories
+        ),
+        acquisition_batch_total=(
+            None
+            if settlement.acquisition_batch_total is None
+            else str(settlement.acquisition_batch_total)
+        ),
+        acquisition_per_unit=(
+            None
+            if settlement.acquisition_per_unit is None
+            else str(settlement.acquisition_per_unit)
+        ),
+        operator_id=settlement.operator_id,
+        policy_name=settlement.policy_name,
+        policy_version=settlement.policy_version,
+        policy_precision=settlement.policy_precision,
+        policy_rounding=settlement.policy_rounding,
+        requested_at=settlement.requested_at,
+        admitted_at=settlement.admitted_at,
+        committed_at=receipt.committed_at,
+        source_manifest_schema_version=manifest.schema_version,
+        settlement_schema_version=settlement.schema_version,
         receipt_schema_version=receipt.schema_version,
         replayed=publication.replayed,
     )

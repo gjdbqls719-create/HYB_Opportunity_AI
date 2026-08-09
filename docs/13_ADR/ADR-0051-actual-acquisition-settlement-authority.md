@@ -6,8 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Decision only. Domain, Application, persistence, production API, Goods Receipt,
-sale settlement, Actual Outcome, and Variance v2 remain unimplemented.
+CR-1B6A2 implements the immutable Domain/Application authority, dedicated
+actual evidence and FX-settlement facts, exact-predecessor append-only SQLite
+revisions/receipts, production UUID identity, and the thin Opportunity-scoped
+API. Goods Receipt, inventory, sale settlement, Actual Outcome, Variance v2,
+and external settlement ingestion remain unimplemented.
 
 ## Context
 
@@ -276,11 +279,8 @@ one exact COMPLETE settlement.
 
 ## Deferred Work
 
-1. Domain/Application contract and exact predecessor/replay policy.
-2. Append-only SQLite history, receipts, integrity validation, and cardinality.
-3. Opportunity-scoped production API for exact Purchase Execution settlement.
-4. Goods Receipt and owned-inventory authority.
-5. Actual Sale Settlement authority.
-6. Actual Outcome and Conservative-vs-Actual Variance v2.
-7. Post-COMPLETE correction/amendment authority if real evidence requires it.
-8. Authentication, UI, payment/FX provider, supplier, or marketplace automation.
+1. Goods Receipt and owned-inventory authority.
+2. Actual Sale Settlement authority.
+3. Actual Outcome and Conservative-vs-Actual Variance v2.
+4. Post-COMPLETE correction/amendment authority if real evidence requires it.
+5. Authentication, UI, payment/FX provider, supplier, or marketplace automation.
