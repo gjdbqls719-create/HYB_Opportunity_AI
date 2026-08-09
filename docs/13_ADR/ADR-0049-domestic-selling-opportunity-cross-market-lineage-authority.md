@@ -4,6 +4,15 @@
 
 Accepted (CR-1B5D2A)
 
+## Implementation Status
+
+CR-1B5D2B implements the immutable Domain/Application admission foundation,
+versioned KR-only policy, exact O1 lifecycle/Promotion/Product Snapshot/Market
+reconstruction port, replay-first owner, O2 lifecycle and Market-binding
+construction, receipt contract, and dedicated UUIDv4-style O2/admission identity
+suppliers. SQLite atomic persistence, Sourcing domestic-lineage handoff,
+production composition, API/UI, and trusted operator injection remain deferred.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate
@@ -28,7 +37,7 @@ which require one exact Opportunity lineage.
 
 ## Decision
 
-Introduce a future immutable Application-owned authority named
+Introduce an immutable Application-owned authority named
 `DomesticSellingOpportunityAdmission`.
 
 For Domestic Commerce policy version 1, the authority preserves the original

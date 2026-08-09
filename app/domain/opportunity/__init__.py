@@ -70,6 +70,12 @@ from app.domain.opportunity.lifecycle import (
     OpportunityLifecycleStatus,
     OpportunityLifecycleTransition,
 )
+from app.domain.opportunity.domestic_selling import (
+    DOMESTIC_PRODUCT_EQUIVALENCE_SCHEMA_VERSION,
+    DOMESTIC_SELLING_OPPORTUNITY_ADMISSION_SCHEMA_VERSION,
+    DomesticProductEquivalenceVerification,
+    DomesticSellingOpportunityAdmission,
+)
 
 __all__ = [
     "ActualEconomics",
@@ -98,6 +104,10 @@ __all__ = [
     "ConservativeEconomicsBlockingReason",
     "ConservativeEconomicsResult",
     "ConservativeEconomicsStatus",
+    "DOMESTIC_PRODUCT_EQUIVALENCE_SCHEMA_VERSION",
+    "DOMESTIC_SELLING_OPPORTUNITY_ADMISSION_SCHEMA_VERSION",
+    "DomesticProductEquivalenceVerification",
+    "DomesticSellingOpportunityAdmission",
     "calculate_conservative_unit_values",
     "conservative_decimal_context",
     "EstimatedEconomicsSnapshot",

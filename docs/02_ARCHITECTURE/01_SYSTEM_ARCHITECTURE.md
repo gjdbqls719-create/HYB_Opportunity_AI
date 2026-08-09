@@ -309,6 +309,18 @@ convergence without latest-source selection or policy re-evaluation. Production
 API/UI, operator authentication and Capital Readiness consumption remain
 separate future boundaries.
 
+CR-1B5D2B implements the ADR-0049 Domain/Application foundation that preserves
+one foreign/source Opportunity O1 and admits a distinct KR domestic-selling
+Opportunity O2. The replay-first owner reconstructs O1's exact lifecycle,
+Candidate Promotion, Product Observation Snapshot and immutable Market binding,
+requires explicit Founder/operator product-equivalence confirmation and evidence
+reference, then issues server-owned O2/admission identities and constructs O2 as
+`DISCOVERED` version 1 with one exact KR listing/canonical-product Market
+binding. The admission never mutates O1, infers equivalence from title or
+similarity, copies Economics, or creates Capital state. SQLite atomic
+persistence, the additive O2 Sourcing-lineage handoff and production API remain
+separate follow-ups.
+
 CR-1B5A implements ADR-0045 as a separate Capital evidence-admission boundary.
 One Application command selects exact Conservative Economics, Domestic Market
 Validation, and Critical Cost results; the owner reconstructs their complete

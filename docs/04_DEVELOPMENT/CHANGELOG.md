@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B5D2B - Domestic Selling Opportunity Admission Foundation
+
+- Implement ADR-0049 as an immutable Domain/Application authority that preserves one exact foreign/source Opportunity O1 and creates a distinct KR domestic-selling Opportunity O2.
+- Reconstruct exact O1 lifecycle, Candidate Promotion, Product Observation Snapshot and immutable Market binding; require explicit Founder/operator product-equivalence confirmation and an evidence reference without title, similarity or canonical-string inference.
+- Add the versioned KR-only listing/canonical-product policy, replay-first command/receipt port, `DISCOVERED` version 1 O2 lifecycle and exact KR Market-binding construction, plus dedicated opaque UUIDv4-style O2/admission identity suppliers.
+- Defer SQLite atomic persistence, Sourcing domestic-lineage handoff, production API/UI, trusted operator injection, Economics copying, Capital decisions and generalized cross-market mapping.
+
 ## CR-1B5D1 - Real-Money Execution Intent Authority
 
 - Implement ADR-0048 as an immutable pre-purchase authority over one exact Founder Capital Approval, exact Gate/Requirement/Intended Quantity/Sourcing Quote lineage, one explicitly selected post-Approval Deployable Capital snapshot, and current Founder confirmation.
