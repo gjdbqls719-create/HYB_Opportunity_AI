@@ -558,19 +558,33 @@ quantity. The request-owned connection is closed on every result or failure.
 
 The existing `market_data.InventorySnapshot` remains an external marketplace
 listing-availability observation. It is not HYB-owned, sellable, or
-reserved/allocated inventory and is never mutated by Goods Receipt. No owned-
-inventory authority currently exists. A future rebuildable
-`OwnedInventoryPosition` may project sellable inbound receipts minus actual
-sales plus authorized adjustments, while reservation remains a separate
-projection dimension.
+reserved/allocated inventory and is never mutated by Goods Receipt.
+
+ADR-0053 accepts `OwnedInventoryPosition` as an unimplemented, on-demand,
+rebuildable Application read model rather than an independently admitted balance.
+Its v1 exact key combines the O2 `OpportunityIdentity`, source platform,
+Supplier ID, sourcing product ID, external product/option/SKU references, and
+quantity unit copied from committed Goods Receipt manifests. Multiple Purchase
+Executions aggregate only when that complete key is identical, and every
+contributing Purchase Execution and Goods Receipt ID remains traceable.
+
+Before an authoritative outbound event exists, v1 sellable on-hand is exactly
+the sum of committed `GoodsReceiptRecord.sellable_quantity` for one key. Total
+received and damaged received remain separate cumulative facts. No speculative
+sale, reservation, settlement, marketplace availability, or manual balance is
+subtracted. There is no v1 owned-inventory SQLite table; a future materialized
+cache must be disposable and fully rebuildable from immutable events.
 
 The decision-level closed-loop sequence is:
 
 ```text
 PurchaseExecutionRecord (implemented)
 |-- ActualAcquisitionSettlement (implemented; independent money fact)
-`-- GoodsReceiptRecord (implemented physical fact)
-    `-- OwnedInventoryPosition (future derived projection)
+`-- GoodsReceiptRecord(s) (implemented physical facts)
+    `-- OwnedInventoryPosition (accepted decision; implementation pending)
+
+Future exact inventory-out events (semantics pending Actual Sale Settlement)
+    `-- OwnedInventoryPosition decrement input
 
 ActualAcquisitionSettlement
 + GoodsReceiptRecord
@@ -583,3 +597,13 @@ neither of the other facts. Goods Receipt does not calculate economics or
 mutate legacy Actual Economics. Future Actual Outcome consumers must bind the
 exact COMPLETE acquisition settlement and applicable receipt/sale events; they
 must not select latest state.
+
+Legacy `ActualEconomics.record_sale` cannot decrement owned inventory because it
+has no sold quantity, exact sourcing-product/receipt lineage, or fulfillment
+semantics. The next Actual Sale Settlement decision must define the factual
+outbound event and decrement point, including cancellation/refund/return
+behavior. Future outbound admission must prevent or explicitly represent
+oversell; the projection never clamps a negative balance to zero. Reservation
+and allocation remain separate future dimensions. `InventorySnapshot` may
+disagree with owned inventory without either authority being rewritten, and no
+Coupang synchronization is implied.
