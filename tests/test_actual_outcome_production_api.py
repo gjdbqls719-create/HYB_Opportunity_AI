@@ -8,6 +8,7 @@ import pytest
 
 import app.web as web_module
 from app.infrastructure.actual_outcome import ActualOutcomeHistoryError, SQLiteActualOutcomeRepository
+from app.infrastructure.actual_acquisition_settlement import ActualAcquisitionSettlementHistoryError
 from app.web import app
 from test_actual_acquisition_settlement_production_api import _settlement_payload
 from test_actual_sale_settlement_production_api import _sale_payload, _setup
@@ -161,6 +162,18 @@ def test_api_persistence_failure_is_503_and_dependency_closes(economics_chain_cl
     monkeypatch.setattr(web_module, "SQLiteActualOutcomeRepository", real_repository)
     retry = result["client"].post(result["outcome_route"], json=result["outcome_payload"])
     assert retry.status_code == 201
+
+    class SourceFailingRepository(real_repository):
+        def get_actual_acquisition_settlement(self, _settlement_id):
+            raise ActualAcquisitionSettlementHistoryError("private upstream detail")
+
+    monkeypatch.setattr(web_module, "SQLiteActualOutcomeRepository", SourceFailingRepository)
+    upstream_payload = deepcopy(result["outcome_payload"])
+    upstream_payload["command_id"] = "actual-outcome-upstream-unavailable"
+    upstream = result["client"].post(result["outcome_route"], json=upstream_payload)
+    assert upstream.status_code == 503
+    assert "private upstream" not in upstream.text
+    monkeypatch.setattr(web_module, "SQLiteActualOutcomeRepository", real_repository)
 
     dependency = web_module.get_actual_outcome_entry()
     entry = next(dependency)

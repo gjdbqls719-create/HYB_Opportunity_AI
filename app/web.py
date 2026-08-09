@@ -3915,7 +3915,13 @@ def get_actual_outcome_entry():
                 committed_clock=clock,
             )
         )
-    except (sqlite3.Error, ActualOutcomePersistenceError) as error:
+    except (
+        sqlite3.Error,
+        ActualOutcomePersistenceError,
+        ActualAcquisitionSettlementPersistenceError,
+        ActualSaleSettlementPersistenceError,
+        GoodsReceiptPersistenceError,
+    ) as error:
         resources.close()
         raise HTTPException(
             status_code=503,
@@ -7260,7 +7266,13 @@ def calculate_actual_outcome(
         ActualOutcomeSourceIntegrityError,
     ) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
-    except (ActualOutcomePersistenceError, sqlite3.Error) as error:
+    except (
+        ActualOutcomePersistenceError,
+        ActualAcquisitionSettlementPersistenceError,
+        ActualSaleSettlementPersistenceError,
+        GoodsReceiptPersistenceError,
+        sqlite3.Error,
+    ) as error:
         raise HTTPException(
             status_code=503,
             detail="Actual Outcome persistence unavailable",
