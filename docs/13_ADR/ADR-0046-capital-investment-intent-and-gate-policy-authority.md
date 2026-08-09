@@ -14,7 +14,8 @@ Planned Acquisition Capital Requirement with deterministic Decimal arithmetic,
 CALCULABLE/BLOCKED semantics, and append-only SQLite replay persistence.
 CR-1B5B implements the exact-source Capital Gate with PASS/REJECTED/BLOCKED
 semantics and append-only SQLite replay persistence. Capital-bound Founder
-Approval and production API/UI remain unimplemented.
+Approval is implemented by CR-1B5C as a separate exact-Gate human authorization
+fact. Production API/UI and purchase execution remain unimplemented.
 
 ## Context
 
@@ -218,8 +219,7 @@ results are never recomputed against latest sources or a newer policy.
 
 ## Deferred Work
 
-1. Capital-bound Founder Approval and the one-active-deployment operating
-   workflow.
+1. Purchase execution and the one-active-deployment operating workflow.
 2. Production entries and any API/UI exposure.
 3. Future reserve automation, Active Position, portfolio exposure, and
    concentration policy if Real-Money evidence justifies them.

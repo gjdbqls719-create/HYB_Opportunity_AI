@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5C - Founder Capital Approval Authority
+
+- Add an immutable ADR-0047 human authorization fact over one exact persisted Capital Gate `PASS`, preserving its Opportunity, policy, Requirement, Deployable Capital, Intended Quantity, and evaluation time.
+- Require the Founder-supplied positive approved amount to equal the full exact Planned Acquisition Capital Requirement and its currency; reject partial, excess, cross-currency, blocked, and rejected Gate approvals without staged-release or FX inference.
+- Add a dedicated opaque approval identity, replay-first Application owner, and separate server admission/receipt clocks while keeping factual Founder identity and approval time caller-owned.
+- Persist approval and receipt atomically in two dedicated append-only SQLite tables with restart reconstruction, rollback, concurrency convergence, malformed-state rejection, exact Gate integrity, and read-only safety.
+- Add no automatic approval, generic `FounderDecision` mapping, revocation/expiry policy, purchase execution, fund transfer, bank integration, API/UI, or autonomous purchasing.
+
 ## CR-1B5B - Capital Gate Authority
 
 - Add the immutable ADR-0046 Capital Gate over one exact persisted Capital Readiness assessment, Planned Acquisition Capital Requirement, and Founder-declared Deployable Capital snapshot.

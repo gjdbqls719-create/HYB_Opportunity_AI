@@ -363,3 +363,16 @@ is never substituted. Dedicated append-only SQLite history and receipts preserve
 policy, evaluated facts, exact sources, replay, restart, and transaction safety.
 `PASS` authorizes only a future Founder Capital Approval review; it cannot spend
 capital and creates no position, concentration, API, or UI semantics.
+
+CR-1B5C implements ADR-0047 as a separate final human authorization fact before
+future real-money execution. One explicit Founder command names one exact
+persisted Capital Gate `PASS`, its factual Founder identity and decision time,
+and an approved capital cap. Because the Gate's Requirement represents one exact
+Intended Order Quantity and no staged-release authority exists, v1 requires the
+approved amount to equal that full Requirement and its exact currency. The owner
+copies the Gate's Opportunity, policy, Requirement, Deployable Capital, Intended
+Quantity, and evaluation time without selecting latest sources or reevaluating
+Gate policy. Dedicated append-only SQLite history and receipts preserve atomic
+replay and restart reconstruction. Approval does not modify generic
+`FounderDecision`, execute a purchase, transfer funds, expire automatically, or
+create mutable revocation state.
