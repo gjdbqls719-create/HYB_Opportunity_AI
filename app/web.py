@@ -14,7 +14,7 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
@@ -287,9 +287,20 @@ from app.application.actual_acquisition_settlement import (
     ActualAcquisitionSettlementTerminalConflictError,
     AdmitActualAcquisitionSettlement,
 )
+from app.application.goods_receipt import (
+    AdmitGoodsReceipt,
+    GoodsReceiptCumulativeQuantityConflictError,
+    GoodsReceiptOpportunityConflictError,
+    GoodsReceiptReplayConflictError,
+    GoodsReceiptSourceLineageError,
+    GoodsReceiptSourceNotFoundError,
+    GoodsReceiptUnitConflictError,
+)
 from app.application.capital_production import (
     ActualAcquisitionSettlementProductionEntry,
     ActualAcquisitionSettlementProductionRequest,
+    GoodsReceiptProductionEntry,
+    GoodsReceiptProductionRequest,
     CapitalGateProductionEntry,
     CapitalGateProductionRequest,
     CapitalProductionOpportunityConflictError,
@@ -310,6 +321,7 @@ from app.domain.capital import (
     ActualAcquisitionEvidenceReference,
     ActualAcquisitionFXSettlement,
     ActualAcquisitionFactAvailability,
+    GoodsReceiptEvidenceReference,
     OtherMandatoryAcquisitionCosts,
     OtherMandatoryAcquisitionCostItem,
     PurchaseExecutionEvidenceReference,
@@ -563,6 +575,11 @@ from app.infrastructure.actual_acquisition_settlement import (
     ActualAcquisitionSettlementPersistenceError,
     ProductionActualAcquisitionSettlementIdentityGenerator,
     SQLiteActualAcquisitionSettlementRepository,
+)
+from app.infrastructure.goods_receipt import (
+    GoodsReceiptPersistenceError,
+    ProductionGoodsReceiptRecordIdentityGenerator,
+    SQLiteGoodsReceiptRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -2557,6 +2574,83 @@ class ActualAcquisitionSettlementResponse(BaseModel):
     replayed: bool
 
 
+class GoodsReceiptEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reference: str = Field(min_length=1)
+    observed_at: datetime
+    operator_id: str = Field(min_length=1)
+    collection_method: str = Field(min_length=1)
+
+
+class GoodsReceiptRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    purchase_execution_record_id: str = Field(min_length=1)
+    received_quantity: StrictInt = Field(ge=1)
+    quantity_unit: str = Field(min_length=1)
+    sellable_quantity: StrictInt = Field(ge=0)
+    damaged_quantity: StrictInt = Field(ge=0)
+    evidence_references: tuple[GoodsReceiptEvidenceRequest, ...] = Field(min_length=1)
+    delivery_reference: str | None = None
+    operator_id: str = Field(min_length=1)
+    received_at: datetime
+    inspected_at: datetime
+    requested_at: datetime
+
+
+class GoodsReceiptEvidenceResponse(BaseModel):
+    reference: str
+    observed_at: datetime
+    operator_id: str
+    collection_method: str
+    schema_version: str
+
+
+class GoodsReceiptResponse(BaseModel):
+    command_id: str
+    record_id: str
+    opportunity_id: str
+    discovery_reference: str
+    purchase_execution_record_id: str
+    real_money_execution_intent_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    supplier_id: str
+    source_platform: str
+    external_supplier_reference: str | None
+    sourcing_product_id: str
+    external_product_reference: str
+    option_reference: str | None
+    sku_reference: str | None
+    quote_id: str
+    quote_revision: int
+    executed_quantity: int
+    executed_quantity_unit: str
+    external_order_reference: str
+    founder_id: str
+    purchase_executed_at: datetime
+    received_quantity: int
+    quantity_unit: str
+    sellable_quantity: int
+    damaged_quantity: int
+    evidence_references: tuple[GoodsReceiptEvidenceResponse, ...]
+    delivery_reference: str | None
+    operator_id: str
+    received_at: datetime
+    inspected_at: datetime
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    policy_name: str
+    policy_version: str
+    source_manifest_schema_version: str
+    record_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3364,6 +3458,36 @@ def get_actual_acquisition_settlement_entry():
         raise HTTPException(
             status_code=503,
             detail="Actual Acquisition Settlement persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_goods_receipt_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteGoodsReceiptRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = GoodsReceiptProductionEntry(
+            AdmitGoodsReceipt(
+                repository,
+                record_id_generator=ProductionGoodsReceiptRecordIdentityGenerator(),
+                admitted_clock=clock,
+                committed_clock=clock,
+            )
+        )
+    except (sqlite3.Error, GoodsReceiptPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Goods Receipt persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -5947,6 +6071,118 @@ def record_purchase_execution(
         requested_at=record.requested_at,
         admitted_at=record.admitted_at,
         committed_at=receipt.committed_at,
+        source_manifest_schema_version=manifest.schema_version,
+        record_schema_version=record.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/goods-receipts",
+    response_model=GoodsReceiptResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_goods_receipt(
+    opportunity_id: str,
+    request: GoodsReceiptRequest,
+    response: Response,
+    entry: GoodsReceiptProductionEntry = Depends(get_goods_receipt_entry),
+) -> GoodsReceiptResponse:
+    try:
+        publication = entry.execute(
+            GoodsReceiptProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                purchase_execution_record_id=request.purchase_execution_record_id,
+                received_quantity=request.received_quantity,
+                quantity_unit=request.quantity_unit,
+                sellable_quantity=request.sellable_quantity,
+                damaged_quantity=request.damaged_quantity,
+                evidence_references=tuple(
+                    GoodsReceiptEvidenceReference(
+                        reference=value.reference,
+                        observed_at=value.observed_at,
+                        operator_id=value.operator_id,
+                        collection_method=value.collection_method,
+                    )
+                    for value in request.evidence_references
+                ),
+                delivery_reference=request.delivery_reference,
+                operator_id=request.operator_id,
+                received_at=request.received_at,
+                inspected_at=request.inspected_at,
+                requested_at=request.requested_at,
+            )
+        )
+    except GoodsReceiptSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        GoodsReceiptCumulativeQuantityConflictError,
+        GoodsReceiptOpportunityConflictError,
+        GoodsReceiptReplayConflictError,
+        GoodsReceiptSourceLineageError,
+        GoodsReceiptUnitConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (GoodsReceiptPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Goods Receipt persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    record, receipt = publication.record, publication.receipt
+    manifest = record.source_manifest
+    identity = manifest.opportunity_identity
+    return GoodsReceiptResponse(
+        command_id=receipt.command_id,
+        record_id=record.record_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        purchase_execution_record_id=manifest.purchase_execution_record_id,
+        real_money_execution_intent_id=manifest.real_money_execution_intent_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        supplier_id=manifest.supplier_id,
+        source_platform=manifest.source_platform,
+        external_supplier_reference=manifest.external_supplier_reference,
+        sourcing_product_id=manifest.sourcing_product_id,
+        external_product_reference=manifest.external_product_reference,
+        option_reference=manifest.option_reference,
+        sku_reference=manifest.sku_reference,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        executed_quantity=manifest.executed_quantity,
+        executed_quantity_unit=manifest.executed_quantity_unit,
+        external_order_reference=manifest.external_order_reference,
+        founder_id=manifest.founder_id,
+        purchase_executed_at=manifest.purchase_executed_at,
+        received_quantity=record.received_quantity,
+        quantity_unit=record.quantity_unit,
+        sellable_quantity=record.sellable_quantity,
+        damaged_quantity=record.damaged_quantity,
+        evidence_references=tuple(
+            GoodsReceiptEvidenceResponse(
+                reference=value.reference,
+                observed_at=value.observed_at,
+                operator_id=value.operator_id,
+                collection_method=value.collection_method,
+                schema_version=value.schema_version,
+            )
+            for value in record.evidence_references
+        ),
+        delivery_reference=record.delivery_reference,
+        operator_id=record.operator_id,
+        received_at=record.received_at,
+        inspected_at=record.inspected_at,
+        requested_at=record.requested_at,
+        admitted_at=record.admitted_at,
+        committed_at=receipt.committed_at,
+        policy_name=record.policy_name,
+        policy_version=record.policy_version,
         source_manifest_schema_version=manifest.schema_version,
         record_schema_version=record.schema_version,
         receipt_schema_version=receipt.schema_version,

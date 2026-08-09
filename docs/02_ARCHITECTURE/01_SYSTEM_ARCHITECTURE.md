@@ -538,14 +538,23 @@ settlements, and post-COMPLETE children. Historical reads reconstruct the exact
 Purchase Execution lineage and stored Decimal calculation without external FX,
 current safety reevaluation, or a mutable current projection.
 
-ADR-0052 accepts the physical-arrival and owned-inventory boundary without yet
-implementing it. One exact Purchase Execution may produce multiple immutable
+CR-1B6B2 implements ADR-0052's physical-arrival authority. One exact Purchase
+Execution may produce multiple immutable
 `GoodsReceiptRecord` events for partial shipments. Each event records positive
 received quantity in the executed unit and fully inspected sellable versus
 damaged quantities. Transactional cumulative receipt must never exceed the
 executed quantity. Actual Acquisition Settlement is not a prerequisite because
 physical receipt and financial settlement are independent facts that may occur
 in either order.
+
+The production owner is replay-first, reconstructs the exact O2,
+Supplier/Product/Quote and executed quantity/unit from the named Purchase
+Execution Record, and issues dedicated opaque receipt identity and server UTC
+times. Dedicated append-only SQLite history and command-receipt tables commit in
+one `BEGIN IMMEDIATE` transaction. The write transaction revalidates the exact
+Purchase Execution and sums immutable receipt events through an indexed lookup
+before insert, so concurrent partial arrivals cannot jointly exceed executed
+quantity. The request-owned connection is closed on every result or failure.
 
 The existing `market_data.InventorySnapshot` remains an external marketplace
 listing-availability observation. It is not HYB-owned, sellable, or
@@ -560,7 +569,7 @@ The decision-level closed-loop sequence is:
 ```text
 PurchaseExecutionRecord (implemented)
 |-- ActualAcquisitionSettlement (implemented; independent money fact)
-`-- GoodsReceiptRecord (accepted decision; unimplemented physical fact)
+`-- GoodsReceiptRecord (implemented physical fact)
     `-- OwnedInventoryPosition (future derived projection)
 
 ActualAcquisitionSettlement

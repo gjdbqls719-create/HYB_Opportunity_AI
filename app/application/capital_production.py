@@ -40,12 +40,17 @@ from app.application.actual_acquisition_settlement import (
     AdmitActualAcquisitionSettlement,
     AdmitActualAcquisitionSettlementCommand,
 )
+from app.application.goods_receipt import (
+    AdmitGoodsReceipt,
+    AdmitGoodsReceiptCommand,
+)
 from app.domain.capital import (
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
     UpfrontCostScopeStatus,
     PurchaseExecutionEvidenceReference,
     ActualAcquisitionCostFact,
+    GoodsReceiptEvidenceReference,
     OtherMandatoryAcquisitionCosts,
 )
 
@@ -372,6 +377,47 @@ class ActualAcquisitionSettlementProductionEntry:
                 fixed_cost_facts=request.fixed_cost_facts,
                 other_mandatory_costs=request.other_mandatory_costs,
                 operator_id=request.operator_id,
+                requested_at=request.requested_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class GoodsReceiptProductionRequest:
+    command_id: str
+    opportunity_id: str
+    purchase_execution_record_id: str
+    received_quantity: int
+    quantity_unit: str
+    sellable_quantity: int
+    damaged_quantity: int
+    evidence_references: tuple[GoodsReceiptEvidenceReference, ...]
+    delivery_reference: str | None
+    operator_id: str
+    received_at: datetime
+    inspected_at: datetime
+    requested_at: datetime
+
+
+class GoodsReceiptProductionEntry:
+    def __init__(self, owner: AdmitGoodsReceipt) -> None:
+        self._owner = owner
+
+    def execute(self, request: GoodsReceiptProductionRequest):
+        return self._owner.execute(
+            AdmitGoodsReceiptCommand(
+                command_id=request.command_id,
+                opportunity_id=request.opportunity_id,
+                purchase_execution_record_id=request.purchase_execution_record_id,
+                received_quantity=request.received_quantity,
+                quantity_unit=request.quantity_unit,
+                sellable_quantity=request.sellable_quantity,
+                damaged_quantity=request.damaged_quantity,
+                evidence_references=request.evidence_references,
+                delivery_reference=request.delivery_reference,
+                operator_id=request.operator_id,
+                received_at=request.received_at,
+                inspected_at=request.inspected_at,
                 requested_at=request.requested_at,
             )
         )

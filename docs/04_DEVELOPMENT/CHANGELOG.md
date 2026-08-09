@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B6B2 - Goods Receipt Authority and Production API
+
+- Implement ADR-0052 as immutable `GoodsReceiptRecord` events over one exact Purchase Execution Record with explicit positive received quantity, exact executed unit, fully classified sellable/damaged quantities, dedicated evidence, optional opaque delivery reference, factual receipt/inspection times, and exact O2 Supplier/Product/Quote lineage.
+- Add dedicated UUID identity, append-only SQLite history/command receipts, integrity reconstruction, restart replay, rollback/retry, indexed immutable cumulative sums, and `BEGIN IMMEDIATE` enforcement that prevents concurrent partial receipts from jointly exceeding executed quantity.
+- Expose `POST /api/v1/opportunities/{opportunity_id}/goods-receipts` with strict factual DTOs, 100-unit 60/40 partial-receipt and concurrent over-receipt safety coverage, bounded errors, request-owned cleanup, and strict independence from Actual Acquisition Settlement, marketplace Inventory Snapshot, mutable owned inventory, legacy Actual Economics, returns, sales, and Actual Outcome.
+
 ## CR-1B6A2 - Actual Acquisition Settlement Authority and Production API
 
 - Implement ADR-0051 as immutable `BLOCKED`/`COMPLETE` actual-acquisition settlement revisions over one exact Purchase Execution Record, preserving the five fixed cost categories, explicit other-mandatory-cost scope/items, dedicated actual evidence and actual FX settlement provenance, original batch money, deterministic normalized batch totals, and executed-quantity per-unit totals.

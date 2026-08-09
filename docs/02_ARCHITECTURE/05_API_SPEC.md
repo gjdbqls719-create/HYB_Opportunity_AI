@@ -493,3 +493,42 @@ timezone-aware.
 This route does not create Goods Receipt, update inventory, mutate legacy
 Actual Economics, calculate sales/profit/margin/ROI, or create Actual Outcome
 or Variance.
+
+## Goods Receipt
+
+`POST /api/v1/opportunities/{opportunity_id}/goods-receipts` admits one
+immutable physical receipt event for one exact persisted Purchase Execution
+Record. The request requires `command_id`, exact Purchase Execution Record ID,
+positive `received_quantity`, explicit matching `quantity_unit`, non-negative
+`sellable_quantity` and `damaged_quantity`, one or more dedicated evidence
+references, operator, and timezone-aware received, inspected, and requested
+times. Optional `delivery_reference` is opaque and is neither identity nor a
+deduplication key. Extra request fields are forbidden.
+
+The server reconstructs O2, Supplier, sourcing product and external
+product/option/SKU references, exact Quote revision, executed quantity/unit,
+external order, Founder, and Purchase Execution provenance. It requires
+`sellable_quantity + damaged_quantity == received_quantity`; zero receipt,
+unclassified remainder, unit conversion, MOQ/Quote substitution, and inferred
+sellable quantity are rejected. Different commands may create legitimate
+partial events for the same purchase.
+
+Before every fresh insert, the SQLite owner starts `BEGIN IMMEDIATE`, repeats
+the exact replay and Purchase Execution checks, sums all committed immutable
+receipt quantities for that Purchase Execution through an indexed lookup, and
+requires cumulative quantity plus the new event to remain at or below executed
+quantity. Event history and command receipt commit atomically. No mutable
+accumulated balance or fulfilled flag exists.
+
+A fresh event returns 201 and exact command replay returns 200 with the same
+record, evidence, and historical times. Changed command, route/source or unit
+conflict, and cumulative over-receipt return 409. Missing Purchase Execution
+returns 404, structural input returns 422, and bounded persistence failure
+returns 503. The response exposes the immutable event and reconstructed source
+manifest but no marketplace or owned-inventory balance.
+
+The route does not require or mutate Actual Acquisition Settlement, does not
+change marketplace `InventorySnapshot` or legacy Actual Economics, and does not
+calculate order completion, inventory balance, refunds, sale economics, Actual
+Outcome, or Variance. A future rebuildable owned-inventory projection may
+consume sellable receipt quantities without changing this event authority.

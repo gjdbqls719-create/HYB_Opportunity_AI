@@ -6,9 +6,12 @@ Accepted
 
 ## Implementation Status
 
-Decision only. CR-1B6B1 defines the authority and projection boundary. Domain,
-Application, SQLite, production API, owned-inventory projection, sale settlement,
-and Actual Outcome remain unimplemented.
+CR-1B6B2 implements the immutable Domain/Application event authority, dedicated
+evidence and UUID identity, append-only SQLite history/command receipts,
+transactional cumulative over-receipt prevention, and the thin
+Opportunity-scoped production API. Owned-inventory projection, sale settlement,
+Actual Outcome, delivery exceptions, and external integrations remain
+unimplemented.
 
 ## Context
 

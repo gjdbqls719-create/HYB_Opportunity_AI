@@ -33,7 +33,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def _execute_capital_journey(economics_chain_client):
+def _execute_capital_journey(economics_chain_client, *, quantity=10):
     (
         client,
         database,
@@ -57,7 +57,7 @@ def _execute_capital_journey(economics_chain_client):
         "sourcing_admission_revision": sourcing["revision"],
         "quote_id": quote["quote_id"],
         "quote_revision": quote["revision"],
-        "quantity": 10,
+        "quantity": quantity,
         "quantity_unit": "unit",
         "operator_id": "founder-1",
         "declared_at": now,
@@ -151,7 +151,7 @@ def _execute_capital_journey(economics_chain_client):
         "quote_id": quote["quote_id"],
         "quote_revision": quote["revision"],
         "current_deployable_capital_snapshot_id": snapshot_b.json()["snapshot_id"],
-        "execution_quantity": 10,
+        "execution_quantity": quantity,
         "execution_quantity_unit": "unit",
         "planned_execution_amount": amount,
         "currency": "KRW",
