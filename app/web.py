@@ -296,6 +296,19 @@ from app.application.goods_receipt import (
     GoodsReceiptSourceNotFoundError,
     GoodsReceiptUnitConflictError,
 )
+from app.application.actual_sale_settlement import (
+    AdmitActualSaleSettlement,
+    ActualSaleSettlementOpportunityConflictError,
+    ActualSaleSettlementOversellConflictError,
+    ActualSaleSettlementProductConflictError,
+    ActualSaleSettlementReplayConflictError,
+    ActualSaleSettlementReportConflictError,
+    ActualSaleSettlementRevisionConflictError,
+    ActualSaleSettlementSourceLineageError,
+    ActualSaleSettlementSourceNotFoundError,
+    ActualSaleSettlementTerminalConflictError,
+    ActualSaleSettlementWindowConflictError,
+)
 from app.application.owned_inventory import (
     GetOwnedInventoryPositions,
     OwnedInventoryOpportunityNotFoundError,
@@ -306,6 +319,8 @@ from app.application.capital_production import (
     ActualAcquisitionSettlementProductionRequest,
     GoodsReceiptProductionEntry,
     GoodsReceiptProductionRequest,
+    ActualSaleSettlementProductionEntry,
+    ActualSaleSettlementProductionRequest,
     CapitalGateProductionEntry,
     CapitalGateProductionRequest,
     CapitalProductionOpportunityConflictError,
@@ -330,6 +345,15 @@ from app.domain.capital import (
     OtherMandatoryAcquisitionCosts,
     OtherMandatoryAcquisitionCostItem,
     PurchaseExecutionEvidenceReference,
+    ActualSaleEvidenceReference,
+    ActualSaleFactAvailability,
+    ActualSaleFinalityFact,
+    ActualSaleMonetaryCategory,
+    ActualSaleMonetaryFact,
+    ActualSalePayoutFact,
+    ActualSalePayoutReconciliationState,
+    OtherActualSaleCostItem,
+    OtherActualSaleCosts,
     UpfrontCostScopeStatus,
 )
 from app.application.economics_production import (
@@ -585,6 +609,11 @@ from app.infrastructure.goods_receipt import (
     GoodsReceiptPersistenceError,
     ProductionGoodsReceiptRecordIdentityGenerator,
     SQLiteGoodsReceiptRepository,
+)
+from app.infrastructure.actual_sale_settlement import (
+    ActualSaleSettlementPersistenceError,
+    ProductionActualSaleSettlementIdentityGenerator,
+    SQLiteActualSaleSettlementRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -2692,6 +2721,195 @@ class OwnedInventoryResponse(BaseModel):
     position_count: int
 
 
+class ActualSaleEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reference: str = Field(min_length=1)
+    observed_at: datetime
+    operator_id: str = Field(min_length=1)
+    collection_method: str = Field(min_length=1)
+
+
+class ActualSaleMonetaryFactRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    category: str = Field(min_length=1)
+    availability: str = Field(min_length=1)
+    amount: StrictStr | None = None
+    currency: str | None = None
+    occurred_at: datetime | None = None
+    evidence: ActualSaleEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+
+
+class OtherActualSaleCostItemRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scope: str = Field(min_length=1)
+    amount: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    occurred_at: datetime
+    evidence: ActualSaleEvidenceRequest
+
+
+class OtherActualSaleCostsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    availability: str = Field(min_length=1)
+    items: tuple[OtherActualSaleCostItemRequest, ...]
+    scope_evidence: ActualSaleEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+
+
+class ActualSalePayoutRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    availability: str = Field(min_length=1)
+    amount: StrictStr | None = None
+    currency: str | None = None
+    external_reference: str | None = None
+    paid_at: datetime | None = None
+    evidence: ActualSaleEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+    reconciliation_state: str = Field(min_length=1)
+    reconciliation_explanation: str | None = None
+    reconciliation_evidence: ActualSaleEvidenceRequest | None = None
+
+
+class ActualSaleFinalityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    confirmed: bool
+    observed_at: datetime | None = None
+    evidence: ActualSaleEvidenceRequest | None = None
+    unresolved_reason: str | None = None
+
+
+class ActualSaleSettlementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    anchor_goods_receipt_id: str = Field(min_length=1)
+    predecessor_settlement_id: str | None = None
+    marketplace: str = Field(min_length=1)
+    seller_account_reference: str = Field(min_length=1)
+    marketplace_product_reference: str = Field(min_length=1)
+    marketplace_option_reference: str | None = None
+    marketplace_sku_reference: str | None = None
+    external_report_reference: str = Field(min_length=1)
+    transaction_references: tuple[str, ...] = ()
+    period_start: datetime
+    period_end: datetime
+    fulfilled_outbound_quantity: StrictInt = Field(ge=0)
+    cancelled_quantity: StrictInt = Field(ge=0)
+    refunded_quantity: StrictInt = Field(ge=0)
+    returned_quantity: StrictInt = Field(ge=0)
+    quantity_unit: str = Field(min_length=1)
+    settlement_currency: str = Field(min_length=1)
+    fixed_monetary_facts: tuple[ActualSaleMonetaryFactRequest, ...] = Field(
+        min_length=15, max_length=15
+    )
+    other_sale_side_costs: OtherActualSaleCostsRequest
+    payout: ActualSalePayoutRequest
+    finality: ActualSaleFinalityRequest
+    operator_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class ActualSaleEvidenceResponse(BaseModel):
+    reference: str
+    observed_at: datetime
+    operator_id: str
+    collection_method: str
+    schema_version: str
+
+
+class ActualSaleMonetaryFactResponse(BaseModel):
+    category: str
+    availability: str
+    amount: str | None
+    currency: str | None
+    occurred_at: datetime | None
+    evidence: ActualSaleEvidenceResponse | None
+    unresolved_reason: str | None
+    schema_version: str
+
+
+class OtherActualSaleCostItemResponse(BaseModel):
+    scope: str
+    amount: str
+    currency: str
+    occurred_at: datetime
+    evidence: ActualSaleEvidenceResponse
+
+
+class OtherActualSaleCostsResponse(BaseModel):
+    availability: str
+    items: tuple[OtherActualSaleCostItemResponse, ...]
+    scope_evidence: ActualSaleEvidenceResponse | None
+    unresolved_reason: str | None
+    schema_version: str
+
+
+class ActualSalePayoutResponse(BaseModel):
+    availability: str
+    amount: str | None
+    currency: str | None
+    external_reference: str | None
+    paid_at: datetime | None
+    evidence: ActualSaleEvidenceResponse | None
+    unresolved_reason: str | None
+    reconciliation_state: str
+    reconciliation_explanation: str | None
+    reconciliation_evidence: ActualSaleEvidenceResponse | None
+    schema_version: str
+
+
+class ActualSaleFinalityResponse(BaseModel):
+    confirmed: bool
+    observed_at: datetime | None
+    evidence: ActualSaleEvidenceResponse | None
+    unresolved_reason: str | None
+    schema_version: str
+
+
+class ActualSaleSettlementResponse(BaseModel):
+    command_id: str
+    settlement_id: str
+    revision: int
+    predecessor_settlement_id: str | None
+    product_key: OwnedInventoryProductKeyResponse
+    anchor_goods_receipt_id: str
+    eligible_goods_receipt_ids: tuple[str, ...]
+    contributing_purchase_execution_ids: tuple[str, ...]
+    marketplace: str
+    seller_account_reference: str
+    marketplace_product_reference: str
+    marketplace_option_reference: str | None
+    marketplace_sku_reference: str | None
+    external_report_reference: str
+    transaction_references: tuple[str, ...]
+    period_start: datetime
+    period_end: datetime
+    fulfilled_outbound_quantity: int
+    cancelled_quantity: int
+    refunded_quantity: int
+    returned_quantity: int
+    quantity_unit: str
+    settlement_currency: str
+    fixed_monetary_facts: tuple[ActualSaleMonetaryFactResponse, ...]
+    other_sale_side_costs: OtherActualSaleCostsResponse
+    payout: ActualSalePayoutResponse
+    finality: ActualSaleFinalityResponse
+    state: str
+    blocking_reasons: tuple[str, ...]
+    operator_id: str
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    source_manifest_schema_version: str
+    settlement_schema_version: str
+    receipt_schema_version: str
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3529,6 +3747,36 @@ def get_goods_receipt_entry():
         raise HTTPException(
             status_code=503,
             detail="Goods Receipt persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_actual_sale_settlement_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteActualSaleSettlementRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = ActualSaleSettlementProductionEntry(
+            AdmitActualSaleSettlement(
+                repository,
+                settlement_id_generator=ProductionActualSaleSettlementIdentityGenerator(),
+                admitted_clock=clock,
+                committed_clock=clock,
+            )
+        )
+    except (sqlite3.Error, ActualSaleSettlementPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Sale Settlement persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -6578,6 +6826,250 @@ def admit_actual_acquisition_settlement(
         source_manifest_schema_version=manifest.schema_version,
         settlement_schema_version=settlement.schema_version,
         receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+def _actual_sale_evidence(value):
+    if value is None:
+        return None
+    return ActualSaleEvidenceReference(
+        value.reference, value.observed_at, value.operator_id, value.collection_method
+    )
+
+
+def _actual_sale_fact(value: ActualSaleMonetaryFactRequest):
+    return ActualSaleMonetaryFact(
+        ActualSaleMonetaryCategory(value.category),
+        ActualSaleFactAvailability(value.availability),
+        None if value.amount is None else Decimal(value.amount),
+        value.currency,
+        value.occurred_at,
+        _actual_sale_evidence(value.evidence),
+        value.unresolved_reason,
+    )
+
+
+def _actual_sale_evidence_response(value):
+    if value is None:
+        return None
+    return ActualSaleEvidenceResponse(
+        reference=value.reference,
+        observed_at=value.observed_at,
+        operator_id=value.operator_id,
+        collection_method=value.collection_method,
+        schema_version=value.schema_version,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/actual-sale-settlements",
+    response_model=ActualSaleSettlementResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admit_actual_sale_settlement(
+    opportunity_id: str,
+    request: ActualSaleSettlementRequest,
+    response: Response,
+    entry: ActualSaleSettlementProductionEntry = Depends(
+        get_actual_sale_settlement_entry
+    ),
+) -> ActualSaleSettlementResponse:
+    try:
+        other = request.other_sale_side_costs
+        payout = request.payout
+        finality = request.finality
+        publication = entry.execute(
+            ActualSaleSettlementProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                anchor_goods_receipt_id=request.anchor_goods_receipt_id,
+                predecessor_settlement_id=request.predecessor_settlement_id,
+                marketplace=request.marketplace,
+                seller_account_reference=request.seller_account_reference,
+                marketplace_product_reference=request.marketplace_product_reference,
+                marketplace_option_reference=request.marketplace_option_reference,
+                marketplace_sku_reference=request.marketplace_sku_reference,
+                external_report_reference=request.external_report_reference,
+                transaction_references=request.transaction_references,
+                period_start=request.period_start,
+                period_end=request.period_end,
+                fulfilled_outbound_quantity=request.fulfilled_outbound_quantity,
+                cancelled_quantity=request.cancelled_quantity,
+                refunded_quantity=request.refunded_quantity,
+                returned_quantity=request.returned_quantity,
+                quantity_unit=request.quantity_unit,
+                settlement_currency=request.settlement_currency,
+                fixed_monetary_facts=tuple(
+                    _actual_sale_fact(value) for value in request.fixed_monetary_facts
+                ),
+                other_sale_side_costs=OtherActualSaleCosts(
+                    ActualSaleFactAvailability(other.availability),
+                    tuple(
+                        OtherActualSaleCostItem(
+                            value.scope,
+                            Decimal(value.amount),
+                            value.currency,
+                            value.occurred_at,
+                            _actual_sale_evidence(value.evidence),
+                        )
+                        for value in other.items
+                    ),
+                    _actual_sale_evidence(other.scope_evidence),
+                    other.unresolved_reason,
+                ),
+                payout=ActualSalePayoutFact(
+                    ActualSaleFactAvailability(payout.availability),
+                    None if payout.amount is None else Decimal(payout.amount),
+                    payout.currency,
+                    payout.external_reference,
+                    payout.paid_at,
+                    _actual_sale_evidence(payout.evidence),
+                    payout.unresolved_reason,
+                    ActualSalePayoutReconciliationState(
+                        payout.reconciliation_state
+                    ),
+                    payout.reconciliation_explanation,
+                    _actual_sale_evidence(payout.reconciliation_evidence),
+                ),
+                finality=ActualSaleFinalityFact(
+                    finality.confirmed,
+                    finality.observed_at,
+                    _actual_sale_evidence(finality.evidence),
+                    finality.unresolved_reason,
+                ),
+                operator_id=request.operator_id,
+                requested_at=request.requested_at,
+            )
+        )
+    except ActualSaleSettlementSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ActualSaleSettlementOpportunityConflictError,
+        ActualSaleSettlementOversellConflictError,
+        ActualSaleSettlementProductConflictError,
+        ActualSaleSettlementReplayConflictError,
+        ActualSaleSettlementReportConflictError,
+        ActualSaleSettlementRevisionConflictError,
+        ActualSaleSettlementSourceLineageError,
+        ActualSaleSettlementTerminalConflictError,
+        ActualSaleSettlementWindowConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (ActualSaleSettlementPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Actual Sale Settlement persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    settlement, receipt = publication.settlement, publication.receipt
+    manifest = settlement.source_manifest
+    key = manifest.product_key
+    identity = key.opportunity_identity
+    facts = tuple(
+        ActualSaleMonetaryFactResponse(
+            category=value.category.value,
+            availability=value.availability.value,
+            amount=None if value.amount is None else str(value.amount),
+            currency=value.currency,
+            occurred_at=value.occurred_at,
+            evidence=_actual_sale_evidence_response(value.evidence),
+            unresolved_reason=value.unresolved_reason,
+            schema_version=value.schema_version,
+        )
+        for value in settlement.fixed_monetary_facts
+    )
+    return ActualSaleSettlementResponse(
+        command_id=receipt.command_id,
+        settlement_id=settlement.settlement_id,
+        revision=settlement.revision,
+        predecessor_settlement_id=settlement.predecessor_settlement_id,
+        product_key=OwnedInventoryProductKeyResponse(
+            opportunity_id=identity.opportunity_id,
+            discovery_reference=identity.discovery_reference,
+            source_platform=key.source_platform,
+            supplier_id=key.supplier_id,
+            sourcing_product_id=key.sourcing_product_id,
+            external_product_reference=key.external_product_reference,
+            option_reference=key.option_reference,
+            sku_reference=key.sku_reference,
+            quantity_unit=key.quantity_unit,
+        ),
+        anchor_goods_receipt_id=manifest.anchor_goods_receipt_id,
+        eligible_goods_receipt_ids=manifest.eligible_goods_receipt_ids,
+        contributing_purchase_execution_ids=manifest.contributing_purchase_execution_ids,
+        marketplace=manifest.marketplace,
+        seller_account_reference=manifest.seller_account_reference,
+        marketplace_product_reference=manifest.marketplace_product_reference,
+        marketplace_option_reference=manifest.marketplace_option_reference,
+        marketplace_sku_reference=manifest.marketplace_sku_reference,
+        external_report_reference=manifest.external_report_reference,
+        transaction_references=manifest.transaction_references,
+        period_start=settlement.period_start,
+        period_end=settlement.period_end,
+        fulfilled_outbound_quantity=settlement.fulfilled_outbound_quantity,
+        cancelled_quantity=settlement.cancelled_quantity,
+        refunded_quantity=settlement.refunded_quantity,
+        returned_quantity=settlement.returned_quantity,
+        quantity_unit=settlement.quantity_unit,
+        settlement_currency=settlement.settlement_currency,
+        fixed_monetary_facts=facts,
+        other_sale_side_costs=OtherActualSaleCostsResponse(
+            availability=settlement.other_sale_side_costs.availability.value,
+            items=tuple(
+                OtherActualSaleCostItemResponse(
+                    scope=value.scope,
+                    amount=str(value.amount),
+                    currency=value.currency,
+                    occurred_at=value.occurred_at,
+                    evidence=_actual_sale_evidence_response(value.evidence),
+                )
+                for value in settlement.other_sale_side_costs.items
+            ),
+            scope_evidence=_actual_sale_evidence_response(
+                settlement.other_sale_side_costs.scope_evidence
+            ),
+            unresolved_reason=settlement.other_sale_side_costs.unresolved_reason,
+            schema_version=settlement.other_sale_side_costs.schema_version,
+        ),
+        payout=ActualSalePayoutResponse(
+            availability=settlement.payout.availability.value,
+            amount=None if settlement.payout.amount is None else str(settlement.payout.amount),
+            currency=settlement.payout.currency,
+            external_reference=settlement.payout.external_reference,
+            paid_at=settlement.payout.paid_at,
+            evidence=_actual_sale_evidence_response(settlement.payout.evidence),
+            unresolved_reason=settlement.payout.unresolved_reason,
+            reconciliation_state=settlement.payout.reconciliation_state.value,
+            reconciliation_explanation=settlement.payout.reconciliation_explanation,
+            reconciliation_evidence=_actual_sale_evidence_response(
+                settlement.payout.reconciliation_evidence
+            ),
+            schema_version=settlement.payout.schema_version,
+        ),
+        finality=ActualSaleFinalityResponse(
+            confirmed=settlement.finality.confirmed,
+            observed_at=settlement.finality.observed_at,
+            evidence=_actual_sale_evidence_response(settlement.finality.evidence),
+            unresolved_reason=settlement.finality.unresolved_reason,
+            schema_version=settlement.finality.schema_version,
+        ),
+        state=settlement.state.value,
+        blocking_reasons=tuple(value.value for value in settlement.blocking_reasons),
+        operator_id=settlement.operator_id,
+        policy_name=settlement.policy_name,
+        policy_version=settlement.policy_version,
+        policy_precision=settlement.policy_precision,
+        policy_rounding=settlement.policy_rounding,
+        source_manifest_schema_version=manifest.schema_version,
+        settlement_schema_version=settlement.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        requested_at=settlement.requested_at,
+        admitted_at=settlement.admitted_at,
+        committed_at=receipt.committed_at,
         replayed=publication.replayed,
     )
 

@@ -562,3 +562,53 @@ reconstruction failure returns bounded 503. The request-owned connection closes
 for every result. The GET performs no writes, creates no materialized inventory
 table, selects no latest business source, and rebuilds the same result after
 restart from immutable receipt history.
+
+## Actual Sale Settlement
+
+`POST /api/v1/opportunities/{opportunity_id}/actual-sale-settlements` admits one
+immutable actual marketplace-sale settlement revision for one exact Goods
+Receipt-anchored O2/product and explicit half-open evaluation window. The first
+manual validation path uses `marketplace=COUPANG`; the route performs no Coupang
+network request. Extra request fields are forbidden.
+
+The request supplies command and optional exact predecessor IDs, one exact Goods
+Receipt anchor, marketplace seller/listing provenance, opaque external
+report/cycle and optional ordered transaction references, timezone-aware
+`period_start`/`period_end`, explicit fulfilled/cancelled/refunded/returned
+integer quantities and matching unit, settlement currency, 15 canonically
+ordered monetary facts, explicit other-sale-cost scope/items, payout and
+reconciliation facts, finality, operator, and requested time. Money is accepted
+and returned as Decimal strings. Caller state, reasons, settlement identity,
+server times, inventory balance, profit, margin, and ROI are not accepted.
+
+Each monetary fact is `known`, evidenced `not_applicable`, or `unknown`.
+Canonical gross means completed merchandise proceeds after seller-funded
+discount, before refunds/fees, excluding buyer shipping and collected tax.
+Marketplace/payment/fixed fees, refund, cancellation reversal, return fee,
+advertising, fulfillment, storage, and sale-side handling remain distinct.
+Unknown material scope derives ordered BLOCKED reasons and never becomes zero.
+`RECONCILED` payout is verified against ADR-0054's exact component expression;
+`not_scope_comparable` preserves evidenced payout timing/scope without fabricated
+equality. Cross-currency actual facts remain BLOCKED without planned FX reuse.
+
+The server reconstructs the complete `OwnedInventoryProductKey` and eligible
+Goods Receipt/Purchase Execution lineage. Only COMPLETE contributes the explicit
+fulfilled outbound quantity, effective at `period_end`; BLOCKED contributes
+zero. Inside one `BEGIN IMMEDIATE` transaction, persistence repeats replay,
+linear revision/terminality, external reference/transaction reuse, overlapping
+COMPLETE-window, and chronological inventory checks. At every outbound boundary,
+cumulative COMPLETE outbound must not exceed Goods Receipt sellable quantity
+with `inspected_at < period_end`. Different SKU/option keys never share stock,
+and negative inventory is never clamped.
+
+Fresh BLOCKED or COMPLETE revisions return 201, exact replay returns 200, and a
+zero-fulfilled COMPLETE window is valid. Missing anchor/predecessor returns 404;
+changed replay, route/product/unit, stale/fork/terminal revision, overlap,
+duplicate reference, or oversale returns 409; malformed structures return 422;
+bounded persistence failure returns 503. History and command receipt are
+append-only, integrity checked, atomically committed, and restart-replayable.
+
+This route does not update receipt-only Owned Inventory policy v1, Goods Receipt,
+Actual Acquisition Settlement, marketplace `InventorySnapshot`, legacy Actual
+Economics, Actual Outcome, or Variance. A separate small change may introduce
+Owned Inventory v2 as receipts minus COMPLETE sale outbound.

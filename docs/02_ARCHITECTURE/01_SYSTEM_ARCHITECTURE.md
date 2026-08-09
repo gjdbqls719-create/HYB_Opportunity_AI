@@ -593,12 +593,12 @@ PurchaseExecutionRecord (implemented)
 `-- GoodsReceiptRecord(s) (implemented physical facts)
     `-- OwnedInventoryPosition (implemented derived read model)
 
-ActualSaleSettlement (ADR-0054 accepted; implementation pending)
+ActualSaleSettlement (implemented authoritative outbound source)
     `-- OwnedInventoryPosition v2 outbound subtraction (future)
 
 ActualAcquisitionSettlement
 + GoodsReceiptRecord
-+ ActualSaleSettlement (decision accepted; implementation pending)
++ ActualSaleSettlement (implemented sale-side fact)
 `-- ActualOutcome / Variance v2 (future)
 ```
 
@@ -619,10 +619,13 @@ order, payment, payout, admission, or `settled_at` time. Cancellation does not
 decrement stock, while refunds and returns do not restore stock without a future
 inspected return/adjustment authority.
 
-The future writer must reconstruct immutable Goods Receipt/product lineage and
-transactionally enforce non-overlapping source scope, reference deduplication,
-and cumulative COMPLETE outbound not exceeding eligible sellable receipts. It
-must reject v1 backorder/oversale and never clamp a negative balance. A future
+The CR-1B6C2 writer reconstructs immutable Goods Receipt/product lineage and
+transactionally enforces non-overlapping source scope, reference deduplication,
+and chronological COMPLETE outbound not exceeding eligible sellable receipts
+at every period-end boundary. One `BEGIN IMMEDIATE` transaction repeats replay,
+revision, source, overlap/reference and oversale checks before committing
+history plus command receipt. It rejects v1 backorder/oversale and never clamps
+a negative balance. A future
 `receipt-and-complete-sale-derived-owned-inventory / 2.0.0` projection will
 subtract only COMPLETE settlement outbound; receipt-only v1 remains unchanged.
 Unknown fees, refunds, advertising, fulfillment/storage, other material costs,
@@ -634,3 +637,12 @@ Actual Outcome must bind exact COMPLETE acquisition and sale settlements plus
 applicable Goods Receipt/inventory truth. Reservation and allocation remain
 separate future dimensions. `InventorySnapshot` may disagree with owned
 inventory without either authority being rewritten.
+
+`POST /api/v1/opportunities/{opportunity_id}/actual-sale-settlements` exposes
+manual marketplace-generic admission with the first controlled path using
+`COUPANG`. Exact replay is historical and does not re-evaluate current inventory;
+fresh BLOCKED/COMPLETE revisions return 201, replay returns 200, and missing,
+conflict, structural and bounded persistence failures map to 404/409/422/503.
+Zero-sale COMPLETE windows are valid. No route calls Coupang, calculates
+profit/margin/ROI, creates Actual Outcome, mutates legacy Actual Economics, or
+changes receipt-only Owned Inventory v1.

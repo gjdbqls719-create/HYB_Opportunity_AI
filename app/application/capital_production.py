@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 
@@ -44,6 +44,10 @@ from app.application.goods_receipt import (
     AdmitGoodsReceipt,
     AdmitGoodsReceiptCommand,
 )
+from app.application.actual_sale_settlement import (
+    AdmitActualSaleSettlement,
+    AdmitActualSaleSettlementCommand,
+)
 from app.domain.capital import (
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
@@ -52,6 +56,10 @@ from app.domain.capital import (
     ActualAcquisitionCostFact,
     GoodsReceiptEvidenceReference,
     OtherMandatoryAcquisitionCosts,
+    ActualSaleFinalityFact,
+    ActualSaleMonetaryFact,
+    ActualSalePayoutFact,
+    OtherActualSaleCosts,
 )
 
 
@@ -419,6 +427,47 @@ class GoodsReceiptProductionEntry:
                 received_at=request.received_at,
                 inspected_at=request.inspected_at,
                 requested_at=request.requested_at,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ActualSaleSettlementProductionRequest:
+    command_id: str
+    opportunity_id: str
+    anchor_goods_receipt_id: str
+    predecessor_settlement_id: str | None
+    marketplace: str
+    seller_account_reference: str
+    marketplace_product_reference: str
+    marketplace_option_reference: str | None
+    marketplace_sku_reference: str | None
+    external_report_reference: str
+    transaction_references: tuple[str, ...]
+    period_start: datetime
+    period_end: datetime
+    fulfilled_outbound_quantity: int
+    cancelled_quantity: int
+    refunded_quantity: int
+    returned_quantity: int
+    quantity_unit: str
+    settlement_currency: str
+    fixed_monetary_facts: tuple[ActualSaleMonetaryFact, ...]
+    other_sale_side_costs: OtherActualSaleCosts
+    payout: ActualSalePayoutFact
+    finality: ActualSaleFinalityFact
+    operator_id: str
+    requested_at: datetime
+
+
+class ActualSaleSettlementProductionEntry:
+    def __init__(self, owner: AdmitActualSaleSettlement) -> None:
+        self._owner = owner
+
+    def execute(self, request: ActualSaleSettlementProductionRequest):
+        return self._owner.execute(
+            AdmitActualSaleSettlementCommand(
+                **{field.name: getattr(request, field.name) for field in fields(request)}
             )
         )
 

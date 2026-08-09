@@ -6,8 +6,12 @@ Accepted
 
 ## Implementation Status
 
-Decision only. Domain, Application, SQLite, API, Owned Inventory v2, Coupang
-automation, Actual Outcome, and Variance v2 are not implemented by this change.
+CR-1B6C2 implements the immutable Domain/Application authority, exact Goods
+Receipt/product reconstruction, append-only SQLite revision history and command
+receipts, transactional window/reference/chronological oversell safety,
+production UUID/time ownership, and the thin Opportunity-scoped API. Owned
+Inventory v2, Coupang automation, Actual Outcome, Variance v2, corrections, and
+returned-stock admission remain unimplemented.
 
 ## Context
 

@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B6C2 - Actual Sale Settlement Authority and Production API
+
+- Implement ADR-0054 as immutable marketplace-generic `BLOCKED`/`COMPLETE` actual-sale settlement revisions over one exact Goods Receipt-derived O2/product, explicit evaluation window/report reference, fulfilled outbound quantity, canonical gross proceeds, distinct sale-side monetary scopes, ordered other costs, payout reconciliation, finality, evidence, and Decimal/currency policy.
+- Add dedicated UUID identity, exact-predecessor append-only SQLite history/receipts, integrity reconstruction, replay/restart/rollback, terminal DB enforcement, and `BEGIN IMMEDIATE` reference/overlap/chronological oversell protection across exact product variants and concurrent COMPLETE windows.
+- Expose manual Coupang admission through `POST /api/v1/opportunities/{opportunity_id}/actual-sale-settlements`, including BLOCKED-to-COMPLETE and zero-sales journeys, Decimal-string responses, bounded errors, and strict isolation from Coupang networking, Goods Receipt mutation, receipt-only Owned Inventory v1, legacy Actual Economics, Actual Outcome, and Variance v2.
+
 ## CR-1B6B4 - Owned Inventory Projection and Read-Only Production API
 
 - Implement ADR-0053 as immutable `OwnedInventoryProductKey` and `OwnedInventoryPosition` read models plus a SQLite-independent Application projection that groups only complete exact O2/Supplier/Product/option/SKU/unit keys and preserves deterministic Purchase Execution and Goods Receipt lineage.
