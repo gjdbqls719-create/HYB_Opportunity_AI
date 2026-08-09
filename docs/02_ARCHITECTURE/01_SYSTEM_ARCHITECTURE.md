@@ -538,12 +538,39 @@ settlements, and post-COMPLETE children. Historical reads reconstruct the exact
 Purchase Execution lineage and stored Decimal calculation without external FX,
 current safety reevaluation, or a mutable current projection.
 
-The implemented and future closed-loop sequence is:
+ADR-0052 accepts the physical-arrival and owned-inventory boundary without yet
+implementing it. One exact Purchase Execution may produce multiple immutable
+`GoodsReceiptRecord` events for partial shipments. Each event records positive
+received quantity in the executed unit and fully inspected sellable versus
+damaged quantities. Transactional cumulative receipt must never exceed the
+executed quantity. Actual Acquisition Settlement is not a prerequisite because
+physical receipt and financial settlement are independent facts that may occur
+in either order.
 
-`PurchaseExecutionRecord` (implemented) -> `ActualAcquisitionSettlement`
-(implemented) -> Goods Receipt (future) and Actual Sale Settlement (future)
--> Actual Outcome / Variance v2 (future).
+The existing `market_data.InventorySnapshot` remains an external marketplace
+listing-availability observation. It is not HYB-owned, sellable, or
+reserved/allocated inventory and is never mutated by Goods Receipt. No owned-
+inventory authority currently exists. A future rebuildable
+`OwnedInventoryPosition` may project sellable inbound receipts minus actual
+sales plus authorized adjustments, while reservation remains a separate
+projection dimension.
 
-Actual Acquisition Settlement proves neither physical receipt nor sale. It does
-not mutate inventory or legacy Actual Economics, and all future consumers must
-name one exact COMPLETE settlement rather than select latest state.
+The decision-level closed-loop sequence is:
+
+```text
+PurchaseExecutionRecord (implemented)
+|-- ActualAcquisitionSettlement (implemented; independent money fact)
+`-- GoodsReceiptRecord (accepted decision; unimplemented physical fact)
+    `-- OwnedInventoryPosition (future derived projection)
+
+ActualAcquisitionSettlement
++ GoodsReceiptRecord
++ ActualSaleSettlement (future)
+`-- ActualOutcome / Variance v2 (future)
+```
+
+Purchase Execution, Actual Acquisition Settlement, and Goods Receipt imply
+neither of the other facts. Goods Receipt does not calculate economics or
+mutate legacy Actual Economics. Future Actual Outcome consumers must bind the
+exact COMPLETE acquisition settlement and applicable receipt/sale events; they
+must not select latest state.

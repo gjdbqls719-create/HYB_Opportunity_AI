@@ -58,3 +58,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0049: Domestic Selling Opportunity and Cross-Market Lineage Authority](ADR-0049-domestic-selling-opportunity-cross-market-lineage-authority.md)
 - [ADR-0050: Purchase Execution Record Authority](ADR-0050-purchase-execution-record-authority.md)
 - [ADR-0051: Actual Acquisition Settlement Authority](ADR-0051-actual-acquisition-settlement-authority.md)
+- [ADR-0052: Goods Receipt and Owned Inventory Boundary](ADR-0052-goods-receipt-owned-inventory-boundary.md)
