@@ -424,3 +424,31 @@ authority ends at `READY_FOR_MANUAL_EXECUTION`; the Founder performs the
 external purchase manually. READY does not mean ordered, paid, purchased, or
 executed. `PurchaseExecutionRecord` remains the next required authority for
 recording the actual commercial event.
+
+## Purchase Execution Record
+
+`POST /api/v1/opportunities/{opportunity_id}/purchase-execution-records`
+records the Founder-reported external purchase against one exact persisted
+`READY_FOR_MANUAL_EXECUTION` intent. The request requires `command_id`, exact
+intent and Quote ID/revision, positive actual quantity and unit, Decimal-string
+total committed amount, currency, opaque external order reference, Founder ID,
+timezone-aware `executed_at` and `requested_at`, and one or more evidence
+references with timezone-aware observation times.
+
+The server reconstructs O2 and the exact Approval/Gate/Requirement/Intended
+Quantity/Sourcing/Supplier/Product/Quote chain. Quantity, unit, amount, currency,
+Quote, and Founder must exactly match READY. Supplier/Product identities are not
+caller claims. A fresh record returns 201. Exact replay or a new command for the
+identical event returns 200 with the same record; changed-command payload,
+route/source mismatch, deviation, BLOCKED intent, or one-intent cardinality
+conflict returns 409. Missing exact intent returns 404, invalid fields return
+422, and bounded persistence failure returns 503. Money is serialized as JSON
+string and all authoritative times are timezone-aware.
+
+The response exposes record ID, O2, exact intent and Capital/Sourcing/Quote
+lineage, actual facts, external reference, evidence, Founder, admission and
+receipt times, policy/schema versions, and replay. The route does not place an
+order, transfer funds, track shipment, admit goods receipt, update inventory,
+or calculate Actual Economics. Software tests simulate Founder submission;
+only a genuine Founder order and real reference/evidence can validate the
+real-world procedure.

@@ -11,8 +11,9 @@ identity supplier, versioned safety policy, and append-only SQLite intent/receip
 persistence with durable READY-per-Approval cardinality. CR-1B5D2L exposes the
 exact-source execution-safety command through production API, including the
 distinct post-Approval capital snapshot and durable READY alias/cardinality
-behavior. UI, manual Purchase Execution Record, and Actual Economics handoff
-remain unimplemented.
+behavior. ADR-0050 / CR-1B5D2M now implements the separate immutable manual
+Purchase Execution Record and production API. Actual Economics and physical
+receipt/inventory handoffs remain unimplemented.
 
 ## Context
 
@@ -259,6 +260,6 @@ No generalized workflow engine is required.
 ## Deferred Work
 
 1. Capital and Execution Intent production entry/API/UI wiring.
-2. Purchase Execution Record authority and persistence.
-3. Exact Purchase Execution-to-Actual Economics/inventory binding.
+2. Exact Purchase Execution-to-Actual Economics binding.
+3. Physical goods receipt and owned-inventory acquisition authority.
 4. Append-only revocation only if first-MVP operations require it.

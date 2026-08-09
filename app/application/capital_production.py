@@ -31,10 +31,16 @@ from app.application.real_money_execution_intent import (
     EvaluateRealMoneyExecutionIntentCommand,
     RealMoneyExecutionIntentSourceNotFoundError,
 )
+from app.application.purchase_execution import (
+    RecordPurchaseExecution,
+    RecordPurchaseExecutionCommand,
+    PurchaseExecutionSourceNotFoundError,
+)
 from app.domain.capital import (
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_NAME,
     PLANNED_ACQUISITION_CAPITAL_REQUIREMENT_POLICY_VERSION,
     UpfrontCostScopeStatus,
+    PurchaseExecutionEvidenceReference,
 )
 
 
@@ -270,6 +276,64 @@ class RealMoneyExecutionIntentProductionEntry:
                 requested_at=request.requested_at,
                 confirmed_at=request.confirmed_at,
                 current_execution_confirmed=request.current_execution_confirmed,
+            )
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PurchaseExecutionProductionRequest:
+    command_id: str
+    opportunity_id: str
+    real_money_execution_intent_id: str
+    quote_id: str
+    quote_revision: int
+    actual_quantity: int
+    actual_quantity_unit: str
+    actual_total_committed_amount: Decimal
+    currency: str
+    external_order_reference: str
+    founder_id: str
+    executed_at: datetime
+    evidence_references: tuple[PurchaseExecutionEvidenceReference, ...]
+    requested_at: datetime
+
+
+class PurchaseExecutionProductionEntry:
+    def __init__(self, repository, owner: RecordPurchaseExecution) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(self, request: PurchaseExecutionProductionRequest):
+        intent = self._repository.get_execution_intent(
+            request.real_money_execution_intent_id
+        )
+        if intent is None:
+            raise PurchaseExecutionSourceNotFoundError(
+                "exact Real-Money Execution Intent is missing"
+            )
+        if intent.source_manifest.opportunity_identity.opportunity_id != request.opportunity_id:
+            raise CapitalProductionOpportunityConflictError(
+                "Real-Money Execution Intent differs from route Opportunity"
+            )
+        return self._owner.execute(
+            RecordPurchaseExecutionCommand(
+                command_id=request.command_id,
+                real_money_execution_intent_id=(
+                    request.real_money_execution_intent_id
+                ),
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                actual_quantity=request.actual_quantity,
+                actual_quantity_unit=request.actual_quantity_unit,
+                actual_total_committed_amount=(
+                    request.actual_total_committed_amount
+                ),
+                currency=request.currency,
+                external_order_reference=request.external_order_reference,
+                founder_id=request.founder_id,
+                executed_at=request.executed_at,
+                evidence_references=request.evidence_references,
+                requested_at=request.requested_at,
             )
         )
 

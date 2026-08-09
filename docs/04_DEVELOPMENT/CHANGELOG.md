@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2M - Purchase Execution Record Authority and Production API
+
+- Add ADR-0050 and an immutable exact-match `PurchaseExecutionRecord` that binds one Founder-reported external purchase to one exact persisted READY Real-Money Execution Intent and reconstructs its full O2 Capital/Supplier/Product/Quote lineage.
+- Add dedicated UUID identity, evidence references, append-only SQLite history/receipts, intent-level durable cardinality, exact replay/equivalent-event aliasing, integrity reconstruction, rollback/retry, and multi-connection concurrency safety.
+- Expose `POST /api/v1/opportunities/{opportunity_id}/purchase-execution-records` through one request-owned connection and prove the software API-only READY-to-record journey while leaving actual supplier ordering, payment, goods receipt, inventory, and Actual Economics unchanged.
+
 ## CR-1B5D2L - Capital Gate, Approval, and Execution Intent Production Wiring
 
 - Expose Intended Order Quantity, Deployable Capital Snapshot, Planned Acquisition Capital Requirement, Capital Gate, Founder Capital Approval, and Real-Money Execution Intent through six independent request-scoped FastAPI boundaries with production UUID identities and one reusable UTC clock.

@@ -501,3 +501,21 @@ end at `READY_FOR_MANUAL_EXECUTION`, whose exact manifest is the durable manual
 purchase handoff. External ordering/payment remains outside HYB and no
 PurchaseExecutionRecord, Actual Economics, inventory mutation, authentication,
 or autonomous commerce behavior is introduced.
+
+CR-1B5D2M implements ADR-0050 immediately after that manual boundary. The
+Founder names one exact persisted READY intent and reports the actual external
+quantity/unit, total committed amount/currency, exact Quote revision, opaque
+supplier order reference, identity, execution time, and evidence references.
+The owner reconstructs O2, Approval, Gate, Requirement, Intended Quantity,
+Sourcing Admission, Supplier/Product, Quote, and execution-time Capital lineage
+and admits a record only when every v1 action fact exactly matches READY.
+
+`PurchaseExecutionRecord` is an append-only historical fact with no mutable
+order status. One READY intent maps to at most one record through a DB unique
+index; exact command replay and equivalent-event aliases converge without new
+record identity or admission time. Reads do not recheck current Quote, Capital,
+Gate, or safety. This records Founder-submitted evidence after an external
+action; it does not perform checkout/payment, prove supplier fulfillment,
+mutate Actual Economics, or create inventory. Actual shipping, duty/customs,
+FX settlement, realized marketplace facts, and physical goods receipt remain
+separate future authorities.

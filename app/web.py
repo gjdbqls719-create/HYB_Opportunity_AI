@@ -271,6 +271,14 @@ from app.application.real_money_execution_intent import (
     RealMoneyExecutionIntentReplayConflictError,
     RealMoneyExecutionIntentSourceNotFoundError,
 )
+from app.application.purchase_execution import (
+    PurchaseExecutionCardinalityConflictError,
+    PurchaseExecutionExactMatchError,
+    PurchaseExecutionIntentStateError,
+    PurchaseExecutionReplayConflictError,
+    PurchaseExecutionSourceNotFoundError,
+    RecordPurchaseExecution,
+)
 from app.application.capital_production import (
     CapitalGateProductionEntry,
     CapitalGateProductionRequest,
@@ -283,8 +291,13 @@ from app.application.capital_production import (
     PlannedCapitalRequirementProductionRequest,
     RealMoneyExecutionIntentProductionEntry,
     RealMoneyExecutionIntentProductionRequest,
+    PurchaseExecutionProductionEntry,
+    PurchaseExecutionProductionRequest,
 )
-from app.domain.capital import UpfrontCostScopeStatus
+from app.domain.capital import (
+    PurchaseExecutionEvidenceReference,
+    UpfrontCostScopeStatus,
+)
 from app.application.economics_production import (
     AcquisitionNormalizationProductionEntry,
     AcquisitionNormalizationProductionRequest,
@@ -523,6 +536,11 @@ from app.infrastructure.real_money_execution_intent import (
     ProductionRealMoneyExecutionIntentIdentityGenerator,
     RealMoneyExecutionIntentPersistenceError,
     SQLiteRealMoneyExecutionIntentRepository,
+)
+from app.infrastructure.purchase_execution import (
+    ProductionPurchaseExecutionRecordIdentityGenerator,
+    PurchaseExecutionPersistenceError,
+    SQLitePurchaseExecutionRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -2262,6 +2280,83 @@ class RealMoneyExecutionIntentResponse(BaseModel):
     replayed: bool
 
 
+class PurchaseExecutionEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reference: str = Field(min_length=1)
+    observed_at: datetime
+
+
+class PurchaseExecutionEvidenceResponse(BaseModel):
+    reference: str
+    observed_at: datetime
+    schema_version: str
+
+
+class PurchaseExecutionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    real_money_execution_intent_id: str = Field(min_length=1)
+    quote_id: str = Field(min_length=1)
+    quote_revision: int = Field(ge=1)
+    actual_quantity: int = Field(ge=1)
+    actual_quantity_unit: str = Field(min_length=1)
+    actual_total_committed_amount: StrictStr = Field(min_length=1)
+    currency: str = Field(min_length=1)
+    external_order_reference: str = Field(min_length=1)
+    founder_id: str = Field(min_length=1)
+    executed_at: datetime
+    evidence_references: tuple[PurchaseExecutionEvidenceRequest, ...] = Field(
+        min_length=1
+    )
+    requested_at: datetime
+
+
+class PurchaseExecutionResponse(BaseModel):
+    command_id: str
+    record_id: str
+    opportunity_id: str
+    discovery_reference: str
+    real_money_execution_intent_id: str
+    founder_capital_approval_id: str
+    capital_gate_id: str
+    capital_requirement_id: str
+    intended_order_quantity_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    supplier_id: str
+    source_platform: str
+    external_supplier_reference: str | None
+    sourcing_product_id: str
+    external_product_reference: str
+    option_reference: str | None
+    sku_reference: str | None
+    quote_id: str
+    quote_revision: int
+    current_deployable_capital_snapshot_id: str
+    actual_quantity: int
+    actual_quantity_unit: str
+    actual_total_committed_amount: str
+    currency: str
+    external_order_reference: str
+    founder_id: str
+    executed_at: datetime
+    evidence_references: tuple[PurchaseExecutionEvidenceResponse, ...]
+    execution_intent_evaluated_at: datetime
+    execution_safety_policy_name: str
+    execution_safety_policy_version: str
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    source_manifest_schema_version: str
+    record_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3004,6 +3099,39 @@ def get_real_money_execution_intent_entry():
         raise HTTPException(
             status_code=503,
             detail="Real-Money Execution Intent persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_purchase_execution_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLitePurchaseExecutionRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = PurchaseExecutionProductionEntry(
+            repository,
+            RecordPurchaseExecution(
+                repository,
+                record_id_generator=(
+                    ProductionPurchaseExecutionRecordIdentityGenerator()
+                ),
+                admitted_clock=clock,
+                committed_clock=clock,
+            ),
+        )
+    except (sqlite3.Error, PurchaseExecutionPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Purchase Execution persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -5473,6 +5601,122 @@ def evaluate_real_money_execution_intent(
         committed_at=receipt.committed_at,
         source_manifest_schema_version=manifest.schema_version,
         intent_schema_version=intent.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/purchase-execution-records",
+    response_model=PurchaseExecutionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def record_purchase_execution(
+    opportunity_id: str,
+    request: PurchaseExecutionRequest,
+    response: Response,
+    entry: PurchaseExecutionProductionEntry = Depends(get_purchase_execution_entry),
+) -> PurchaseExecutionResponse:
+    try:
+        publication = entry.execute(
+            PurchaseExecutionProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                real_money_execution_intent_id=(
+                    request.real_money_execution_intent_id
+                ),
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                actual_quantity=request.actual_quantity,
+                actual_quantity_unit=request.actual_quantity_unit,
+                actual_total_committed_amount=Decimal(
+                    request.actual_total_committed_amount
+                ),
+                currency=request.currency,
+                external_order_reference=request.external_order_reference,
+                founder_id=request.founder_id,
+                executed_at=request.executed_at,
+                evidence_references=tuple(
+                    PurchaseExecutionEvidenceReference(
+                        reference=value.reference,
+                        observed_at=value.observed_at,
+                    )
+                    for value in request.evidence_references
+                ),
+                requested_at=request.requested_at,
+            )
+        )
+    except PurchaseExecutionSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        PurchaseExecutionReplayConflictError,
+        PurchaseExecutionCardinalityConflictError,
+        PurchaseExecutionExactMatchError,
+        PurchaseExecutionIntentStateError,
+        CapitalProductionOpportunityConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (PurchaseExecutionPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Purchase Execution persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    record, receipt = publication.record, publication.receipt
+    manifest = record.source_manifest
+    identity = manifest.opportunity_identity
+    return PurchaseExecutionResponse(
+        command_id=receipt.command_id,
+        record_id=record.record_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        real_money_execution_intent_id=manifest.real_money_execution_intent_id,
+        founder_capital_approval_id=manifest.founder_capital_approval_id,
+        capital_gate_id=manifest.capital_gate_id,
+        capital_requirement_id=manifest.capital_requirement_id,
+        intended_order_quantity_id=manifest.intended_order_quantity_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        supplier_id=manifest.supplier_id,
+        source_platform=manifest.source_platform,
+        external_supplier_reference=manifest.external_supplier_reference,
+        sourcing_product_id=manifest.sourcing_product_id,
+        external_product_reference=manifest.external_product_reference,
+        option_reference=manifest.option_reference,
+        sku_reference=manifest.sku_reference,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        current_deployable_capital_snapshot_id=(
+            manifest.current_deployable_capital_snapshot_id
+        ),
+        actual_quantity=record.actual_quantity,
+        actual_quantity_unit=record.actual_quantity_unit,
+        actual_total_committed_amount=str(record.actual_total_committed_amount),
+        currency=record.currency,
+        external_order_reference=record.external_order_reference,
+        founder_id=record.founder_id,
+        executed_at=record.executed_at,
+        evidence_references=tuple(
+            PurchaseExecutionEvidenceResponse(
+                reference=value.reference,
+                observed_at=value.observed_at,
+                schema_version=value.schema_version,
+            )
+            for value in record.evidence_references
+        ),
+        execution_intent_evaluated_at=manifest.execution_intent_evaluated_at,
+        execution_safety_policy_name=manifest.execution_safety_policy_name,
+        execution_safety_policy_version=manifest.execution_safety_policy_version,
+        policy_name=record.policy_name,
+        policy_version=record.policy_version,
+        requested_at=record.requested_at,
+        admitted_at=record.admitted_at,
+        committed_at=receipt.committed_at,
+        source_manifest_schema_version=manifest.schema_version,
+        record_schema_version=record.schema_version,
         receipt_schema_version=receipt.schema_version,
         replayed=publication.replayed,
     )
