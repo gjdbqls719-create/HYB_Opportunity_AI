@@ -134,7 +134,9 @@ Paper Portfolio도 자동으로 mandatory로 확정하지 않는다. Capital Gat
 
 ### CR-4 — Actual Outcome Readiness
 
-기존 Actual Economics와 Economics Variance를 재사용·확장하여 첫 실제 거래의 결과를 잃지 않도록 한다.
+기존 Actual Economics와 Economics Variance의 historical behavior를 유지하고,
+closed-loop v2 authority를 additive하게 확장하여 첫 실제 거래의 결과를 잃지
+않도록 한다.
 
 - advertising
 - returns, refunds, loss
@@ -148,6 +150,13 @@ Paper Portfolio도 자동으로 mandatory로 확정하지 않는다. Capital Gat
 - failure reason foundation
 
 Actual Outcome capture path는 첫 판매 전에 준비되어야 한다.
+
+ADR-0054는 closed-loop v2의 판매 측 입력을 legacy `ActualEconomics`의 재해석이
+아닌 별도 `ActualSaleSettlement`로 결정한다. 첫 Coupang 검증은 명시적
+상품/평가 창, 실제 출고 수량, 매출, 환불·취소, 광고, fulfillment/storage,
+수수료와 payout provenance를 수동 evidence로 보존하며, 미확인 중요 범위는
+`BLOCKED`로 남긴다. Domain/Application/API와 판매 출고를 반영하는 Owned
+Inventory v2 및 Actual Outcome v2는 후속 구현 범위다.
 
 ### Real-Money Ready Gate
 

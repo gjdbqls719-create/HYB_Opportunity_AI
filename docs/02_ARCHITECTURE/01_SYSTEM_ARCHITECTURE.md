@@ -593,12 +593,12 @@ PurchaseExecutionRecord (implemented)
 `-- GoodsReceiptRecord(s) (implemented physical facts)
     `-- OwnedInventoryPosition (implemented derived read model)
 
-Future exact inventory-out events (semantics pending Actual Sale Settlement)
-    `-- OwnedInventoryPosition decrement input
+ActualSaleSettlement (ADR-0054 accepted; implementation pending)
+    `-- OwnedInventoryPosition v2 outbound subtraction (future)
 
 ActualAcquisitionSettlement
 + GoodsReceiptRecord
-+ ActualSaleSettlement (future)
++ ActualSaleSettlement (decision accepted; implementation pending)
 `-- ActualOutcome / Variance v2 (future)
 ```
 
@@ -610,10 +610,27 @@ must not select latest state.
 
 Legacy `ActualEconomics.record_sale` cannot decrement owned inventory because it
 has no sold quantity, exact sourcing-product/receipt lineage, or fulfillment
-semantics. The next Actual Sale Settlement decision must define the factual
-outbound event and decrement point, including cancellation/refund/return
-behavior. Future outbound admission must prevent or explicitly represent
-oversell; the projection never clamps a negative balance to zero. Reservation
-and allocation remain separate future dimensions. `InventorySnapshot` may
-disagree with owned inventory without either authority being rewritten, and no
-Coupang synchronization is implied.
+semantics. ADR-0054 therefore defines a marketplace-generic, exact-product,
+batch/window `ActualSaleSettlement`; the first marketplace is Coupang through
+manual evidenced ingest, with no automatic synchronization. Only a terminal
+`COMPLETE` settlement's confirmed fulfilled/non-cancelled quantity is an
+authoritative outbound fact, effective at the explicit window end rather than
+order, payment, payout, admission, or `settled_at` time. Cancellation does not
+decrement stock, while refunds and returns do not restore stock without a future
+inspected return/adjustment authority.
+
+The future writer must reconstruct immutable Goods Receipt/product lineage and
+transactionally enforce non-overlapping source scope, reference deduplication,
+and cumulative COMPLETE outbound not exceeding eligible sellable receipts. It
+must reject v1 backorder/oversale and never clamp a negative balance. A future
+`receipt-and-complete-sale-derived-owned-inventory / 2.0.0` projection will
+subtract only COMPLETE settlement outbound; receipt-only v1 remains unchanged.
+Unknown fees, refunds, advertising, fulfillment/storage, other material costs,
+or finality keep a revision `BLOCKED` and contribute no outbound.
+
+Actual Sale Settlement preserves sale-side quantities and batch monetary facts
+but does not calculate profit, margin, ROI, Actual Outcome, or Variance. A future
+Actual Outcome must bind exact COMPLETE acquisition and sale settlements plus
+applicable Goods Receipt/inventory truth. Reservation and allocation remain
+separate future dimensions. `InventorySnapshot` may disagree with owned
+inventory without either authority being rewritten.
