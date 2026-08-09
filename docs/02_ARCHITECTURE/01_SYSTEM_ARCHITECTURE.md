@@ -602,7 +602,8 @@ ActualSaleSettlement (implemented authoritative outbound source)
 ActualAcquisitionSettlement
 + GoodsReceiptRecord
 + ActualSaleSettlement (implemented sale-side fact)
-`-- ActualOutcome / Variance v2 (future)
+`-- ActualOutcome (ADR-0055 accepted; implementation future)
+    `-- Variance v2 + ConservativeEconomics binding (future)
 ```
 
 Purchase Execution, Actual Acquisition Settlement, and Goods Receipt imply
@@ -640,6 +641,28 @@ Actual Outcome must bind exact COMPLETE acquisition and sale settlements plus
 applicable Goods Receipt/inventory truth. Reservation and allocation remain
 separate future dimensions. `InventorySnapshot` may disagree with owned
 inventory without either authority being rewritten.
+
+ADR-0055 defines the future `ActualOutcome` as an immutable persisted cumulative
+assessment for one exact O2/product and one Purchase Execution. The caller names
+one exact acquisition settlement and an explicit ordered COMPLETE-sale prefix;
+the owner reconstructs and freezes the complete receipt set through the terminal
+sale boundary. v1 refuses multiple contributing purchases because no FIFO, LIFO,
+weighted-average, or lot-allocation authority exists.
+
+The future calculation preserves executed, received, sellable, damaged, sold,
+remaining, and unreceived quantity separately. ADR-0051 per-executed-unit cost
+allocates into sold COGS, remaining inventory basis, damaged loss, and unreceived
+exposure with exact batch conservation. Profit uses canonical sale credits and
+cost components rather than payout, excludes customer tax and unadmitted
+seller-side tax, expenses sold COGS and damaged loss, and leaves remaining or
+unreceived basis as capital exposure. Zero sales, partial receipt, partial sale,
+and negative profit may be CALCULABLE; ratio unavailability and batch resolution
+are separate facts. No Domain, persistence, or API is implemented yet.
+
+One CALCULABLE ActualOutcome over genuine purchase, acquisition, receipt, and
+sale evidence defines the Real-Money Validated MVP commerce-fact cut. Closed-Loop
+Learning MVP additionally requires an exact Conservative Economics result and
+future Variance v2; ActualOutcome itself has no predicted-source dependency.
 
 `POST /api/v1/opportunities/{opportunity_id}/actual-sale-settlements` exposes
 manual marketplace-generic admission with the first controlled path using

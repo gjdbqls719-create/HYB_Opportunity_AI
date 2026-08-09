@@ -156,7 +156,29 @@ ADR-0054는 closed-loop v2의 판매 측 입력을 legacy `ActualEconomics`의 �
 상품/평가 창, 실제 출고 수량, 매출, 환불·취소, 광고, fulfillment/storage,
 수수료와 payout provenance를 수동 evidence로 보존하며, 미확인 중요 범위는
 `BLOCKED`로 남긴다. Domain/Application/API와 판매 출고를 반영하는 Owned
-Inventory v2 및 Actual Outcome v2는 후속 구현 범위다.
+Inventory v2는 구현되었고 Actual Outcome v2는 후속 구현 범위다.
+
+#### CR-1B6D1 Actual Outcome decision and validation cuts
+
+ADR-0055 defines ActualOutcome as a future immutable persisted result over one
+exact Purchase Execution, one terminal COMPLETE Actual Acquisition Settlement,
+the exact Goods Receipt set, and an explicit cumulative COMPLETE Actual Sale
+Settlement prefix. It separates sold COGS and realized profit from remaining
+sellable basis, damaged loss, and unreceived exposure. Multi-purchase allocation
+is blocked until a separate lot/pool policy exists. Owned Inventory v2 is already
+implemented; ActualOutcome Domain/Application/SQLite/API remains the next PR.
+
+The milestones are distinct:
+
+- Functional Founder MVP: production-callable purchase, settlement, receipt,
+  sale, and owned-inventory boundaries exist.
+- Real-Money Validated MVP: one genuine chain additionally has a CALCULABLE
+  persisted ActualOutcome using actual evidence and money. Full liquidation and
+  Variance v2 are not required.
+- Closed-Loop Learning MVP: the same lineage has an exact Conservative Economics
+  result, ActualOutcome, and future Variance v2.
+
+No real-world validation is claimed by this decision-only CR.
 
 ### Real-Money Ready Gate
 

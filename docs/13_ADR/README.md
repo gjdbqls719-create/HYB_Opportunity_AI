@@ -61,3 +61,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0052: Goods Receipt and Owned Inventory Boundary](ADR-0052-goods-receipt-owned-inventory-boundary.md)
 - [ADR-0053: Owned Inventory Projection Authority](ADR-0053-owned-inventory-projection-authority.md)
 - [ADR-0054: Actual Sale Settlement Authority](ADR-0054-actual-sale-settlement-authority.md)
+- [ADR-0055: Actual Outcome Authority](ADR-0055-actual-outcome-authority.md)

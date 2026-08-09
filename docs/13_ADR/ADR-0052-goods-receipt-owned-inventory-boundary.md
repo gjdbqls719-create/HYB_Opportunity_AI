@@ -9,8 +9,9 @@ Accepted
 CR-1B6B2 implements the immutable Domain/Application event authority, dedicated
 evidence and UUID identity, append-only SQLite history/command receipts,
 transactional cumulative over-receipt prevention, and the thin
-Opportunity-scoped production API. Owned-inventory projection, sale settlement,
-Actual Outcome, delivery exceptions, and external integrations remain
+Opportunity-scoped production API. Owned Inventory v2 and Actual Sale Settlement
+are now implemented downstream. ADR-0055 defines Actual Outcome, but its
+implementation, delivery exceptions, and external integrations remain
 unimplemented.
 
 ## Context
@@ -255,10 +256,8 @@ not a universal Domain rule and must not remove honest partial-receipt support.
 
 ## Deferred Work
 
-1. Goods Receipt Domain/Application/SQLite authority and production API.
-2. Rebuildable Owned Inventory Position and authorized inventory adjustments.
-3. Actual Sale Settlement authority.
-4. Actual Outcome and Conservative-vs-Actual Variance v2.
-5. Delivery exceptions, over-delivery exceptions, returns, refunds, and
+1. Authorized inventory adjustments and reservation/allocation projections.
+2. Actual Outcome and Conservative-vs-Actual Variance v2.
+3. Delivery exceptions, over-delivery exceptions, returns, refunds, and
    replacements.
-6. Authentication, UI, warehouse automation, and marketplace synchronization.
+4. Authentication, UI, warehouse automation, and marketplace synchronization.
