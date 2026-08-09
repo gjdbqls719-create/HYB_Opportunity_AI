@@ -6,9 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Architecture decision only. The Domain/Application authority, persistence,
-production API/UI, manual Purchase Execution Record, and Actual Economics
-handoff remain unimplemented.
+CR-1B5D1 implements the immutable Domain/Application authority, dedicated opaque
+identity supplier, versioned safety policy, and append-only SQLite intent/receipt
+persistence with durable READY-per-Approval cardinality. Production API/UI,
+manual Purchase Execution Record, and Actual Economics handoff remain
+unimplemented.
 
 ## Context
 
@@ -254,8 +256,7 @@ No generalized workflow engine is required.
 
 ## Deferred Work
 
-1. Real-Money Execution Intent Domain/Application and append-only persistence.
-2. Capital and Execution Intent production entry/API/UI wiring.
-3. Purchase Execution Record authority and persistence.
-4. Exact Purchase Execution-to-Actual Economics/inventory binding.
-5. Append-only revocation only if first-MVP operations require it.
+1. Capital and Execution Intent production entry/API/UI wiring.
+2. Purchase Execution Record authority and persistence.
+3. Exact Purchase Execution-to-Actual Economics/inventory binding.
+4. Append-only revocation only if first-MVP operations require it.

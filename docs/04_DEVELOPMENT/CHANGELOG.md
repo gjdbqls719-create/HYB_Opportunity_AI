@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B5D1 - Real-Money Execution Intent Authority
+
+- Implement ADR-0048 as an immutable pre-purchase authority over one exact Founder Capital Approval, exact Gate/Requirement/Intended Quantity/Sourcing Quote lineage, one explicitly selected post-Approval Deployable Capital snapshot, and current Founder confirmation.
+- Produce only `READY_FOR_MANUAL_EXECUTION` or durable `BLOCKED` with deterministic reasons; enforce exact amount, quantity, unit, currency, Quote revision and execution-time validity without partial execution, tolerance, latest-source selection, bank lookup, reserve subtraction, or upstream reevaluation.
+- Add a dedicated opaque identity, replay-first Application owner, and append-only SQLite history/receipts with atomic rollback, restart reconstruction, malformed-state rejection, alias receipts for equivalent actions, and a database-level one-READY-intent-per-Approval invariant.
+- Add no purchase/order execution, Supplier checkout, payment, fund transfer, Purchase Execution Record, inventory/Actual Economics mutation, API/UI, revocation, or staged release.
+
 ## CR-1B5C - Founder Capital Approval Authority
 
 - Add an immutable ADR-0047 human authorization fact over one exact persisted Capital Gate `PASS`, preserving its Opportunity, policy, Requirement, Deployable Capital, Intended Quantity, and evaluation time.

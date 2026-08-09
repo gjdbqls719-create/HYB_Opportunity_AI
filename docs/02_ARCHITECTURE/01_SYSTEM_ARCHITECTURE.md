@@ -376,3 +376,17 @@ Gate policy. Dedicated append-only SQLite history and receipts preserve atomic
 replay and restart reconstruction. Approval does not modify generic
 `FounderDecision`, execute a purchase, transfer funds, expire automatically, or
 create mutable revocation state.
+
+CR-1B5D1 implements ADR-0048 immediately before the first external manual
+purchase. One exact command reconstructs the named Founder Capital Approval and
+its Gate, Requirement, Intended Quantity, Sourcing Admission/Quote revision,
+then binds a separately named post-Approval reserve-adjusted Deployable Capital
+snapshot and explicit current Founder confirmation. Policy v1 requires exact
+amount, quantity, unit and currency, checks the exact Quote `valid_until` at the
+server evaluation time, and emits only `READY_FOR_MANUAL_EXECUTION` or `BLOCKED`
+with ordered reasons. Dedicated append-only SQLite history and receipts preserve
+historical replay without current-time reevaluation; a partial unique index and
+transactional alias/conflict handling enforce at most one distinct READY action
+per Approval. The intent remains a pre-execution authorization fact: it does not
+place an order, transmit payment, create a Purchase Execution Record, or mutate
+Actual Economics, inventory, Approval, Gate, or upstream evidence.
