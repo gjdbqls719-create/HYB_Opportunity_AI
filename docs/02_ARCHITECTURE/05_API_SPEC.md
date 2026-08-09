@@ -175,6 +175,10 @@ The vanilla JavaScript client renders API values with `textContent`, uses the cu
 
 `POST /api/v1/opportunities/{opportunity_id}/verified-economics` admits the existing
 `VerifiedEconomicsInput` as the Opportunity's single immutable authoritative snapshot.
+Opportunity eligibility is established by the exact persisted non-archived lifecycle
+and immutable Market binding, not by Validation Queue membership. A Domestic Selling
+O2 therefore submits its own new Economics facts through this route without copying or
+relabeling O1 Economics and without creating a queue admission snapshot.
 All money amounts and rates are JSON strings so Decimal scale is preserved. Every input
 contains its existing evidence status, source, optional reference, and optional aware
 `observed_at`. The command additionally requires `command_id`, `operator_id`, and an aware
@@ -207,6 +211,9 @@ calculation.
 `POST /api/v1/opportunities/{opportunity_id}/competition-observations` accepts only an
 authoritative raw `CompetitionObservation`, its `MarketEvidence` provenance, and command
 metadata. The observation identity must exactly equal the Opportunity Market Identity.
+The Opportunity must have an exact non-archived lifecycle, but it need not be a Validation
+Queue member; this permits an admitted O2 while retaining the same immutable identity
+comparison and creating no queue snapshot.
 Count metrics are JSON integers; price metrics and confidence are exact Decimal strings.
 Observation/evidence/assessment schema and Competition policy versions are server-owned.
 
@@ -223,6 +230,10 @@ raw `DemandObservation`, metric-level `MarketEvidence`, and command metadata. Id
 exactly equal the Opportunity Market Identity. Counts/ranks are JSON integers; rating,
 sales proxy, and confidence use exact Decimal strings. Schema and policy versions are
 server-owned.
+
+The Opportunity eligibility rule is the same exact non-archived lifecycle plus immutable
+Market binding used by Competition; Validation Queue membership is neither inferred nor
+created for O2.
 
 The server reuses `analyze_demand`; clients cannot provide demand/popularity level, review
 quality result, confidence result, availability, freshness, readiness, or Decision metadata.

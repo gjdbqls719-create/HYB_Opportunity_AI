@@ -198,6 +198,14 @@ and the independent `VERIFIED_MATCH` requirement. The two HTTP calls are
 separate committed authorities; there is no cross-request transaction or
 automatic Economics, Market Validation, Capital, execution, UI, or auth flow.
 
+CR-1B5D2F keeps Validation Queue membership distinct from authoritative
+Opportunity existence at operational ingress. Competition, Demand, and Verified
+Economics now share a narrow read contract that requires one exact non-archived
+Opportunity lifecycle and then preserves each owner's immutable Market-binding
+validation. This admits both legacy queue-backed Opportunities and Domestic
+Selling O2 without fabricating queue snapshots or changing queue, assessment,
+evidence, or Economics semantics.
+
 CR-1B2B adds an Application-owned, exact Sourcing-to-Economics source-selection
 fact. An immutable binding links one `OpportunityIdentity` to one explicit
 Admission/Quote revision and is persisted with its replay receipt in a single

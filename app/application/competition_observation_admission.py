@@ -11,6 +11,9 @@ from app.application.decision_composition import (
     COMPETITION_POLICY_VERSION,
     FRESHNESS_WINDOW,
 )
+from app.application.operational_opportunity_eligibility import (
+    get_operational_opportunity_eligibility,
+)
 from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
 from app.domain.market_intelligence import CompetitionObservation, analyze_competition
 
@@ -78,9 +81,13 @@ class FinalizeCompetitionObservationAdmission:
             if observation is None or snapshot is None:
                 raise CompetitionAdmissionUnavailableError("committed competition admission is unavailable")
             return CompetitionAdmissionResult(observation, snapshot, True)
-        if self._opportunities.get_queue_item(command.opportunity_id) is None:
+        eligibility = get_operational_opportunity_eligibility(
+            self._opportunities,
+            command.opportunity_id,
+        )
+        if eligibility is None:
             raise CompetitionAdmissionNotFoundError(command.opportunity_id)
-        binding = self._opportunities.get_market_identity_binding(command.opportunity_id)
+        binding = eligibility.market_binding
         if binding is None or binding.market_observation_identity != command.observation.identity:
             raise CompetitionAdmissionConflictError("competition observation identity conflicts with Opportunity")
         assessment = analyze_competition(command.observation, generated_at=command.generated_at)

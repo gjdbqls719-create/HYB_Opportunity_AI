@@ -35,6 +35,13 @@ lineage and retains the independent verified Product Match requirement. The
 private Founder/operator boundary remains caller-identified and does not claim
 authentication or authorization.
 
+CR-1B5D2F corrects the existing Competition, Demand, and Verified Economics
+operational ingress eligibility boundary. Those owners now recognize the exact
+non-archived O2 lifecycle and its immutable KR Market binding directly instead
+of treating Validation Queue membership as Opportunity existence. Legacy
+queue-backed ingress remains unchanged, no queue snapshot is fabricated for O2,
+and O2 must admit its own Economics facts rather than copying O1 Economics.
+
 ## Context
 
 The production Founder Discovery profile currently creates eBay/US Candidate

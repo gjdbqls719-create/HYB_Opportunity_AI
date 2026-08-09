@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.application.assessment_snapshot import DemandAssessmentSnapshot
 from app.application.decision_composition import ASSESSMENT_SCHEMA_VERSION, DEMAND_POLICY_VERSION, FRESHNESS_WINDOW
+from app.application.operational_opportunity_eligibility import get_operational_opportunity_eligibility
 from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
 from app.domain.market_intelligence import DemandAssessmentAvailability, DemandObservation, analyze_demand
 
@@ -64,8 +65,9 @@ class FinalizeDemandObservationAdmission:
             snapshot = self._observations.get_demand_assessment_snapshot(receipt["snapshot_id"])
             if observation is None or snapshot is None: raise DemandAdmissionUnavailableError("committed demand admission is unavailable")
             return DemandAdmissionResult(observation, snapshot, True)
-        if self._opportunities.get_queue_item(command.opportunity_id) is None: raise DemandAdmissionNotFoundError(command.opportunity_id)
-        binding = self._opportunities.get_market_identity_binding(command.opportunity_id)
+        eligibility = get_operational_opportunity_eligibility(self._opportunities, command.opportunity_id)
+        if eligibility is None: raise DemandAdmissionNotFoundError(command.opportunity_id)
+        binding = eligibility.market_binding
         if binding is None or binding.market_observation_identity != command.observation.identity:
             raise DemandAdmissionConflictError("demand observation identity conflicts with Opportunity")
         assessment = analyze_demand(command.observation, generated_at=command.generated_at)

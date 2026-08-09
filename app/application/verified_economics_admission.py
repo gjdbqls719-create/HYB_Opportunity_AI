@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.application.operational_opportunity_eligibility import get_operational_opportunity_eligibility
 from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
 from app.domain.opportunity import VerifiedEconomicsInput
 
@@ -56,8 +57,9 @@ class FinalizeVerifiedEconomicsAdmission:
             snapshot=self._repository.get_verified_economics_snapshot(receipt["opportunity_id"])
             if snapshot is None: raise VerifiedEconomicsAdmissionPersistenceError("committed verified economics snapshot is unavailable")
             return VerifiedEconomicsAdmissionResult(snapshot, True)
-        if self._repository.get_queue_item(command.opportunity_id) is None: raise VerifiedEconomicsAdmissionNotFoundError(command.opportunity_id)
-        if self._repository.get_market_identity_binding(command.opportunity_id) is None: raise VerifiedEconomicsAdmissionConflictError("opportunity market identity binding is missing")
+        eligibility = get_operational_opportunity_eligibility(self._repository, command.opportunity_id)
+        if eligibility is None: raise VerifiedEconomicsAdmissionNotFoundError(command.opportunity_id)
+        if eligibility.market_binding is None: raise VerifiedEconomicsAdmissionConflictError("opportunity market identity binding is missing")
         if self._repository.get_verified_economics_snapshot(command.opportunity_id) is not None: raise VerifiedEconomicsAdmissionConflictError("verified economics snapshot already exists")
         snapshot=VerifiedEconomicsSnapshot(command.opportunity_id,command.inputs,command.snapshot_at)
         saved = self._repository.finalize_verified_economics_admission(snapshot,command.command_id,fingerprint,command.operator_id)

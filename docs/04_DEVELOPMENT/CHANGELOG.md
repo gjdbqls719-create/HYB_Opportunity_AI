@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2F - O2 Operational Market and Verified Economics Ingress Eligibility
+
+- Replace Validation Queue membership as the Competition, Demand, and Verified Economics Opportunity-existence test with one shared exact non-archived Opportunity lifecycle and immutable Market-binding read contract.
+- Allow a persisted Domestic Selling O2 to use the existing production ingress routes without creating a `validation_queue_admission_snapshot`, while preserving exact Market identity checks, legacy queue behavior, replay, restart, conflict, and bounded-error semantics.
+- Add an API-only O1-to-O2 continuation regression that admits O2 Competition, Demand, and O2-owned Verified Economics facts and proves that O1 Economics is neither copied nor relabelled.
+
 ## CR-1B5D2D - Domestic Selling Opportunity and O2 Sourcing Production Wiring
 
 - Add the request-scoped `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` production boundary with exact persisted O1 reconstruction, server-owned O2/admission identities and times, bounded HTTP errors, replay, rollback and cleanup.
