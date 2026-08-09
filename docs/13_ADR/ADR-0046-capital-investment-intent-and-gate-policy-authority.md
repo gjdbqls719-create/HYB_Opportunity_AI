@@ -6,9 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Decision only. Intended Order Quantity, Deployable Capital, Planned Acquisition
-Capital Requirement, Capital Gate, and Capital-bound Founder Approval remain
-unimplemented.
+Intended Order Quantity and Deployable Capital Snapshot are implemented by
+CR-1B5B0A as immutable Domain/Application facts with dedicated opaque identities,
+replay-first owners, and append-only SQLite history/receipt persistence. Upfront-
+cost scope verification, Planned Acquisition Capital Requirement, Capital Gate,
+Capital-bound Founder Approval, and production API/UI remain unimplemented.
 
 ## Context
 
@@ -212,14 +214,11 @@ results are never recomputed against latest sources or a newer policy.
 
 ## Deferred Work
 
-1. CR-1B5B0A: Intended Order Quantity, upfront-cost scope verification, and
-   Deployable Capital immutable Domain/Application facts with persistence and
-   replay.
-2. CR-1B5B0B: Planned Acquisition Capital Requirement calculation, exact-source
-   binding, persistence, and replay.
-3. CR-1B5B: Capital Gate Domain/Application policy, persistence, and replay.
-4. Capital-bound Founder Approval and the one-active-deployment operating
+1. CR-1B5B0B: upfront-cost scope verification and Planned Acquisition Capital
+   Requirement calculation, exact-source binding, persistence, and replay.
+2. CR-1B5B: Capital Gate Domain/Application policy, persistence, and replay.
+3. Capital-bound Founder Approval and the one-active-deployment operating
    workflow.
-5. Production entries and any API/UI exposure.
-6. Future reserve automation, Active Position, portfolio exposure, and
+4. Production entries and any API/UI exposure.
+5. Future reserve automation, Active Position, portfolio exposure, and
    concentration policy if Real-Money evidence justifies them.

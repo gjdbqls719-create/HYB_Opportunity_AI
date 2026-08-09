@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5B0A - Capital Investment Facts Foundation
+
+- Add immutable Founder-owned Intended Order Quantity and reserve-adjusted Deployable Capital Snapshot facts without creating Capital Requirement, Gate, or approval semantics.
+- Bind purchase intent to one exact Opportunity and Sourcing Admission/Quote revision while prohibiting MOQ, quoted-quantity, and shipping-denominator inference.
+- Preserve explicit non-negative Decimal deployable capital, including factual zero, exact currency and `as_of`, operator identity, and a versioned reserve-adjusted semantic marker without bank lookup or reserve arithmetic.
+- Add dedicated opaque identity suppliers, replay-first Application owners, and four append-only SQLite history/receipt tables with atomic commit, restart reconstruction, rollback, concurrency convergence, malformed-state rejection, and read-only reconstruction.
+- Keep upfront-cost scope verification, Planned Acquisition Capital Requirement, Capital Readiness, Capital Gate, Founder Capital Approval, API/UI, and existing Sourcing schemas unchanged.
+
 ## CR-1B5A - Capital Readiness Authority
 
 - Add a dedicated immutable Capital Readiness Domain/Application authority that answers only whether one exact Opportunity's Capital-facing evidence is complete and internally consistent enough for Capital Gate evaluation.

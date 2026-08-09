@@ -322,3 +322,17 @@ policy, ordered reasons, evaluation/commit times, replay, and restart
 reconstruction. Historical replay never rechecks Quote expiry or selects latest
 sources. Existing Decision Readiness, Production Safety, Founder approval, and
 API/UI contracts remain isolated and unchanged.
+
+CR-1B5B0A implements the first two ADR-0046 Founder-owned Capital facts without
+opening Capital Gate. `IntendedOrderQuantity` binds one explicit positive unit
+quantity to the exact Opportunity and Sourcing Admission/Quote revision; it
+never derives purchase intent from MOQ, quoted quantity, or shipping allocation.
+`DeployableCapitalSnapshot` preserves an explicit non-negative Decimal amount,
+currency, factual `as_of`, operator, and the fixed reserve-adjusted semantics
+version without bank lookup or reserve arithmetic. Separate replay-first
+Application owners issue opaque IDs and server admission/receipt times. Four
+dedicated append-only SQLite history/receipt tables provide atomic commit,
+restart reconstruction, concurrency convergence, source-integrity checks, and
+malformed-state rejection without current/latest projections. Upfront-cost scope,
+Planned Acquisition Capital Requirement, sufficiency, Gate policy, approval,
+API, and UI remain separate.
