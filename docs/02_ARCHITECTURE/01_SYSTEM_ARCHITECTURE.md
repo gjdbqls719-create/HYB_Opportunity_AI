@@ -318,7 +318,10 @@ reference, then issues server-owned O2/admission identities and constructs O2 as
 `DISCOVERED` version 1 with one exact KR listing/canonical-product Market
 binding. The admission never mutates O1, infers equivalence from title or
 similarity, copies Economics, or creates Capital state. SQLite atomic
-persistence, the additive O2 Sourcing-lineage handoff and production API remain
+persistence now reuses the existing lifecycle and Market-binding tables on one
+shared connection while dedicated append-only admission/receipt tables preserve
+exact replay, restart reconstruction, rollback and durable one-O1-to-one-O2
+cardinality. The additive O2 Sourcing-lineage handoff and production API remain
 separate follow-ups.
 
 CR-1B5A implements ADR-0045 as a separate Capital evidence-admission boundary.

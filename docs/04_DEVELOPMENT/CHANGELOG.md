@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2B1 - Domestic Selling Opportunity Admission SQLite Persistence
+
+- Add one shared-connection SQLite repository that atomically commits the existing O2 `DISCOVERED` version 1 lifecycle/current transition, immutable KR Market binding, domestic-selling admission and command receipt.
+- Preserve exact O1 Candidate Promotion, Product Snapshot and Market provenance, enforce one-O1-to-one-O2 and one-O2-to-one-admission cardinality with database uniqueness, and leave O1 unchanged.
+- Add append-only admission/receipt tables, exact and restart replay, rollback at every write phase, multi-connection convergence, malformed persistence rejection, and explicit connection ownership without API or downstream orchestration.
+
 ## CR-1B5D2B - Domestic Selling Opportunity Admission Foundation
 
 - Implement ADR-0049 as an immutable Domain/Application authority that preserves one exact foreign/source Opportunity O1 and creates a distinct KR domestic-selling Opportunity O2.

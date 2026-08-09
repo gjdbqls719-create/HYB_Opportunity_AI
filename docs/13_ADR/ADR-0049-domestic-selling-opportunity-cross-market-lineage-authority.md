@@ -10,8 +10,12 @@ CR-1B5D2B implements the immutable Domain/Application admission foundation,
 versioned KR-only policy, exact O1 lifecycle/Promotion/Product Snapshot/Market
 reconstruction port, replay-first owner, O2 lifecycle and Market-binding
 construction, receipt contract, and dedicated UUIDv4-style O2/admission identity
-suppliers. SQLite atomic persistence, Sourcing domestic-lineage handoff,
-production composition, API/UI, and trusted operator injection remain deferred.
+suppliers. CR-1B5D2B1 implements the shared-connection SQLite boundary that
+atomically persists O2 lifecycle creation, its initial transition, immutable KR
+Market binding, admission history and command receipt with append-only replay,
+restart, rollback, corruption detection and one-O1-to-one-O2 cardinality.
+Sourcing domestic-lineage handoff, production composition, API/UI, and trusted
+operator injection remain deferred.
 
 ## Context
 
@@ -300,7 +304,6 @@ automatically.
 
 ## Deferred
 
-- Domain/Application implementation and SQLite persistence
 - Sourcing selling-lineage variant/reference and production wiring
 - API/UI and trusted operator injection
 - direct KR Opportunity ingress
