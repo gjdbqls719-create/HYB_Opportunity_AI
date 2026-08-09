@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B6B4 - Owned Inventory Projection and Read-Only Production API
+
+- Implement ADR-0053 as immutable `OwnedInventoryProductKey` and `OwnedInventoryPosition` read models plus a SQLite-independent Application projection that groups only complete exact O2/Supplier/Product/option/SKU/unit keys and preserves deterministic Purchase Execution and Goods Receipt lineage.
+- Extend Goods Receipt persistence with Opportunity-indexed committed-event enumeration and pure Opportunity identity/history reads; calculate received, sellable, damaged, explicit zero outbound, and sellable on-hand totals on demand without a mutable or materialized inventory table.
+- Expose `GET /api/v1/opportunities/{opportunity_id}/owned-inventory` as a deterministic positions collection with empty-existing/404-missing semantics, bounded 409/503 failures, restart rebuildability, request-owned cleanup, and strict isolation from Actual Acquisition Settlement, marketplace `InventorySnapshot`, hypothetical sales, reservations, adjustments, and financial economics.
+
 ## CR-1B6B2 - Goods Receipt Authority and Production API
 
 - Implement ADR-0052 as immutable `GoodsReceiptRecord` events over one exact Purchase Execution Record with explicit positive received quantity, exact executed unit, fully classified sellable/damaged quantities, dedicated evidence, optional opaque delivery reference, factual receipt/inspection times, and exact O2 Supplier/Product/Quote lineage.

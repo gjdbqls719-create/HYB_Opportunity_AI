@@ -6,9 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Implementation decision only. Domain/Application projection types, SQLite read
-queries, the production GET API, sale/outbound events, adjustments, reservations,
-Actual Outcome, UI, and external integrations are not implemented by this ADR.
+CR-1B6B4 implements the immutable Domain read model, SQLite-independent
+Application query contract and projection owner, Opportunity-indexed committed
+Goods Receipt enumeration, and the read-only production GET API. No mutable or
+materialized inventory table exists. Sale/outbound events, adjustments,
+reservations, Actual Outcome, UI, and external integrations remain unimplemented.
 
 ## Context
 
@@ -207,9 +209,9 @@ listing, publish stock, reserve units, or synchronize a seller account. A future
 Coupang adapter may consume an explicitly authorized inventory view but cannot
 become this projection's source of truth.
 
-### Future production read boundary
+### Production read boundary
 
-The implementation direction is a read-only Opportunity-scoped endpoint:
+CR-1B6B4 exposes the read-only Opportunity-scoped endpoint:
 
 ```text
 GET /api/v1/opportunities/{opportunity_id}/owned-inventory
@@ -273,10 +275,9 @@ sellable on-hand as revenue, loss, or profit.
 
 ## Deferred Work
 
-1. Domain/Application owned-inventory projection and read-only production API.
-2. Actual Sale Settlement and exact outbound inventory event decision.
-3. Transactional non-negative outbound admission.
-4. Append-only inventory adjustments and reservation/allocation projections.
-5. Actual Outcome and Conservative-vs-Actual Variance v2.
-6. Optional rebuildable materialized cache, authentication, UI, and marketplace
+1. Actual Sale Settlement and exact outbound inventory event decision.
+2. Transactional non-negative outbound admission.
+3. Append-only inventory adjustments and reservation/allocation projections.
+4. Actual Outcome and Conservative-vs-Actual Variance v2.
+5. Optional rebuildable materialized cache, authentication, UI, and marketplace
    synchronization.

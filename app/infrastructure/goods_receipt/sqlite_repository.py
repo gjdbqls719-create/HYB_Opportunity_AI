@@ -33,6 +33,7 @@ from app.infrastructure.purchase_execution import SQLitePurchaseExecutionReposit
 HISTORY_TABLE = "goods_receipt_record_history"
 RECEIPT_TABLE = "goods_receipt_record_receipts"
 PURCHASE_INDEX = "ix_goods_receipt_record_purchase_execution"
+OPPORTUNITY_INDEX = "ix_goods_receipt_record_opportunity"
 
 
 class GoodsReceiptPersistenceError(RuntimeError):
@@ -297,6 +298,10 @@ class SQLiteGoodsReceiptRepository:
                 ON {HISTORY_TABLE}(purchase_execution_record_id)"""
             )
             self._connection.execute(
+                f"""CREATE INDEX IF NOT EXISTS {OPPORTUNITY_INDEX}
+                ON {HISTORY_TABLE}(opportunity_id)"""
+            )
+            self._connection.execute(
                 f"""CREATE TABLE IF NOT EXISTS {RECEIPT_TABLE}(
                     command_id TEXT PRIMARY KEY,
                     record_id TEXT NOT NULL,
@@ -318,6 +323,21 @@ class SQLiteGoodsReceiptRepository:
     def get_purchase_execution_record(self, record_id: str):
         return self._purchase.get_record(record_id)
 
+    def get_opportunity_identity(self, opportunity_id: str):
+        try:
+            row = self._connection.execute(
+                """SELECT opportunity_id,discovery_reference
+                FROM opportunity_lifecycles WHERE opportunity_id=?""",
+                (opportunity_id,),
+            ).fetchone()
+        except sqlite3.Error as error:
+            raise GoodsReceiptHistoryError(
+                "Goods Receipt Opportunity query failed"
+            ) from error
+        if row is None:
+            return None
+        return OpportunityIdentity(row["opportunity_id"], row["discovery_reference"])
+
     def _history_row(self, record_id: str):
         try:
             return self._connection.execute(
@@ -335,6 +355,18 @@ class SQLiteGoodsReceiptRepository:
             ).fetchall()
         except sqlite3.Error as error:
             raise GoodsReceiptHistoryError("Goods Receipt cumulative query failed") from error
+
+    def _opportunity_rows(self, opportunity_id: str):
+        try:
+            return self._connection.execute(
+                f"""SELECT * FROM {HISTORY_TABLE}
+                WHERE opportunity_id=? ORDER BY inserted_at,record_id""",
+                (opportunity_id,),
+            ).fetchall()
+        except sqlite3.Error as error:
+            raise GoodsReceiptHistoryError(
+                "Goods Receipt Opportunity history query failed"
+            ) from error
 
     def _load_record(self, row) -> GoodsReceiptRecord:
         try:
@@ -402,6 +434,9 @@ class SQLiteGoodsReceiptRepository:
 
     def get_records_for_purchase(self, purchase_execution_record_id: str):
         return tuple(self._load_record(row) for row in self._purchase_rows(purchase_execution_record_id))
+
+    def list_goods_receipts_for_opportunity(self, opportunity_id: str):
+        return tuple(self._load_record(row) for row in self._opportunity_rows(opportunity_id))
 
     def get_cumulative_received_quantity(self, purchase_execution_record_id: str) -> int:
         return sum(

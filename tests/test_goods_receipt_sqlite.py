@@ -193,6 +193,50 @@ def test_multiple_partial_receipts_exact_fill_and_post_full_rejection(tmp_path):
         assert counts(repository) == (2, 2)
 
 
+def test_opportunity_inventory_reads_are_complete_ordered_pure_and_indexed(tmp_path):
+    path = tmp_path / "owned-inventory-read.sqlite3"
+    purchase = seed(path)
+    opportunity_id = purchase.source_manifest.opportunity_identity.opportunity_id
+    with SQLiteGoodsReceiptRepository(path) as repository:
+        first_quantity = purchase.actual_quantity - 1
+        first = owner(repository, purchase).execute(
+            command(
+                purchase,
+                received_quantity=first_quantity,
+                sellable_quantity=first_quantity - 1,
+                damaged_quantity=1,
+            )
+        )
+        second = owner(repository, purchase, "goods-receipt-2", offset=6).execute(
+            command(
+                purchase,
+                command_id="goods-receipt-command-2",
+                received_quantity=1,
+                sellable_quantity=1,
+                damaged_quantity=0,
+            )
+        )
+        before = repository._connection.total_changes
+        assert repository.get_opportunity_identity(opportunity_id) == (
+            purchase.source_manifest.opportunity_identity
+        )
+        assert repository.list_goods_receipts_for_opportunity(opportunity_id) == (
+            first.record,
+            second.record,
+        )
+        assert repository.list_goods_receipts_for_opportunity(opportunity_id) == (
+            first.record,
+            second.record,
+        )
+        assert repository.list_goods_receipts_for_opportunity("missing") == ()
+        assert repository._connection.total_changes == before
+        assert repository._connection.in_transaction is False
+        indexes = {
+            row[1] for row in repository._connection.execute(f"PRAGMA index_list({HISTORY})")
+        }
+        assert "ix_goods_receipt_record_opportunity" in indexes
+
+
 def test_multi_connection_concurrent_valid_partial_receipts_never_lose_quantity(tmp_path):
     path = tmp_path / "concurrent-valid.sqlite3"
     purchase = seed(path)

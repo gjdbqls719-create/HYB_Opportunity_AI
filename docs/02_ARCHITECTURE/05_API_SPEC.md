@@ -530,5 +530,35 @@ manifest but no marketplace or owned-inventory balance.
 The route does not require or mutate Actual Acquisition Settlement, does not
 change marketplace `InventorySnapshot` or legacy Actual Economics, and does not
 calculate order completion, inventory balance, refunds, sale economics, Actual
-Outcome, or Variance. A future rebuildable owned-inventory projection may
-consume sellable receipt quantities without changing this event authority.
+Outcome, or Variance. The rebuildable owned-inventory projection consumes
+sellable receipt quantities without changing this event authority.
+
+## Owned Inventory Projection
+
+`GET /api/v1/opportunities/{opportunity_id}/owned-inventory` is a read-only,
+Opportunity-scoped projection over committed immutable Goods Receipt Records.
+It has no request body or manual quantity parameters. One O2 may own more than
+one exact stock key, so the response contains an ordered `positions` collection
+rather than one ambiguous balance.
+
+Each position key contains the exact O2 identity, source platform, Supplier ID,
+sourcing product ID, external product/option/SKU references, and quantity unit.
+Only complete identical keys aggregate across Purchase Executions. Position and
+source ordering is deterministic; every contributing Purchase Execution ID and
+Goods Receipt ID is returned with its source-event count.
+
+v1 returns integer `total_received`, `total_sellable_received`,
+`total_damaged_received`, explicit `total_outbound_quantity` zero, and
+`sellable_on_hand == total_sellable_received`. Policy
+`receipt-derived-owned-inventory` version `1.0.0` and schema
+`owned-inventory-position-v1` are server-owned. No hypothetical sale,
+settlement status, marketplace availability, reservation, adjustment, or
+financial amount affects the result.
+
+An existing Opportunity with no Goods Receipt events returns 200 with an empty
+positions collection and no fabricated product identity. Missing Opportunity
+returns 404, exact source conflict returns bounded 409, and persistence or
+reconstruction failure returns bounded 503. The request-owned connection closes
+for every result. The GET performs no writes, creates no materialized inventory
+table, selects no latest business source, and rebuilds the same result after
+restart from immutable receipt history.

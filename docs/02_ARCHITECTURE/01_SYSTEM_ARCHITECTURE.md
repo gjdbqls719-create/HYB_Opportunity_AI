@@ -560,8 +560,8 @@ The existing `market_data.InventorySnapshot` remains an external marketplace
 listing-availability observation. It is not HYB-owned, sellable, or
 reserved/allocated inventory and is never mutated by Goods Receipt.
 
-ADR-0053 accepts `OwnedInventoryPosition` as an unimplemented, on-demand,
-rebuildable Application read model rather than an independently admitted balance.
+CR-1B6B4 implements ADR-0053 as an on-demand, rebuildable Application read
+model rather than an independently admitted balance.
 Its v1 exact key combines the O2 `OpportunityIdentity`, source platform,
 Supplier ID, sourcing product ID, external product/option/SKU references, and
 quantity unit copied from committed Goods Receipt manifests. Multiple Purchase
@@ -575,13 +575,23 @@ sale, reservation, settlement, marketplace availability, or manual balance is
 subtracted. There is no v1 owned-inventory SQLite table; a future materialized
 cache must be disposable and fully rebuildable from immutable events.
 
+`GET /api/v1/opportunities/{opportunity_id}/owned-inventory` uses one
+request-owned connection and returns a deterministic collection because one O2
+may contain multiple exact product keys. The repository enumerates committed
+Goods Receipt history through an Opportunity index; Application sorts source
+events by UTC receipt time and Receipt ID, groups only complete matching keys,
+and preserves every contributing Receipt and Purchase Execution ID. Missing O2
+returns 404, an existing O2 without receipts returns an empty collection, source
+conflict returns 409, and bounded read failure returns 503. Repeated reads and
+restart reconstruction perform no writes and produce the same positions.
+
 The decision-level closed-loop sequence is:
 
 ```text
 PurchaseExecutionRecord (implemented)
 |-- ActualAcquisitionSettlement (implemented; independent money fact)
 `-- GoodsReceiptRecord(s) (implemented physical facts)
-    `-- OwnedInventoryPosition (accepted decision; implementation pending)
+    `-- OwnedInventoryPosition (implemented derived read model)
 
 Future exact inventory-out events (semantics pending Actual Sale Settlement)
     `-- OwnedInventoryPosition decrement input
