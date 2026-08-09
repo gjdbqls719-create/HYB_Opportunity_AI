@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5B0B - Planned Acquisition Capital Requirement
+
+- Add the immutable ADR-0046 Planned Acquisition Capital Requirement over one exact Intended Order Quantity, one exact Acquisition Cost Normalization, and an embedded exact upfront-cost scope verification.
+- Prove Opportunity plus Sourcing Binding/Admission/Quote lineage before using Decimal-only 34-significant-digit `ROUND_HALF_EVEN` multiplication; never substitute MOQ, quoted quantity, or a shipping denominator for Founder intent.
+- Produce an authoritative amount only for a verified-complete upfront-cost scope; unresolved or additional unmodelled mandatory upfront cash remains `BLOCKED` with no numeric amount or miscellaneous-cost fallback.
+- Persist exact sources, verification, policy, arithmetic result, state/reasons, and receipt atomically in two dedicated append-only SQLite tables with replay-before-identity/time, restart reconstruction, rollback, concurrency convergence, malformed-state rejection, and read-only integrity checks.
+- Add no Deployable Capital comparison, Capital Gate, profit/ROI rule, additional-cost calculator, API/UI, or change to existing Sourcing/Normalization schemas.
+
 ## CR-1B5B0A - Capital Investment Facts Foundation
 
 - Add immutable Founder-owned Intended Order Quantity and reserve-adjusted Deployable Capital Snapshot facts without creating Capital Requirement, Gate, or approval semantics.

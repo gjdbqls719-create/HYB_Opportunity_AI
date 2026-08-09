@@ -8,9 +8,11 @@ Accepted
 
 Intended Order Quantity and Deployable Capital Snapshot are implemented by
 CR-1B5B0A as immutable Domain/Application facts with dedicated opaque identities,
-replay-first owners, and append-only SQLite history/receipt persistence. Upfront-
-cost scope verification, Planned Acquisition Capital Requirement, Capital Gate,
-Capital-bound Founder Approval, and production API/UI remain unimplemented.
+replay-first owners, and append-only SQLite history/receipt persistence.
+CR-1B5B0B implements the exact-source-bound upfront-cost scope verification and
+Planned Acquisition Capital Requirement with deterministic Decimal arithmetic,
+CALCULABLE/BLOCKED semantics, and append-only SQLite replay persistence. Capital
+Gate, Capital-bound Founder Approval, and production API/UI remain unimplemented.
 
 ## Context
 
@@ -214,11 +216,9 @@ results are never recomputed against latest sources or a newer policy.
 
 ## Deferred Work
 
-1. CR-1B5B0B: upfront-cost scope verification and Planned Acquisition Capital
-   Requirement calculation, exact-source binding, persistence, and replay.
-2. CR-1B5B: Capital Gate Domain/Application policy, persistence, and replay.
-3. Capital-bound Founder Approval and the one-active-deployment operating
+1. CR-1B5B: Capital Gate Domain/Application policy, persistence, and replay.
+2. Capital-bound Founder Approval and the one-active-deployment operating
    workflow.
-4. Production entries and any API/UI exposure.
-5. Future reserve automation, Active Position, portfolio exposure, and
+3. Production entries and any API/UI exposure.
+4. Future reserve automation, Active Position, portfolio exposure, and
    concentration policy if Real-Money evidence justifies them.

@@ -336,3 +336,16 @@ restart reconstruction, concurrency convergence, source-integrity checks, and
 malformed-state rejection without current/latest projections. Upfront-cost scope,
 Planned Acquisition Capital Requirement, sufficiency, Gate policy, approval,
 API, and UI remain separate.
+
+CR-1B5B0B implements the narrow ADR-0046 Planned Acquisition Capital
+Requirement without opening Capital Gate. One exact Intended Order Quantity is
+joined to one exact Acquisition Cost Normalization through the persisted Landed
+Cost Composition and Sourcing Binding/Admission/Quote chain. A Founder/operator
+scope verification explicitly records whether all mandatory upfront acquisition
+cash outside the normalized four-component scope is resolved; unresolved scope
+produces a durable `BLOCKED` result with no authoritative amount. Complete scope
+uses only Decimal 34-significant-digit `ROUND_HALF_EVEN` multiplication of exact
+normalized per-unit acquisition cost by exact intended quantity. Dedicated
+append-only SQLite history/receipt tables preserve sources, verification,
+policy, result, replay, restart, and transaction integrity. Deployable Capital,
+profitability, sufficiency, Gate, approval, API, and UI remain separate.
