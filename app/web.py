@@ -225,6 +225,15 @@ from app.application.conservative_economics import (
     ConservativeEconomicsScenario,
     ConservativeEconomicsSourceError,
 )
+from app.application.capital_readiness import (
+    CapitalReadinessPolicyError,
+    CapitalReadinessProductionEntry,
+    CapitalReadinessProductionRequest,
+    CapitalReadinessReplayConflictError,
+    CapitalReadinessSourceConflictError,
+    CapitalReadinessSourceNotFoundError,
+    EvaluateCapitalReadiness,
+)
 from app.application.economics_production import (
     AcquisitionNormalizationProductionEntry,
     AcquisitionNormalizationProductionRequest,
@@ -271,6 +280,13 @@ from app.application.sourcing import (
     SourcingEconomicsBindingReplayConflictError,
     SourcingEconomicsExactRevisionError,
     SourcingEconomicsSourceNotFoundError,
+    CriticalCostCompletenessProductionEntry,
+    CriticalCostCompletenessProductionRequest,
+    CriticalCostCompletenessReplayConflictError,
+    CriticalCostSourceMismatchError,
+    CriticalCostSourceNotFoundError,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+    PersistCriticalCostCompleteness,
 )
 from app.application.snapshot_chain_binding import (
     CompleteSnapshotChainProductionEntry,
@@ -426,6 +442,11 @@ from app.infrastructure.conservative_economics import (
     ProductionConservativeEconomicsIdentityGenerator,
     SQLiteConservativeEconomicsRepository,
 )
+from app.infrastructure.capital_readiness import (
+    CapitalReadinessPersistenceError,
+    ProductionCapitalReadinessIdentityGenerator,
+    SQLiteCapitalReadinessRepository,
+)
 from app.infrastructure.economics_source_composition import (
     EconomicsSourceCompositionPersistenceError,
     ProductionEconomicsSourceCompositionIdentityGenerator,
@@ -445,6 +466,9 @@ from app.infrastructure.sourcing import (
     SQLiteShippingAllocationAuthorityRepository,
     SQLiteSourcingEconomicsBindingRepository,
     SourcingEconomicsBindingPersistenceError,
+    CriticalCostCompletenessPersistenceError,
+    ProductionCriticalCostCompletenessIdentityGenerator,
+    SQLiteCriticalCostCompletenessRepository,
 )
 from app.infrastructure.sourcing.sqlite_fx_observation_repository import (
     FXObservationPersistenceError,
@@ -1801,6 +1825,103 @@ class ConservativeEconomicsResponse(BaseModel):
     replayed: bool
 
 
+class CriticalCostAssessmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    composition_id: str = Field(min_length=1)
+    acquisition_normalization_id: str = Field(min_length=1)
+    verified_economics_opportunity_id: str = Field(min_length=1)
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class CriticalCostReasonResponse(BaseModel):
+    code: str
+    severity: str
+    category: str
+    source_reference: str | None
+
+
+class CriticalCostAssessmentResponse(BaseModel):
+    command_id: str
+    assessment_id: str
+    opportunity_id: str
+    discovery_reference: str
+    state: str
+    blocking_reasons: tuple[CriticalCostReasonResponse, ...]
+    warning_reasons: tuple[CriticalCostReasonResponse, ...]
+    composition_id: str
+    acquisition_normalization_id: str
+    allocation_authority_ids: tuple[str, ...]
+    fx_observation_ids: tuple[str, ...]
+    binding_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    verified_economics_opportunity_id: str
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    committed_at: datetime
+    assessment_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
+class CapitalReadinessAssessmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    conservative_economics_result_id: str = Field(min_length=1)
+    domestic_market_validation_assessment_id: str = Field(min_length=1)
+    critical_cost_assessment_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class CapitalReadinessSourceManifestResponse(BaseModel):
+    opportunity_id: str
+    discovery_reference: str
+    conservative_economics_result_id: str
+    economics_source_composition_id: str
+    acquisition_normalization_id: str
+    landed_cost_composition_id: str
+    domestic_market_validation_assessment_id: str
+    critical_cost_assessment_id: str
+    sourcing_binding_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    product_match_verification_id: str
+    quote_valid_until: datetime | None
+    schema_version: str
+
+
+class CapitalReadinessAssessmentResponse(BaseModel):
+    command_id: str
+    assessment_id: str
+    opportunity_id: str
+    discovery_reference: str
+    state: str
+    blocking_reasons: tuple[str, ...]
+    source_manifest: CapitalReadinessSourceManifestResponse
+    critical_cost_normalization_id: str | None
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    committed_at: datetime
+    assessment_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -2296,6 +2417,65 @@ def get_conservative_economics_entry():
         raise HTTPException(
             status_code=503,
             detail="conservative economics persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_critical_cost_assessment_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteCriticalCostCompletenessRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = PersistCriticalCostCompleteness(
+            repository,
+            assessment_id_generator=(
+                ProductionCriticalCostCompletenessIdentityGenerator()
+            ),
+            evaluated_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+            policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+        )
+        entry = CriticalCostCompletenessProductionEntry(repository, owner)
+    except (sqlite3.Error, CriticalCostCompletenessPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="critical cost persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_capital_readiness_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteCapitalReadinessRepository(DEFAULT_DATABASE_PATH)
+        )
+        owner = EvaluateCapitalReadiness(
+            repository,
+            assessment_id_generator=ProductionCapitalReadinessIdentityGenerator(),
+            evaluated_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+        entry = CapitalReadinessProductionEntry(repository, owner)
+    except (sqlite3.Error, CapitalReadinessPersistenceError) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="capital readiness persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -4081,6 +4261,196 @@ def evaluate_conservative_economics(
         calculated_at=result.calculated_at,
         committed_at=receipt.committed_at,
         result_schema_version=result.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=publication.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/critical-cost-assessments",
+    response_model=CriticalCostAssessmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def evaluate_critical_cost_completeness(
+    opportunity_id: str,
+    request: CriticalCostAssessmentRequest,
+    response: Response,
+    entry: CriticalCostCompletenessProductionEntry = Depends(
+        get_critical_cost_assessment_entry
+    ),
+) -> CriticalCostAssessmentResponse:
+    try:
+        result = entry.execute(
+            CriticalCostCompletenessProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                composition_id=request.composition_id,
+                acquisition_normalization_id=(
+                    request.acquisition_normalization_id
+                ),
+                verified_economics_opportunity_id=(
+                    request.verified_economics_opportunity_id
+                ),
+                verified_economics_snapshot_at=(
+                    request.verified_economics_snapshot_at
+                ),
+                verified_economics_schema_version=(
+                    request.verified_economics_schema_version
+                ),
+                requested_at=request.requested_at,
+            )
+        )
+    except CriticalCostSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CriticalCostSourceMismatchError,
+        CriticalCostCompletenessReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (CriticalCostCompletenessPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="critical cost persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    assessment, receipt = result.assessment, result.receipt
+    source = assessment.source_reference
+    reason = lambda value: CriticalCostReasonResponse(
+        code=value.code.value,
+        severity=value.severity.value,
+        category=value.category,
+        source_reference=value.source_reference,
+    )
+    return CriticalCostAssessmentResponse(
+        command_id=receipt.command_id,
+        assessment_id=receipt.assessment_id,
+        opportunity_id=assessment.opportunity_identity.opportunity_id,
+        discovery_reference=assessment.opportunity_identity.discovery_reference,
+        state=assessment.state.value,
+        blocking_reasons=tuple(reason(value) for value in assessment.blocking_reasons),
+        warning_reasons=tuple(reason(value) for value in assessment.warning_reasons),
+        composition_id=assessment.composition_id,
+        acquisition_normalization_id=assessment.acquisition_normalization_id,
+        allocation_authority_ids=assessment.allocation_authority_ids,
+        fx_observation_ids=assessment.fx_observation_ids,
+        binding_id=assessment.binding_reference.binding_id,
+        sourcing_admission_id=source.admission_id,
+        sourcing_admission_revision=source.admission_revision,
+        quote_id=source.quote_id,
+        quote_revision=source.quote_revision,
+        verified_economics_opportunity_id=(
+            assessment.verified_economics_opportunity_id
+        ),
+        verified_economics_snapshot_at=(
+            assessment.verified_economics_snapshot_at
+        ),
+        verified_economics_schema_version=(
+            assessment.verified_economics_schema_version
+        ),
+        policy_name=assessment.policy_name,
+        policy_version=assessment.policy_version,
+        requested_at=request.requested_at,
+        evaluated_at=assessment.evaluated_at,
+        committed_at=receipt.committed_at,
+        assessment_schema_version=assessment.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        replayed=result.replayed,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/capital-readiness-assessments",
+    response_model=CapitalReadinessAssessmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def evaluate_capital_readiness(
+    opportunity_id: str,
+    request: CapitalReadinessAssessmentRequest,
+    response: Response,
+    entry: CapitalReadinessProductionEntry = Depends(get_capital_readiness_entry),
+) -> CapitalReadinessAssessmentResponse:
+    try:
+        result = entry.execute(
+            CapitalReadinessProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                conservative_economics_result_id=(
+                    request.conservative_economics_result_id
+                ),
+                domestic_market_validation_assessment_id=(
+                    request.domestic_market_validation_assessment_id
+                ),
+                critical_cost_assessment_id=request.critical_cost_assessment_id,
+                requested_at=request.requested_at,
+            )
+        )
+    except CapitalReadinessSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        CapitalReadinessSourceConflictError,
+        CapitalReadinessReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except CapitalReadinessPolicyError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (CapitalReadinessPersistenceError, sqlite3.Error) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="capital readiness persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    publication = result.publication
+    if publication.replayed:
+        response.status_code = status.HTTP_200_OK
+    assessment, receipt = publication.assessment, publication.receipt
+    manifest = assessment.source_manifest
+    identity = manifest.opportunity_identity
+    return CapitalReadinessAssessmentResponse(
+        command_id=receipt.command_id,
+        assessment_id=assessment.assessment_id,
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        state=assessment.state.value,
+        blocking_reasons=tuple(
+            reason.code.value for reason in assessment.blocking_reasons
+        ),
+        source_manifest=CapitalReadinessSourceManifestResponse(
+            opportunity_id=identity.opportunity_id,
+            discovery_reference=identity.discovery_reference,
+            conservative_economics_result_id=(
+                manifest.conservative_economics_result_id
+            ),
+            economics_source_composition_id=(
+                manifest.economics_source_composition_id
+            ),
+            acquisition_normalization_id=manifest.acquisition_normalization_id,
+            landed_cost_composition_id=manifest.landed_cost_composition_id,
+            domestic_market_validation_assessment_id=(
+                manifest.domestic_market_validation_assessment_id
+            ),
+            critical_cost_assessment_id=manifest.critical_cost_assessment_id,
+            sourcing_binding_id=manifest.sourcing_binding_id,
+            sourcing_admission_id=manifest.sourcing_admission_id,
+            sourcing_admission_revision=manifest.sourcing_admission_revision,
+            quote_id=manifest.quote_id,
+            quote_revision=manifest.quote_revision,
+            product_match_verification_id=(
+                manifest.product_match_verification_id
+            ),
+            quote_valid_until=manifest.quote_valid_until,
+            schema_version=manifest.schema_version,
+        ),
+        critical_cost_normalization_id=result.critical_cost_normalization_id,
+        policy_name=assessment.policy_name,
+        policy_version=assessment.policy_version,
+        requested_at=assessment.requested_at,
+        evaluated_at=assessment.evaluated_at,
+        committed_at=receipt.committed_at,
+        assessment_schema_version=assessment.schema_version,
         receipt_schema_version=receipt.schema_version,
         replayed=publication.replayed,
     )

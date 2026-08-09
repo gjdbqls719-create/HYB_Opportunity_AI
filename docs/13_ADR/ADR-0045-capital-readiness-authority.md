@@ -7,7 +7,8 @@ Accepted
 ## Implementation Status
 
 Implemented in CR-1B5A at the Domain/Application and append-only SQLite
-persistence boundary. Production entry, API/UI, Capital Gate policy, required-
+persistence boundary. CR-1B5D2J adds a thin request-scoped production entry and
+FastAPI route without changing the authority. UI, Capital Gate policy, required-
 capital calculation, and Founder capital approval remain separate and deferred.
 CR-1B5D2I1 adds an assessment schema v2 for fresh evaluations that requires the
 Critical Cost v2 normalization ID to equal the Economics Source Composition's
@@ -187,4 +188,4 @@ human authority and can never be inferred from readiness or Gate output.
 - intended order quantity and required-capital authority audit;
 - available-capital, reserve, exposure, and concentration ownership;
 - Founder capital approval;
-- production entry and any API/UI exposure.
+- UI exposure.

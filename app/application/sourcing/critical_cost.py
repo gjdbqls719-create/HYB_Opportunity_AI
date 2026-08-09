@@ -610,6 +610,99 @@ class PersistCriticalCostCompleteness:
         return self._repository.save_assessment(command, assessment, receipt)
 
 
+@dataclass(frozen=True, slots=True)
+class CriticalCostCompletenessProductionRequest:
+    """Caller-owned exact source facts for one fresh v2 assessment."""
+
+    command_id: str
+    opportunity_id: str
+    composition_id: str
+    acquisition_normalization_id: str
+    verified_economics_opportunity_id: str
+    verified_economics_snapshot_at: datetime
+    verified_economics_schema_version: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "composition_id",
+            "acquisition_normalization_id",
+            "verified_economics_opportunity_id",
+            "verified_economics_schema_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        _aware(self.verified_economics_snapshot_at, "verified_economics_snapshot_at")
+        _aware(self.requested_at, "requested_at")
+
+
+class CriticalCostCompletenessProductionEntry:
+    """Resolve the named O2 sources and delegate all evaluation to the owner."""
+
+    def __init__(
+        self,
+        repository: CriticalCostCompletenessPersistenceRepository,
+        owner: PersistCriticalCostCompleteness,
+    ) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(
+        self, request: CriticalCostCompletenessProductionRequest
+    ) -> CriticalCostCompletenessPersistenceResult:
+        if not isinstance(request, CriticalCostCompletenessProductionRequest):
+            raise TypeError(
+                "request must be CriticalCostCompletenessProductionRequest"
+            )
+        if request.verified_economics_opportunity_id != request.opportunity_id:
+            raise CriticalCostSourceMismatchError(
+                "Verified Economics differs from route Opportunity"
+            )
+        command = PersistCriticalCostCompletenessCommand(
+            command_id=request.command_id,
+            composition_id=request.composition_id,
+            verified_economics_opportunity_id=(
+                request.verified_economics_opportunity_id
+            ),
+            verified_economics_snapshot_at=request.verified_economics_snapshot_at,
+            verified_economics_schema_version=(
+                request.verified_economics_schema_version
+            ),
+            policy_name=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.name,
+            policy_version=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.version,
+            requested_at=request.requested_at,
+            schema_version=CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
+            acquisition_normalization_id=request.acquisition_normalization_id,
+        )
+        replay = self._repository.validate_replay(
+            command.command_id, command.fingerprint
+        )
+        if replay is not None:
+            return replace(replay, replayed=True)
+        composition = self._repository.get_composition(request.composition_id)
+        if composition is None:
+            raise CriticalCostSourceNotFoundError(
+                "exact Landed Cost Composition is missing"
+            )
+        normalization = self._repository.get_acquisition_normalization(
+            request.acquisition_normalization_id
+        )
+        if normalization is None:
+            raise CriticalCostSourceNotFoundError(
+                "exact Acquisition Cost Normalization is missing"
+            )
+        if (
+            composition.opportunity_identity.opportunity_id != request.opportunity_id
+            or normalization.opportunity_identity.opportunity_id
+            != request.opportunity_id
+        ):
+            raise CriticalCostSourceMismatchError(
+                "Critical Cost sources differ from route Opportunity"
+            )
+        return self._owner.execute(command)
+
+
 __all__ = [
     name for name in globals()
     if name.startswith("CriticalCost") or name.startswith("Evaluate")

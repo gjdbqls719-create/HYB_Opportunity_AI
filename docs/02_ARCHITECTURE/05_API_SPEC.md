@@ -304,7 +304,44 @@ Verified Economics snapshot time/schema and excludes legacy purchase/shipping fi
 to prevent double counting. `READY` and `BLOCKED` remain successful business results.
 The existing Conservative Economics endpoint consumes the resulting composition
 without formula changes. Critical Cost is not an input to normalization or source
-composition; its production wiring remains part of the later Capital Readiness chain.
+composition.
+
+## Critical Cost and Capital Readiness production chain
+
+CR-1B5D2J exposes the existing authorities through two independent,
+request-scoped boundaries:
+
+- `POST /api/v1/opportunities/{opportunity_id}/critical-cost-assessments`
+- `POST /api/v1/opportunities/{opportunity_id}/capital-readiness-assessments`
+
+The Critical Cost route always creates the current v2 contract. The caller names
+one exact Landed Cost Composition, Acquisition Cost Normalization, and Verified
+Economics Opportunity/time/schema tuple. Allocation and FX IDs are not caller
+claims: the owner reconstructs and validates them from the exact normalization
+manifest. The response exposes the committed assessment identity, O2 and exact
+Sourcing/Quote/Verified Economics lineage, ordered reasons, normalization,
+allocation and FX IDs, policy/schema/times, and replay state. `COMPLETE` and
+`INCOMPLETE` are both successful authoritative results.
+
+The Capital Readiness route accepts exact persisted Conservative Economics,
+Domestic Market Validation, and Critical Cost assessment IDs. Its production
+entry requires all three terminal sources to have the route Opportunity, then
+delegates reconstruction of the complete Economics/Normalization/Sourcing
+manifest, Quote validity, and deterministic state to `EvaluateCapitalReadiness`.
+It never recalculates any terminal source or selects latest data. The response
+includes both the Economics-manifest normalization and the Critical Cost
+normalization so an exact mismatch remains visible as the existing
+`SOURCING_LINEAGE_MISMATCH` blocker. `READY_FOR_CAPITAL_REVIEW` and `BLOCKED`
+are both successful results; negative but calculable Economics is not rejected.
+
+Fresh commits return 201 and exact replay returns 200 without reevaluation or
+new identities/times/rows. Missing exact sources return 404, changed commands or
+route/source lineage conflicts return 409, invalid requests return 422, and
+bounded persistence failures return 503 without SQLite details. Each route owns
+one SQLite connection and closes it on every outcome. Historical Critical Cost
+v1 and Capital Readiness v1 replay remain unchanged. These routes do not expose
+Capital Gate, quantity, capital facts, Founder approval, or execution.
+
 # Operational Production Safety
 
 `GET /api/v1/opportunities/{opportunity_id}/production-safety-evaluations`

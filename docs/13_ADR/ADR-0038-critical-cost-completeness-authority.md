@@ -9,6 +9,9 @@ Accepted (CR-1B3B); exact-normalization reconciliation accepted in CR-1B5D2I1.
 Historical policy/schema v1 remains reconstructable unchanged. CR-1B5D2I1 adds
 policy/schema/command v2 for fresh assessments that name one exact persisted
 `AcquisitionCostNormalization` and preserve its allocation/FX manifests.
+CR-1B5D2J exposes fresh v2 assessment creation through the request-scoped
+Opportunity API while leaving historical v1 replay and all policy semantics
+unchanged.
 
 ## Context
 
@@ -154,5 +157,5 @@ persisted ordered reasons without policy re-evaluation or latest-source lookup.
 
 ## Deferred
 
-Separate conditional-cost categories, Critical Cost API/UI, Actual Economics
+Separate conditional-cost categories, Critical Cost UI, Actual Economics
 expansion, supplier collection, and Snapshot Chain extension remain deferred.

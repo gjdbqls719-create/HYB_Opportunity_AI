@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2J - Critical Cost v2 and Capital Readiness Production Wiring
+
+- Expose the existing Critical Cost v2 and Capital Readiness v2 owners through thin Opportunity-scoped FastAPI routes with one owned SQLite connection per request and exact persisted source IDs only.
+- Preserve exact O2 Landed Cost/Normalization/Allocation/FX/Verified Economics and terminal Conservative/Market/Critical manifests, replay-first behavior, deterministic BLOCKED/INCOMPLETE outcomes, Quote validity, and normalization-equality safety.
+- Verify the API-only O2 path to `READY_FOR_CAPITAL_REVIEW`, normalization mismatch and all required BLOCKED paths, replay/restart/concurrency, bounded errors, atomic failure, cleanup, and historical v1 compatibility without adding Capital Gate or execution scope.
+
 ## CR-1B5D2I1 - Critical Cost Exact Normalization Authority Reconciliation
 
 - Add Critical Cost policy/schema/command v2 over one exact persisted Acquisition Cost Normalization while preserving historical v1 reconstruction and replay unchanged.

@@ -403,6 +403,18 @@ Conservative Economics and Economics Source Composition. The readiness policy
 and Gate-facing meaning remain unchanged; historical schema-v1 replay does not
 gain new provenance retroactively.
 
+CR-1B5D2J exposes the reconciled Critical Cost v2 and Capital Readiness v2
+owners through two thin Opportunity-scoped FastAPI entries. Critical Cost names
+one exact O2 Landed Cost, Acquisition Normalization, and Verified Economics
+tuple and reconstructs allocation/FX provenance on one request-owned SQLite
+connection. Capital Readiness names exact Conservative Economics, Domestic
+Market Validation, and Critical Cost terminal IDs, verifies their common O2,
+then retains the existing exact normalization-equality, Quote-validity, policy,
+and ordered-blocker semantics. Both boundaries are replay-first and commit
+independently; no transaction spans the routes, no latest source is selected,
+and no Capital Gate, quantity, capital, approval, or execution authority is
+introduced.
+
 CR-1B5B0A implements the first two ADR-0046 Founder-owned Capital facts without
 opening Capital Gate. `IntendedOrderQuantity` binds one explicit positive unit
 quantity to the exact Opportunity and Sourcing Admission/Quote revision; it

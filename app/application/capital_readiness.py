@@ -67,6 +67,10 @@ class CapitalReadinessPolicyError(CapitalReadinessError):
     pass
 
 
+class CapitalReadinessSourceConflictError(CapitalReadinessError):
+    pass
+
+
 def _text(value: str, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be non-empty text")
@@ -122,7 +126,11 @@ class EvaluateCapitalReadinessCommand:
             object.__setattr__(self, name, _text(getattr(self, name), name))
         if not isinstance(self.opportunity_identity, OpportunityIdentity):
             raise TypeError("opportunity_identity must be OpportunityIdentity")
-        object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
+        object.__setattr__(
+            self,
+            "requested_at",
+            _aware(self.requested_at, "requested_at"),
+        )
         if (
             self.policy_name != CAPITAL_READINESS_POLICY_NAME
             or self.policy_version != CAPITAL_READINESS_POLICY_VERSION
@@ -363,6 +371,115 @@ class EvaluateCapitalReadiness:
             == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.version
             and market.policy_name == DOMESTIC_MARKET_VALIDATION_POLICY_NAME
             and market.policy_version == DOMESTIC_MARKET_VALIDATION_POLICY_VERSION
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalReadinessProductionRequest:
+    command_id: str
+    opportunity_id: str
+    conservative_economics_result_id: str
+    domestic_market_validation_assessment_id: str
+    critical_cost_assessment_id: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "conservative_economics_result_id",
+            "domestic_market_validation_assessment_id",
+            "critical_cost_assessment_id",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalReadinessProductionResult:
+    publication: CapitalReadinessPublication
+    critical_cost_normalization_id: str | None
+
+
+class CapitalReadinessProductionEntry:
+    """Bind exact terminal sources to the route Opportunity, then call the owner."""
+
+    def __init__(
+        self,
+        repository: CapitalReadinessRepository,
+        owner: EvaluateCapitalReadiness,
+    ) -> None:
+        self._repository = repository
+        self._owner = owner
+
+    def execute(
+        self, request: CapitalReadinessProductionRequest
+    ) -> CapitalReadinessProductionResult:
+        if not isinstance(request, CapitalReadinessProductionRequest):
+            raise TypeError("request must be CapitalReadinessProductionRequest")
+        conservative = self._repository.get_conservative_economics_result(
+            request.conservative_economics_result_id
+        )
+        if conservative is None:
+            raise CapitalReadinessSourceNotFoundError(
+                "exact Conservative Economics result is missing"
+            )
+        identity = conservative.opportunity_identity
+        if identity.opportunity_id != request.opportunity_id:
+            raise CapitalReadinessSourceConflictError(
+                "Conservative Economics differs from route Opportunity"
+            )
+        command = EvaluateCapitalReadinessCommand(
+            command_id=request.command_id,
+            opportunity_identity=identity,
+            conservative_economics_result_id=(
+                request.conservative_economics_result_id
+            ),
+            domestic_market_validation_assessment_id=(
+                request.domestic_market_validation_assessment_id
+            ),
+            critical_cost_assessment_id=request.critical_cost_assessment_id,
+            requested_at=request.requested_at,
+        )
+        replay = self._repository.validate_replay(
+            command.command_id, command.fingerprint
+        )
+        critical = self._repository.get_critical_cost_assessment(
+            request.critical_cost_assessment_id
+        )
+        if replay is not None:
+            return CapitalReadinessProductionResult(
+                publication=replace(replay, replayed=True),
+                critical_cost_normalization_id=(
+                    None if critical is None else critical.acquisition_normalization_id
+                ),
+            )
+        market = self._repository.get_domestic_market_validation(
+            request.domestic_market_validation_assessment_id
+        )
+        if critical is None:
+            raise CapitalReadinessSourceNotFoundError(
+                "exact Critical Cost assessment is missing"
+            )
+        if market is None:
+            raise CapitalReadinessSourceNotFoundError(
+                "exact Domestic Market Validation assessment is missing"
+            )
+        if (
+            critical.opportunity_identity != identity
+            or market.source_manifest.opportunity_id != identity.opportunity_id
+            or market.source_manifest.discovery_reference
+            != identity.discovery_reference
+        ):
+            raise CapitalReadinessSourceConflictError(
+                "terminal sources differ from route Opportunity"
+            )
+        publication = self._owner.execute(command)
+        return CapitalReadinessProductionResult(
+            publication=publication,
+            critical_cost_normalization_id=(
+                critical.acquisition_normalization_id
+            ),
         )
 
 
