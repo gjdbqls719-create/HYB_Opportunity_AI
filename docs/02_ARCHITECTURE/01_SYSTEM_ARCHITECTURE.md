@@ -276,6 +276,15 @@ evaluation/commit times, state, and ordered reasons. Restart reads validate the
 still-exact source lineage but never re-evaluate policy, substitute latest facts,
 or create Economics results.
 
+CR-1B5D2I1 adds an additive Critical Cost v2 contract over one exact persisted
+Acquisition Cost Normalization. It validates the normalization's exact Landed
+Cost, resolved Shipping Allocation Authorities, FX Observations, target currency,
+and component provenance without repeating allocation, conversion, or total
+arithmetic. Historical v1 payloads remain reconstructable unchanged. A v2 result
+preserves the normalization and ordered allocation/FX identities, allowing the
+supported O2 CNY-to-KRW chain to become `COMPLETE` when all pre-existing evidence
+and Quote-validity rules pass.
+
 CR-1B3C1 reconciles production shipping allocation without mutating Landed Cost
 history. One explicit Application command separates effective basis authority
 from denominator authority for an exact persisted composition/component.
@@ -388,6 +397,11 @@ policy, ordered reasons, evaluation/commit times, replay, and restart
 reconstruction. Historical replay never rechecks Quote expiry or selects latest
 sources. Existing Decision Readiness, Production Safety, Founder approval, and
 API/UI contracts remain isolated and unchanged.
+CR-1B5D2I1 makes fresh Capital Readiness assessments schema v2 and requires the
+Critical Cost normalization identity to equal the one reconstructed through
+Conservative Economics and Economics Source Composition. The readiness policy
+and Gate-facing meaning remain unchanged; historical schema-v1 replay does not
+gain new provenance retroactively.
 
 CR-1B5B0A implements the first two ADR-0046 Founder-owned Capital facts without
 opening Capital Gate. `IntendedOrderQuantity` binds one explicit positive unit

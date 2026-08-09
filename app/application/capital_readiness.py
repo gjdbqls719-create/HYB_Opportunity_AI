@@ -10,10 +10,11 @@ import hashlib
 import json
 from typing import Callable, Protocol
 
-from app.application.sourcing import DOMESTIC_COMMERCE_CRITICAL_COST_POLICY
+from app.application.sourcing import DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2
 from app.domain.capital import (
     CAPITAL_READINESS_POLICY_NAME,
     CAPITAL_READINESS_POLICY_VERSION,
+    CAPITAL_READINESS_SCHEMA_VERSION_V2,
     CapitalReadinessAssessment,
     CapitalReadinessReason,
     CapitalReadinessReasonCode,
@@ -274,6 +275,7 @@ class EvaluateCapitalReadiness:
         if (
             conservative.source_composition_id != source.composition_id
             or source.acquisition_normalization_id != normalization.normalization_id
+            or critical.acquisition_normalization_id != normalization.normalization_id
             or normalization.composition_id != critical.composition_id
             or binding.reference != critical.binding_reference
             or binding.source_reference != critical.source_reference
@@ -334,6 +336,7 @@ class EvaluateCapitalReadiness:
             policy_version=command.policy_version,
             requested_at=command.requested_at,
             evaluated_at=evaluated_at,
+            schema_version=CAPITAL_READINESS_SCHEMA_VERSION_V2,
         )
         receipt = CapitalReadinessReceipt(
             command.command_id,
@@ -354,8 +357,10 @@ class EvaluateCapitalReadiness:
         return (
             conservative.policy_name == CONSERVATIVE_ECONOMICS_POLICY_NAME
             and conservative.policy_version == CONSERVATIVE_ECONOMICS_POLICY_VERSION
-            and critical.policy_name == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.name
-            and critical.policy_version == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.version
+            and critical.policy_name
+            == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.name
+            and critical.policy_version
+            == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.version
             and market.policy_name == DOMESTIC_MARKET_VALIDATION_POLICY_NAME
             and market.policy_version == DOMESTIC_MARKET_VALIDATION_POLICY_VERSION
         )

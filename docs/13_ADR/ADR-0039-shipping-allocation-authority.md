@@ -99,7 +99,7 @@ not create partial financial authority.
 
 ## Deferred
 
-Cost normalization, Critical Cost consumption of allocation identities, FX
-binding/conversion, rounding, `PER_WEIGHT` logistics, production API/UI,
-Conservative Economics, Capital Readiness/Gate, and Founder capital approval
-remain deferred.
+`PER_WEIGHT` logistics, further allocation policies, and UI remain deferred.
+CR-1B5D2I1 makes Critical Cost v2 an exact validating consumer of persisted
+allocation identities without moving division or normalization arithmetic into
+Critical Cost.

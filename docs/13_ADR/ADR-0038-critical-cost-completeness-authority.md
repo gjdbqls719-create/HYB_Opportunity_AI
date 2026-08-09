@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted (CR-1B3B)
+Accepted (CR-1B3B); exact-normalization reconciliation accepted in CR-1B5D2I1.
+
+## Implementation Status
+
+Historical policy/schema v1 remains reconstructable unchanged. CR-1B5D2I1 adds
+policy/schema/command v2 for fresh assessments that name one exact persisted
+`AcquisitionCostNormalization` and preserve its allocation/FX manifests.
 
 ## Context
 
@@ -79,6 +85,28 @@ to Conservative Economics; this decision creates no allowance value.
   incomplete until a later exact FX observation contract exists; no rate is
   generated or inferred here.
 
+These bullets remain the historical v1 meaning.
+
+### Domestic Commerce policy v2
+
+Policy `domestic-commerce-critical-cost-completeness` version `2.0.0` validates
+one exact persisted Acquisition Cost Normalization for the same Opportunity and
+Landed Cost Composition. It reconstructs the normalization's exact Shipping
+Allocation Authorities and FX Observations and verifies component, basis,
+denominator, pair/direction, and source-manifest consistency. It never divides,
+converts, sums, or otherwise repeats normalization arithmetic.
+
+A positive source component with original `UNSPECIFIED` allocation is complete
+when its normalized component names a matching exact `RESOLVED` authority.
+Cross-currency acquisition is complete when the exact normalization proves the
+FX provenance and its target currency equals Verified Economics currency.
+Same-currency normalization requires no FX observation. UNKNOWN, explicit zero,
+NOT_APPLICABLE, evidence trust, and Quote validity retain their v1 meanings.
+
+The v2 assessment preserves exact normalization, ordered allocation-authority,
+and ordered FX-observation IDs. A v1 assessment carries none of these fields and
+is never reinterpreted as v2.
+
 ### Freshness and numeric-result safety
 
 - Historical compositions and quotes remain immutable.
@@ -126,7 +154,5 @@ persisted ordered reasons without policy re-evaluation or latest-source lookup.
 
 ## Deferred
 
-FX observations and conversion, shipping allocation calculation, separate
-conditional-cost categories, Conservative Economics, Capital Readiness/Gate,
-Founder capital approval, assessment persistence/API/UI, Actual Economics
+Separate conditional-cost categories, Critical Cost API/UI, Actual Economics
 expansion, supplier collection, and Snapshot Chain extension remain deferred.

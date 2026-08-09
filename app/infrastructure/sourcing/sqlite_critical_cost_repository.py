@@ -15,11 +15,13 @@ from app.application.sourcing.critical_cost import (
     CriticalCostCompletenessReplayConflictError,
     CriticalCostSourceMismatchError,
     DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
     PersistCriticalCostCompletenessCommand,
 )
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.sourcing import (
     CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION,
+    CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2,
     CriticalCostCompleteness,
     CriticalCostCompletenessReason,
     CriticalCostCompletenessState,
@@ -31,6 +33,9 @@ from app.domain.sourcing import (
 from app.infrastructure.opportunity_validation import SQLiteValidationQueueRepository
 from app.infrastructure.sourcing.sqlite_landed_cost_repository import (
     SQLiteLandedCostCompositionRepository,
+)
+from app.infrastructure.sourcing.sqlite_acquisition_cost_normalization_repository import (
+    SQLiteAcquisitionCostNormalizationRepository,
 )
 
 
@@ -102,7 +107,7 @@ def _load_reason(value: object, ordinal: int) -> CriticalCostCompletenessReason:
 
 def _payload(value: CriticalCostCompleteness) -> str:
     source = value.source_reference
-    return _dump({
+    payload = {
         "opportunity_identity": {
             "opportunity_id": value.opportunity_identity.opportunity_id,
             "discovery_reference": value.opportunity_identity.discovery_reference,
@@ -137,7 +142,14 @@ def _payload(value: CriticalCostCompleteness) -> str:
             for ordinal, reason in enumerate(value.warning_reasons)
         ],
         "schema_version": value.schema_version,
-    })
+    }
+    if value.schema_version == CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2:
+        payload["normalization_source"] = {
+            "normalization_id": value.acquisition_normalization_id,
+            "allocation_authority_ids": list(value.allocation_authority_ids),
+            "fx_observation_ids": list(value.fx_observation_ids),
+        }
+    return _dump(payload)
 
 
 class SQLiteCriticalCostCompletenessRepository:
@@ -163,6 +175,9 @@ class SQLiteCriticalCostCompletenessRepository:
             connection=self._connection
         )
         self._verified_economics = SQLiteValidationQueueRepository(
+            connection=self._connection
+        )
+        self._normalization = SQLiteAcquisitionCostNormalizationRepository(
             connection=self._connection
         )
         self._initialize_schema()
@@ -230,6 +245,15 @@ class SQLiteCriticalCostCompletenessRepository:
     def get_verified_economics_snapshot(self, opportunity_id: str):
         return self._verified_economics.get_verified_economics_snapshot(opportunity_id)
 
+    def get_acquisition_normalization(self, normalization_id: str):
+        return self._normalization.get_normalization(normalization_id)
+
+    def get_allocation_authority(self, authority_id: str):
+        return self._normalization.get_allocation_authority(authority_id)
+
+    def get_fx_observation(self, observation_id: str):
+        return self._normalization.get_fx_observation(observation_id)
+
     def _assessment_row(self, assessment_id: str):
         try:
             return self._connection.execute(
@@ -241,7 +265,10 @@ class SQLiteCriticalCostCompletenessRepository:
 
     def _assessment(self, row) -> CriticalCostCompleteness:
         try:
-            if row["schema_version"] != CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION:
+            if row["schema_version"] not in {
+                CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION,
+                CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2,
+            }:
                 raise UnsupportedCriticalCostCompletenessVersionError(
                     "unsupported Critical Cost Completeness version"
                 )
@@ -257,10 +284,26 @@ class SQLiteCriticalCostCompletenessRepository:
             verified = payload["verified_economics_source"]
             blocking = payload["blocking_reasons"]
             warnings = payload["warning_reasons"]
+            normalization = payload.get("normalization_source")
             if not all(isinstance(value, dict) for value in (opportunity, binding, source, verified)):
                 raise ValueError("assessment source lineage is malformed")
             if not isinstance(blocking, list) or not isinstance(warnings, list):
                 raise ValueError("assessment reasons must be ordered lists")
+            if payload["schema_version"] == CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2:
+                if not isinstance(normalization, dict):
+                    raise ValueError("v2 normalization source manifest is malformed")
+                if set(normalization) != {
+                    "normalization_id",
+                    "allocation_authority_ids",
+                    "fx_observation_ids",
+                }:
+                    raise ValueError("v2 normalization source manifest fields differ")
+                if not isinstance(normalization["allocation_authority_ids"], list):
+                    raise ValueError("allocation authority manifest must be a list")
+                if not isinstance(normalization["fx_observation_ids"], list):
+                    raise ValueError("FX observation manifest must be a list")
+            elif normalization is not None:
+                raise ValueError("v1 assessment cannot carry normalization source")
             value = CriticalCostCompleteness(
                 opportunity_identity=OpportunityIdentity(
                     opportunity["opportunity_id"], opportunity["discovery_reference"]
@@ -290,6 +333,19 @@ class SQLiteCriticalCostCompletenessRepository:
                 warning_reasons=tuple(
                     _load_reason(reason, ordinal)
                     for ordinal, reason in enumerate(warnings)
+                ),
+                acquisition_normalization_id=(
+                    None if normalization is None else normalization["normalization_id"]
+                ),
+                allocation_authority_ids=(
+                    ()
+                    if normalization is None
+                    else tuple(normalization["allocation_authority_ids"])
+                ),
+                fx_observation_ids=(
+                    ()
+                    if normalization is None
+                    else tuple(normalization["fx_observation_ids"])
                 ),
                 schema_version=payload["schema_version"],
             )
@@ -333,11 +389,31 @@ class SQLiteCriticalCostCompletenessRepository:
             or verified.schema_version != assessment.verified_economics_schema_version
         ):
             raise ValueError("assessment references malformed Verified Economics source")
+        expected_policy = (
+            DOMESTIC_COMMERCE_CRITICAL_COST_POLICY
+            if assessment.schema_version == CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION
+            else DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2
+        )
         if (
-            assessment.policy_name != DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.name
-            or assessment.policy_version != DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.version
+            assessment.policy_name != expected_policy.name
+            or assessment.policy_version != expected_policy.version
         ):
             raise ValueError("assessment policy identity/version is unsupported")
+        if assessment.schema_version == CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2:
+            normalization = self.get_acquisition_normalization(
+                assessment.acquisition_normalization_id  # type: ignore[arg-type]
+            )
+            if (
+                normalization is None
+                or normalization.opportunity_identity != assessment.opportunity_identity
+                or normalization.composition_id != assessment.composition_id
+                or normalization.allocation_authority_ids
+                != assessment.allocation_authority_ids
+                or normalization.fx_observation_ids != assessment.fx_observation_ids
+            ):
+                raise ValueError(
+                    "assessment references malformed Acquisition Normalization lineage"
+                )
 
     def get_assessment(self, assessment_id: str) -> CriticalCostCompleteness | None:
         row = self._assessment_row(assessment_id)
@@ -411,6 +487,8 @@ class SQLiteCriticalCostCompletenessRepository:
             != command.verified_economics_schema_version
             or assessment.policy_name != command.policy_name
             or assessment.policy_version != command.policy_version
+            or assessment.acquisition_normalization_id
+            != command.acquisition_normalization_id
             or receipt.command_id != command.command_id
             or receipt.command_fingerprint != command.fingerprint
         ):

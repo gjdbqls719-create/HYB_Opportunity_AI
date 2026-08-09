@@ -11,6 +11,9 @@ The request names the exact ordered allocation/FX manifests and explicit target
 currency; the production entry derives Opportunity identity from the exact Landed Cost
 composition. Same-currency normalization uses no FX fact, and unresolved/unknown or
 incomplete exact manifests remain rejected without fallback.
+CR-1B5D2I1 adds Critical Cost v2 as an exact validating consumer of the persisted
+normalization identity and component provenance; normalization arithmetic and
+persistence remain owned here.
 
 ## Context
 
@@ -112,8 +115,9 @@ provenance and exact source manifest. No latest/current projection exists.
 
 ## Boundaries and Consequences
 
-Critical Cost Completeness remains a source-completeness assessment and is not
-changed. Normalization independently validates its exact persisted inputs.
+Critical Cost Completeness remains a source-completeness assessment. Its v2
+contract consumes this exact normalization as authority without recalculating it.
+Normalization independently validates its exact persisted inputs.
 Existing generic currency services are not reused because they may fetch a
 provider value or apply unrelated rounding defaults.
 

@@ -12,6 +12,12 @@ from typing import Callable, Protocol
 from app.application.verified_economics_snapshot import VerifiedEconomicsSnapshot
 from app.domain.opportunity import EvidenceStatus, MoneyInput
 from app.domain.sourcing import (
+    ACQUISITION_COST_NORMALIZATION_POLICY_NAME,
+    ACQUISITION_COST_NORMALIZATION_POLICY_VERSION,
+    ACQUISITION_COST_NORMALIZATION_SCHEMA_VERSION,
+    CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION,
+    CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2,
+    AcquisitionCostNormalization,
     CommercialFactAvailability,
     CostAllocationBasis,
     CriticalCostCompleteness,
@@ -21,10 +27,14 @@ from app.domain.sourcing import (
     CriticalCostReasonCode,
     CriticalCostReasonSeverity,
     FounderSourcingAdmission,
+    FXConversionDirection,
+    FXObservation,
     LandedCostComposition,
     SourcingEconomicsBinding,
     SourcingEconomicsBindingReference,
     SourcingEconomicsSourceReference,
+    ShippingAllocationAuthority,
+    ShippingAllocationAuthorityStatus,
 )
 
 
@@ -45,6 +55,9 @@ class CriticalCostCompletenessReplayConflictError(CriticalCostCompletenessError)
 
 
 CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION = "critical-cost-completeness-command-v1"
+CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2 = (
+    "critical-cost-completeness-command-v2"
+)
 CRITICAL_COST_COMPLETENESS_RECEIPT_SCHEMA_VERSION = "critical-cost-completeness-receipt-v1"
 
 
@@ -71,6 +84,7 @@ class PersistCriticalCostCompletenessCommand:
     policy_version: str
     requested_at: datetime
     schema_version: str = CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION
+    acquisition_normalization_id: str | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -80,8 +94,23 @@ class PersistCriticalCostCompletenessCommand:
             object.__setattr__(self, name, _text(getattr(self, name), name))
         _aware(self.verified_economics_snapshot_at, "verified_economics_snapshot_at")
         _aware(self.requested_at, "requested_at")
-        if self.schema_version != CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION:
+        if self.schema_version not in {
+            CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION,
+            CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Critical Cost Completeness command version")
+        if self.schema_version == CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION:
+            if self.acquisition_normalization_id is not None:
+                raise ValueError("v1 command cannot name Acquisition Normalization")
+        else:
+            object.__setattr__(
+                self,
+                "acquisition_normalization_id",
+                _text(
+                    self.acquisition_normalization_id,  # type: ignore[arg-type]
+                    "acquisition_normalization_id",
+                ),
+            )
 
     @property
     def fingerprint(self) -> str:
@@ -98,6 +127,8 @@ class PersistCriticalCostCompletenessCommand:
             "requested_at": self.requested_at.astimezone(timezone.utc).isoformat(),
             "schema_version": self.schema_version,
         }
+        if self.schema_version == CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2:
+            payload["acquisition_normalization_id"] = self.acquisition_normalization_id
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
@@ -142,6 +173,9 @@ class CriticalCostCompletenessRepository(Protocol):
     def get_composition(self, composition_id: str) -> LandedCostComposition | None: ...
     def get_binding(self, reference: SourcingEconomicsBindingReference) -> SourcingEconomicsBinding | None: ...
     def get_source_admission(self, reference: SourcingEconomicsSourceReference) -> FounderSourcingAdmission | None: ...
+    def get_acquisition_normalization(self, normalization_id: str) -> AcquisitionCostNormalization | None: ...
+    def get_allocation_authority(self, authority_id: str) -> ShippingAllocationAuthority | None: ...
+    def get_fx_observation(self, observation_id: str) -> FXObservation | None: ...
 
 
 class CriticalCostCompletenessPersistenceRepository(
@@ -166,6 +200,15 @@ DOMESTIC_COMMERCE_CRITICAL_COST_POLICY = CriticalCostCompletenessPolicy(
     require_quote_valid_until=True,
 )
 
+DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2 = CriticalCostCompletenessPolicy(
+    name="domestic-commerce-critical-cost-completeness",
+    version="2.0.0",
+    expected_sale_evidence_statuses=("verified", "estimated"),
+    required_evidence_statuses=("verified",),
+    require_evidence_reference=True,
+    require_quote_valid_until=True,
+)
+
 
 class EvaluateCriticalCostCompleteness:
     def __init__(self, repository: CriticalCostCompletenessRepository,
@@ -181,7 +224,11 @@ class EvaluateCriticalCostCompleteness:
         self._policy = policy
         self._clock = evaluated_clock
 
-    def execute(self, composition_id: str) -> CriticalCostCompleteness:
+    def execute(
+        self,
+        composition_id: str,
+        acquisition_normalization_id: str | None = None,
+    ) -> CriticalCostCompleteness:
         if not isinstance(composition_id, str) or not composition_id.strip():
             raise ValueError("composition_id must be non-empty text")
         composition = self._repository.get_composition(composition_id.strip())
@@ -210,8 +257,19 @@ class EvaluateCriticalCostCompleteness:
             raise CriticalCostSourceNotFoundError("Verified Economics Snapshot is missing")
         if verified.opportunity_id != opportunity_id:
             raise CriticalCostSourceMismatchError("Verified Economics Opportunity differs")
+        normalization = self._normalization(
+            composition,
+            verified,
+            acquisition_normalization_id,
+        )
         evaluated_at = self._aware(self._clock(), "evaluated_at")
-        blockers = self._blocking_reasons(composition, admission, verified, evaluated_at)
+        blockers = self._blocking_reasons(
+            composition,
+            admission,
+            verified,
+            evaluated_at,
+            normalization,
+        )
         warnings = (
             self._warning(CriticalCostReasonCode.ADVERTISING_ALLOWANCE_DEFERRED, "advertising"),
             self._warning(CriticalCostReasonCode.RETURNS_ALLOWANCE_DEFERRED, "returns"),
@@ -230,7 +288,133 @@ class EvaluateCriticalCostCompleteness:
             state=CriticalCostCompletenessState.INCOMPLETE if blockers else CriticalCostCompletenessState.COMPLETE,
             blocking_reasons=tuple(blockers),
             warning_reasons=warnings,
+            acquisition_normalization_id=(
+                None if normalization is None else normalization.normalization_id
+            ),
+            allocation_authority_ids=(
+                () if normalization is None else normalization.allocation_authority_ids
+            ),
+            fx_observation_ids=(
+                () if normalization is None else normalization.fx_observation_ids
+            ),
+            schema_version=(
+                CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION
+                if normalization is None
+                else CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2
+            ),
         )
+
+    def _normalization(self, composition, verified, normalization_id):
+        is_v2 = self._policy == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2
+        if not is_v2:
+            if normalization_id is not None:
+                raise CriticalCostSourceMismatchError(
+                    "v1 Critical Cost policy cannot consume Acquisition Normalization"
+                )
+            return None
+        if normalization_id is None:
+            raise CriticalCostSourceNotFoundError(
+                "exact Acquisition Cost Normalization is missing"
+            )
+        normalization = self._repository.get_acquisition_normalization(
+            _text(normalization_id, "acquisition_normalization_id")
+        )
+        if normalization is None:
+            raise CriticalCostSourceNotFoundError(
+                "exact Acquisition Cost Normalization is missing"
+            )
+        if (
+            normalization.schema_version
+            != ACQUISITION_COST_NORMALIZATION_SCHEMA_VERSION
+            or normalization.policy_name
+            != ACQUISITION_COST_NORMALIZATION_POLICY_NAME
+            or normalization.policy_version
+            != ACQUISITION_COST_NORMALIZATION_POLICY_VERSION
+        ):
+            raise CriticalCostSourceMismatchError(
+                "Acquisition Normalization policy or schema is unsupported"
+            )
+        if (
+            normalization.opportunity_identity != composition.opportunity_identity
+            or normalization.composition_id != composition.composition_id
+        ):
+            raise CriticalCostSourceMismatchError(
+                "Acquisition Normalization differs from exact Opportunity or composition"
+            )
+        self._validate_normalization_sources(composition, normalization)
+        return normalization
+
+    def _validate_normalization_sources(self, composition, normalization) -> None:
+        for source, normalized in zip(
+            composition.components,
+            normalization.components,
+            strict=True,
+        ):
+            if (
+                source.kind is not normalized.kind
+                or source.availability is not normalized.original_availability
+                or source.amount != normalized.original_amount
+                or source.currency != normalized.original_currency
+                or source.allocation_basis is not normalized.original_allocation_basis
+                or normalized.target_currency != normalization.target_currency
+            ):
+                raise CriticalCostSourceMismatchError(
+                    "normalized component differs from exact Landed Cost source"
+                )
+            if normalized.allocation_authority_id is not None:
+                authority = self._repository.get_allocation_authority(
+                    normalized.allocation_authority_id
+                )
+                if authority is None:
+                    raise CriticalCostSourceNotFoundError(
+                        "exact Shipping Allocation Authority is missing"
+                    )
+                denominator = authority.denominator
+                if (
+                    authority.authority_id
+                    not in normalization.allocation_authority_ids
+                    or authority.composition_id != composition.composition_id
+                    or authority.opportunity_identity != composition.opportunity_identity
+                    or authority.component_kind is not source.kind
+                    or authority.original_allocation_basis
+                    is not source.allocation_basis
+                    or authority.allocation_basis
+                    is not normalized.effective_allocation_basis
+                    or authority.status is not ShippingAllocationAuthorityStatus.RESOLVED
+                    or authority.allocation_basis
+                    in {CostAllocationBasis.PER_WEIGHT, CostAllocationBasis.UNSPECIFIED}
+                    or (None if denominator is None else denominator.quantity)
+                    != normalized.denominator_quantity
+                    or (None if denominator is None else denominator.source)
+                    != normalized.denominator_source
+                ):
+                    raise CriticalCostSourceMismatchError(
+                        "Shipping Allocation Authority differs from normalization manifest"
+                    )
+            if normalized.fx_observation_id is not None:
+                observation = self._repository.get_fx_observation(
+                    normalized.fx_observation_id
+                )
+                if observation is None:
+                    raise CriticalCostSourceNotFoundError(
+                        "exact FX Observation is missing"
+                    )
+                pair = (
+                    (observation.base_currency, observation.quote_currency)
+                    if normalized.fx_direction is FXConversionDirection.DIRECT
+                    else (observation.quote_currency, observation.base_currency)
+                    if normalized.fx_direction is FXConversionDirection.INVERSE
+                    else None
+                )
+                if (
+                    normalized.fx_observation_id
+                    not in normalization.fx_observation_ids
+                    or pair
+                    != (normalized.original_currency, normalization.target_currency)
+                ):
+                    raise CriticalCostSourceMismatchError(
+                        "FX Observation differs from normalization manifest"
+                    )
 
     @staticmethod
     def _aware(value: datetime, name: str) -> datetime:
@@ -263,12 +447,24 @@ class EvaluateCriticalCostCompleteness:
         if composition.quoted_quantity != quote.quoted_quantity:
             raise CriticalCostSourceMismatchError("composition quoted quantity differs from exact quote")
 
-    def _blocking_reasons(self, composition, admission, verified, evaluated_at):
+    def _blocking_reasons(
+        self,
+        composition,
+        admission,
+        verified,
+        evaluated_at,
+        normalization=None,
+    ):
         reasons: list[CriticalCostCompletenessReason] = []
         purchase = composition.components[0]
         if purchase.availability is not CommercialFactAvailability.KNOWN:
             reasons.append(self._blocking(CriticalCostReasonCode.PURCHASE_COST_UNKNOWN, purchase.kind.value))
 
+        normalized_by_kind = (
+            {}
+            if normalization is None
+            else {value.kind: value for value in normalization.components}
+        )
         for component in composition.components[1:]:
             if component.availability is CommercialFactAvailability.UNKNOWN:
                 reasons.append(self._blocking(CriticalCostReasonCode.SHIPPING_SCOPE_UNKNOWN, component.kind.value))
@@ -277,6 +473,10 @@ class EvaluateCriticalCostCompleteness:
                 continue
             if component.amount == Decimal("0") or component.allocation_basis is CostAllocationBasis.PER_UNIT:
                 continue
+            if normalization is not None:
+                normalized = normalized_by_kind[component.kind]
+                if normalized.allocation_authority_id is not None:
+                    continue
             if component.allocation_basis is CostAllocationBasis.PER_QUOTED_QUANTITY:
                 quantity = composition.quoted_quantity
                 if quantity.availability is not CommercialFactAvailability.KNOWN or quantity.quantity is None:
@@ -315,9 +515,15 @@ class EvaluateCriticalCostCompleteness:
                 reasons.append(self._blocking(CriticalCostReasonCode.EVIDENCE_REFERENCE_MISSING, category))
 
         currencies = list(composition.known_currencies)
-        if inputs.currency not in currencies:
+        if normalization is None and inputs.currency not in currencies:
             currencies.append(inputs.currency)
-        if len(currencies) > 1:
+        if (
+            (normalization is None and len(currencies) > 1)
+            or (
+                normalization is not None
+                and normalization.target_currency != inputs.currency
+            )
+        ):
             reasons.append(self._blocking(CriticalCostReasonCode.CROSS_CURRENCY_FX_MISSING, "fx"))
 
         valid_until = admission.quote_revision.valid_until
@@ -360,12 +566,24 @@ class PersistCriticalCostCompleteness:
         replay = self._repository.validate_replay(command.command_id, command.fingerprint)
         if replay is not None:
             return replace(replay, replayed=True)
+        expected_command_schema = (
+            CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2
+            if self._policy == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2
+            else CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION
+        )
+        if command.schema_version != expected_command_schema:
+            raise CriticalCostSourceMismatchError(
+                "Critical Cost command version differs from policy version"
+            )
         assessment = EvaluateCriticalCostCompleteness(
             self._repository,
             self._repository,
             policy=self._policy,
             evaluated_clock=self._evaluated,
-        ).execute(command.composition_id)
+        ).execute(
+            command.composition_id,
+            command.acquisition_normalization_id,
+        )
         if (
             assessment.composition_id != command.composition_id
             or assessment.verified_economics_opportunity_id
@@ -376,6 +594,8 @@ class PersistCriticalCostCompleteness:
             != command.verified_economics_schema_version
             or assessment.policy_name != command.policy_name
             or assessment.policy_version != command.policy_version
+            or assessment.acquisition_normalization_id
+            != command.acquisition_normalization_id
         ):
             raise CriticalCostSourceMismatchError(
                 "evaluated assessment differs from commanded exact sources or policy"
@@ -394,4 +614,5 @@ __all__ = [
     name for name in globals()
     if name.startswith("CriticalCost") or name.startswith("Evaluate")
     or name.startswith("Persist") or name.startswith("DOMESTIC")
+    or name.startswith("CRITICAL_COST")
 ]

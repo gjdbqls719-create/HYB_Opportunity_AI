@@ -21,6 +21,7 @@ from app.application.domestic_market_validation import ValidateDomesticMarketFor
 from app.application.economics_source_composition import ComposeEconomicsSources
 from app.application.sourcing import (
     DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
     ComposeLandedCost,
     NormalizeAcquisitionCosts,
     EvaluateCriticalCostCompleteness,
@@ -241,13 +242,16 @@ def ready_sources(*, expected_sale_price="100", other_cost="0", quote_valid_unti
         "get_binding": lambda self, reference: binding if reference == binding.reference else None,
         "get_source_admission": lambda self, reference: admission if reference == binding.source_reference else None,
         "get_verified_economics_snapshot": lambda self, value: verified if value == opportunity.opportunity_id else None,
+        "get_acquisition_normalization": lambda self, value: normalization if value == normalization.normalization_id else None,
+        "get_allocation_authority": lambda self, value: None,
+        "get_fx_observation": lambda self, value: None,
     })()
     critical = EvaluateCriticalCostCompleteness(
         critical_repository,
         critical_repository,
-        policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+        policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
         evaluated_clock=lambda: NOW,
-    ).execute(landed.composition_id)
+    ).execute(landed.composition_id, normalization.normalization_id)
     market = validate_market(MarketRepository(market_identity))[0].assessment
     market = replace(
         market,
@@ -309,6 +313,7 @@ def test_exact_safe_source_set_is_ready_for_capital_review() -> None:
     publication, *_ = evaluate()
     assessment = publication.assessment
     assert assessment.state is CapitalReadinessState.READY_FOR_CAPITAL_REVIEW
+    assert assessment.schema_version == "capital-readiness-v2"
     assert assessment.blocking_reasons == ()
     assert assessment.source_manifest.conservative_economics_result_id == "conservative-result-1"
     assert assessment.source_manifest.domestic_market_validation_assessment_id == "market-validation-1"
@@ -376,6 +381,43 @@ def test_opportunity_and_sourcing_lineage_mismatches_block() -> None:
     assert CapitalReadinessReasonCode.SOURCING_LINEAGE_MISMATCH in reason_codes(publication)
 
 
+def test_critical_cost_must_name_the_same_exact_normalization_as_economics() -> None:
+    repository, opportunity = ready_sources()
+    repository.critical = replace(
+        repository.critical,
+        acquisition_normalization_id="different-normalization",
+    )
+
+    publication = evaluate(repository, opportunity)[0]
+
+    assert publication.assessment.state is CapitalReadinessState.BLOCKED
+    assert CapitalReadinessReasonCode.SOURCING_LINEAGE_MISMATCH in reason_codes(
+        publication
+    )
+
+
+def test_fresh_readiness_blocks_legacy_critical_cost_without_normalization_provenance() -> None:
+    repository, opportunity = ready_sources()
+    repository.critical = replace(
+        repository.critical,
+        acquisition_normalization_id=None,
+        allocation_authority_ids=(),
+        fx_observation_ids=(),
+        policy_version=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.version,
+        schema_version="critical-cost-completeness-v1",
+    )
+
+    publication = evaluate(repository, opportunity)[0]
+
+    assert publication.assessment.state is CapitalReadinessState.BLOCKED
+    assert CapitalReadinessReasonCode.SOURCING_LINEAGE_MISMATCH in reason_codes(
+        publication
+    )
+    assert CapitalReadinessReasonCode.SOURCE_POLICY_UNSUPPORTED in reason_codes(
+        publication
+    )
+
+
 def test_verified_product_match_is_required_without_using_proposal_score() -> None:
     repository, opportunity = ready_sources()
     match = object.__new__(type(repository.admission.match_verification))
@@ -427,6 +469,40 @@ def test_replay_precedes_source_reads_identity_clocks_and_quote_recheck() -> Non
     assert replay.replayed is True
     assert replay.assessment == publication.assessment
     assert (repository.source_reads, identity.count, evaluated.count, committed.count) == calls
+
+
+def test_historical_legacy_readiness_replay_remains_unchanged() -> None:
+    publication, repository, opportunity, *_ = evaluate()
+    legacy_command = command(repository, opportunity)
+    legacy = CapitalReadinessPublication(
+        assessment=replace(
+            publication.assessment,
+            schema_version="capital-readiness-v1",
+        ),
+        receipt=replace(
+            publication.receipt,
+            command_fingerprint=legacy_command.fingerprint,
+        ),
+        replayed=False,
+    )
+    repository.saved = legacy
+
+    replay = EvaluateCapitalReadiness(
+        repository,
+        assessment_id_generator=lambda: (_ for _ in ()).throw(
+            AssertionError("identity called during legacy replay")
+        ),
+        evaluated_clock=lambda: (_ for _ in ()).throw(
+            AssertionError("clock called during legacy replay")
+        ),
+        committed_clock=lambda: (_ for _ in ()).throw(
+            AssertionError("commit clock called during legacy replay")
+        ),
+    ).execute(legacy_command)
+
+    assert replay.replayed is True
+    assert replay.assessment == legacy.assessment
+    assert replay.receipt == legacy.receipt
 
 
 def test_new_command_after_quote_expiry_is_blocked_and_changed_source_conflicts() -> None:

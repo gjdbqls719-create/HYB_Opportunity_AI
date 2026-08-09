@@ -1,12 +1,29 @@
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 import sqlite3
 
 from fastapi.testclient import TestClient
 import pytest
 
 import app.web as web_module
-from app.infrastructure.sourcing import SQLiteFXObservationRepository
+from app.application.sourcing import (
+    CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
+    CriticalCostCompletenessReplayConflictError,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+    EvaluateCriticalCostCompleteness,
+    PersistCriticalCostCompleteness,
+    PersistCriticalCostCompletenessCommand,
+)
+from app.domain.sourcing import CriticalCostCompletenessState, CriticalCostReasonCode
+from app.infrastructure.sourcing import (
+    MalformedCriticalCostCompletenessPersistenceError,
+    SQLiteCriticalCostCompletenessRepository,
+    SQLiteFXObservationRepository,
+)
 from app.web import app
 from test_domestic_selling_opportunity_api import (
     domestic_payload,
@@ -32,6 +49,9 @@ def economics_chain_client(tmp_path, monkeypatch):
         opportunity_id = domestic_body["domestic_opportunity_identity"]["opportunity_id"]
 
         sourcing_request = domestic_sourcing_payload(domestic_body["admission_id"])
+        sourcing_request["quote_valid_until"] = (
+            datetime.now(timezone.utc) + timedelta(days=30)
+        ).replace(microsecond=0).isoformat()
         sourcing_request["shipping_terms"] = [
             {
                 "scope": "supplier_side",
@@ -282,6 +302,161 @@ def test_api_only_o2_sourcing_to_conservative_economics_happy_path(
             "WHERE opportunity_id=?",
             (opportunity_id,),
         ).fetchone()[0] == 0
+
+
+def test_supported_o2_normalized_path_exposes_legacy_critical_cost_gap(
+    economics_chain_client,
+):
+    client, database, opportunity_id, sourcing, verified = economics_chain_client
+    results = _execute_chain(
+        client,
+        opportunity_id,
+        _chain_payloads(opportunity_id, sourcing, verified),
+    )
+    repository = SQLiteCriticalCostCompletenessRepository(database)
+    try:
+        assessment = EvaluateCriticalCostCompleteness(
+            repository,
+            repository,
+            policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+            evaluated_clock=lambda: datetime.now(timezone.utc),
+        ).execute(results["landed"].json()["composition_id"])
+    finally:
+        repository.close()
+
+    assert tuple(reason.code for reason in assessment.blocking_reasons) == (
+        CriticalCostReasonCode.SHIPPING_ALLOCATION_UNKNOWN,
+        CriticalCostReasonCode.SHIPPING_ALLOCATION_UNKNOWN,
+        CriticalCostReasonCode.CROSS_CURRENCY_FX_MISSING,
+    )
+    assert results["normalization"].json()["target_currency"] == "KRW"
+    assert results["conservative"].json()["status"] == "calculable"
+
+
+def test_supported_o2_normalized_path_persists_complete_v2_and_replays_after_restart(
+    economics_chain_client,
+):
+    client, database, opportunity_id, sourcing, verified = economics_chain_client
+    results = _execute_chain(
+        client,
+        opportunity_id,
+        _chain_payloads(opportunity_id, sourcing, verified),
+    )
+    requested_at = datetime.now(timezone.utc).replace(microsecond=0)
+    command = PersistCriticalCostCompletenessCommand(
+        command_id="critical-cost-v2-command-1",
+        composition_id=results["landed"].json()["composition_id"],
+        verified_economics_opportunity_id=opportunity_id,
+        verified_economics_snapshot_at=datetime.fromisoformat(verified["snapshot_at"]),
+        verified_economics_schema_version=verified["schema_version"],
+        policy_name=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.name,
+        policy_version=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.version,
+        requested_at=requested_at,
+        acquisition_normalization_id=results["normalization"].json()["normalization_id"],
+        schema_version=CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
+    )
+
+    repository = SQLiteCriticalCostCompletenessRepository(database)
+    try:
+        first = PersistCriticalCostCompleteness(
+            repository,
+            assessment_id_generator=lambda: "critical-cost-v2-assessment-1",
+            evaluated_clock=lambda: requested_at,
+            committed_clock=lambda: requested_at + timedelta(seconds=1),
+            policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+        ).execute(command)
+    finally:
+        repository.close()
+
+    assert first.assessment.state is CriticalCostCompletenessState.COMPLETE
+    assert first.assessment.opportunity_identity.opportunity_id == opportunity_id
+    assert (
+        first.assessment.acquisition_normalization_id
+        == results["normalization"].json()["normalization_id"]
+    )
+    assert first.assessment.allocation_authority_ids == (
+        results["supplier"].json()["authority_id"],
+        results["freight"].json()["authority_id"],
+    )
+    assert first.assessment.fx_observation_ids == (
+        results["fx"].json()["observation_id"],
+    )
+
+    restarted = SQLiteCriticalCostCompletenessRepository(database)
+    try:
+        replay = PersistCriticalCostCompleteness(
+            restarted,
+            assessment_id_generator=lambda: (_ for _ in ()).throw(
+                AssertionError("identity called during replay")
+            ),
+            evaluated_clock=lambda: (_ for _ in ()).throw(
+                AssertionError("evaluation clock called during replay")
+            ),
+            committed_clock=lambda: (_ for _ in ()).throw(
+                AssertionError("commit clock called during replay")
+            ),
+            policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+        ).execute(command)
+        counts = tuple(
+            restarted._connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            for table in (
+                "critical_cost_completeness_history",
+                "critical_cost_completeness_receipts",
+            )
+        )
+        with pytest.raises(CriticalCostCompletenessReplayConflictError):
+            PersistCriticalCostCompleteness(
+                restarted,
+                assessment_id_generator=lambda: "never",
+                evaluated_clock=lambda: requested_at,
+                committed_clock=lambda: requested_at,
+                policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+            ).execute(
+                replace(
+                    command,
+                    acquisition_normalization_id="changed-normalization",
+                )
+            )
+    finally:
+        restarted.close()
+
+    assert replay.replayed is True
+    assert replay.assessment == first.assessment
+    assert replay.receipt == first.receipt
+    assert counts == (1, 1)
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "DROP TRIGGER trg_critical_cost_completeness_history_no_update"
+        )
+        encoded = connection.execute(
+            "SELECT payload_json FROM critical_cost_completeness_history "
+            "WHERE assessment_id=?",
+            (first.receipt.assessment_id,),
+        ).fetchone()[0]
+        payload = json.loads(encoded)
+        payload["normalization_source"]["normalization_id"] = "corrupted"
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        connection.execute(
+            "UPDATE critical_cost_completeness_history "
+            "SET payload_json=?,integrity_fingerprint=? WHERE assessment_id=?",
+            (
+                encoded,
+                hashlib.sha256(encoded.encode()).hexdigest(),
+                first.receipt.assessment_id,
+            ),
+        )
+    corrupted = SQLiteCriticalCostCompletenessRepository(database)
+    try:
+        with pytest.raises(MalformedCriticalCostCompletenessPersistenceError):
+            corrupted.get_assessment(first.receipt.assessment_id)
+    finally:
+        corrupted.close()
 
 
 def test_complete_chain_exact_replay_restart_and_changed_payload_conflicts(

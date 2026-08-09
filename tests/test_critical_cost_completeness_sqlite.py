@@ -16,6 +16,8 @@ from app.application.sourcing import (
     ComposeLandedCostCommand,
     CriticalCostCompletenessReplayConflictError,
     DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+    CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
     PersistCriticalCostCompleteness,
     PersistCriticalCostCompletenessCommand,
 )
@@ -148,22 +150,36 @@ def seed(path, *, incomplete=False):
     return composition, verified
 
 
-def persistence_command(composition, verified, **changes):
+def persistence_command(composition, verified, *, normalization=None, policy=None, **changes):
+    policy = policy or DOMESTIC_COMMERCE_CRITICAL_COST_POLICY
     values = dict(
         command_id="critical-cost-command-1",
         composition_id=composition.composition_id,
         verified_economics_opportunity_id=verified.opportunity_id,
         verified_economics_snapshot_at=verified.snapshot_at,
         verified_economics_schema_version=verified.schema_version,
-        policy_name=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.name,
-        policy_version=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY.version,
+        policy_name=policy.name,
+        policy_version=policy.version,
         requested_at=NOW,
     )
+    if normalization is not None:
+        values.update(
+            acquisition_normalization_id=normalization.normalization_id,
+            schema_version=CRITICAL_COST_COMPLETENESS_COMMAND_SCHEMA_VERSION_V2,
+        )
     values.update(changes)
     return PersistCriticalCostCompletenessCommand(**values)
 
 
-def owner(repository, *, fail=False, identity=None, evaluated_at=None, committed_at=None):
+def owner(
+    repository,
+    *,
+    fail=False,
+    identity=None,
+    evaluated_at=None,
+    committed_at=None,
+    policy=None,
+):
     identity = identity or Counter("critical-cost-assessment-1", fail=fail)
     evaluated = Counter(evaluated_at or NOW + timedelta(minutes=5), fail=fail)
     committed = Counter(committed_at or NOW + timedelta(minutes=6), fail=fail)
@@ -172,7 +188,7 @@ def owner(repository, *, fail=False, identity=None, evaluated_at=None, committed
         assessment_id_generator=identity,
         evaluated_clock=evaluated,
         committed_clock=committed,
-        policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+        policy=policy or DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
     )
     return value, identity, evaluated, committed
 

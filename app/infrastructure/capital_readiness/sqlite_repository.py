@@ -16,6 +16,7 @@ from app.application.capital_readiness import (
     EvaluateCapitalReadinessCommand,
 )
 from app.domain.capital import (
+    CAPITAL_READINESS_SCHEMA_VERSION_V2,
     CAPITAL_READINESS_SCHEMA_VERSION,
     CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION,
     CapitalReadinessAssessment,
@@ -264,13 +265,19 @@ class SQLiteCapitalReadinessRepository:
 
     def _load_assessment(self, row) -> CapitalReadinessAssessment:
         try:
-            if row["schema_version"] != CAPITAL_READINESS_SCHEMA_VERSION:
+            if row["schema_version"] not in {
+                CAPITAL_READINESS_SCHEMA_VERSION,
+                CAPITAL_READINESS_SCHEMA_VERSION_V2,
+            }:
                 raise UnsupportedCapitalReadinessVersionError("unsupported assessment version")
             encoded = row["payload_json"]
             if not isinstance(encoded, str) or _integrity(encoded) != row["integrity_fingerprint"]:
                 raise ValueError("assessment integrity fingerprint mismatch")
             data = _exact(json.loads(encoded), _PAYLOAD_KEYS, "Capital Readiness payload")
-            if data["schema_version"] != CAPITAL_READINESS_SCHEMA_VERSION:
+            if data["schema_version"] not in {
+                CAPITAL_READINESS_SCHEMA_VERSION,
+                CAPITAL_READINESS_SCHEMA_VERSION_V2,
+            }:
                 raise UnsupportedCapitalReadinessVersionError("unsupported payload version")
             reasons = data["blocking_reasons"]
             if not isinstance(reasons, list):
@@ -345,6 +352,11 @@ class SQLiteCapitalReadinessRepository:
             conservative.opportunity_identity != manifest.opportunity_identity
             or conservative.source_composition_id != source.composition_id
             or source.acquisition_normalization_id != normalization.normalization_id
+            or (
+                assessment.schema_version == CAPITAL_READINESS_SCHEMA_VERSION_V2
+                and critical.acquisition_normalization_id
+                != normalization.normalization_id
+            )
             or normalization.composition_id != manifest.landed_cost_composition_id
             or critical.composition_id != manifest.landed_cost_composition_id
             or critical.opportunity_identity != manifest.opportunity_identity

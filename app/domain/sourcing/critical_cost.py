@@ -12,6 +12,7 @@ from app.domain.sourcing.models import SourcingEconomicsSourceReference
 
 
 CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION = "critical-cost-completeness-v1"
+CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2 = "critical-cost-completeness-v2"
 
 
 class CriticalCostCompletenessState(StrEnum):
@@ -115,6 +116,9 @@ class CriticalCostCompleteness:
     blocking_reasons: tuple[CriticalCostCompletenessReason, ...]
     warning_reasons: tuple[CriticalCostCompletenessReason, ...]
     schema_version: str = CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION
+    acquisition_normalization_id: str | None = None
+    allocation_authority_ids: tuple[str, ...] = ()
+    fx_observation_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.opportunity_identity, OpportunityIdentity):
@@ -141,8 +145,35 @@ class CriticalCostCompleteness:
         expected = CriticalCostCompletenessState.COMPLETE if not self.blocking_reasons else CriticalCostCompletenessState.INCOMPLETE
         if state is not expected:
             raise ValueError("state must match blocking reasons")
-        if self.schema_version != CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION:
+        if self.schema_version not in {
+            CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION,
+            CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Critical Cost Completeness version")
+        for name in ("allocation_authority_ids", "fx_observation_ids"):
+            values = getattr(self, name)
+            if not isinstance(values, tuple):
+                raise TypeError(f"{name} must be tuple")
+            normalized = tuple(_text(value, name) for value in values)
+            if len(set(normalized)) != len(normalized):
+                raise ValueError(f"{name} must not contain duplicates")
+            object.__setattr__(self, name, normalized)
+        if self.schema_version == CRITICAL_COST_COMPLETENESS_SCHEMA_VERSION:
+            if (
+                self.acquisition_normalization_id is not None
+                or self.allocation_authority_ids
+                or self.fx_observation_ids
+            ):
+                raise ValueError("v1 assessment cannot carry normalization provenance")
+        else:
+            object.__setattr__(
+                self,
+                "acquisition_normalization_id",
+                _text(
+                    self.acquisition_normalization_id,  # type: ignore[arg-type]
+                    "acquisition_normalization_id",
+                ),
+            )
         object.__setattr__(self, "state", state)
 
     @property

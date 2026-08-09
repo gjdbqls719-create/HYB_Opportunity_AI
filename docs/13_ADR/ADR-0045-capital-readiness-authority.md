@@ -9,6 +9,9 @@ Accepted
 Implemented in CR-1B5A at the Domain/Application and append-only SQLite
 persistence boundary. Production entry, API/UI, Capital Gate policy, required-
 capital calculation, and Founder capital approval remain separate and deferred.
+CR-1B5D2I1 adds an assessment schema v2 for fresh evaluations that requires the
+Critical Cost v2 normalization ID to equal the Economics Source Composition's
+exact normalization ID. Historical schema v1 replay remains unchanged.
 
 ## Context
 
@@ -85,6 +88,13 @@ Capital Readiness requires one exact `COMPLETE` Critical Cost assessment and
 validates that its Landed Cost, Sourcing Binding/Admission, Quote, Verified
 Economics, and Opportunity lineage are the same chain consumed by Conservative
 Economics. It never reruns Critical Cost policy or converts UNKNOWN to zero.
+
+Fresh schema-v2 readiness additionally requires exact identity equality between
+the Acquisition Cost Normalization reconstructed through Conservative Economics
+and the normalization named by Critical Cost v2. Opportunity or Landed Cost
+equality alone is insufficient. Legacy schema-v1 readiness is historical meaning
+and is not rewritten; a fresh evaluation with a legacy Critical Cost assessment
+is blocked by source-policy and lineage checks.
 
 ## Quote Validity and Historical Time
 

@@ -24,7 +24,7 @@ from app.application.sourcing import (
     BindSourcingEconomicsSourceCommand,
     ComposeLandedCost,
     ComposeLandedCostCommand,
-    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY,
+    DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
     NormalizeAcquisitionCosts,
     PersistCriticalCostCompleteness,
 )
@@ -188,8 +188,16 @@ def seed(path: Path):
             committed_clock=lambda: NOW,
         ).execute(conservative_command(source)).result
     with SQLiteCriticalCostCompletenessRepository(path) as repository:
-        critical = critical_owner(repository)[0].execute(
-            persistence_command(landed, verified)
+        critical = critical_owner(
+            repository,
+            policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+        )[0].execute(
+            persistence_command(
+                landed,
+                verified,
+                normalization=normalization,
+                policy=DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2,
+            )
         )
 
     observations = SQLiteMarketObservationRepository(path)
@@ -422,7 +430,7 @@ def test_malformed_persistence_is_rejected(tmp_path: Path, case: str) -> None:
         payload["state"] = "blocked"
         payload["blocking_reasons"] = ["quote_expired", "conservative_economics_blocked"]
     elif case == "unsupported_policy":
-        payload["policy_version"] = "2.0.0"
+        payload["policy_version"] = "3.0.0"
     elif case == "unsupported_schema":
         payload["schema_version"] = "future"
     elif case == "missing_source_id":

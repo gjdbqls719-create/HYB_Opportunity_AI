@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B5D2I1 - Critical Cost Exact Normalization Authority Reconciliation
+
+- Add Critical Cost policy/schema/command v2 over one exact persisted Acquisition Cost Normalization while preserving historical v1 reconstruction and replay unchanged.
+- Validate exact Landed Cost, resolved Shipping Allocation Authority and FX Observation provenance without repeating normalization arithmetic; preserve exact normalization/allocation/FX IDs and allow the supported O2 CNY-to-KRW path to become COMPLETE.
+- Add fresh Capital Readiness assessment schema v2 with exact Critical Cost/Economics normalization-ID equality while retaining policy 1.0.0, historical schema-v1 replay, Gate compatibility, and no API/UI or Capital decision expansion.
+
 ## CR-1B5D2H - O2 Acquisition and Economics Production Chain Wiring
 
 - Expose the existing exact Sourcing Economics Binding, Landed Cost, Shipping Allocation, FX Observation, Acquisition Cost Normalization, and Economics Source Composition owners through request-scoped production APIs.

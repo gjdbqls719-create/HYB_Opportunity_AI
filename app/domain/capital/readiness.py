@@ -10,6 +10,7 @@ from app.domain.decision_engine import OpportunityIdentity
 
 
 CAPITAL_READINESS_SCHEMA_VERSION = "capital-readiness-v1"
+CAPITAL_READINESS_SCHEMA_VERSION_V2 = "capital-readiness-v2"
 CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION = "capital-readiness-source-manifest-v1"
 CAPITAL_READINESS_POLICY_NAME = "domestic-commerce-capital-readiness"
 CAPITAL_READINESS_POLICY_VERSION = "1.0.0"
@@ -153,7 +154,10 @@ class CapitalReadinessAssessment:
             raise ValueError("unsupported Capital Readiness policy")
         object.__setattr__(self, "requested_at", _aware(self.requested_at, "requested_at"))
         object.__setattr__(self, "evaluated_at", _aware(self.evaluated_at, "evaluated_at"))
-        if self.schema_version != CAPITAL_READINESS_SCHEMA_VERSION:
+        if self.schema_version not in {
+            CAPITAL_READINESS_SCHEMA_VERSION,
+            CAPITAL_READINESS_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Capital Readiness schema")
 
     @property
