@@ -519,3 +519,24 @@ action; it does not perform checkout/payment, prove supplier fulfillment,
 mutate Actual Economics, or create inventory. Actual shipping, duty/customs,
 FX settlement, realized marketplace facts, and physical goods receipt remain
 separate future authorities.
+
+ADR-0051 accepts the decision contract for a future
+`ActualAcquisitionSettlement` immediately after an exact
+`PurchaseExecutionRecord`; no production implementation exists yet. The future
+owner will preserve actual batch totals for unit purchase, supplier-side
+shipping, international freight, domestic inbound, duty/customs, and scoped
+other mandatory acquisition costs, plus exact actual FX settlement provenance.
+Append-only predecessor-bound revisions may record `BLOCKED` incompleteness,
+while only a category-complete, evidence-backed `COMPLETE` revision is terminal
+and usable downstream. Planned values, planned FX, and the execution committed
+amount are never actual-settlement fallbacks.
+
+The decided and future closed-loop sequence is:
+
+`PurchaseExecutionRecord` (implemented) -> `ActualAcquisitionSettlement`
+(decision only) -> Goods Receipt (future) and Actual Sale Settlement (future)
+-> Actual Outcome / Variance v2 (future).
+
+Actual Acquisition Settlement proves neither physical receipt nor sale. It does
+not mutate inventory or legacy Actual Economics, and all future consumers must
+name one exact COMPLETE settlement rather than select latest state.
