@@ -105,7 +105,8 @@ introduced, and idempotent execution identity before any external side effect.
 ## Deferred Work
 
 1. Production entry and API/UI for explicit Founder Capital Approval.
-2. Purchase/real-money execution authority and pre-execution safety contract.
+2. Implementation of ADR-0048 Real-Money Execution Intent and pre-execution
+   safety contract.
 3. Append-only revocation only if operational evidence requires it.
 4. Authentication/identity assurance beyond the current caller-supplied factual
    Founder reference.
