@@ -349,3 +349,17 @@ normalized per-unit acquisition cost by exact intended quantity. Dedicated
 append-only SQLite history/receipt tables preserve sources, verification,
 policy, result, replay, restart, and transaction integrity. Deployable Capital,
 profitability, sufficiency, Gate, approval, API, and UI remain separate.
+
+CR-1B5B implements ADR-0046 Capital Gate as a distinct policy boundary over one
+exact persisted Capital Readiness assessment, Planned Acquisition Capital
+Requirement, and Founder-declared Deployable Capital snapshot. The Gate fixes
+the exact Conservative Economics and Sourcing lineage through those sources,
+then emits only `PASS`, `REJECTED`, or `BLOCKED`. Incomplete, inconsistent,
+unsupported, or cross-currency facts block; complete facts are rejected only
+for non-positive conservative profit/margin/acquisition ROI, insufficient
+deployable capital, or intended quantity below a known MOQ. No reserve is
+subtracted, no threshold beyond strict positivity is invented, and unknown MOQ
+is never substituted. Dedicated append-only SQLite history and receipts preserve
+policy, evaluated facts, exact sources, replay, restart, and transaction safety.
+`PASS` authorizes only a future Founder Capital Approval review; it cannot spend
+capital and creates no position, concentration, API, or UI semantics.

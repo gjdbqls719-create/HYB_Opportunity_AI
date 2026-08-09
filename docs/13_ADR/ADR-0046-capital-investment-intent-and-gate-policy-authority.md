@@ -11,8 +11,10 @@ CR-1B5B0A as immutable Domain/Application facts with dedicated opaque identities
 replay-first owners, and append-only SQLite history/receipt persistence.
 CR-1B5B0B implements the exact-source-bound upfront-cost scope verification and
 Planned Acquisition Capital Requirement with deterministic Decimal arithmetic,
-CALCULABLE/BLOCKED semantics, and append-only SQLite replay persistence. Capital
-Gate, Capital-bound Founder Approval, and production API/UI remain unimplemented.
+CALCULABLE/BLOCKED semantics, and append-only SQLite replay persistence.
+CR-1B5B implements the exact-source Capital Gate with PASS/REJECTED/BLOCKED
+semantics and append-only SQLite replay persistence. Capital-bound Founder
+Approval and production API/UI remain unimplemented.
 
 ## Context
 
@@ -216,9 +218,8 @@ results are never recomputed against latest sources or a newer policy.
 
 ## Deferred Work
 
-1. CR-1B5B: Capital Gate Domain/Application policy, persistence, and replay.
-2. Capital-bound Founder Approval and the one-active-deployment operating
+1. Capital-bound Founder Approval and the one-active-deployment operating
    workflow.
-3. Production entries and any API/UI exposure.
-4. Future reserve automation, Active Position, portfolio exposure, and
+2. Production entries and any API/UI exposure.
+3. Future reserve automation, Active Position, portfolio exposure, and
    concentration policy if Real-Money evidence justifies them.

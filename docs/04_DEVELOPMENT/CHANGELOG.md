@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B5B - Capital Gate Authority
+
+- Add the immutable ADR-0046 Capital Gate over one exact persisted Capital Readiness assessment, Planned Acquisition Capital Requirement, and Founder-declared Deployable Capital snapshot.
+- Preserve exact Conservative Economics and Sourcing lineage while separating `BLOCKED` source safety from `REJECTED` complete-fact policy outcomes and `PASS` eligibility for future Founder approval.
+- Apply only the explicit v1 strict-positive economics, same-currency capital sufficiency, and known-MOQ constraints; add no hidden ROI/margin/profit threshold, reserve subtraction, FX, position, or concentration policy.
+- Persist exact sources, evaluated facts, policy, ordered reasons, result, and receipt atomically in dedicated append-only SQLite tables with replay-first issuance, restart reconstruction, rollback, concurrency convergence, corruption detection, and read-only integrity checks.
+- Add no Founder Capital Approval, spending authorization, order execution, API/UI, bank integration, or change to existing Capital Readiness, Sourcing, Economics, and Requirement contracts.
+
 ## CR-1B5B0B - Planned Acquisition Capital Requirement
 
 - Add the immutable ADR-0046 Planned Acquisition Capital Requirement over one exact Intended Order Quantity, one exact Acquisition Cost Normalization, and an embedded exact upfront-cost scope verification.
