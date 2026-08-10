@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B6E2 - Conservative vs Actual Variance v2 and Production API
+
+- Implement ADR-0056 as immutable `conservative-actual-variance / 2.0.0` results over one explicit persisted Conservative Economics result and one explicit persisted Actual Outcome, with exact O2/product/economics/capital lineage and no latest lookup or source recalculation.
+- Preserve ordered core/component comparisons, actual-only contributors, predicted-only context, inventory exposure, scenario/sale scope, explicit comparability/favorability, sold-scope profit totals, zero-sale unavailability, and pre-purchase calibration eligibility under Decimal precision 34/ROUND_HALF_EVEN.
+- Add append-only SQLite history and replay/alias receipts, integrity-checked frozen source snapshots, restart/rollback/concurrency/malformed-read safety, and `POST /api/v1/opportunities/{opportunity_id}/economics-variances` with strict source-only input, Decimal-string output, and bounded 404/409/422/503 errors.
+- Keep Conservative Economics, Actual Outcome, Acquisition/Sale Settlement, Owned Inventory, legacy Actual Economics, and legacy Economics Variance immutable and unchanged; no calibration, training, automatic policy update, UI, or marketplace network behavior is introduced.
+
 ## CR-1B6D2 - Actual Outcome Authority and Production API
 
 - Implement ADR-0055 as immutable persisted `CALCULABLE`/`BLOCKED` Actual Outcomes for one exact O2/product/Purchase Execution, one exact acquisition settlement, all eligible exact-purchase receipts, and an explicit ordered cumulative sale prefix.

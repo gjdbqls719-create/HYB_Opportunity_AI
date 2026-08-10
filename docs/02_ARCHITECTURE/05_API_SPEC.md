@@ -661,4 +661,42 @@ state.
 
 This route does not mutate Acquisition/Sale Settlement, Goods Receipt, Owned
 Inventory, Conservative Economics, legacy Actual Economics, or legacy
-Variance. Variance v2 is not part of this contract.
+Variance. Variance v2 consumes this exact immutable result through its own
+separate contract.
+
+## Conservative vs Actual Economics Variance v2
+
+`POST /api/v1/opportunities/{opportunity_id}/economics-variances` persists one
+immutable comparison between an explicit Conservative Economics result and an
+explicit Actual Outcome. The strict request contains only `command_id`,
+`conservative_economics_result_id`, `actual_outcome_id`, and timezone-aware
+`requested_at`; caller-supplied metrics, state, eligibility, reasons,
+favorability, contributors, or server times are forbidden.
+
+The server reconstructs the exact Economics Source Composition, Acquisition
+Cost Normalization, Landed Cost Composition, Sourcing Economics Binding,
+Sourcing Admission/Quote revision, Capital Requirement, Purchase Execution,
+and complete Actual Outcome product key. It rejects O2, product, currency,
+unit, policy, or exact-lineage disagreement and never selects latest history,
+copies current values, or recalculates either source authority.
+
+The response exposes O2/product identity, scenario and actual sale scope,
+ordered eight core metrics, four aligned acquisition component comparisons,
+actual-only contributors, predicted-only context, inventory/capital exposure,
+comparison and calibration states/reasons, source policy/schema/timestamps,
+and variance policy/schema/timestamps. Decimal values are strings. Unavailable
+or scope-mismatched values are null with explicit classification and reasons;
+zero sales never creates a synthetic sale price or profit-per-unit value.
+
+Fresh source-pair results return 201; exact replay and equivalent source-pair
+aliases return 200. Missing exact sources return 404; changed replay or
+O2/product/currency/source conflicts return 409; malformed structures return
+422; bounded persistence failure returns 503. PARTIALLY_COMPARABLE and negative
+actual performance remain normal 2xx business results. History, source
+snapshots, and command receipts are append-only, integrity checked, atomically
+committed, restart-replayable, and concurrency safe.
+
+This route does not mutate Conservative Economics, Actual Outcome,
+Acquisition/Sale Settlement, Goods Receipt, Owned Inventory, legacy Actual
+Economics, or legacy Economics Variance. It does not calibrate, train, update a
+policy, execute commerce, call a marketplace, or provide UI behavior.

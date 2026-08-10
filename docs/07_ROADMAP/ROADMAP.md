@@ -220,9 +220,20 @@ result before external purchase, create the genuine ActualOutcome after the
 actual loop, and compare only those two exact IDs. A post-outcome replacement
 prediction is not calibration-eligible.
 
-The exact next implementation CR is the additive Variance v2
-Domain/Application/append-only SQLite/API slice and its replay, restart,
-concurrency, zero-sale, partial/full, and hindsight-safety tests.
+#### CR-1B6E2 Conservative vs Actual Variance v2 implementation
+
+ADR-0056 is now implemented through immutable Domain/Application authority,
+exact source reconstruction, append-only SQLite history and replay/alias
+receipts, and
+`POST /api/v1/opportunities/{opportunity_id}/economics-variances`. The result
+preserves ordered comparable metrics, actual-only/predicted-only context,
+inventory exposure, source timestamps, and calibration eligibility without
+latest lookup, source recalculation, or fabricated zero values.
+
+This establishes Closed-Loop Learning MVP software capability only. Operational
+validation still requires one genuine real-world O2 whose exact pre-purchase
+Conservative result and CALCULABLE ActualOutcome are compared. Calibration,
+model training, and automatic policy update remain future work.
 
 ### Real-Money Ready Gate
 

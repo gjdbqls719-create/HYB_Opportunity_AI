@@ -317,6 +317,17 @@ from app.application.actual_outcome import (
     ActualOutcomeSourceNotFoundError,
     CalculateActualOutcome,
 )
+from app.application.conservative_actual_variance import (
+    CalculateConservativeActualVariance,
+    ConservativeActualVarianceOpportunityConflictError,
+    ConservativeActualVariancePolicyError,
+    ConservativeActualVarianceProductionEntry,
+    ConservativeActualVarianceProductionRequest,
+    ConservativeActualVarianceReplayConflictError,
+    ConservativeActualVarianceSourceConflictError,
+    ConservativeActualVarianceSourceIntegrityError,
+    ConservativeActualVarianceSourceNotFoundError,
+)
 from app.application.owned_inventory import (
     GetOwnedInventoryPositionsV2,
     OwnedInventoryOpportunityNotFoundError,
@@ -629,6 +640,11 @@ from app.infrastructure.actual_outcome import (
     ActualOutcomePersistenceError,
     ProductionActualOutcomeIdentityGenerator,
     SQLiteActualOutcomeRepository,
+)
+from app.infrastructure.conservative_actual_variance import (
+    ConservativeActualVariancePersistenceError,
+    ProductionConservativeActualVarianceIdentityGenerator,
+    SQLiteConservativeActualVarianceRepository,
 )
 from app.infrastructure.clock import ProductionUTCClock
 from app.infrastructure.economics_source_composition import (
@@ -3023,6 +3039,133 @@ class ActualOutcomeResponse(BaseModel):
     aliased: bool
 
 
+class ConservativeActualVarianceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    command_id: str = Field(min_length=1)
+    conservative_economics_result_id: str = Field(min_length=1)
+    actual_outcome_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
+class ConservativeActualVarianceMetricResponse(BaseModel):
+    metric_name: str
+    direction: str
+    comparability: str
+    predicted_value: str | None
+    actual_value: str | None
+    variance: str | None
+    relative_variance_percent: str | None
+    variance_percentage_points: str | None
+    favorability: str
+    unit: str
+    currency: str | None
+    reason_codes: tuple[str, ...]
+    predicted_scope_total: str | None
+    actual_scope_total: str | None
+    scope_total_variance: str | None
+
+
+class ConservativeActualVarianceContributorResponse(BaseModel):
+    category: str
+    amount: str
+    currency: str
+    classification: str
+    source_references: tuple[str, ...]
+
+
+class ConservativeActualPredictedContextResponse(BaseModel):
+    category: str
+    predicted_value: str
+    currency: str
+    classification: str
+    source_reference: str
+
+
+class ConservativeActualExposureContextResponse(BaseModel):
+    remaining_sellable_quantity: int
+    remaining_inventory_cost_basis: str
+    unreceived_quantity: int
+    unreceived_acquisition_basis: str
+    damaged_quantity: int
+    damaged_acquisition_loss: str
+    returned_quantity: int
+    inventory_resolution: str
+    quantity_unit: str
+    currency: str
+
+
+class ConservativeActualScenarioContextResponse(BaseModel):
+    scenario_name: str
+    scenario_version: str
+    sale_price_factor: str
+    assumption_owner: str
+    conservative_policy_name: str
+    conservative_policy_version: str
+
+
+class ConservativeActualScopeContextResponse(BaseModel):
+    sold_quantity: int
+    executed_quantity: int
+    inventory_resolution: str
+    sale_windows: tuple[ActualOutcomeSaleWindowResponse, ...]
+    remaining_sellable_quantity: int
+    damaged_quantity: int
+    returned_quantity: int
+    unreceived_quantity: int
+    quantity_unit: str
+
+
+class ConservativeActualVarianceResponse(BaseModel):
+    command_id: str
+    variance_id: str
+    product_key: OwnedInventoryProductKeyResponse
+    conservative_economics_result_id: str
+    actual_outcome_id: str
+    comparison_state: str
+    calibration_eligibility: str
+    calibration_reasons: tuple[str, ...]
+    core_metrics: tuple[ConservativeActualVarianceMetricResponse, ...]
+    acquisition_component_metrics: tuple[ConservativeActualVarianceMetricResponse, ...]
+    actual_only_contributors: tuple[ConservativeActualVarianceContributorResponse, ...]
+    predicted_only_context: tuple[ConservativeActualPredictedContextResponse, ...]
+    exposure_context: ConservativeActualExposureContextResponse
+    scenario_context: ConservativeActualScenarioContextResponse
+    actual_scope_context: ConservativeActualScopeContextResponse
+    source_composition_id: str
+    acquisition_normalization_id: str
+    landed_cost_composition_id: str
+    sourcing_binding_id: str
+    sourcing_admission_id: str
+    sourcing_admission_revision: int
+    quote_id: str
+    quote_revision: int
+    purchase_execution_record_id: str
+    actual_acquisition_settlement_id: str
+    actual_sale_settlement_ids: tuple[str, ...]
+    currency: str
+    conservative_policy_name: str
+    conservative_policy_version: str
+    conservative_schema_version: str
+    actual_policy_name: str
+    actual_policy_version: str
+    actual_schema_version: str
+    source_manifest_schema_version: str
+    conservative_calculated_at: datetime
+    purchase_executed_at: datetime
+    hindsight_eligible: bool
+    policy_name: str
+    policy_version: str
+    policy_precision: int
+    policy_rounding: str
+    variance_schema_version: str
+    receipt_schema_version: str
+    requested_at: datetime
+    calculated_at: datetime
+    committed_at: datetime
+    replayed: bool
+    aliased: bool
+
+
 class SnapshotChainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -3926,6 +4069,47 @@ def get_actual_outcome_entry():
         raise HTTPException(
             status_code=503,
             detail="Actual Outcome persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield entry
+    finally:
+        resources.close()
+
+
+def get_conservative_actual_variance_entry():
+    resources = ExitStack()
+    try:
+        repository = resources.enter_context(
+            SQLiteConservativeActualVarianceRepository(DEFAULT_DATABASE_PATH)
+        )
+        clock = ProductionUTCClock()
+        entry = ConservativeActualVarianceProductionEntry(
+            CalculateConservativeActualVariance(
+                repository,
+                variance_id_generator=ProductionConservativeActualVarianceIdentityGenerator(),
+                calculated_clock=clock,
+                committed_clock=clock,
+            )
+        )
+    except (
+        sqlite3.Error,
+        ConservativeActualVariancePersistenceError,
+        ConservativeEconomicsPersistenceError,
+        ActualOutcomePersistenceError,
+        EconomicsSourceCompositionPersistenceError,
+        AcquisitionCostNormalizationPersistenceError,
+        LandedCostCompositionPersistenceError,
+        SourcingEconomicsBindingPersistenceError,
+        SourcingAuthorityPersistenceError,
+        PlannedAcquisitionCapitalRequirementPersistenceError,
+    ) as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="Conservative Actual Variance persistence unavailable",
         ) from error
     except BaseException:
         resources.close()
@@ -7386,6 +7570,204 @@ def calculate_actual_outcome(
         requested_at=outcome.requested_at,
         calculated_at=outcome.calculated_at,
         committed_at=outcome.committed_at,
+        replayed=publication.replayed,
+        aliased=publication.aliased,
+    )
+
+
+@app.post(
+    "/api/v1/opportunities/{opportunity_id}/economics-variances",
+    response_model=ConservativeActualVarianceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def calculate_conservative_actual_variance(
+    opportunity_id: str,
+    request: ConservativeActualVarianceRequest,
+    response: Response,
+    entry: ConservativeActualVarianceProductionEntry = Depends(
+        get_conservative_actual_variance_entry
+    ),
+) -> ConservativeActualVarianceResponse:
+    try:
+        publication = entry.execute(
+            ConservativeActualVarianceProductionRequest(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                conservative_economics_result_id=request.conservative_economics_result_id,
+                actual_outcome_id=request.actual_outcome_id,
+                requested_at=request.requested_at,
+            )
+        )
+    except ConservativeActualVarianceSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ConservativeActualVarianceOpportunityConflictError,
+        ConservativeActualVariancePolicyError,
+        ConservativeActualVarianceReplayConflictError,
+        ConservativeActualVarianceSourceConflictError,
+        ConservativeActualVarianceSourceIntegrityError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        ConservativeActualVariancePersistenceError,
+        ConservativeEconomicsPersistenceError,
+        ActualOutcomePersistenceError,
+        EconomicsSourceCompositionPersistenceError,
+        AcquisitionCostNormalizationPersistenceError,
+        LandedCostCompositionPersistenceError,
+        SourcingEconomicsBindingPersistenceError,
+        SourcingAuthorityPersistenceError,
+        PlannedAcquisitionCapitalRequirementPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Conservative Actual Variance persistence unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    if publication.replayed or publication.aliased:
+        response.status_code = status.HTTP_200_OK
+    variance, receipt = publication.variance, publication.receipt
+    manifest = variance.source_manifest
+    key = manifest.product_key
+    identity = key.opportunity_identity
+
+    def decimal_text(value):
+        return None if value is None else str(value)
+
+    def metric_response(value):
+        return ConservativeActualVarianceMetricResponse(
+            metric_name=value.metric_name,
+            direction=value.direction.value,
+            comparability=value.comparability.value,
+            predicted_value=decimal_text(value.predicted_value),
+            actual_value=decimal_text(value.actual_value),
+            variance=decimal_text(value.variance),
+            relative_variance_percent=decimal_text(value.relative_variance_percent),
+            variance_percentage_points=decimal_text(value.variance_percentage_points),
+            favorability=value.favorability.value,
+            unit=value.unit,
+            currency=value.currency,
+            reason_codes=value.reason_codes,
+            predicted_scope_total=decimal_text(value.predicted_scope_total),
+            actual_scope_total=decimal_text(value.actual_scope_total),
+            scope_total_variance=decimal_text(value.scope_total_variance),
+        )
+
+    return ConservativeActualVarianceResponse(
+        command_id=receipt.command_id,
+        variance_id=variance.variance_id,
+        product_key=OwnedInventoryProductKeyResponse(
+            opportunity_id=identity.opportunity_id,
+            discovery_reference=identity.discovery_reference,
+            source_platform=key.source_platform,
+            supplier_id=key.supplier_id,
+            sourcing_product_id=key.sourcing_product_id,
+            external_product_reference=key.external_product_reference,
+            option_reference=key.option_reference,
+            sku_reference=key.sku_reference,
+            quantity_unit=key.quantity_unit,
+        ),
+        conservative_economics_result_id=manifest.conservative_result_id,
+        actual_outcome_id=manifest.actual_outcome_id,
+        comparison_state=variance.comparison_state.value,
+        calibration_eligibility=variance.calibration_eligibility.value,
+        calibration_reasons=tuple(value.value for value in variance.calibration_reasons),
+        core_metrics=tuple(metric_response(value) for value in variance.core_metrics),
+        acquisition_component_metrics=tuple(
+            metric_response(value) for value in variance.acquisition_component_metrics
+        ),
+        actual_only_contributors=tuple(
+            ConservativeActualVarianceContributorResponse(
+                category=value.category,
+                amount=str(value.amount),
+                currency=value.currency,
+                classification=value.classification.value,
+                source_references=value.source_references,
+            )
+            for value in variance.actual_only_contributors
+        ),
+        predicted_only_context=tuple(
+            ConservativeActualPredictedContextResponse(
+                category=value.category,
+                predicted_value=str(value.predicted_value),
+                currency=value.currency,
+                classification=value.classification.value,
+                source_reference=value.source_reference,
+            )
+            for value in variance.predicted_only_context
+        ),
+        exposure_context=ConservativeActualExposureContextResponse(
+            remaining_sellable_quantity=variance.exposure_context.remaining_sellable_quantity,
+            remaining_inventory_cost_basis=str(variance.exposure_context.remaining_inventory_cost_basis),
+            unreceived_quantity=variance.exposure_context.unreceived_quantity,
+            unreceived_acquisition_basis=str(variance.exposure_context.unreceived_acquisition_basis),
+            damaged_quantity=variance.exposure_context.damaged_quantity,
+            damaged_acquisition_loss=str(variance.exposure_context.damaged_acquisition_loss),
+            returned_quantity=variance.exposure_context.returned_quantity,
+            inventory_resolution=variance.exposure_context.inventory_resolution.value,
+            quantity_unit=variance.exposure_context.quantity_unit,
+            currency=variance.exposure_context.currency,
+        ),
+        scenario_context=ConservativeActualScenarioContextResponse(
+            scenario_name=variance.scenario_context.scenario_name,
+            scenario_version=variance.scenario_context.scenario_version,
+            sale_price_factor=str(variance.scenario_context.sale_price_factor),
+            assumption_owner=variance.scenario_context.assumption_owner,
+            conservative_policy_name=variance.scenario_context.conservative_policy_name,
+            conservative_policy_version=variance.scenario_context.conservative_policy_version,
+        ),
+        actual_scope_context=ConservativeActualScopeContextResponse(
+            sold_quantity=variance.actual_scope_context.sold_quantity,
+            executed_quantity=variance.actual_scope_context.executed_quantity,
+            inventory_resolution=variance.actual_scope_context.inventory_resolution.value,
+            sale_windows=tuple(
+                ActualOutcomeSaleWindowResponse(
+                    settlement_id=value.settlement_id,
+                    period_start=value.period_start,
+                    period_end=value.period_end,
+                )
+                for value in variance.actual_scope_context.sale_windows
+            ),
+            remaining_sellable_quantity=variance.actual_scope_context.remaining_sellable_quantity,
+            damaged_quantity=variance.actual_scope_context.damaged_quantity,
+            returned_quantity=variance.actual_scope_context.returned_quantity,
+            unreceived_quantity=variance.actual_scope_context.unreceived_quantity,
+            quantity_unit=variance.actual_scope_context.quantity_unit,
+        ),
+        source_composition_id=manifest.source_composition_id,
+        acquisition_normalization_id=manifest.acquisition_normalization_id,
+        landed_cost_composition_id=manifest.landed_cost_composition_id,
+        sourcing_binding_id=manifest.sourcing_binding_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        purchase_execution_record_id=manifest.purchase_execution_record_id,
+        actual_acquisition_settlement_id=manifest.actual_acquisition_settlement_id,
+        actual_sale_settlement_ids=manifest.actual_sale_settlement_ids,
+        currency=manifest.currency,
+        conservative_policy_name=manifest.conservative_policy_name,
+        conservative_policy_version=manifest.conservative_policy_version,
+        conservative_schema_version=manifest.conservative_schema_version,
+        actual_policy_name=manifest.actual_policy_name,
+        actual_policy_version=manifest.actual_policy_version,
+        actual_schema_version=manifest.actual_schema_version,
+        source_manifest_schema_version=manifest.schema_version,
+        conservative_calculated_at=manifest.conservative_calculated_at,
+        purchase_executed_at=manifest.purchase_executed_at,
+        hindsight_eligible=manifest.conservative_calculated_at < manifest.purchase_executed_at,
+        policy_name=variance.policy_name,
+        policy_version=variance.policy_version,
+        policy_precision=variance.policy_precision,
+        policy_rounding=variance.policy_rounding,
+        variance_schema_version=variance.schema_version,
+        receipt_schema_version=receipt.schema_version,
+        requested_at=variance.requested_at,
+        calculated_at=variance.calculated_at,
+        committed_at=variance.committed_at,
         replayed=publication.replayed,
         aliased=publication.aliased,
     )

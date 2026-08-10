@@ -6,10 +6,12 @@ Accepted
 
 ## Implementation Status
 
-Decision only. CR-1B6E1 defines the future authority, comparison policy, source
-contract, and calibration-suitability semantics. Domain, Application, SQLite,
-API, UI, calibration, and automatic policy-learning behavior are not
-implemented by this change.
+Implemented by CR-1B6E2 for Domain, Application, append-only SQLite, and the
+thin production API. The implementation binds one explicit persisted
+Conservative Economics result to one explicit persisted Actual Outcome,
+reconstructs their exact immutable O2/product/economics/capital lineage, and
+persists one source-pair result plus replay/alias receipts. UI, calibration,
+model training, and automatic policy-learning behavior remain unimplemented.
 
 The first supported comparison policy will be
 `conservative-actual-variance / 2.0.0` with a schema identity that is distinct
@@ -556,10 +558,9 @@ INELIGIBLE. The system does not replace it with an earlier or closer prediction.
 
 ## Deferred Work
 
-1. Domain/Application/SQLite/API implementation and production tests.
-2. Deterministic attribution or profit-bridge policy, if later justified.
-3. Calibration policy and multi-observation learning data products.
-4. Seller-side tax, recovery/correction, return re-entry, and broader source
+1. Deterministic attribution or profit-bridge policy, if later justified.
+2. Calibration policy and multi-observation learning data products.
+3. Seller-side tax, recovery/correction, return re-entry, and broader source
    policy mappings.
-5. UI, authentication, marketplace automation, model training, and automatic
+4. UI, authentication, marketplace automation, model training, and automatic
    policy changes.
