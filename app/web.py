@@ -2368,8 +2368,21 @@ class RealMoneyExecutionIntentRequest(BaseModel):
     current_deployable_capital_snapshot_id: str = Field(min_length=1)
     execution_quantity: int = Field(ge=1)
     execution_quantity_unit: str = Field(min_length=1)
-    planned_execution_amount: StrictStr = Field(min_length=1)
-    currency: str = Field(min_length=1)
+    contract_version: Literal["1.0.0", "2.0.0"]
+    planned_execution_amount: StrictStr | None = Field(default=None, min_length=1)
+    currency: str | None = Field(default=None, min_length=1)
+    proposed_supplier_order_committed_amount: StrictStr | None = Field(
+        default=None, min_length=1,
+        description="V2 Founder-confirmed proposed gross supplier-order commitment; distinct from authorized acquisition capital.",
+    )
+    supplier_order_currency: str | None = Field(
+        default=None, min_length=1,
+        description="V2 supplier-order currency; must exactly equal the Supplier Quote currency.",
+    )
+    supplier_order_checkout_evidence_reference: str | None = Field(
+        default=None, min_length=1,
+        description="V2 opaque evidence reference for the proposed external checkout action.",
+    )
     founder_id: str = Field(min_length=1)
     current_execution_confirmed: bool
     confirmed_at: datetime
@@ -2377,6 +2390,7 @@ class RealMoneyExecutionIntentRequest(BaseModel):
 
 
 class RealMoneyExecutionIntentResponse(BaseModel):
+    contract_version: str
     command_id: str
     intent_id: str
     opportunity_id: str
@@ -2392,8 +2406,13 @@ class RealMoneyExecutionIntentResponse(BaseModel):
     current_deployable_capital_snapshot_id: str
     execution_quantity: int
     execution_quantity_unit: str
-    planned_execution_amount: str
-    currency: str
+    planned_execution_amount: str | None
+    currency: str | None
+    authorized_acquisition_capital_amount: str | None
+    authorized_acquisition_capital_currency: str | None
+    proposed_supplier_order_committed_amount: str | None
+    supplier_order_currency: str | None
+    supplier_order_checkout_evidence_reference: str | None
     founder_id: str
     current_execution_confirmed: bool
     confirmed_at: datetime
@@ -2432,8 +2451,17 @@ class PurchaseExecutionRequest(BaseModel):
     quote_revision: int = Field(ge=1)
     actual_quantity: int = Field(ge=1)
     actual_quantity_unit: str = Field(min_length=1)
-    actual_total_committed_amount: StrictStr = Field(min_length=1)
-    currency: str = Field(min_length=1)
+    contract_version: Literal["1.0.0", "2.0.0"]
+    actual_total_committed_amount: StrictStr | None = Field(default=None, min_length=1)
+    currency: str | None = Field(default=None, min_length=1)
+    supplier_order_committed_amount: StrictStr | None = Field(
+        default=None, min_length=1,
+        description="V2 factual external supplier-order commitment; must exactly match the READY proposal.",
+    )
+    supplier_order_currency: str | None = Field(
+        default=None, min_length=1,
+        description="V2 factual supplier-order currency; no FX conversion is performed here.",
+    )
     external_order_reference: str = Field(min_length=1)
     founder_id: str = Field(min_length=1)
     executed_at: datetime
@@ -2444,6 +2472,7 @@ class PurchaseExecutionRequest(BaseModel):
 
 
 class PurchaseExecutionResponse(BaseModel):
+    contract_version: str
     command_id: str
     record_id: str
     opportunity_id: str
@@ -2467,8 +2496,14 @@ class PurchaseExecutionResponse(BaseModel):
     current_deployable_capital_snapshot_id: str
     actual_quantity: int
     actual_quantity_unit: str
-    actual_total_committed_amount: str
-    currency: str
+    actual_total_committed_amount: str | None
+    currency: str | None
+    authorized_acquisition_capital_amount: str | None
+    authorized_acquisition_capital_currency: str | None
+    proposed_supplier_order_committed_amount: str | None
+    proposed_supplier_order_currency: str | None
+    supplier_order_committed_amount: str | None
+    supplier_order_currency: str | None
     external_order_reference: str
     founder_id: str
     executed_at: datetime
@@ -6638,12 +6673,16 @@ def evaluate_real_money_execution_intent(
                 ),
                 execution_quantity=request.execution_quantity,
                 execution_quantity_unit=request.execution_quantity_unit,
-                planned_execution_amount=Decimal(request.planned_execution_amount),
+                planned_execution_amount=(Decimal(request.planned_execution_amount) if request.planned_execution_amount is not None else None),
                 currency=request.currency,
                 founder_id=request.founder_id,
                 current_execution_confirmed=request.current_execution_confirmed,
                 confirmed_at=request.confirmed_at,
                 requested_at=request.requested_at,
+                contract_version=request.contract_version,
+                proposed_supplier_order_committed_amount=(Decimal(request.proposed_supplier_order_committed_amount) if request.proposed_supplier_order_committed_amount is not None else None),
+                supplier_order_currency=request.supplier_order_currency,
+                supplier_order_checkout_evidence_reference=request.supplier_order_checkout_evidence_reference,
             )
         )
     except RealMoneyExecutionIntentSourceNotFoundError as error:
@@ -6669,6 +6708,7 @@ def evaluate_real_money_execution_intent(
     manifest = intent.source_manifest
     identity = manifest.opportunity_identity
     return RealMoneyExecutionIntentResponse(
+        contract_version=manifest.policy_version,
         command_id=receipt.command_id,
         intent_id=intent.intent_id,
         opportunity_id=identity.opportunity_id,
@@ -6686,8 +6726,13 @@ def evaluate_real_money_execution_intent(
         ),
         execution_quantity=manifest.execution_quantity,
         execution_quantity_unit=manifest.execution_quantity_unit,
-        planned_execution_amount=str(manifest.planned_execution_amount),
+        planned_execution_amount=(str(manifest.planned_execution_amount) if manifest.planned_execution_amount is not None else None),
         currency=manifest.currency,
+        authorized_acquisition_capital_amount=(str(manifest.authorized_acquisition_capital_amount) if manifest.authorized_acquisition_capital_amount is not None else None),
+        authorized_acquisition_capital_currency=manifest.authorized_acquisition_capital_currency,
+        proposed_supplier_order_committed_amount=(str(manifest.proposed_supplier_order_committed_amount) if manifest.proposed_supplier_order_committed_amount is not None else None),
+        supplier_order_currency=manifest.supplier_order_currency,
+        supplier_order_checkout_evidence_reference=manifest.supplier_order_checkout_evidence_reference,
         founder_id=manifest.founder_id,
         current_execution_confirmed=manifest.current_execution_confirmed,
         confirmed_at=manifest.confirmed_at,
@@ -6728,9 +6773,7 @@ def record_purchase_execution(
                 quote_revision=request.quote_revision,
                 actual_quantity=request.actual_quantity,
                 actual_quantity_unit=request.actual_quantity_unit,
-                actual_total_committed_amount=Decimal(
-                    request.actual_total_committed_amount
-                ),
+                actual_total_committed_amount=(Decimal(request.actual_total_committed_amount) if request.actual_total_committed_amount is not None else None),
                 currency=request.currency,
                 external_order_reference=request.external_order_reference,
                 founder_id=request.founder_id,
@@ -6743,6 +6786,9 @@ def record_purchase_execution(
                     for value in request.evidence_references
                 ),
                 requested_at=request.requested_at,
+                contract_version=request.contract_version,
+                supplier_order_committed_amount=(Decimal(request.supplier_order_committed_amount) if request.supplier_order_committed_amount is not None else None),
+                supplier_order_currency=request.supplier_order_currency,
             )
         )
     except PurchaseExecutionSourceNotFoundError as error:
@@ -6768,6 +6814,7 @@ def record_purchase_execution(
     manifest = record.source_manifest
     identity = manifest.opportunity_identity
     return PurchaseExecutionResponse(
+        contract_version=record.policy_version,
         command_id=receipt.command_id,
         record_id=record.record_id,
         opportunity_id=identity.opportunity_id,
@@ -6793,8 +6840,14 @@ def record_purchase_execution(
         ),
         actual_quantity=record.actual_quantity,
         actual_quantity_unit=record.actual_quantity_unit,
-        actual_total_committed_amount=str(record.actual_total_committed_amount),
+        actual_total_committed_amount=(str(record.actual_total_committed_amount) if record.actual_total_committed_amount is not None else None),
         currency=record.currency,
+        authorized_acquisition_capital_amount=(str(manifest.authorized_acquisition_capital_amount) if manifest.authorized_acquisition_capital_amount is not None else None),
+        authorized_acquisition_capital_currency=manifest.authorized_acquisition_capital_currency,
+        proposed_supplier_order_committed_amount=(str(manifest.proposed_supplier_order_committed_amount) if manifest.proposed_supplier_order_committed_amount is not None else None),
+        proposed_supplier_order_currency=manifest.supplier_order_currency,
+        supplier_order_committed_amount=(str(record.supplier_order_committed_amount) if record.supplier_order_committed_amount is not None else None),
+        supplier_order_currency=record.supplier_order_currency,
         external_order_reference=record.external_order_reference,
         founder_id=record.founder_id,
         executed_at=record.executed_at,

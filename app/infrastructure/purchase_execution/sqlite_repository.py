@@ -11,16 +11,20 @@ import sqlite3
 
 from app.application.purchase_execution import (
     PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION,
+    PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2,
     PurchaseExecutionCardinalityConflictError,
     PurchaseExecutionPublication,
     PurchaseExecutionReceipt,
     PurchaseExecutionReplayConflictError,
     RecordPurchaseExecutionCommand,
+    RecordPurchaseExecutionCommandV2,
 )
 from app.domain.capital import (
     PURCHASE_EXECUTION_EVIDENCE_SCHEMA_VERSION,
     PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION,
+    PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2,
     PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION,
+    PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     PurchaseExecutionEvidenceReference,
     PurchaseExecutionRecord,
     PurchaseExecutionSourceManifest,
@@ -126,6 +130,12 @@ _MANIFEST_KEYS = {
     "execution_safety_policy_version",
     "schema_version",
 }
+_MANIFEST_KEYS_V2 = (_MANIFEST_KEYS - {"expected_total_amount", "currency"}) | {
+    "authorized_acquisition_capital_amount",
+    "authorized_acquisition_capital_currency",
+    "proposed_supplier_order_committed_amount",
+    "supplier_order_currency",
+}
 _EVIDENCE_KEYS = {"reference", "observed_at", "schema_version"}
 _PAYLOAD_KEYS = {
     "record_id",
@@ -144,9 +154,14 @@ _PAYLOAD_KEYS = {
     "policy_version",
     "schema_version",
 }
+_PAYLOAD_KEYS_V2 = (_PAYLOAD_KEYS - {"actual_total_committed_amount", "currency"}) | {
+    "supplier_order_committed_amount",
+    "supplier_order_currency",
+}
 
 
 def _manifest(value: PurchaseExecutionSourceManifest) -> dict[str, object]:
+    is_v2 = value.schema_version == PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
     return {
         "opportunity_identity": {
             "opportunity_id": value.opportunity_identity.opportunity_id,
@@ -171,8 +186,15 @@ def _manifest(value: PurchaseExecutionSourceManifest) -> dict[str, object]:
         "current_deployable_capital_snapshot_id": value.current_deployable_capital_snapshot_id,
         "expected_quantity": value.expected_quantity,
         "expected_quantity_unit": value.expected_quantity_unit,
-        "expected_total_amount": format(value.expected_total_amount, "f"),
-        "currency": value.currency,
+        **({
+            "authorized_acquisition_capital_amount": format(value.authorized_acquisition_capital_amount, "f"),
+            "authorized_acquisition_capital_currency": value.authorized_acquisition_capital_currency,
+            "proposed_supplier_order_committed_amount": format(value.proposed_supplier_order_committed_amount, "f"),
+            "supplier_order_currency": value.supplier_order_currency,
+        } if is_v2 else {
+            "expected_total_amount": format(value.expected_total_amount, "f"),
+            "currency": value.currency,
+        }),
         "founder_id": value.founder_id,
         "execution_intent_evaluated_at": value.execution_intent_evaluated_at.isoformat(),
         "execution_safety_policy_name": value.execution_safety_policy_name,
@@ -182,8 +204,11 @@ def _manifest(value: PurchaseExecutionSourceManifest) -> dict[str, object]:
 
 
 def _load_manifest(value: object) -> PurchaseExecutionSourceManifest:
-    data = _exact(value, _MANIFEST_KEYS, "Purchase Execution source manifest")
-    if data["schema_version"] != PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION:
+    if not isinstance(value, dict):
+        raise ValueError("Purchase Execution source manifest must be an object")
+    is_v2 = value.get("schema_version") == PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+    data = _exact(value, _MANIFEST_KEYS_V2 if is_v2 else _MANIFEST_KEYS, "Purchase Execution source manifest")
+    if data["schema_version"] not in {PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION, PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2}:
         raise UnsupportedPurchaseExecutionVersionError(
             "unsupported Purchase Execution source manifest version"
         )
@@ -217,8 +242,8 @@ def _load_manifest(value: object) -> PurchaseExecutionSourceManifest:
         ],
         expected_quantity=data["expected_quantity"],
         expected_quantity_unit=data["expected_quantity_unit"],
-        expected_total_amount=_decimal(data["expected_total_amount"], "expected_total_amount"),
-        currency=data["currency"],
+        expected_total_amount=None if is_v2 else _decimal(data["expected_total_amount"], "expected_total_amount"),
+        currency=None if is_v2 else data["currency"],
         founder_id=data["founder_id"],
         execution_intent_evaluated_at=_datetime(
             data["execution_intent_evaluated_at"], "execution_intent_evaluated_at"
@@ -226,6 +251,10 @@ def _load_manifest(value: object) -> PurchaseExecutionSourceManifest:
         execution_safety_policy_name=data["execution_safety_policy_name"],
         execution_safety_policy_version=data["execution_safety_policy_version"],
         schema_version=data["schema_version"],
+        authorized_acquisition_capital_amount=_decimal(data["authorized_acquisition_capital_amount"], "authorized_acquisition_capital_amount") if is_v2 else None,
+        authorized_acquisition_capital_currency=data["authorized_acquisition_capital_currency"] if is_v2 else None,
+        proposed_supplier_order_committed_amount=_decimal(data["proposed_supplier_order_committed_amount"], "proposed_supplier_order_committed_amount") if is_v2 else None,
+        supplier_order_currency=data["supplier_order_currency"] if is_v2 else None,
     )
 
 
@@ -251,16 +280,19 @@ def _load_evidence(value: object) -> PurchaseExecutionEvidenceReference:
 
 
 def _payload(value: PurchaseExecutionRecord) -> str:
-    return _dump(
-        {
+    is_v2 = value.schema_version == PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2
+    return _dump({
             "record_id": value.record_id,
             "source_manifest": _manifest(value.source_manifest),
             "actual_quantity": value.actual_quantity,
             "actual_quantity_unit": value.actual_quantity_unit,
-            "actual_total_committed_amount": format(
-                value.actual_total_committed_amount, "f"
-            ),
-            "currency": value.currency,
+            **({
+                "supplier_order_committed_amount": format(value.supplier_order_committed_amount, "f"),
+                "supplier_order_currency": value.supplier_order_currency,
+            } if is_v2 else {
+                "actual_total_committed_amount": format(value.actual_total_committed_amount, "f"),
+                "currency": value.currency,
+            }),
             "external_order_reference": value.external_order_reference,
             "founder_id": value.founder_id,
             "executed_at": value.executed_at.isoformat(),
@@ -272,21 +304,27 @@ def _payload(value: PurchaseExecutionRecord) -> str:
             "policy_name": value.policy_name,
             "policy_version": value.policy_version,
             "schema_version": value.schema_version,
-        }
-    )
+        })
 
 
 def _action_fingerprint(record: PurchaseExecutionRecord) -> str:
     source = record.source_manifest
-    command = RecordPurchaseExecutionCommand(
+    is_v2 = record.schema_version == PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2
+    command_type = RecordPurchaseExecutionCommandV2 if is_v2 else RecordPurchaseExecutionCommand
+    command = command_type(
         command_id="persistence-reconstruction-only",
         real_money_execution_intent_id=source.real_money_execution_intent_id,
         quote_id=source.quote_id,
         quote_revision=source.quote_revision,
         actual_quantity=record.actual_quantity,
         actual_quantity_unit=record.actual_quantity_unit,
-        actual_total_committed_amount=record.actual_total_committed_amount,
-        currency=record.currency,
+        **({
+            "supplier_order_committed_amount": record.supplier_order_committed_amount,
+            "supplier_order_currency": record.supplier_order_currency,
+        } if is_v2 else {
+            "actual_total_committed_amount": record.actual_total_committed_amount,
+            "currency": record.currency,
+        }),
         external_order_reference=record.external_order_reference,
         founder_id=record.founder_id,
         executed_at=record.executed_at,
@@ -391,15 +429,17 @@ class SQLitePurchaseExecutionRepository:
 
     def _load_record(self, row) -> PurchaseExecutionRecord:
         try:
-            if row["schema_version"] != PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION:
+            if row["schema_version"] not in {PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION, PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2}:
                 raise UnsupportedPurchaseExecutionVersionError(
                     "unsupported Purchase Execution Record version"
                 )
             encoded = row["payload_json"]
             if not isinstance(encoded, str) or _integrity(encoded) != row["integrity_fingerprint"]:
                 raise ValueError("Purchase Execution integrity mismatch")
-            data = _exact(json.loads(encoded), _PAYLOAD_KEYS, "Purchase Execution payload")
-            if data["schema_version"] != PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION:
+            raw = json.loads(encoded)
+            is_v2 = isinstance(raw, dict) and raw.get("schema_version") == PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2
+            data = _exact(raw, _PAYLOAD_KEYS_V2 if is_v2 else _PAYLOAD_KEYS, "Purchase Execution payload")
+            if data["schema_version"] not in {PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION, PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2}:
                 raise UnsupportedPurchaseExecutionVersionError(
                     "unsupported Purchase Execution payload version"
                 )
@@ -412,11 +452,8 @@ class SQLitePurchaseExecutionRepository:
                 source_manifest=manifest,
                 actual_quantity=data["actual_quantity"],
                 actual_quantity_unit=data["actual_quantity_unit"],
-                actual_total_committed_amount=_decimal(
-                    data["actual_total_committed_amount"],
-                    "actual_total_committed_amount",
-                ),
-                currency=data["currency"],
+                actual_total_committed_amount=None if is_v2 else _decimal(data["actual_total_committed_amount"], "actual_total_committed_amount"),
+                currency=None if is_v2 else data["currency"],
                 external_order_reference=data["external_order_reference"],
                 founder_id=data["founder_id"],
                 executed_at=_datetime(data["executed_at"], "executed_at"),
@@ -426,6 +463,8 @@ class SQLitePurchaseExecutionRepository:
                 policy_name=data["policy_name"],
                 policy_version=data["policy_version"],
                 schema_version=data["schema_version"],
+                supplier_order_committed_amount=_decimal(data["supplier_order_committed_amount"], "supplier_order_committed_amount") if is_v2 else None,
+                supplier_order_currency=data["supplier_order_currency"] if is_v2 else None,
             )
             if (
                 record.record_id != row["record_id"]
@@ -467,7 +506,7 @@ class SQLitePurchaseExecutionRepository:
 
     def _load_receipt(self, row) -> PurchaseExecutionReceipt:
         try:
-            if row["schema_version"] != PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION:
+            if row["schema_version"] not in {PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION, PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2}:
                 raise UnsupportedPurchaseExecutionVersionError(
                     "unsupported Purchase Execution receipt version"
                 )
@@ -541,8 +580,15 @@ class SQLitePurchaseExecutionRepository:
             != source.current_deployable_capital_snapshot_id
             or intent_source.execution_quantity != source.expected_quantity
             or intent_source.execution_quantity_unit != source.expected_quantity_unit
-            or intent_source.planned_execution_amount != source.expected_total_amount
-            or intent_source.currency != source.currency
+            or (
+                intent_source.authorized_acquisition_capital_amount != source.authorized_acquisition_capital_amount
+                or intent_source.authorized_acquisition_capital_currency != source.authorized_acquisition_capital_currency
+                or intent_source.proposed_supplier_order_committed_amount != source.proposed_supplier_order_committed_amount
+                or intent_source.supplier_order_currency != source.supplier_order_currency
+                if source.schema_version == PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+                else intent_source.planned_execution_amount != source.expected_total_amount
+                or intent_source.currency != source.currency
+            )
             or intent_source.founder_id != source.founder_id
             or intent.evaluated_at != source.execution_intent_evaluated_at
             or intent_source.policy_name != source.execution_safety_policy_name
@@ -562,8 +608,8 @@ class SQLitePurchaseExecutionRepository:
 
     @staticmethod
     def _validate_write(command, record, receipt) -> None:
-        if not isinstance(command, RecordPurchaseExecutionCommand):
-            raise TypeError("command must be RecordPurchaseExecutionCommand")
+        if not isinstance(command, (RecordPurchaseExecutionCommand, RecordPurchaseExecutionCommandV2)):
+            raise TypeError("command must be a supported RecordPurchaseExecutionCommand")
         if not isinstance(record, PurchaseExecutionRecord):
             raise TypeError("record must be PurchaseExecutionRecord")
         if not isinstance(receipt, PurchaseExecutionReceipt):
@@ -579,9 +625,13 @@ class SQLitePurchaseExecutionRepository:
             or source.quote_revision != command.quote_revision
             or record.actual_quantity != command.actual_quantity
             or record.actual_quantity_unit != command.actual_quantity_unit
-            or record.actual_total_committed_amount
-            != command.actual_total_committed_amount
-            or record.currency != command.currency
+            or (
+                record.supplier_order_committed_amount != command.supplier_order_committed_amount
+                or record.supplier_order_currency != command.supplier_order_currency
+                if isinstance(command, RecordPurchaseExecutionCommandV2)
+                else record.actual_total_committed_amount != command.actual_total_committed_amount
+                or record.currency != command.currency
+            )
             or record.external_order_reference != command.external_order_reference
             or record.founder_id != command.founder_id
             or record.executed_at != command.executed_at
@@ -667,6 +717,7 @@ class SQLitePurchaseExecutionRepository:
                     existing.record_id,
                     command.fingerprint,
                     receipt.committed_at,
+                    receipt.schema_version,
                 )
                 self._insert_receipt(alias_receipt)
                 try:

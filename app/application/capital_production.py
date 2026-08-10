@@ -29,11 +29,13 @@ from app.application.founder_capital_approval import (
 from app.application.real_money_execution_intent import (
     EvaluateRealMoneyExecutionIntent,
     EvaluateRealMoneyExecutionIntentCommand,
+    EvaluateRealMoneyExecutionIntentCommandV2,
     RealMoneyExecutionIntentSourceNotFoundError,
 )
 from app.application.purchase_execution import (
     RecordPurchaseExecution,
     RecordPurchaseExecutionCommand,
+    RecordPurchaseExecutionCommandV2,
     PurchaseExecutionSourceNotFoundError,
 )
 from app.application.actual_acquisition_settlement import (
@@ -257,12 +259,16 @@ class RealMoneyExecutionIntentProductionRequest:
     current_deployable_capital_snapshot_id: str
     execution_quantity: int
     execution_quantity_unit: str
-    planned_execution_amount: Decimal
-    currency: str
+    planned_execution_amount: Decimal | None
+    currency: str | None
     founder_id: str
     current_execution_confirmed: bool
     confirmed_at: datetime
     requested_at: datetime
+    contract_version: str = "1.0.0"
+    proposed_supplier_order_committed_amount: Decimal | None = None
+    supplier_order_currency: str | None = None
+    supplier_order_checkout_evidence_reference: str | None = None
 
 
 class RealMoneyExecutionIntentProductionEntry:
@@ -282,8 +288,25 @@ class RealMoneyExecutionIntentProductionEntry:
             raise CapitalProductionOpportunityConflictError(
                 "Founder Capital Approval differs from route Opportunity"
             )
-        return self._owner.execute(
-            EvaluateRealMoneyExecutionIntentCommand(
+        if request.contract_version == "2.0.0":
+            command = EvaluateRealMoneyExecutionIntentCommandV2(
+                command_id=request.command_id,
+                founder_capital_approval_id=request.founder_capital_approval_id,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                current_deployable_capital_snapshot_id=request.current_deployable_capital_snapshot_id,
+                execution_quantity=request.execution_quantity,
+                execution_quantity_unit=request.execution_quantity_unit,
+                proposed_supplier_order_committed_amount=request.proposed_supplier_order_committed_amount,
+                supplier_order_currency=request.supplier_order_currency,
+                supplier_order_checkout_evidence_reference=request.supplier_order_checkout_evidence_reference,
+                founder_id=request.founder_id,
+                requested_at=request.requested_at,
+                confirmed_at=request.confirmed_at,
+                current_execution_confirmed=request.current_execution_confirmed,
+            )
+        elif request.contract_version == "1.0.0":
+            command = EvaluateRealMoneyExecutionIntentCommand(
                 command_id=request.command_id,
                 founder_capital_approval_id=request.founder_capital_approval_id,
                 quote_id=request.quote_id,
@@ -300,7 +323,11 @@ class RealMoneyExecutionIntentProductionEntry:
                 confirmed_at=request.confirmed_at,
                 current_execution_confirmed=request.current_execution_confirmed,
             )
-        )
+            if self._repository.validate_replay(command.command_id, command.fingerprint) is None:
+                raise ValueError("new v1 Real-Money Execution Intent writes are disabled")
+        else:
+            raise ValueError("unsupported Real-Money Execution Intent contract version")
+        return self._owner.execute(command)
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,13 +339,16 @@ class PurchaseExecutionProductionRequest:
     quote_revision: int
     actual_quantity: int
     actual_quantity_unit: str
-    actual_total_committed_amount: Decimal
-    currency: str
+    actual_total_committed_amount: Decimal | None
+    currency: str | None
     external_order_reference: str
     founder_id: str
     executed_at: datetime
     evidence_references: tuple[PurchaseExecutionEvidenceReference, ...]
     requested_at: datetime
+    contract_version: str = "1.0.0"
+    supplier_order_committed_amount: Decimal | None = None
+    supplier_order_currency: str | None = None
 
 
 class PurchaseExecutionProductionEntry:
@@ -338,8 +368,24 @@ class PurchaseExecutionProductionEntry:
             raise CapitalProductionOpportunityConflictError(
                 "Real-Money Execution Intent differs from route Opportunity"
             )
-        return self._owner.execute(
-            RecordPurchaseExecutionCommand(
+        if request.contract_version == "2.0.0":
+            command = RecordPurchaseExecutionCommandV2(
+                command_id=request.command_id,
+                real_money_execution_intent_id=request.real_money_execution_intent_id,
+                quote_id=request.quote_id,
+                quote_revision=request.quote_revision,
+                actual_quantity=request.actual_quantity,
+                actual_quantity_unit=request.actual_quantity_unit,
+                supplier_order_committed_amount=request.supplier_order_committed_amount,
+                supplier_order_currency=request.supplier_order_currency,
+                external_order_reference=request.external_order_reference,
+                founder_id=request.founder_id,
+                executed_at=request.executed_at,
+                evidence_references=request.evidence_references,
+                requested_at=request.requested_at,
+            )
+        elif request.contract_version == "1.0.0":
+            command = RecordPurchaseExecutionCommand(
                 command_id=request.command_id,
                 real_money_execution_intent_id=(
                     request.real_money_execution_intent_id
@@ -358,7 +404,11 @@ class PurchaseExecutionProductionEntry:
                 evidence_references=request.evidence_references,
                 requested_at=request.requested_at,
             )
-        )
+            if self._repository.validate_replay(command.command_id, command.fingerprint) is None:
+                raise ValueError("new v1 Purchase Execution writes are disabled")
+        else:
+            raise ValueError("unsupported Purchase Execution contract version")
+        return self._owner.execute(command)
 
 
 @dataclass(frozen=True, slots=True)

@@ -15,10 +15,10 @@ behavior. ADR-0050 / CR-1B5D2M now implements the separate immutable manual
 Purchase Execution Record and production API. Actual Economics and physical
 receipt/inventory handoffs remain unimplemented.
 
-ADR-0058 supersedes only the new-production monetary portion of policy v1. The
-implemented v1 remains historical; execution-safety v2 must preserve the
-authorized acquisition-capital envelope separately from the proposed
-source-currency supplier-order commitment before the first cross-currency run.
+CR-1B7B2A implements ADR-0058 policy `2.0.0`: the server reconstructs and
+persists the authorized acquisition-capital envelope separately from the
+Founder-confirmed proposed supplier-order commitment and checkout evidence.
+The implemented v1 remains historical read/replay behavior.
 
 ## Context
 

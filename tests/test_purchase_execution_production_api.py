@@ -23,14 +23,17 @@ def _now() -> str:
 def _payload(result, **changes):
     execution = result["execution"].json()
     values = {
+        "contract_version": "2.0.0",
         "command_id": "purchase-execution-command-1",
         "real_money_execution_intent_id": execution["intent_id"],
         "quote_id": execution["quote_id"],
         "quote_revision": execution["quote_revision"],
         "actual_quantity": execution["execution_quantity"],
         "actual_quantity_unit": execution["execution_quantity_unit"],
-        "actual_total_committed_amount": execution["planned_execution_amount"],
-        "currency": execution["currency"],
+        "supplier_order_committed_amount": execution[
+            "proposed_supplier_order_committed_amount"
+        ],
+        "supplier_order_currency": execution["supplier_order_currency"],
         "external_order_reference": "supplier-order-opaque-001",
         "founder_id": execution["founder_id"],
         "executed_at": execution["evaluated_at"],
@@ -91,8 +94,10 @@ def test_api_only_ready_intent_records_exact_external_purchase_and_replays(
     assert body["real_money_execution_intent_id"] == execution["intent_id"]
     assert body["actual_quantity"] == execution["execution_quantity"]
     assert body["actual_quantity_unit"] == execution["execution_quantity_unit"]
-    assert body["actual_total_committed_amount"] == execution["planned_execution_amount"]
-    assert body["currency"] == execution["currency"]
+    assert body["supplier_order_committed_amount"] == execution[
+        "proposed_supplier_order_committed_amount"
+    ]
+    assert body["supplier_order_currency"] == execution["supplier_order_currency"]
     assert body["quote_id"] == execution["quote_id"]
     assert body["quote_revision"] == execution["quote_revision"]
     assert body["founder_id"] == execution["founder_id"]
@@ -144,6 +149,73 @@ def test_api_only_ready_intent_records_exact_external_purchase_and_replays(
     assert conflict.status_code == 409
 
 
+def test_v2_http_separates_cross_currency_capital_and_supplier_commitment(
+    economics_chain_client,
+):
+    result = _execute_capital_journey(
+        economics_chain_client,
+        execution_contract_version="2.0.0",
+        supplier_order_amount="500",
+    )
+    execution = result["execution"].json()
+    assert execution["authorized_acquisition_capital_currency"] == "KRW"
+    assert execution["proposed_supplier_order_committed_amount"] == "500"
+    assert execution["supplier_order_currency"] == result["sourcing"]["quote"]["unit_price"]["currency"]
+    assert execution["planned_execution_amount"] is None
+
+    route = f"/api/v1/opportunities/{result['opportunity_id']}/purchase-execution-records"
+    payload = {
+        "contract_version": "2.0.0",
+        "command_id": "purchase-execution-v2-command-1",
+        "real_money_execution_intent_id": execution["intent_id"],
+        "quote_id": execution["quote_id"],
+        "quote_revision": execution["quote_revision"],
+        "actual_quantity": execution["execution_quantity"],
+        "actual_quantity_unit": execution["execution_quantity_unit"],
+        "supplier_order_committed_amount": "500",
+        "supplier_order_currency": execution["supplier_order_currency"],
+        "external_order_reference": "supplier-order-v2-001",
+        "founder_id": execution["founder_id"],
+        "executed_at": execution["evaluated_at"],
+        "evidence_references": [{
+            "reference": "artifact://supplier-checkout/actual-001",
+            "observed_at": execution["evaluated_at"],
+        }],
+        "requested_at": _now(),
+    }
+    fresh = result["client"].post(route, json=payload)
+    assert fresh.status_code == 201, fresh.text
+    body = fresh.json()
+    assert body["authorized_acquisition_capital_currency"] == "KRW"
+    assert body["supplier_order_committed_amount"] == "500"
+    assert body["supplier_order_currency"] == execution["supplier_order_currency"]
+    assert body["actual_total_committed_amount"] is None
+
+    drift = deepcopy(payload)
+    drift.update(command_id="purchase-execution-v2-drift", supplier_order_committed_amount="510")
+    assert result["client"].post(route, json=drift).status_code == 409
+
+
+def test_new_production_v1_writes_are_disabled(economics_chain_client):
+    result = _execute_capital_journey(economics_chain_client)
+    execution_v1 = deepcopy(result["execution_payload"])
+    execution_v1.pop("proposed_supplier_order_committed_amount")
+    execution_v1.pop("supplier_order_currency")
+    execution_v1.pop("supplier_order_checkout_evidence_reference")
+    execution_v1.update(
+        contract_version="1.0.0",
+        command_id="new-v1-intent-is-disabled",
+        planned_execution_amount=result["approval"].json()["approved_capital"],
+        currency=result["approval"].json()["currency"],
+    )
+    response = result["client"].post(
+        f"/api/v1/opportunities/{result['opportunity_id']}/real-money-execution-intents",
+        json=execution_v1,
+    )
+    assert response.status_code == 422
+    assert "new v1" in response.json()["detail"]
+
+
 def test_api_rejects_missing_wrong_route_deviations_and_blocked_intent(
     economics_chain_client,
 ):
@@ -171,8 +243,8 @@ def test_api_rejects_missing_wrong_route_deviations_and_blocked_intent(
         {"quote_revision": 999},
         {"actual_quantity": 999},
         {"actual_quantity_unit": "case"},
-        {"actual_total_committed_amount": "1"},
-        {"currency": "USD"},
+        {"supplier_order_committed_amount": "1"},
+        {"supplier_order_currency": "USD"},
         {"founder_id": "different-founder"},
     )
     for index, changes in enumerate(deviations):

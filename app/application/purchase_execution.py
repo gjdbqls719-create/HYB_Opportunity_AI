@@ -13,6 +13,9 @@ from typing import Callable, Protocol
 from app.domain.capital import (
     PURCHASE_EXECUTION_POLICY_NAME,
     PURCHASE_EXECUTION_POLICY_VERSION,
+    PURCHASE_EXECUTION_POLICY_VERSION_V2,
+    PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2,
+    PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     PurchaseExecutionEvidenceReference,
     PurchaseExecutionRecord,
     PurchaseExecutionSourceManifest,
@@ -24,6 +27,8 @@ from app.domain.sourcing import FounderSourcingAdmission
 
 PURCHASE_EXECUTION_COMMAND_SCHEMA_VERSION = "purchase-execution-command-v1"
 PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION = "purchase-execution-receipt-v1"
+PURCHASE_EXECUTION_COMMAND_SCHEMA_VERSION_V2 = "purchase-execution-command-v2"
+PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2 = "purchase-execution-receipt-v2"
 
 
 class PurchaseExecutionError(RuntimeError):
@@ -201,6 +206,60 @@ class RecordPurchaseExecutionCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RecordPurchaseExecutionCommandV2:
+    command_id: str
+    real_money_execution_intent_id: str
+    quote_id: str
+    quote_revision: int
+    actual_quantity: int
+    actual_quantity_unit: str
+    supplier_order_committed_amount: Decimal
+    supplier_order_currency: str
+    external_order_reference: str
+    founder_id: str
+    executed_at: datetime
+    evidence_references: tuple[PurchaseExecutionEvidenceReference, ...]
+    requested_at: datetime
+    policy_name: str = PURCHASE_EXECUTION_POLICY_NAME
+    policy_version: str = PURCHASE_EXECUTION_POLICY_VERSION_V2
+    schema_version: str = PURCHASE_EXECUTION_COMMAND_SCHEMA_VERSION_V2
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id", "real_money_execution_intent_id", "quote_id",
+            "actual_quantity_unit", "external_order_reference", "founder_id",
+            "policy_name", "policy_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        for name in ("quote_revision", "actual_quantity"):
+            object.__setattr__(self, name, _positive_integer(getattr(self, name), name))
+        object.__setattr__(self, "supplier_order_committed_amount", _positive_money(self.supplier_order_committed_amount, "supplier_order_committed_amount"))
+        object.__setattr__(self, "supplier_order_currency", _currency(self.supplier_order_currency))
+        for name in ("executed_at", "requested_at"):
+            object.__setattr__(self, name, _aware(getattr(self, name), name))
+        if not isinstance(self.evidence_references, tuple) or not self.evidence_references:
+            raise ValueError("evidence_references must be a non-empty tuple")
+        ordered = tuple(sorted(self.evidence_references, key=lambda value: (value.reference, value.observed_at.astimezone(timezone.utc).isoformat())))
+        if any(not isinstance(value, PurchaseExecutionEvidenceReference) for value in ordered):
+            raise TypeError("evidence_references contains an unsupported value")
+        if len({value.reference for value in ordered}) != len(ordered):
+            raise ValueError("evidence references must be unique")
+        object.__setattr__(self, "evidence_references", ordered)
+        if self.policy_name != PURCHASE_EXECUTION_POLICY_NAME or self.policy_version != PURCHASE_EXECUTION_POLICY_VERSION_V2:
+            raise ValueError("unsupported Purchase Execution policy")
+        if self.schema_version != PURCHASE_EXECUTION_COMMAND_SCHEMA_VERSION_V2:
+            raise ValueError("unsupported Purchase Execution command schema")
+
+    @property
+    def fingerprint(self) -> str:
+        return _fingerprint(self)
+
+    @property
+    def action_fingerprint(self) -> str:
+        return _fingerprint({field.name: getattr(self, field.name) for field in fields(self) if field.name not in {"command_id", "requested_at"}})
+
+
+@dataclass(frozen=True, slots=True)
 class PurchaseExecutionReceipt:
     command_id: str
     record_id: str
@@ -215,7 +274,10 @@ class PurchaseExecutionReceipt:
             self, "command_fingerprint", _fingerprint_text(self.command_fingerprint)
         )
         object.__setattr__(self, "committed_at", _aware(self.committed_at, "committed_at"))
-        if self.schema_version != PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION:
+        if self.schema_version not in {
+            PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION,
+            PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Purchase Execution receipt schema")
 
 
@@ -261,9 +323,9 @@ class RecordPurchaseExecution:
         self._admitted = admitted_clock
         self._committed = committed_clock
 
-    def execute(self, command: RecordPurchaseExecutionCommand) -> PurchaseExecutionPublication:
-        if not isinstance(command, RecordPurchaseExecutionCommand):
-            raise TypeError("command must be RecordPurchaseExecutionCommand")
+    def execute(self, command: RecordPurchaseExecutionCommand | RecordPurchaseExecutionCommandV2) -> PurchaseExecutionPublication:
+        if not isinstance(command, (RecordPurchaseExecutionCommand, RecordPurchaseExecutionCommandV2)):
+            raise TypeError("command must be a supported RecordPurchaseExecutionCommand")
         replay = self._repository.validate_replay(command.command_id, command.fingerprint)
         if replay is not None:
             return replace(replay, replayed=True)
@@ -271,11 +333,13 @@ class RecordPurchaseExecution:
             command.real_money_execution_intent_id, command.action_fingerprint
         )
         if alias is not None:
+            is_v2 = isinstance(command, RecordPurchaseExecutionCommandV2)
             receipt = PurchaseExecutionReceipt(
                 command.command_id,
                 alias.record_id,
                 command.fingerprint,
                 _aware(self._committed(), "committed_at"),
+                PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2 if is_v2 else PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION,
             )
             return self._repository.save_alias(command, alias, receipt)
 
@@ -298,13 +362,19 @@ class RecordPurchaseExecution:
             raise PurchaseExecutionSourceNotFoundError(
                 "exact Founder Sourcing Admission is missing"
             )
+        is_v2 = isinstance(command, RecordPurchaseExecutionCommandV2)
         if (
             command.quote_id != source.quote_id
             or command.quote_revision != source.quote_revision
             or command.actual_quantity != source.execution_quantity
             or command.actual_quantity_unit != source.execution_quantity_unit
-            or command.actual_total_committed_amount != source.planned_execution_amount
-            or command.currency != source.currency
+            or (
+                command.supplier_order_committed_amount != source.proposed_supplier_order_committed_amount
+                or command.supplier_order_currency != source.supplier_order_currency
+                if is_v2
+                else command.actual_total_committed_amount != source.planned_execution_amount
+                or command.currency != source.currency
+            )
             or command.founder_id != source.founder_id
         ):
             raise PurchaseExecutionExactMatchError(
@@ -349,20 +419,25 @@ class RecordPurchaseExecution:
             ),
             expected_quantity=source.execution_quantity,
             expected_quantity_unit=source.execution_quantity_unit,
-            expected_total_amount=source.planned_execution_amount,
-            currency=source.currency,
+            expected_total_amount=None if is_v2 else source.planned_execution_amount,
+            currency=None if is_v2 else source.currency,
             founder_id=source.founder_id,
             execution_intent_evaluated_at=intent.evaluated_at,
             execution_safety_policy_name=source.policy_name,
             execution_safety_policy_version=source.policy_version,
+            schema_version=(PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2 if is_v2 else "purchase-execution-source-manifest-v1"),
+            authorized_acquisition_capital_amount=(source.authorized_acquisition_capital_amount if is_v2 else None),
+            authorized_acquisition_capital_currency=(source.authorized_acquisition_capital_currency if is_v2 else None),
+            proposed_supplier_order_committed_amount=(source.proposed_supplier_order_committed_amount if is_v2 else None),
+            supplier_order_currency=(source.supplier_order_currency if is_v2 else None),
         )
         record = PurchaseExecutionRecord(
             record_id=_text(self._identity(), "record_id"),
             source_manifest=manifest,
             actual_quantity=command.actual_quantity,
             actual_quantity_unit=command.actual_quantity_unit,
-            actual_total_committed_amount=command.actual_total_committed_amount,
-            currency=command.currency,
+            actual_total_committed_amount=None if is_v2 else command.actual_total_committed_amount,
+            currency=None if is_v2 else command.currency,
             external_order_reference=command.external_order_reference,
             founder_id=command.founder_id,
             executed_at=command.executed_at,
@@ -371,12 +446,16 @@ class RecordPurchaseExecution:
             admitted_at=_aware(self._admitted(), "admitted_at"),
             policy_name=command.policy_name,
             policy_version=command.policy_version,
+            schema_version=(PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2 if is_v2 else "purchase-execution-record-v1"),
+            supplier_order_committed_amount=(command.supplier_order_committed_amount if is_v2 else None),
+            supplier_order_currency=(command.supplier_order_currency if is_v2 else None),
         )
         receipt = PurchaseExecutionReceipt(
             command.command_id,
             record.record_id,
             command.fingerprint,
             _aware(self._committed(), "committed_at"),
+            PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION_V2 if is_v2 else PURCHASE_EXECUTION_RECEIPT_SCHEMA_VERSION,
         )
         return self._repository.save_record(command, record, receipt)
 

@@ -12,10 +12,10 @@ Opportunity-scoped production API. Actual Economics binding, goods receipt,
 inventory acquisition, checkout, payment, and supplier integration remain
 unimplemented.
 
-ADR-0058 identifies the implemented v1 amount equality as unsafe for new
-cross-currency execution. V1 remains immutable historical behavior. New
-production records require the versioned v2 monetary contract before the first
-real purchase.
+CR-1B7B2A implements ADR-0058 Purchase Execution policy `2.0.0`. V2 records the
+actual source-currency supplier-order commitment and exact-matches it to the
+READY v2 proposal without comparing it numerically to target-currency approved
+capital. V1 remains immutable historical read/replay behavior.
 
 ## Context
 

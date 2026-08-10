@@ -16,6 +16,11 @@ PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION = (
 PURCHASE_EXECUTION_EVIDENCE_SCHEMA_VERSION = "purchase-execution-evidence-v1"
 PURCHASE_EXECUTION_POLICY_NAME = "exact-ready-intent-purchase-execution"
 PURCHASE_EXECUTION_POLICY_VERSION = "1.0.0"
+PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2 = "purchase-execution-record-v2"
+PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2 = (
+    "purchase-execution-source-manifest-v2"
+)
+PURCHASE_EXECUTION_POLICY_VERSION_V2 = "2.0.0"
 
 
 def _text(value: str, name: str) -> str:
@@ -94,13 +99,17 @@ class PurchaseExecutionSourceManifest:
     current_deployable_capital_snapshot_id: str
     expected_quantity: int
     expected_quantity_unit: str
-    expected_total_amount: Decimal
-    currency: str
+    expected_total_amount: Decimal | None
+    currency: str | None
     founder_id: str
     execution_intent_evaluated_at: datetime
     execution_safety_policy_name: str
     execution_safety_policy_version: str
     schema_version: str = PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION
+    authorized_acquisition_capital_amount: Decimal | None = None
+    authorized_acquisition_capital_currency: str | None = None
+    proposed_supplier_order_committed_amount: Decimal | None = None
+    supplier_order_currency: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.opportunity_identity, OpportunityIdentity):
@@ -132,18 +141,45 @@ class PurchaseExecutionSourceManifest:
             object.__setattr__(self, name, _optional_text(getattr(self, name), name))
         for name in ("sourcing_admission_revision", "quote_revision", "expected_quantity"):
             object.__setattr__(self, name, _positive_integer(getattr(self, name), name))
-        object.__setattr__(
-            self,
-            "expected_total_amount",
-            _positive_money(self.expected_total_amount, "expected_total_amount"),
-        )
-        object.__setattr__(self, "currency", _currency(self.currency))
+        is_v2 = self.schema_version == PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+        if is_v2:
+            if self.expected_total_amount is not None or self.currency is not None:
+                raise ValueError("v2 source cannot alias supplier commitment as expected total")
+            for name in (
+                "authorized_acquisition_capital_amount",
+                "proposed_supplier_order_committed_amount",
+            ):
+                object.__setattr__(self, name, _positive_money(getattr(self, name), name))
+            for name in ("authorized_acquisition_capital_currency", "supplier_order_currency"):
+                object.__setattr__(self, name, _currency(getattr(self, name)))
+            if self.execution_safety_policy_version != "2.0.0":
+                raise ValueError("v2 Purchase source requires v2 execution safety policy")
+        else:
+            object.__setattr__(
+                self,
+                "expected_total_amount",
+                _positive_money(self.expected_total_amount, "expected_total_amount"),
+            )
+            object.__setattr__(self, "currency", _currency(self.currency))
+            if any(
+                value is not None
+                for value in (
+                    self.authorized_acquisition_capital_amount,
+                    self.authorized_acquisition_capital_currency,
+                    self.proposed_supplier_order_committed_amount,
+                    self.supplier_order_currency,
+                )
+            ):
+                raise ValueError("v1 source cannot contain v2 monetary facts")
         object.__setattr__(
             self,
             "execution_intent_evaluated_at",
             _aware(self.execution_intent_evaluated_at, "execution_intent_evaluated_at"),
         )
-        if self.schema_version != PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION:
+        if self.schema_version not in {
+            PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION,
+            PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Purchase Execution source manifest schema")
 
 
@@ -153,8 +189,8 @@ class PurchaseExecutionRecord:
     source_manifest: PurchaseExecutionSourceManifest
     actual_quantity: int
     actual_quantity_unit: str
-    actual_total_committed_amount: Decimal
-    currency: str
+    actual_total_committed_amount: Decimal | None
+    currency: str | None
     external_order_reference: str
     founder_id: str
     executed_at: datetime
@@ -164,6 +200,8 @@ class PurchaseExecutionRecord:
     policy_name: str = PURCHASE_EXECUTION_POLICY_NAME
     policy_version: str = PURCHASE_EXECUTION_POLICY_VERSION
     schema_version: str = PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION
+    supplier_order_committed_amount: Decimal | None = None
+    supplier_order_currency: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "record_id", _text(self.record_id, "record_id"))
@@ -174,14 +212,32 @@ class PurchaseExecutionRecord:
         )
         for name in ("actual_quantity_unit", "external_order_reference", "founder_id"):
             object.__setattr__(self, name, _text(getattr(self, name), name))
-        object.__setattr__(
-            self,
-            "actual_total_committed_amount",
-            _positive_money(
-                self.actual_total_committed_amount, "actual_total_committed_amount"
-            ),
-        )
-        object.__setattr__(self, "currency", _currency(self.currency))
+        is_v2 = self.schema_version == PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2
+        if is_v2:
+            if self.actual_total_committed_amount is not None or self.currency is not None:
+                raise ValueError("v2 record cannot use ambiguous committed total fields")
+            object.__setattr__(
+                self,
+                "supplier_order_committed_amount",
+                _positive_money(
+                    self.supplier_order_committed_amount,
+                    "supplier_order_committed_amount",
+                ),
+            )
+            object.__setattr__(
+                self, "supplier_order_currency", _currency(self.supplier_order_currency)
+            )
+        else:
+            object.__setattr__(
+                self,
+                "actual_total_committed_amount",
+                _positive_money(
+                    self.actual_total_committed_amount, "actual_total_committed_amount"
+                ),
+            )
+            object.__setattr__(self, "currency", _currency(self.currency))
+            if self.supplier_order_committed_amount is not None or self.supplier_order_currency is not None:
+                raise ValueError("v1 record cannot contain v2 supplier commitment")
         for name in ("executed_at", "requested_at", "admitted_at"):
             object.__setattr__(self, name, _aware(getattr(self, name), name))
         if not isinstance(self.evidence_references, tuple) or not self.evidence_references:
@@ -195,11 +251,18 @@ class PurchaseExecutionRecord:
         if len(set(references)) != len(references):
             raise ValueError("evidence references must be unique")
         source = self.source_manifest
+        money_mismatch = (
+            self.supplier_order_committed_amount
+            != source.proposed_supplier_order_committed_amount
+            or self.supplier_order_currency != source.supplier_order_currency
+            if is_v2
+            else self.actual_total_committed_amount != source.expected_total_amount
+            or self.currency != source.currency
+        )
         if (
             self.actual_quantity != source.expected_quantity
             or self.actual_quantity_unit != source.expected_quantity_unit
-            or self.actual_total_committed_amount != source.expected_total_amount
-            or self.currency != source.currency
+            or money_mismatch
             or self.founder_id != source.founder_id
         ):
             raise ValueError("actual purchase facts must exactly match READY intent")
@@ -209,10 +272,16 @@ class PurchaseExecutionRecord:
             raise ValueError("admitted_at cannot precede executed_at")
         if (
             self.policy_name != PURCHASE_EXECUTION_POLICY_NAME
-            or self.policy_version != PURCHASE_EXECUTION_POLICY_VERSION
+            or self.policy_version
+            != (PURCHASE_EXECUTION_POLICY_VERSION_V2 if is_v2 else PURCHASE_EXECUTION_POLICY_VERSION)
         ):
             raise ValueError("unsupported Purchase Execution policy")
-        if self.schema_version != PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION:
+        expected_schema = (
+            PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION_V2
+            if source.schema_version == PURCHASE_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+            else PURCHASE_EXECUTION_RECORD_SCHEMA_VERSION
+        )
+        if self.schema_version != expected_schema:
             raise ValueError("unsupported Purchase Execution Record schema")
 
 

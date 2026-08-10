@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B7B2A - Execution Intent v2 and Purchase Execution v2
+
+- Implement ADR-0058 with explicit `2.0.0` Domain/Application/SQLite/HTTP contracts that keep authorized target-currency acquisition capital, proposed source-currency supplier commitment, and actual supplier commitment separate.
+- Preserve v1 payload, fingerprint, restart, and replay semantics without migration; v2 persistence remains append-only and retains one-READY-per-Approval and one-Purchase-per-Intent cardinality.
+- Prove CNY supplier money under KRW authorization, same-currency unequal amounts, exact checkout-drift rejection, OpenAPI discoverability, and independent Actual Acquisition Settlement without FX in Intent or Purchase Execution.
+
 ## CR-1B7B2 - Purchase Execution Monetary Authority Decision
 
 - Accept ADR-0058 and distinguish the target-currency Planned Requirement/Founder Approval authorization cap from the source-currency supplier-order commitment and the later final Actual Acquisition Settlement.

@@ -16,6 +16,9 @@ from app.domain.capital import (
     DEPLOYABLE_CAPITAL_SEMANTICS_VERSION,
     REAL_MONEY_EXECUTION_SAFETY_POLICY_NAME,
     REAL_MONEY_EXECUTION_SAFETY_POLICY_VERSION,
+    REAL_MONEY_EXECUTION_SAFETY_POLICY_VERSION_V2,
+    REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION_V2,
+    REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     CapitalGateAssessment,
     DeployableCapitalSnapshot,
     FounderCapitalApproval,
@@ -34,6 +37,12 @@ REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION = (
 )
 REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION = (
     "real-money-execution-intent-receipt-v1"
+)
+REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION_V2 = (
+    "real-money-execution-intent-command-v2"
+)
+REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2 = (
+    "real-money-execution-intent-receipt-v2"
 )
 
 
@@ -195,6 +204,59 @@ class EvaluateRealMoneyExecutionIntentCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class EvaluateRealMoneyExecutionIntentCommandV2:
+    command_id: str
+    founder_capital_approval_id: str
+    quote_id: str
+    quote_revision: int
+    current_deployable_capital_snapshot_id: str
+    execution_quantity: int
+    execution_quantity_unit: str
+    proposed_supplier_order_committed_amount: Decimal
+    supplier_order_currency: str
+    supplier_order_checkout_evidence_reference: str
+    founder_id: str
+    requested_at: datetime
+    confirmed_at: datetime
+    current_execution_confirmed: bool
+    policy_name: str = REAL_MONEY_EXECUTION_SAFETY_POLICY_NAME
+    policy_version: str = REAL_MONEY_EXECUTION_SAFETY_POLICY_VERSION_V2
+    schema_version: str = REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION_V2
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id", "founder_capital_approval_id", "quote_id",
+            "current_deployable_capital_snapshot_id", "execution_quantity_unit",
+            "supplier_order_checkout_evidence_reference", "founder_id", "policy_name",
+            "policy_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        object.__setattr__(self, "quote_revision", _positive_integer(self.quote_revision, "quote_revision"))
+        object.__setattr__(self, "execution_quantity", _positive_integer(self.execution_quantity, "execution_quantity"))
+        object.__setattr__(
+            self, "proposed_supplier_order_committed_amount",
+            _positive_money(self.proposed_supplier_order_committed_amount, "proposed_supplier_order_committed_amount"),
+        )
+        object.__setattr__(self, "supplier_order_currency", _currency(self.supplier_order_currency))
+        for name in ("requested_at", "confirmed_at"):
+            object.__setattr__(self, name, _aware(getattr(self, name), name))
+        if not isinstance(self.current_execution_confirmed, bool):
+            raise TypeError("current_execution_confirmed must be bool")
+        if self.policy_name != REAL_MONEY_EXECUTION_SAFETY_POLICY_NAME or self.policy_version != REAL_MONEY_EXECUTION_SAFETY_POLICY_VERSION_V2:
+            raise ValueError("unsupported Real-Money Execution safety policy")
+        if self.schema_version != REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION_V2:
+            raise ValueError("unsupported Real-Money Execution Intent command schema")
+
+    @property
+    def fingerprint(self) -> str:
+        return _fingerprint(self)
+
+    @property
+    def action_fingerprint(self) -> str:
+        return _fingerprint({field.name: getattr(self, field.name) for field in fields(self) if field.name not in {"command_id", "requested_at"}})
+
+
+@dataclass(frozen=True, slots=True)
 class RealMoneyExecutionIntentReceipt:
     command_id: str
     intent_id: str
@@ -209,7 +271,10 @@ class RealMoneyExecutionIntentReceipt:
             self, "command_fingerprint", _fingerprint_text(self.command_fingerprint)
         )
         object.__setattr__(self, "committed_at", _aware(self.committed_at, "committed_at"))
-        if self.schema_version != REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION:
+        if self.schema_version not in {
+            REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION,
+            REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2,
+        }:
             raise ValueError("unsupported Real-Money Execution Intent receipt schema")
 
 
@@ -267,10 +332,10 @@ class EvaluateRealMoneyExecutionIntent:
         self._committed = committed_clock
 
     def execute(
-        self, command: EvaluateRealMoneyExecutionIntentCommand
+        self, command: EvaluateRealMoneyExecutionIntentCommand | EvaluateRealMoneyExecutionIntentCommandV2
     ) -> RealMoneyExecutionIntentPublication:
-        if not isinstance(command, EvaluateRealMoneyExecutionIntentCommand):
-            raise TypeError("command must be EvaluateRealMoneyExecutionIntentCommand")
+        if not isinstance(command, (EvaluateRealMoneyExecutionIntentCommand, EvaluateRealMoneyExecutionIntentCommandV2)):
+            raise TypeError("command must be a supported EvaluateRealMoneyExecutionIntentCommand")
         replay = self._repository.validate_replay(command.command_id, command.fingerprint)
         if replay is not None:
             return replace(replay, replayed=True)
@@ -283,6 +348,7 @@ class EvaluateRealMoneyExecutionIntent:
                 intent_id=alias.intent_id,
                 command_fingerprint=command.fingerprint,
                 committed_at=_aware(self._committed(), "committed_at"),
+                schema_version=(REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2 if isinstance(command, EvaluateRealMoneyExecutionIntentCommandV2) else REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION),
             )
             return self._repository.save_alias(command, alias, alias_receipt)
 
@@ -338,6 +404,7 @@ class EvaluateRealMoneyExecutionIntent:
             else RealMoneyExecutionIntentState.READY_FOR_MANUAL_EXECUTION
         )
         source = gate.source_manifest
+        is_v2 = isinstance(command, EvaluateRealMoneyExecutionIntentCommandV2)
         manifest = RealMoneyExecutionSourceManifest(
             opportunity_identity=approval.opportunity_identity,
             founder_capital_approval_id=approval.approval_id,
@@ -351,13 +418,19 @@ class EvaluateRealMoneyExecutionIntent:
             current_deployable_capital_snapshot_id=current_capital.snapshot_id,
             execution_quantity=command.execution_quantity,
             execution_quantity_unit=command.execution_quantity_unit,
-            planned_execution_amount=command.planned_execution_amount,
-            currency=command.currency,
+            planned_execution_amount=None if is_v2 else command.planned_execution_amount,
+            currency=None if is_v2 else command.currency,
             founder_id=command.founder_id,
             confirmed_at=command.confirmed_at,
             current_execution_confirmed=command.current_execution_confirmed,
             policy_name=command.policy_name,
             policy_version=command.policy_version,
+            schema_version=(REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2 if is_v2 else "real-money-execution-source-manifest-v1"),
+            authorized_acquisition_capital_amount=(approval.approved_capital if is_v2 else None),
+            authorized_acquisition_capital_currency=(approval.currency if is_v2 else None),
+            proposed_supplier_order_committed_amount=(command.proposed_supplier_order_committed_amount if is_v2 else None),
+            supplier_order_currency=(command.supplier_order_currency if is_v2 else None),
+            supplier_order_checkout_evidence_reference=(command.supplier_order_checkout_evidence_reference if is_v2 else None),
         )
         intent = RealMoneyExecutionIntent(
             intent_id=_text(self._identity(), "intent_id"),
@@ -366,12 +439,14 @@ class EvaluateRealMoneyExecutionIntent:
             blocking_reasons=reasons,
             requested_at=command.requested_at,
             evaluated_at=evaluated_at,
+            schema_version=(REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION_V2 if is_v2 else "real-money-execution-intent-v1"),
         )
         receipt = RealMoneyExecutionIntentReceipt(
             command_id=command.command_id,
             intent_id=intent.intent_id,
             command_fingerprint=command.fingerprint,
             committed_at=_aware(self._committed(), "committed_at"),
+            schema_version=(REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2 if is_v2 else REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION),
         )
         return self._repository.save_intent(command, intent, receipt)
 
@@ -450,10 +525,10 @@ class EvaluateRealMoneyExecutionIntent:
             )
         elif quote.valid_until <= evaluated_at:
             reasons.add(RealMoneyExecutionIntentBlockingReasonCode.QUOTE_EXPIRED)
-        if (
+        is_v2 = isinstance(command, EvaluateRealMoneyExecutionIntentCommandV2)
+        if not is_v2 and (
             command.planned_execution_amount != approval.approved_capital
-            or command.planned_execution_amount
-            != requirement.planned_acquisition_capital
+            or command.planned_execution_amount != requirement.planned_acquisition_capital
         ):
             reasons.add(
                 RealMoneyExecutionIntentBlockingReasonCode.EXECUTION_AMOUNT_MISMATCH
@@ -466,10 +541,16 @@ class EvaluateRealMoneyExecutionIntent:
             reasons.add(
                 RealMoneyExecutionIntentBlockingReasonCode.EXECUTION_UNIT_MISMATCH
             )
+        if is_v2:
+            if command.supplier_order_currency != quote.unit_price.currency:
+                reasons.add(RealMoneyExecutionIntentBlockingReasonCode.SUPPLIER_ORDER_CURRENCY_MISMATCH)
+            capital_currency = approval.currency
+        else:
+            capital_currency = command.currency
         if (
-            command.currency != approval.currency
-            or command.currency != requirement.currency
-            or current_capital.currency != command.currency
+            approval.currency != requirement.currency
+            or current_capital.currency != capital_currency
+            or (not is_v2 and command.currency != approval.currency)
         ):
             reasons.add(RealMoneyExecutionIntentBlockingReasonCode.CURRENCY_MISMATCH)
         if (
@@ -482,7 +563,8 @@ class EvaluateRealMoneyExecutionIntent:
             reasons.add(
                 RealMoneyExecutionIntentBlockingReasonCode.CURRENT_CAPITAL_SNAPSHOT_INVALID
             )
-        if current_capital.amount < command.planned_execution_amount:
+        required_capital = approval.approved_capital if is_v2 else command.planned_execution_amount
+        if current_capital.amount < required_capital:
             reasons.add(
                 RealMoneyExecutionIntentBlockingReasonCode.CURRENT_CAPITAL_INSUFFICIENT
             )

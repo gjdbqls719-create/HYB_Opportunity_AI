@@ -152,7 +152,7 @@ def test_api_complete_same_currency_restart_replay_and_isolation(economics_chain
     assert body["quote_id"] == result["purchase"]["quote_id"]
     assert body["fixed_cost_facts"][0]["amount"] == "9000"
     assert body["fixed_cost_facts"][0]["amount"] != result["purchase"][
-        "actual_total_committed_amount"
+        "supplier_order_committed_amount"
     ]
     assert body["fixed_cost_facts"][3]["amount"] == "0"
     assert body["fixed_cost_facts"][2]["availability"] == "not_applicable"
@@ -177,6 +177,52 @@ def test_api_complete_same_currency_restart_replay_and_isolation(economics_chain
         assert connection.execute(
             "SELECT COUNT(*) FROM actual_acquisition_settlement_history"
         ).fetchone()[0] == before_rows
+
+
+def test_v2_supplier_commitment_remains_independent_from_final_settlement(
+    economics_chain_client,
+):
+    result = _execute_capital_journey(
+        economics_chain_client,
+        execution_contract_version="2.0.0",
+        supplier_order_amount="500",
+    )
+    execution = result["execution"].json()
+    purchase = result["client"].post(
+        f"/api/v1/opportunities/{result['opportunity_id']}/purchase-execution-records",
+        json={
+            "contract_version": "2.0.0",
+            "command_id": "actual-chain-purchase-v2",
+            "real_money_execution_intent_id": execution["intent_id"],
+            "quote_id": execution["quote_id"],
+            "quote_revision": execution["quote_revision"],
+            "actual_quantity": execution["execution_quantity"],
+            "actual_quantity_unit": execution["execution_quantity_unit"],
+            "supplier_order_committed_amount": "500",
+            "supplier_order_currency": execution["supplier_order_currency"],
+            "external_order_reference": "actual-chain-order-v2",
+            "founder_id": execution["founder_id"],
+            "executed_at": execution["evaluated_at"],
+            "evidence_references": [{
+                "reference": "artifact://actual-chain/purchase-v2",
+                "observed_at": execution["evaluated_at"],
+            }],
+            "requested_at": _now(),
+        },
+    )
+    assert purchase.status_code == 201, purchase.text
+    settlement = result["client"].post(
+        f"/api/v1/opportunities/{result['opportunity_id']}/actual-acquisition-settlements",
+        json=_settlement_payload(
+            purchase.json(), command_id="actual-chain-settlement-v2"
+        ),
+    )
+    assert settlement.status_code == 201, settlement.text
+    assert settlement.json()["state"] == "complete"
+    assert settlement.json()["acquisition_batch_total"] == "10000"
+    assert settlement.json()["acquisition_batch_total"] != purchase.json()[
+        "supplier_order_committed_amount"
+    ]
 
 
 def test_api_blocked_to_complete_revision_journey_and_terminal_conflict(economics_chain_client):

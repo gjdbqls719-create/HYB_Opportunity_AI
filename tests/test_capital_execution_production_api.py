@@ -33,7 +33,13 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
-def _execute_capital_journey(economics_chain_client, *, quantity=10):
+def _execute_capital_journey(
+    economics_chain_client,
+    *,
+    quantity=10,
+    execution_contract_version="2.0.0",
+    supplier_order_amount="500",
+):
     (
         client,
         database,
@@ -160,6 +166,17 @@ def _execute_capital_journey(economics_chain_client, *, quantity=10):
         "confirmed_at": _now(),
         "requested_at": _now(),
     }
+    if execution_contract_version == "2.0.0":
+        execution_payload.pop("planned_execution_amount")
+        execution_payload.pop("currency")
+        execution_payload.update(
+            contract_version="2.0.0",
+            proposed_supplier_order_committed_amount=supplier_order_amount,
+            supplier_order_currency=quote["unit_price"]["currency"],
+            supplier_order_checkout_evidence_reference=(
+                "artifact://supplier-checkout/proposed-001"
+            ),
+        )
     execution = client.post(
         f"/api/v1/opportunities/{opportunity_id}/real-money-execution-intents",
         json=execution_payload,
@@ -209,10 +226,12 @@ def test_api_only_o2_reaches_ready_for_manual_execution(economics_chain_client):
     assert execution["quote_revision"] == sourcing["quote"]["revision"]
     assert execution["sourcing_admission_id"] == sourcing["admission_id"]
     assert execution["execution_quantity"] == 10
-    assert execution["planned_execution_amount"] == requirement[
+    assert execution["authorized_acquisition_capital_amount"] == requirement[
         "planned_acquisition_capital"
     ]
-    assert approval["approved_capital"] == execution["planned_execution_amount"]
+    assert approval["approved_capital"] == execution[
+        "authorized_acquisition_capital_amount"
+    ]
     assert execution["founder_capital_approval_id"] == approval["approval_id"]
     assert sourcing["supplier"]["external_supplier_reference"]
     assert sourcing["sourcing_product"]["external_product_reference"]
@@ -571,7 +590,7 @@ def test_execution_api_blocks_each_current_safety_mismatch(
     assert insufficient.status_code == 201
 
     cases = (
-        {"planned_execution_amount": "1"},
+        {"supplier_order_currency": "USD"},
         {"execution_quantity": 11},
         {
             "current_deployable_capital_snapshot_id": insufficient.json()[
@@ -717,7 +736,6 @@ def test_http_same_command_concurrency_converges_for_all_six_authorities(
         command_id="concurrent-execution-command",
         founder_capital_approval_id=approval["approval_id"],
         current_deployable_capital_snapshot_id=current.json()["snapshot_id"],
-        planned_execution_amount=requirement["planned_acquisition_capital"],
     )
     concurrent(
         f"/api/v1/opportunities/{opportunity_id}/real-money-execution-intents",

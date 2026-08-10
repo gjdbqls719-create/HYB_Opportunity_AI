@@ -12,7 +12,10 @@ import sqlite3
 from app.application.real_money_execution_intent import (
     REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION,
     REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION,
+    REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION_V2,
+    REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2,
     EvaluateRealMoneyExecutionIntentCommand,
+    EvaluateRealMoneyExecutionIntentCommandV2,
     RealMoneyExecutionIntentPublication,
     RealMoneyExecutionIntentReadyConflictError,
     RealMoneyExecutionIntentReceipt,
@@ -22,6 +25,8 @@ from app.application.real_money_execution_intent import (
 from app.domain.capital import (
     REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION,
     REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION,
+    REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION_V2,
+    REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     RealMoneyExecutionIntent,
     RealMoneyExecutionIntentBlockingReasonCode,
     RealMoneyExecutionIntentState,
@@ -108,6 +113,7 @@ def _exact(value: object, keys: set[str], name: str) -> dict[str, object]:
 
 
 def _fingerprint_action(source: RealMoneyExecutionSourceManifest) -> str:
+    is_v2 = source.schema_version == REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
     value = {
         "founder_capital_approval_id": source.founder_capital_approval_id,
         "quote_id": source.quote_id,
@@ -115,14 +121,20 @@ def _fingerprint_action(source: RealMoneyExecutionSourceManifest) -> str:
         "current_deployable_capital_snapshot_id": source.current_deployable_capital_snapshot_id,
         "execution_quantity": source.execution_quantity,
         "execution_quantity_unit": source.execution_quantity_unit,
-        "planned_execution_amount": format(source.planned_execution_amount, "f"),
-        "currency": source.currency,
+        **({
+            "proposed_supplier_order_committed_amount": format(source.proposed_supplier_order_committed_amount, "f"),
+            "supplier_order_currency": source.supplier_order_currency,
+            "supplier_order_checkout_evidence_reference": source.supplier_order_checkout_evidence_reference,
+        } if is_v2 else {
+            "planned_execution_amount": format(source.planned_execution_amount, "f"),
+            "currency": source.currency,
+        }),
         "founder_id": source.founder_id,
         "confirmed_at": source.confirmed_at.astimezone(timezone.utc).isoformat(),
         "current_execution_confirmed": source.current_execution_confirmed,
         "policy_name": source.policy_name,
         "policy_version": source.policy_version,
-        "schema_version": REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION,
+        "schema_version": REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION_V2 if is_v2 else REAL_MONEY_EXECUTION_INTENT_COMMAND_SCHEMA_VERSION,
     }
     return _integrity(_dump(value))
 
@@ -149,6 +161,13 @@ _MANIFEST_KEYS = {
     "policy_version",
     "schema_version",
 }
+_MANIFEST_KEYS_V2 = (_MANIFEST_KEYS - {"planned_execution_amount", "currency"}) | {
+    "authorized_acquisition_capital_amount",
+    "authorized_acquisition_capital_currency",
+    "proposed_supplier_order_committed_amount",
+    "supplier_order_currency",
+    "supplier_order_checkout_evidence_reference",
+}
 _PAYLOAD_KEYS = {
     "intent_id",
     "source_manifest",
@@ -161,6 +180,7 @@ _PAYLOAD_KEYS = {
 
 
 def _manifest(value: RealMoneyExecutionSourceManifest) -> dict[str, object]:
+    is_v2 = value.schema_version == REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
     return {
         "opportunity_identity": {
             "opportunity_id": value.opportunity_identity.opportunity_id,
@@ -177,8 +197,16 @@ def _manifest(value: RealMoneyExecutionSourceManifest) -> dict[str, object]:
         "current_deployable_capital_snapshot_id": value.current_deployable_capital_snapshot_id,
         "execution_quantity": value.execution_quantity,
         "execution_quantity_unit": value.execution_quantity_unit,
-        "planned_execution_amount": format(value.planned_execution_amount, "f"),
-        "currency": value.currency,
+        **({
+            "authorized_acquisition_capital_amount": format(value.authorized_acquisition_capital_amount, "f"),
+            "authorized_acquisition_capital_currency": value.authorized_acquisition_capital_currency,
+            "proposed_supplier_order_committed_amount": format(value.proposed_supplier_order_committed_amount, "f"),
+            "supplier_order_currency": value.supplier_order_currency,
+            "supplier_order_checkout_evidence_reference": value.supplier_order_checkout_evidence_reference,
+        } if is_v2 else {
+            "planned_execution_amount": format(value.planned_execution_amount, "f"),
+            "currency": value.currency,
+        }),
         "founder_id": value.founder_id,
         "confirmed_at": value.confirmed_at.isoformat(),
         "current_execution_confirmed": value.current_execution_confirmed,
@@ -189,8 +217,11 @@ def _manifest(value: RealMoneyExecutionSourceManifest) -> dict[str, object]:
 
 
 def _load_manifest(value: object) -> RealMoneyExecutionSourceManifest:
-    data = _exact(value, _MANIFEST_KEYS, "execution source manifest")
-    if data["schema_version"] != REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION:
+    if not isinstance(value, dict):
+        raise ValueError("execution source manifest must be an object")
+    is_v2 = value.get("schema_version") == REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+    data = _exact(value, _MANIFEST_KEYS_V2 if is_v2 else _MANIFEST_KEYS, "execution source manifest")
+    if data["schema_version"] not in {REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION, REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2}:
         raise UnsupportedRealMoneyExecutionIntentVersionError(
             "unsupported Real-Money Execution source manifest version"
         )
@@ -216,16 +247,19 @@ def _load_manifest(value: object) -> RealMoneyExecutionSourceManifest:
         ],
         execution_quantity=data["execution_quantity"],
         execution_quantity_unit=data["execution_quantity_unit"],
-        planned_execution_amount=_decimal(
-            data["planned_execution_amount"], "planned_execution_amount"
-        ),
-        currency=data["currency"],
+        planned_execution_amount=None if is_v2 else _decimal(data["planned_execution_amount"], "planned_execution_amount"),
+        currency=None if is_v2 else data["currency"],
         founder_id=data["founder_id"],
         confirmed_at=_datetime(data["confirmed_at"], "confirmed_at"),
         current_execution_confirmed=data["current_execution_confirmed"],
         policy_name=data["policy_name"],
         policy_version=data["policy_version"],
         schema_version=data["schema_version"],
+        authorized_acquisition_capital_amount=_decimal(data["authorized_acquisition_capital_amount"], "authorized_acquisition_capital_amount") if is_v2 else None,
+        authorized_acquisition_capital_currency=data["authorized_acquisition_capital_currency"] if is_v2 else None,
+        proposed_supplier_order_committed_amount=_decimal(data["proposed_supplier_order_committed_amount"], "proposed_supplier_order_committed_amount") if is_v2 else None,
+        supplier_order_currency=data["supplier_order_currency"] if is_v2 else None,
+        supplier_order_checkout_evidence_reference=data["supplier_order_checkout_evidence_reference"] if is_v2 else None,
     )
 
 
@@ -345,7 +379,7 @@ class SQLiteRealMoneyExecutionIntentRepository:
 
     def _load_intent(self, row) -> RealMoneyExecutionIntent:
         try:
-            if row["schema_version"] != REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION:
+            if row["schema_version"] not in {REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION, REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION_V2}:
                 raise UnsupportedRealMoneyExecutionIntentVersionError(
                     "unsupported Real-Money Execution Intent version"
                 )
@@ -353,7 +387,7 @@ class SQLiteRealMoneyExecutionIntentRepository:
             if not isinstance(encoded, str) or _integrity(encoded) != row["integrity_fingerprint"]:
                 raise ValueError("Real-Money Execution Intent integrity mismatch")
             data = _exact(json.loads(encoded), _PAYLOAD_KEYS, "execution intent payload")
-            if data["schema_version"] != REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION:
+            if data["schema_version"] not in {REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION, REAL_MONEY_EXECUTION_INTENT_SCHEMA_VERSION_V2}:
                 raise UnsupportedRealMoneyExecutionIntentVersionError(
                     "unsupported execution intent payload version"
                 )
@@ -411,7 +445,7 @@ class SQLiteRealMoneyExecutionIntentRepository:
 
     def _load_receipt(self, row) -> RealMoneyExecutionIntentReceipt:
         try:
-            if row["schema_version"] != REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION:
+            if row["schema_version"] not in {REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION, REAL_MONEY_EXECUTION_INTENT_RECEIPT_SCHEMA_VERSION_V2}:
                 raise UnsupportedRealMoneyExecutionIntentVersionError(
                     "unsupported Real-Money Execution Intent receipt version"
                 )
@@ -504,9 +538,17 @@ class SQLiteRealMoneyExecutionIntentRepository:
             or admission.selling_product_lineage.opportunity_identity
             != source.opportunity_identity
             or capital.snapshot_id != source.current_deployable_capital_snapshot_id
+            or (
+                source.authorized_acquisition_capital_amount != approval.approved_capital
+                or source.authorized_acquisition_capital_currency != approval.currency
+                if source.schema_version == REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+                else False
+            )
         ):
             raise ValueError("Real-Money Execution Intent source lineage differs")
-        reconstructed = EvaluateRealMoneyExecutionIntentCommand(
+        is_v2 = source.schema_version == REAL_MONEY_EXECUTION_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+        command_type = EvaluateRealMoneyExecutionIntentCommandV2 if is_v2 else EvaluateRealMoneyExecutionIntentCommand
+        reconstructed = command_type(
             command_id="persistence-reconstruction-only",
             founder_capital_approval_id=source.founder_capital_approval_id,
             quote_id=source.quote_id,
@@ -514,8 +556,14 @@ class SQLiteRealMoneyExecutionIntentRepository:
             current_deployable_capital_snapshot_id=source.current_deployable_capital_snapshot_id,
             execution_quantity=source.execution_quantity,
             execution_quantity_unit=source.execution_quantity_unit,
-            planned_execution_amount=source.planned_execution_amount,
-            currency=source.currency,
+            **({
+                "proposed_supplier_order_committed_amount": source.proposed_supplier_order_committed_amount,
+                "supplier_order_currency": source.supplier_order_currency,
+                "supplier_order_checkout_evidence_reference": source.supplier_order_checkout_evidence_reference,
+            } if is_v2 else {
+                "planned_execution_amount": source.planned_execution_amount,
+                "currency": source.currency,
+            }),
             founder_id=source.founder_id,
             requested_at=intent.requested_at,
             confirmed_at=source.confirmed_at,
@@ -543,8 +591,8 @@ class SQLiteRealMoneyExecutionIntentRepository:
 
     @staticmethod
     def _validate_write(command, intent, receipt) -> None:
-        if not isinstance(command, EvaluateRealMoneyExecutionIntentCommand):
-            raise TypeError("command must be EvaluateRealMoneyExecutionIntentCommand")
+        if not isinstance(command, (EvaluateRealMoneyExecutionIntentCommand, EvaluateRealMoneyExecutionIntentCommandV2)):
+            raise TypeError("command must be a supported EvaluateRealMoneyExecutionIntentCommand")
         if not isinstance(intent, RealMoneyExecutionIntent):
             raise TypeError("intent must be RealMoneyExecutionIntent")
         if not isinstance(receipt, RealMoneyExecutionIntentReceipt):
@@ -562,8 +610,14 @@ class SQLiteRealMoneyExecutionIntentRepository:
             != command.current_deployable_capital_snapshot_id
             or source.execution_quantity != command.execution_quantity
             or source.execution_quantity_unit != command.execution_quantity_unit
-            or source.planned_execution_amount != command.planned_execution_amount
-            or source.currency != command.currency
+            or (
+                source.proposed_supplier_order_committed_amount != command.proposed_supplier_order_committed_amount
+                or source.supplier_order_currency != command.supplier_order_currency
+                or source.supplier_order_checkout_evidence_reference != command.supplier_order_checkout_evidence_reference
+                if isinstance(command, EvaluateRealMoneyExecutionIntentCommandV2)
+                else source.planned_execution_amount != command.planned_execution_amount
+                or source.currency != command.currency
+            )
             or source.founder_id != command.founder_id
             or source.confirmed_at != command.confirmed_at
             or source.current_execution_confirmed
@@ -604,8 +658,8 @@ class SQLiteRealMoneyExecutionIntentRepository:
             if replay is not None:
                 self._commit()
                 return replay
-            if not isinstance(command, EvaluateRealMoneyExecutionIntentCommand):
-                raise TypeError("command must be EvaluateRealMoneyExecutionIntentCommand")
+            if not isinstance(command, (EvaluateRealMoneyExecutionIntentCommand, EvaluateRealMoneyExecutionIntentCommandV2)):
+                raise TypeError("command must be a supported EvaluateRealMoneyExecutionIntentCommand")
             if not isinstance(intent, RealMoneyExecutionIntent):
                 raise TypeError("intent must be RealMoneyExecutionIntent")
             if not isinstance(receipt, RealMoneyExecutionIntentReceipt):
@@ -668,6 +722,7 @@ class SQLiteRealMoneyExecutionIntentRepository:
                         intent_id=existing.intent_id,
                         command_fingerprint=command.fingerprint,
                         committed_at=receipt.committed_at,
+                        schema_version=receipt.schema_version,
                     )
                     self._insert_receipt(alias_receipt)
                     try:

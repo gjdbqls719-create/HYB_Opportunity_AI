@@ -6,10 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Decision only. CR-1B7B2 defines the monetary authority and forward v2
-contracts. Current production Real-Money Execution Intent and Purchase
-Execution remain v1 and are not safe for the supported cross-currency first
-purchase until the implementation PR completes.
+Implemented by CR-1B7B2A. Production HTTP supports the explicit `2.0.0`
+Execution Intent and Purchase Execution contracts while retaining lossless v1
+read/replay. V2 persists authorized acquisition capital, proposed supplier-order
+commitment, and actual supplier-order commitment as separate Decimal/currency
+facts; no execution-time FX is performed.
 
 ## Context
 

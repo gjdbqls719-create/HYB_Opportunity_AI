@@ -533,15 +533,16 @@ mutate Actual Economics, or create inventory. Actual shipping, duty/customs,
 FX settlement, realized marketplace facts, and physical goods receipt remain
 separate future authorities.
 
-ADR-0058 separates the monetary authorities for the next production version.
+ADR-0058 and CR-1B7B2A separate the production monetary authorities.
 Founder Approval remains the full target-currency acquisition-capital cap;
 Execution Intent v2 preserves that cap plus a distinct Founder-confirmed
 source-currency proposed supplier-order commitment; Purchase Execution v2
 records the matching genuine supplier-order commitment. No planned FX is used
 at execution, and final actual FX/acquisition scope remains owned by Actual
 Acquisition Settlement. Existing v1 intent and purchase rows retain exact
-historical replay, but the first CNY-to-KRW real purchase is blocked until the
-v2 contract is implemented and production-wired.
+historical replay. Explicit `2.0.0` production requests support a CNY supplier
+commitment under a KRW authorized-capital envelope without execution-time FX
+or planned-value aliasing.
 
 CR-1B6A2 implements ADR-0051 as `ActualAcquisitionSettlement` immediately after
 an exact `PurchaseExecutionRecord`. The production owner preserves actual batch

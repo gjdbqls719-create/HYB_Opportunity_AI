@@ -416,10 +416,14 @@ approved amount, currency, `requested_at`, and factual `approved_at`. Only Gate
 Requirement in the authoritative currency. Approval is never automatic and is
 historical authorization, not proof of transferred or spent funds.
 
-Real-Money Execution Intent requires the exact Approval, exact Quote
-ID/revision, exact post-Approval snapshot B, exact quantity/unit,
-Decimal-string amount, currency, Founder, explicit current confirmation, and
-confirmation/request times. `ready_for_manual_execution` and `blocked` are
+Real-Money Execution Intent v2 requires explicit `contract_version: "2.0.0"`,
+the exact Approval, Quote ID/revision, post-Approval snapshot B, quantity/unit,
+Decimal-string `proposed_supplier_order_committed_amount`, Quote-currency
+`supplier_order_currency`, checkout evidence reference, Founder, explicit
+current confirmation, and confirmation/request times. The server reconstructs
+and returns `authorized_acquisition_capital_amount/currency`; it never accepts
+that authority from the caller or converts supplier money.
+`ready_for_manual_execution` and `blocked` are
 successful business results. Equivalent READY actions under a new command alias
 the existing READY intent and return 200; a different second READY action for
 the same Approval conflicts. The response preserves the exact Approval, Gate,
@@ -440,20 +444,22 @@ caller-provided factual audit references, not authenticated identities. HYB
 authority ends at `READY_FOR_MANUAL_EXECUTION`; the Founder performs the
 external purchase manually. READY does not mean ordered, paid, purchased, or
 executed. `PurchaseExecutionRecord` remains the next required authority for
-recording the actual commercial event.
+recording the actual commercial event. V1 payloads are accepted only for exact
+historical command replay; new production writes use v2.
 
 ## Purchase Execution Record
 
 `POST /api/v1/opportunities/{opportunity_id}/purchase-execution-records`
 records the Founder-reported external purchase against one exact persisted
-`READY_FOR_MANUAL_EXECUTION` intent. The request requires `command_id`, exact
-intent and Quote ID/revision, positive actual quantity and unit, Decimal-string
-total committed amount, currency, opaque external order reference, Founder ID,
+`READY_FOR_MANUAL_EXECUTION` v2 intent. The request requires explicit
+`contract_version: "2.0.0"`, `command_id`, exact intent and Quote ID/revision,
+positive actual quantity/unit, Decimal-string `supplier_order_committed_amount`,
+Quote-currency `supplier_order_currency`, opaque external order reference, Founder ID,
 timezone-aware `executed_at` and `requested_at`, and one or more evidence
 references with timezone-aware observation times.
 
 The server reconstructs O2 and the exact Approval/Gate/Requirement/Intended
-Quantity/Sourcing/Supplier/Product/Quote chain. Quantity, unit, amount, currency,
+Quantity/Sourcing/Supplier/Product/Quote chain. Quantity, unit, supplier amount/currency,
 Quote, and Founder must exactly match READY. Supplier/Product identities are not
 caller claims. A fresh record returns 201. Exact replay or a new command for the
 identical event returns 200 with the same record; changed-command payload,
@@ -470,23 +476,22 @@ or calculate Actual Economics. Software tests simulate Founder submission;
 only a genuine Founder order and real reference/evidence can validate the
 real-world procedure.
 
-### Purchase monetary v2 direction
+### Purchase monetary v2
 
-ADR-0058 finds the current v1 amount contract unsafe for a new cross-currency
-purchase: v1 forces the target-currency approved acquisition envelope to be
-reported as the actual supplier-order commitment. Current endpoints remain v1
-until the implementation PR and must not be used for the first CNY-to-KRW real
-purchase.
+ADR-0058 and CR-1B7B2A replace the v1 monetary conflation for new writes. V1
+rows and exact command replay remain historical and are never migrated or
+aliased to v2.
 
-The versioned v2 Execution Intent will expose server-reconstructed
+The versioned v2 Execution Intent exposes server-reconstructed
 `authorized_acquisition_capital_amount/currency` separately from Founder-owned
 `proposed_supplier_order_committed_amount/currency` and checkout evidence. The
-v2 Purchase Execution request/response will use explicit
+v2 Purchase Execution request/response uses explicit
 `supplier_order_committed_amount/currency` and exact-match those facts to the
 READY v2 proposal. It will not compare CNY supplier money numerically to a KRW
 cap, apply planned FX, or relabel planned capital as actual. Historical v1
 requests, records, and replay retain their original contracts without aliases,
-migration, or reinterpretation.
+migration, or reinterpretation. Checkout drift is 409; partial or malformed v2
+money is 422.
 
 ## Actual Acquisition Settlement
 
