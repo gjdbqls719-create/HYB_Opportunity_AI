@@ -64,6 +64,10 @@ order quantity, neither of which has an authoritative contract. The approved
 amount is a hard cap for future execution; it is not evidence that funds were
 transferred or spent. No FX or current cash lookup occurs.
 
+ADR-0058 clarifies that this cap is a target-currency acquisition authorization,
+not a prediction that the external supplier-order commitment has the same amount
+or currency. V2 execution preserves the cap separately from supplier-order money.
+
 ### Founder, Identity, and Time
 
 The caller supplies a factual non-empty Founder identity reference,

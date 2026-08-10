@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7B2 - Purchase Execution Monetary Authority Decision
+
+- Accept ADR-0058 and distinguish the target-currency Planned Requirement/Founder Approval authorization cap from the source-currency supplier-order commitment and the later final Actual Acquisition Settlement.
+- Define versioned Execution Intent v2 with separate authorized acquisition capital and proposed supplier-order money, plus Purchase Execution v2 with explicit actual supplier-order committed amount/currency exact-matched to that proposal.
+- Preserve Quote, quantity, Founder, current-capital, evidence, one-READY, and one-record safety while forbidding planned FX reuse, implicit cross-currency cap comparison, planned-value relabeling, and unsafe checkout arithmetic inference.
+- Preserve all v1 intents and Purchase Execution Records as historical read/replay facts without migration or reinterpretation; production remains blocked for the first CNY-to-KRW real purchase until the bounded v2 implementation PR.
+
 ## CR-1B7B1 - Candidate Discovery Handoff Implementation
 
 - Implement ADR-0057 for `EBAY_US`: the adapter emits the exact listing Market identity, while the Discovery Application issues a dedicated opaque namespaced discovery reference under `discovery-candidate-handoff / 1.0.0` before immutable observation admission.

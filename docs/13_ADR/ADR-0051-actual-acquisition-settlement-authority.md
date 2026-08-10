@@ -218,6 +218,11 @@ that equality is an evidence-backed actual outcome, never a fallback. The
 all-in acquisition total can differ because of final item adjustment, shipping,
 duty/customs, other mandatory cost, or actual FX settlement.
 
+ADR-0058 preserves this boundary for Purchase Execution v2. The source-currency
+supplier-order commitment remains an event-time fact; no planned FX transforms
+it, and no committed amount becomes a settlement category or total without
+explicit actual evidence.
+
 ### Evidence, identity, and time
 
 Actual money and non-applicability facts require external evidence references;

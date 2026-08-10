@@ -64,3 +64,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0055: Actual Outcome Authority](ADR-0055-actual-outcome-authority.md)
 - [ADR-0056: Conservative vs Actual Variance v2 Authority](ADR-0056-conservative-actual-variance-v2-authority.md)
 - [ADR-0057: Candidate Discovery Handoff Authority](ADR-0057-candidate-discovery-handoff-authority.md)
+- [ADR-0058: Purchase Execution Monetary Authority](ADR-0058-purchase-execution-monetary-authority.md)

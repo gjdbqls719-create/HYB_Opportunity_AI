@@ -470,6 +470,24 @@ or calculate Actual Economics. Software tests simulate Founder submission;
 only a genuine Founder order and real reference/evidence can validate the
 real-world procedure.
 
+### Purchase monetary v2 direction
+
+ADR-0058 finds the current v1 amount contract unsafe for a new cross-currency
+purchase: v1 forces the target-currency approved acquisition envelope to be
+reported as the actual supplier-order commitment. Current endpoints remain v1
+until the implementation PR and must not be used for the first CNY-to-KRW real
+purchase.
+
+The versioned v2 Execution Intent will expose server-reconstructed
+`authorized_acquisition_capital_amount/currency` separately from Founder-owned
+`proposed_supplier_order_committed_amount/currency` and checkout evidence. The
+v2 Purchase Execution request/response will use explicit
+`supplier_order_committed_amount/currency` and exact-match those facts to the
+READY v2 proposal. It will not compare CNY supplier money numerically to a KRW
+cap, apply planned FX, or relabel planned capital as actual. Historical v1
+requests, records, and replay retain their original contracts without aliases,
+migration, or reinterpretation.
+
 ## Actual Acquisition Settlement
 
 `POST /api/v1/opportunities/{opportunity_id}/actual-acquisition-settlements`

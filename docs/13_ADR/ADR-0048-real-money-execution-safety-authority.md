@@ -15,6 +15,11 @@ behavior. ADR-0050 / CR-1B5D2M now implements the separate immutable manual
 Purchase Execution Record and production API. Actual Economics and physical
 receipt/inventory handoffs remain unimplemented.
 
+ADR-0058 supersedes only the new-production monetary portion of policy v1. The
+implemented v1 remains historical; execution-safety v2 must preserve the
+authorized acquisition-capital envelope separately from the proposed
+source-currency supplier-order commitment before the first cross-currency run.
+
 ## Context
 
 ADR-0047 records an immutable Founder Capital Approval over one exact Capital
@@ -256,6 +261,14 @@ No generalized workflow engine is required.
   side effect.
 - Current Actual Economics remains isolated until exact execution provenance can
   be admitted safely.
+
+## Relationship to ADR-0058
+
+The v1 `planned_execution_amount` remains exact historical data. It must not be
+relabeled as an external supplier charge. New production intents use policy v2
+and separately preserve server-reconstructed authorized acquisition capital and
+Founder-confirmed proposed supplier-order money. Quote, quantity, Founder,
+current-capital, and one-READY-per-Approval safety remain unchanged.
 
 ## Deferred Work
 

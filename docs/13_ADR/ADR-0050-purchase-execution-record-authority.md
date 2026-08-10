@@ -12,6 +12,11 @@ Opportunity-scoped production API. Actual Economics binding, goods receipt,
 inventory acquisition, checkout, payment, and supplier integration remain
 unimplemented.
 
+ADR-0058 identifies the implemented v1 amount equality as unsafe for new
+cross-currency execution. V1 remains immutable historical behavior. New
+production records require the versioned v2 monetary contract before the first
+real purchase.
+
 ## Context
 
 ADR-0048 deliberately ends at `READY_FOR_MANUAL_EXECUTION`. READY proves that
@@ -114,6 +119,15 @@ persistence failure is 503.
   separate actual shipping, duty/customs, FX settlement, sale, and fee facts.
 - Purchase execution does not increase inventory. A future Goods Receipt or
   equivalent physical-receipt authority is required first.
+
+## Relationship to ADR-0058
+
+The v1 `actual_total_committed_amount/currency` remains readable and replayable
+under its original exact-READY semantics and is never reinterpreted. V2 replaces
+that ambiguous new-input meaning with explicit
+`supplier_order_committed_amount/currency`, exact-matches it to the proposed
+supplier-order money in execution-safety v2, and separately preserves the
+authorized acquisition-capital envelope.
 
 ## Deferred Work
 

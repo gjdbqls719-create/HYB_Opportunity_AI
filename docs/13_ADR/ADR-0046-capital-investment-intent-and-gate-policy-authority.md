@@ -98,6 +98,11 @@ not applicable to this planned order. Absence, uncertainty, or a generic zero is
 immutable source fact and must be bound by the requirement rather than supplied
 as transient Gate input.
 
+ADR-0058 clarifies that this target-currency amount is the planned acquisition
+capital envelope. It is neither the source-currency supplier checkout charge nor
+the final Actual Acquisition Settlement. V2 execution preserves all three stages
+without numerical or currency conflation.
+
 ### Deployable Capital Snapshot
 
 Introduce a future immutable Founder-owned `DeployableCapitalSnapshot`. It
