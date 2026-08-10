@@ -90,6 +90,7 @@
 
 ## Operations and Security
 
+- [First Real-World Validation Runbook](05_OPERATIONS/FIRST_REAL_WORLD_VALIDATION_RUNBOOK.md)
 - [Deployment](05_OPERATIONS/DEPLOYMENT.md)
 - [Environment](05_OPERATIONS/ENVIRONMENT.md)
 - [Troubleshooting](05_OPERATIONS/TROUBLESHOOTING.md)

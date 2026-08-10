@@ -534,6 +534,15 @@ This route does not create Goods Receipt, update inventory, mutate legacy
 Actual Economics, calculate sales/profit/margin/ROI, or create Actual Outcome
 or Variance.
 
+The generated OpenAPI contract exposes the five fixed acquisition categories
+and `known`, `not_applicable`, `unknown` as closed enum values. The scoped-other
+container uses the same availability enum. `unknown` means unresolved and is
+never a zero fallback; `not_applicable` is an evidenced factual assertion; a
+known zero is supplied as Decimal string `"0"` with the evidence required by
+the authority. The request schema includes a synthetic example showing exact
+category order, same-currency facts without an FX object, and an unresolved
+cross-currency fact without inventing conversion evidence.
+
 ## Goods Receipt
 
 `POST /api/v1/opportunities/{opportunity_id}/goods-receipts` admits one
@@ -659,6 +668,29 @@ This route does not update receipt-only Owned Inventory policy v1, Goods Receipt
 Actual Acquisition Settlement, marketplace `InventorySnapshot`, legacy Actual
 Economics, Actual Outcome, or Variance. A separate small change may introduce
 Owned Inventory v2 as receipts minus COMPLETE sale outbound.
+
+The generated OpenAPI contract exposes all 15 canonical monetary categories,
+the `known`, `not_applicable`, `unknown` availability enum, and the exact payout
+reconciliation states `reconciled`, `not_scope_comparable`, and `unresolved`.
+Payout is an independent reconciliation fact: it replaces neither canonical
+components nor gross revenue and does not prove completeness. Reconciled means
+the canonical expression matches; not-scope-comparable preserves a genuine
+payout whose timing or scope cannot be compared exactly; unresolved blocks.
+Return finality remains an explicit factual object, not an inference from payout.
+
+The request schema includes a synthetic example covering every canonical slot.
+Swagger descriptions and the operational runbook distinguish unknown, evidenced
+not-applicable, and known zero without adding API-only business values.
+
+## First controlled real-world run
+
+The authoritative Founder procedure is
+[`FIRST_REAL_WORLD_VALIDATION_RUNBOOK.md`](../05_OPERATIONS/FIRST_REAL_WORLD_VALIDATION_RUNBOOK.md).
+It records the exact route order, request/response archive, non-authoritative run
+manifest, ID handoffs, essential pre-purchase freeze, checkout STOP rules, and
+post-purchase acquisition/sale worksheets. Most append-only command results do
+not have broad list/read endpoints; therefore every first-run request and
+response JSON is archived immediately. No raw SQLite recovery step is supported.
 
 ## Actual Outcome
 

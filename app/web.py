@@ -2359,7 +2359,28 @@ class FounderCapitalApprovalResponse(BaseModel):
 
 
 class RealMoneyExecutionIntentRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "contract_version": "2.0.0",
+                "command_id": "run-001-execution-intent",
+                "founder_capital_approval_id": "approval-id",
+                "quote_id": "quote-id",
+                "quote_revision": 1,
+                "current_deployable_capital_snapshot_id": "snapshot-b-id",
+                "execution_quantity": 5,
+                "execution_quantity_unit": "unit",
+                "proposed_supplier_order_committed_amount": "500",
+                "supplier_order_currency": "CNY",
+                "supplier_order_checkout_evidence_reference": "05_purchase/checkout-before-click.png",
+                "founder_id": "founder-1",
+                "current_execution_confirmed": True,
+                "confirmed_at": "2026-08-10T10:00:00+09:00",
+                "requested_at": "2026-08-10T10:00:00+09:00",
+            }
+        },
+    )
 
     command_id: str = Field(min_length=1)
     founder_capital_approval_id: str = Field(min_length=1)
@@ -2443,7 +2464,30 @@ class PurchaseExecutionEvidenceResponse(BaseModel):
 
 
 class PurchaseExecutionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "contract_version": "2.0.0",
+                "command_id": "run-001-purchase-execution",
+                "real_money_execution_intent_id": "ready-intent-id",
+                "quote_id": "quote-id",
+                "quote_revision": 1,
+                "actual_quantity": 5,
+                "actual_quantity_unit": "unit",
+                "supplier_order_committed_amount": "500",
+                "supplier_order_currency": "CNY",
+                "external_order_reference": "external-supplier-order-reference",
+                "founder_id": "founder-1",
+                "executed_at": "2026-08-10T10:05:00+09:00",
+                "evidence_references": [{
+                    "reference": "05_purchase/order-confirmation.png",
+                    "observed_at": "2026-08-10T10:05:00+09:00",
+                }],
+                "requested_at": "2026-08-10T10:06:00+09:00",
+            }
+        },
+    )
 
     command_id: str = Field(min_length=1)
     real_money_execution_intent_id: str = Field(min_length=1)
@@ -2534,11 +2578,21 @@ class ActualAcquisitionEvidenceRequest(BaseModel):
 class ActualAcquisitionFXRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    source_currency: str = Field(min_length=1)
-    target_currency: str = Field(min_length=1)
-    original_amount: StrictStr = Field(min_length=1)
-    target_amount: StrictStr | None = None
-    applied_rate: StrictStr | None = None
+    source_currency: str = Field(
+        min_length=1, description="Currency of the factual settled acquisition amount."
+    )
+    target_currency: str = Field(
+        min_length=1, description="Settlement target currency; must match the request target currency."
+    )
+    original_amount: StrictStr = Field(
+        min_length=1, description="Exact factual source-currency amount as a Decimal string."
+    )
+    target_amount: StrictStr | None = Field(
+        default=None, description="Exact evidenced target amount, when the actual FX evidence supplies it."
+    )
+    applied_rate: StrictStr | None = Field(
+        default=None, description="Exact actual payment/settlement rate, never a planned FX fallback."
+    )
     provider: str | None = None
     payment_channel: str | None = None
     external_reference: str = Field(min_length=1)
@@ -2549,8 +2603,21 @@ class ActualAcquisitionFXRequest(BaseModel):
 class ActualAcquisitionFixedCostRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    category: str = Field(min_length=1)
-    availability: str = Field(min_length=1)
+    category: Literal[
+        "unit_purchase",
+        "supplier_side_shipping",
+        "international_freight",
+        "domestic_inbound",
+        "duty_customs",
+    ] = Field(
+        description="Canonical fixed acquisition category; submit all five once in this exact order."
+    )
+    availability: ActualAcquisitionFactAvailability = Field(
+        description=(
+            "KNOWN requires factual money/time/evidence; NOT_APPLICABLE requires evidence and no money; "
+            "UNKNOWN is unresolved and is never zero."
+        )
+    )
     amount: StrictStr | None = None
     currency: str | None = None
     settled_at: datetime | None = None
@@ -2573,14 +2640,60 @@ class OtherMandatoryAcquisitionCostItemRequest(BaseModel):
 class OtherMandatoryAcquisitionCostsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    availability: str = Field(min_length=1)
+    availability: ActualAcquisitionFactAvailability = Field(
+        description=(
+            "Scope completeness for all other mandatory acquisition costs: KNOWN has scoped items, "
+            "NOT_APPLICABLE is evidenced empty scope, UNKNOWN blocks COMPLETE."
+        )
+    )
     items: tuple[OtherMandatoryAcquisitionCostItemRequest, ...]
     scope_evidence: ActualAcquisitionEvidenceRequest | None = None
     unresolved_reason: str | None = None
 
 
 class ActualAcquisitionSettlementRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "command_id": "run-001-actual-acquisition-r1",
+                "purchase_execution_record_id": "purchase-record-id",
+                "predecessor_settlement_id": None,
+                "target_currency": "KRW",
+                "fixed_cost_facts": [
+                    {
+                        "category": category,
+                        "availability": "known",
+                        "amount": "0",
+                        "currency": "KRW",
+                        "settled_at": "2026-08-10T12:00:00+09:00",
+                        "evidence": {
+                            "reference": f"06_acquisition/{category}.json",
+                            "observed_at": "2026-08-10T12:00:00+09:00",
+                            "operator_id": "founder-1",
+                            "collection_method": "manual_document_review",
+                        },
+                    }
+                    for category in (
+                        "unit_purchase", "supplier_side_shipping",
+                        "international_freight", "domestic_inbound", "duty_customs",
+                    )
+                ],
+                "other_mandatory_costs": {
+                    "availability": "not_applicable",
+                    "items": [],
+                    "scope_evidence": {
+                        "reference": "06_acquisition/other_scope_na.txt",
+                        "observed_at": "2026-08-10T12:00:00+09:00",
+                        "operator_id": "founder-1",
+                        "collection_method": "manual_document_review",
+                    },
+                },
+                "operator_id": "founder-1",
+                "requested_at": "2026-08-10T12:05:00+09:00",
+            }
+        },
+    )
 
     command_id: str = Field(min_length=1)
     purchase_execution_record_id: str = Field(min_length=1)
@@ -2618,8 +2731,8 @@ class ActualAcquisitionFXResponse(BaseModel):
 
 
 class ActualAcquisitionFixedCostResponse(BaseModel):
-    category: str
-    availability: str
+    category: ActualAcquisitionCostCategory
+    availability: ActualAcquisitionFactAvailability
     amount: str | None
     currency: str | None
     settled_at: datetime | None
@@ -2638,14 +2751,14 @@ class OtherMandatoryAcquisitionCostItemResponse(BaseModel):
 
 
 class OtherMandatoryAcquisitionCostsResponse(BaseModel):
-    availability: str
+    availability: ActualAcquisitionFactAvailability
     items: tuple[OtherMandatoryAcquisitionCostItemResponse, ...]
     scope_evidence: ActualAcquisitionEvidenceResponse | None
     unresolved_reason: str | None
 
 
 class NormalizedActualAcquisitionCategoryResponse(BaseModel):
-    category: str
+    category: ActualAcquisitionCostCategory
     target_currency: str
     target_batch_amount: str | None
 
@@ -2826,8 +2939,15 @@ class ActualSaleEvidenceRequest(BaseModel):
 
 class ActualSaleMonetaryFactRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    category: str = Field(min_length=1)
-    availability: str = Field(min_length=1)
+    category: ActualSaleMonetaryCategory = Field(
+        description="One canonical sale monetary category; submit all 15 once in canonical order."
+    )
+    availability: ActualSaleFactAvailability = Field(
+        description=(
+            "KNOWN requires factual money/time/evidence; NOT_APPLICABLE requires evidence and no money; "
+            "UNKNOWN is unresolved and is never zero."
+        )
+    )
     amount: StrictStr | None = None
     currency: str | None = None
     occurred_at: datetime | None = None
@@ -2846,7 +2966,9 @@ class OtherActualSaleCostItemRequest(BaseModel):
 
 class OtherActualSaleCostsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    availability: str = Field(min_length=1)
+    availability: ActualSaleFactAvailability = Field(
+        description="Completeness of the ordered other sale-side cost scope; UNKNOWN blocks COMPLETE."
+    )
     items: tuple[OtherActualSaleCostItemRequest, ...]
     scope_evidence: ActualSaleEvidenceRequest | None = None
     unresolved_reason: str | None = None
@@ -2854,28 +2976,97 @@ class OtherActualSaleCostsRequest(BaseModel):
 
 class ActualSalePayoutRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    availability: str = Field(min_length=1)
+    availability: ActualSaleFactAvailability = Field(
+        description="Payout factual availability; it does not replace component facts."
+    )
     amount: StrictStr | None = None
     currency: str | None = None
     external_reference: str | None = None
     paid_at: datetime | None = None
     evidence: ActualSaleEvidenceRequest | None = None
     unresolved_reason: str | None = None
-    reconciliation_state: str = Field(min_length=1)
+    reconciliation_state: ActualSalePayoutReconciliationState = Field(
+        description=(
+            "Payout is an independent reconciliation fact: RECONCILED equals the canonical component net; "
+            "NOT_SCOPE_COMPARABLE preserves a payout with different timing/scope; UNRESOLVED blocks COMPLETE."
+        )
+    )
     reconciliation_explanation: str | None = None
     reconciliation_evidence: ActualSaleEvidenceRequest | None = None
 
 
 class ActualSaleFinalityRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    confirmed: bool
-    observed_at: datetime | None = None
-    evidence: ActualSaleEvidenceRequest | None = None
-    unresolved_reason: str | None = None
+    confirmed: bool = Field(
+        description="True only when refund/return scope for the exact window is factually final."
+    )
+    observed_at: datetime | None = Field(
+        default=None, description="Factual finality observation time; it cannot precede period_end."
+    )
+    evidence: ActualSaleEvidenceRequest | None = Field(
+        default=None, description="Evidence for confirmed return/refund finality."
+    )
+    unresolved_reason: str | None = Field(
+        default=None, description="Honest reason finality is unresolved; unresolved finality blocks COMPLETE."
+    )
 
 
 class ActualSaleSettlementRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "command_id": "run-001-sale-r1",
+                "anchor_goods_receipt_id": "goods-receipt-id",
+                "predecessor_settlement_id": None,
+                "marketplace": "COUPANG",
+                "seller_account_reference": "seller-account-reference",
+                "marketplace_product_reference": "product-reference",
+                "marketplace_option_reference": "option-reference",
+                "marketplace_sku_reference": "sku-reference",
+                "external_report_reference": "08_coupang_sale/report.csv#cycle-001",
+                "transaction_references": ["transaction-reference-1"],
+                "period_start": "2026-08-01T00:00:00+09:00",
+                "period_end": "2026-08-08T00:00:00+09:00",
+                "fulfilled_outbound_quantity": 1,
+                "cancelled_quantity": 0,
+                "refunded_quantity": 0,
+                "returned_quantity": 0,
+                "quantity_unit": "unit",
+                "settlement_currency": "KRW",
+                "fixed_monetary_facts": [
+                    {
+                        "category": category,
+                        "availability": "unknown",
+                        "unresolved_reason": "TO CONFIRM IN REAL COUPANG SELLER ACCOUNT",
+                    }
+                    for category in (
+                        "gross_completed_merchandise", "buyer_shipping",
+                        "marketplace_funded_discount_support", "seller_funded_discount",
+                        "tax_collected", "marketplace_fee", "payment_fee", "fixed_fee",
+                        "refund", "cancellation_reversal", "return_related_fee",
+                        "advertising", "fulfillment", "storage", "sale_side_inbound_handling",
+                    )
+                ],
+                "other_sale_side_costs": {
+                    "availability": "unknown", "items": [],
+                    "unresolved_reason": "scope not final",
+                },
+                "payout": {
+                    "availability": "unknown",
+                    "unresolved_reason": "payout pending",
+                    "reconciliation_state": "unresolved",
+                    "reconciliation_explanation": "cycle is not final",
+                },
+                "finality": {
+                    "confirmed": False,
+                    "unresolved_reason": "return/refund window is not final",
+                },
+                "operator_id": "founder-1",
+                "requested_at": "2026-08-09T00:00:00+09:00",
+            }
+        },
+    )
     command_id: str = Field(min_length=1)
     anchor_goods_receipt_id: str = Field(min_length=1)
     predecessor_settlement_id: str | None = None
@@ -2913,8 +3104,8 @@ class ActualSaleEvidenceResponse(BaseModel):
 
 
 class ActualSaleMonetaryFactResponse(BaseModel):
-    category: str
-    availability: str
+    category: ActualSaleMonetaryCategory
+    availability: ActualSaleFactAvailability
     amount: str | None
     currency: str | None
     occurred_at: datetime | None
@@ -2932,7 +3123,7 @@ class OtherActualSaleCostItemResponse(BaseModel):
 
 
 class OtherActualSaleCostsResponse(BaseModel):
-    availability: str
+    availability: ActualSaleFactAvailability
     items: tuple[OtherActualSaleCostItemResponse, ...]
     scope_evidence: ActualSaleEvidenceResponse | None
     unresolved_reason: str | None
@@ -2940,14 +3131,14 @@ class OtherActualSaleCostsResponse(BaseModel):
 
 
 class ActualSalePayoutResponse(BaseModel):
-    availability: str
+    availability: ActualSaleFactAvailability
     amount: str | None
     currency: str | None
     external_reference: str | None
     paid_at: datetime | None
     evidence: ActualSaleEvidenceResponse | None
     unresolved_reason: str | None
-    reconciliation_state: str
+    reconciliation_state: ActualSalePayoutReconciliationState
     reconciliation_explanation: str | None
     reconciliation_evidence: ActualSaleEvidenceResponse | None
     schema_version: str

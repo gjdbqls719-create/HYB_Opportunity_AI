@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B7B3 - First Real-World Operational Contract and Swagger Safety
+
+- Harden the existing Actual Acquisition and Actual Sale HTTP schemas with the exact Domain enums for canonical categories, `known` / `not_applicable` / `unknown`, and payout reconciliation; add synthetic OpenAPI examples for the four highest-risk real-money requests without changing Domain authority.
+- Add the Founder-facing first real-world validation runbook with exact production route order, ID handoff manifest, evidence and response-archive convention, pre-purchase freeze and checkout comparison, canonical acquisition/sale worksheets, and fail-closed STOP rules.
+- Keep opaque evidence, manual external purchase, actual FX, payout, and return-finality boundaries explicit; add no workflow engine, recovery database, broad GET surface, external integration, UI, or authentication platform.
+
 ## CR-1B7B2A - Execution Intent v2 and Purchase Execution v2
 
 - Implement ADR-0058 with explicit `2.0.0` Domain/Application/SQLite/HTTP contracts that keep authorized target-currency acquisition capital, proposed source-currency supplier commitment, and actual supplier commitment separate.

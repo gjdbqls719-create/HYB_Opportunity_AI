@@ -693,6 +693,17 @@ sale evidence defines the Real-Money Validated MVP commerce-fact cut. Closed-Loo
 Learning MVP additionally requires an exact Conservative Economics result and
 persisted Variance v2; ActualOutcome itself has no predicted-source dependency.
 
+CR-1B7B3 adds no new authority. It exposes the already-fixed Actual Acquisition
+and Actual Sale category/state contracts as closed OpenAPI enums and supplies a
+Founder operational runbook for the complete production HTTP chain. The runbook
+uses an external evidence folder, an external non-authoritative ID manifest, and
+immediate request/response JSON archival because most append-only command results
+do not have broad recovery GET endpoints. The exact pre-purchase Conservative
+result and READY execution chain are frozen before external checkout; unknown,
+not-applicable, known zero, payout reconciliation, and return finality retain
+their Domain meanings. No workflow state, evidence binary store, recovery table,
+or implicit database access is added.
+
 ADR-0056 defines Variance v2 as an immutable exact-pair comparison
 under `conservative-actual-variance / 2.0.0`. It binds explicit persisted
 Conservative and ActualOutcome IDs, reconstructs only named immutable lineage
