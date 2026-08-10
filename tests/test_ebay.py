@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from app.models import Product, ProductDataSource
@@ -118,6 +120,69 @@ def test_search_products_normalizes_all_search_results(
         "v1|987654321|0",
     ]
     assert all(product.marketplace == "ebay" for product in products)
+
+
+def test_ebay_us_collection_fact_exposes_exact_candidate_handoff_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_at = datetime(2026, 8, 10, 1, 2, 3, tzinfo=timezone.utc)
+    facts = []
+    monkeypatch.setattr(ebay, "search_items", lambda **kwargs: [make_raw_item()])
+
+    ebay.search_products(
+        query="iphone",
+        limit=1,
+        marketplace_id="EBAY_US",
+        collection_fact_sink=facts.append,
+        observed_at=lambda: observed_at,
+    )
+
+    assert len(facts) == 1
+    fact = facts[0]
+    identity = fact.candidate_market_identity
+    assert identity is not None
+    assert identity.scope.value == "listing"
+    assert identity.market == "US"
+    assert identity.marketplace == "ebay"
+    assert identity.marketplace_item_id == "v1|123456789|0"
+    assert identity.condition == "New"
+    assert identity.window_started_at == identity.window_ended_at == observed_at
+    assert identity.canonical_product_id is None
+    assert identity.normalized_query is None
+    assert identity.category is None
+    assert identity.variant_identity is None
+    assert fact.candidate_handoff_policy_name == "discovery-candidate-handoff"
+    assert fact.candidate_handoff_policy_version == "1.0.0"
+
+
+def test_non_us_ebay_collection_fact_has_no_candidate_handoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    facts = []
+    monkeypatch.setattr(ebay, "search_items", lambda **kwargs: [make_raw_item()])
+    ebay.search_products(
+        query="iphone",
+        marketplace_id="EBAY_GB",
+        collection_fact_sink=facts.append,
+    )
+    assert facts[0].candidate_market_identity is None
+    assert facts[0].candidate_handoff_policy_name is None
+    assert facts[0].candidate_handoff_policy_version is None
+
+
+def test_ebay_us_missing_condition_is_none_in_candidate_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = make_raw_item()
+    del raw["condition"]
+    facts = []
+    monkeypatch.setattr(ebay, "search_items", lambda **kwargs: [raw])
+    ebay.search_products(
+        query="iphone",
+        marketplace_id="EBAY_US",
+        collection_fact_sink=facts.append,
+    )
+    assert facts[0].candidate_market_identity.condition is None
 
 
 class FakeResponse:

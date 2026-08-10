@@ -23,6 +23,15 @@ class ProductionObservationIdentityProvider:
         return uuid4().hex
 
 
+class ProductionCandidateDiscoveryReferenceProvider:
+    """Supplies one opaque Candidate handoff reference per observation."""
+
+    __slots__ = ()
+
+    def provide_candidate_discovery_reference(self) -> str:
+        return f"discovery-candidate-handoff:{uuid4().hex}"
+
+
 class ProductionFinalizedGroupIdentityProvider:
     """Supplies one server-owned opaque finalized Group identity per call."""
 
@@ -33,6 +42,7 @@ class ProductionFinalizedGroupIdentityProvider:
 
 
 __all__ = [
+    "ProductionCandidateDiscoveryReferenceProvider",
     "ProductionCandidateIdentityGenerator",
     "ProductionFinalizedGroupIdentityProvider",
     "ProductionObservationIdentityProvider",

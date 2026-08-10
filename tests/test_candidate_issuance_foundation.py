@@ -7,6 +7,7 @@ import pytest
 from app.application.candidate_issuance import (
     CANDIDATE_ISSUANCE_COMMAND_SCHEMA_VERSION,
     CandidateDiscoveryCommandNotFoundError,
+    CandidateDiscoveryReferenceConflictError,
     CandidateDiscoveryResultNotFoundError,
     CandidateExecutionMismatchError,
     CandidateFinalizedGroupNotFoundError,
@@ -29,6 +30,7 @@ from app.infrastructure.discovery import (
 )
 from test_discovery_correlation_contract import NOW, group, market_identity
 from test_discovery_execution_result_sqlite_persistence import prepare_group, result
+from test_discovery_observation_group_sqlite_persistence import prepare, save_members
 
 
 ISSUED_AT = NOW + timedelta(minutes=2)
@@ -45,13 +47,18 @@ class Counter:
 
 
 def issuance_command(**changes):
+    exact_handoff_identity = replace(
+        market_identity(),
+        window_started_at=NOW,
+        window_ended_at=NOW,
+    )
     values = {
         "issuance_command_id": "issuance-command-1",
         "discovery_command_id": "command-1",
         "discovery_execution_id": "execution-1",
         "finalized_group_id": "group-opaque-1",
         "discovery_reference": "collector:ebay:item-1",
-        "market_observation_identity": market_identity(),
+        "market_observation_identity": exact_handoff_identity,
         "requested_at": NOW,
     }
     values.update(changes)
@@ -119,7 +126,10 @@ def test_issuance_reads_persisted_facts_and_returns_immutable_exact_context(tmp_
         "candidate-opaque-1", "collector:ebay:item-1"
     )
     assert issued.discovery_context.candidate_identity == issued.candidate_identity
-    assert issued.discovery_context.market_observation_identity == market_identity()
+    assert (
+        issued.discovery_context.market_observation_identity
+        == issuance_command().market_observation_identity
+    )
     assert issued.discovery_context.discovery_execution_id == "execution-1"
     assert issued.discovery_context.command_id == "command-1"
     assert issued.finalized_group_id == "group-opaque-1"
@@ -131,13 +141,13 @@ def test_issuance_reads_persisted_facts_and_returns_immutable_exact_context(tmp_
     close(repos)
 
 
-def test_canonical_product_identity_is_preserved_explicitly(tmp_path) -> None:
+def test_canonical_product_identity_conflicts_with_listing_handoff(tmp_path) -> None:
     repos = repositories(tmp_path / "discovery.db")
     identity = market_identity(MarketObservationScope.CANONICAL_PRODUCT)
-    issued = service(
-        repos, Counter("candidate-1"), Counter(ISSUED_AT)
-    ).execute(issuance_command(market_observation_identity=identity))
-    assert issued.discovery_context.market_observation_identity is identity
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        service(
+            repos, Counter("candidate-1"), Counter(ISSUED_AT)
+        ).execute(issuance_command(market_observation_identity=identity))
     close(repos)
 
 
@@ -158,15 +168,68 @@ def test_unresolved_market_scopes_are_rejected_before_generation(tmp_path, scope
 
 def test_marketplace_and_listing_item_mismatch_are_rejected(tmp_path) -> None:
     repos = repositories(tmp_path / "discovery.db")
-    base = market_identity()
+    base = issuance_command().market_observation_identity
     for identity in (
         replace(base, marketplace="amazon"),
         replace(base, marketplace_item_id="other-item"),
+        replace(base, market="KR"),
+        replace(base, window_started_at=base.window_started_at - timedelta(seconds=1)),
     ):
         with pytest.raises(CandidateMarketIdentityConflictError):
             service(repos, Counter("candidate-1"), Counter(ISSUED_AT)).execute(
                 issuance_command(market_observation_identity=identity)
             )
+    close(repos)
+
+
+def test_changed_discovery_reference_is_rejected(tmp_path) -> None:
+    repos = repositories(tmp_path / "reference.db")
+    with pytest.raises(CandidateDiscoveryReferenceConflictError):
+        service(repos, Counter("candidate-1"), Counter(ISSUED_AT)).execute(
+            issuance_command(discovery_reference="changed-reference")
+        )
+    close(repos)
+
+
+def test_group_a_handoff_cannot_issue_candidate_for_group_b(tmp_path) -> None:
+    repos = repositories(tmp_path / "cross-group.db", completed=False)
+    repos[2].save_group(
+        replace(
+            group(),
+            finalized_group_id="group-opaque-2",
+            representative_observation_id="observation-2",
+        )
+    )
+    repos[1].save_result(
+        result(finalized_group_ids=("group-opaque-1", "group-opaque-2"))
+    )
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        service(repos, Counter("candidate-1"), Counter(ISSUED_AT)).execute(
+            issuance_command(finalized_group_id="group-opaque-2")
+        )
+    close(repos)
+
+
+def test_historical_group_without_handoff_cannot_issue_candidate(tmp_path) -> None:
+    path = tmp_path / "historical.db"
+    prepare(path)
+    save_members(path)
+    groups = SQLiteDiscoveryGroupRepository(path)
+    groups.save_group(group())
+    groups.close()
+    results = SQLiteDiscoveryResultRepository(path)
+    results.save_result(result())
+    results.close()
+    repos = (
+        SQLiteDiscoveryCommandRepository(path),
+        SQLiteDiscoveryResultRepository(path),
+        SQLiteDiscoveryGroupRepository(path),
+        SQLiteDiscoveryObservationRepository(path),
+    )
+    with pytest.raises(CandidateMarketIdentityConflictError, match="not Candidate-eligible"):
+        service(repos, Counter("candidate-1"), Counter(ISSUED_AT)).execute(
+            issuance_command()
+        )
     close(repos)
 
 

@@ -4,7 +4,10 @@ import inspect
 
 import pytest
 
-from app.application.candidate_issuance import CandidateIssuanceProductionEntry
+from app.application.candidate_issuance import (
+    CandidateIssuanceProductionEntry,
+    CandidateMarketIdentityConflictError,
+)
 from app.application.product_snapshot_capture import (
     CandidateProductSnapshotCaptureProductionEntry,
     CandidateProductSnapshotCaptureRequest,
@@ -28,6 +31,7 @@ from test_candidate_issuance_foundation import Counter, ISSUED_AT, issuance_comm
 from test_discovery_command_sqlite_persistence import receipt
 from test_discovery_correlation_contract import (
     NOW,
+    candidate_ready_observation,
     command,
     group,
     market_identity,
@@ -47,24 +51,44 @@ def prepare(
     commands = SQLiteDiscoveryCommandRepository(path)
     commands.save_command(command(), receipt(command()))
     observations = SQLiteDiscoveryObservationRepository(path)
-    first = replace(
-        observation(),
-        candidate_market_identity=observation_market_identity,
-    )
+    first = candidate_ready_observation()
+    if observation_market_identity is not None:
+        first = replace(
+            first,
+            candidate_market_identity=observation_market_identity,
+        )
     second_product = replace(
         first.product,
         marketplace=second_marketplace,
         item_id=second_item_id,
         url=f"https://example.com/{second_marketplace}/{second_item_id}",
     )
-    second = replace(
-        first,
-        observation_id="observation-2",
-        source_marketplace=second_marketplace,
-        source_item_id=second_item_id,
-        product=second_product,
-        observed_at=NOW + timedelta(seconds=1),
-    )
+    second_observed_at = NOW + timedelta(seconds=1)
+    if second_marketplace == "ebay":
+        second = replace(
+            first,
+            observation_id="observation-2",
+            source_item_id=second_item_id,
+            product=second_product,
+            observed_at=second_observed_at,
+            candidate_market_identity=replace(
+                first.candidate_market_identity,
+                marketplace_item_id=second_item_id,
+                condition=second_product.condition,
+                window_started_at=second_observed_at,
+                window_ended_at=second_observed_at,
+            ),
+            candidate_discovery_reference="candidate-handoff:2",
+        )
+    else:
+        second = replace(
+            observation(),
+            observation_id="observation-2",
+            source_marketplace=second_marketplace,
+            source_item_id=second_item_id,
+            product=second_product,
+            observed_at=second_observed_at,
+        )
     observations.save_observation(first)
     observations.save_observation(second)
     groups = SQLiteDiscoveryGroupRepository(path)
@@ -85,7 +109,8 @@ def prepare(
     issuance = candidate_entry.execute(
         issuance_command(
             market_observation_identity=(
-                candidate_market_identity or market_identity()
+                candidate_market_identity
+                or issuance_command().market_observation_identity
             )
         )
     ).issuance
@@ -143,7 +168,7 @@ def test_listing_candidate_captures_full_ordered_production_cohort(tmp_path):
         path,
         second_marketplace="amazon",
     )
-    assert first.candidate_market_identity is None
+    assert first.is_candidate_eligible is True
     assert second.candidate_market_identity is None
     captures = SQLiteProductSnapshotCaptureRepository(path)
     committed_at = ISSUED_AT + timedelta(minutes=1)
@@ -191,41 +216,15 @@ def test_listing_candidate_captures_full_ordered_production_cohort(tmp_path):
     close_all(*sources)
 
 
-def test_canonical_candidate_uses_persisted_context_without_inference(tmp_path):
+def test_fresh_canonical_candidate_is_rejected_by_listing_handoff(tmp_path):
     path = tmp_path / "canonical.db"
     identity = market_identity(MarketObservationScope.CANONICAL_PRODUCT)
-    sources, candidates, issuance, first, second = prepare(
-        path,
-        candidate_market_identity=identity,
-    )
-    captures = SQLiteProductSnapshotCaptureRepository(path)
-
-    captured = production_entry(
-        candidates,
-        sources[2],
-        captures,
-        Counter(ISSUED_AT),
-    ).execute(capture_request(issuance))
-
-    assert tuple(value.market_observation_identity for value in captured.snapshots) == (
-        identity,
-        identity,
-    )
-    assert tuple(value.product for value in captured.snapshots) == (
-        first.product,
-        second.product,
-    )
-    assert tuple(value.collected_observation_id for value in captured.bindings) == (
-        "observation-1",
-        "observation-2",
-    )
-    captures.close()
-    candidates.close()
-    close_all(*sources)
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        prepare(path, candidate_market_identity=identity)
 
 
 def test_explicit_observation_identity_match_and_conflict(tmp_path):
-    identity = market_identity()
+    identity = issuance_command().market_observation_identity
     path = tmp_path / "matching.db"
     sources, candidates, issuance, _, _ = prepare(
         path,
@@ -243,21 +242,13 @@ def test_explicit_observation_identity_match_and_conflict(tmp_path):
     close_all(*sources)
 
     path = tmp_path / "conflicting.db"
-    sources, candidates, issuance, _, _ = prepare(
-        path,
-        candidate_market_identity=identity,
-        observation_market_identity=replace(identity, condition="used"),
-        second_item_id="item-1",
-    )
-    captures = SQLiteProductSnapshotCaptureRepository(path)
-    with pytest.raises(ProductSnapshotSourceConflictError):
-        production_entry(
-            candidates, sources[2], captures, Counter(ISSUED_AT)
-        ).execute(capture_request(issuance))
-    assert capture_counts(captures) == (0, 0, 0)
-    captures.close()
-    candidates.close()
-    close_all(*sources)
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        prepare(
+            path,
+            candidate_market_identity=identity,
+            observation_market_identity=replace(identity, condition="used"),
+            second_item_id="item-1",
+        )
 
 
 def test_exact_replay_after_restart_uses_no_clock_or_duplicate_rows(tmp_path):

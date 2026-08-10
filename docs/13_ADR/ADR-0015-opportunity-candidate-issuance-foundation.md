@@ -77,3 +77,7 @@ Once ADR-0057 is implemented, fresh issuance must verify complete equality of
 both submitted values against the representative observation's persisted
 handoff. Historical observations without that handoff remain historical and are
 not made eligible by read-time inference.
+
+CR-1B7B1 implements those checks: fresh issuance requires the representative to
+be Candidate-eligible and requires complete equality for both the submitted
+Market identity and dedicated discovery reference.

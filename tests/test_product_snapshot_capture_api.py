@@ -18,7 +18,11 @@ from app.infrastructure.product_observation import (
 )
 from app.web import app, get_product_snapshot_capture_entry
 import app.web as web
-from test_candidate_issuance_foundation import Counter, ISSUED_AT
+from test_candidate_issuance_foundation import (
+    Counter,
+    ISSUED_AT,
+    issuance_command,
+)
 from test_candidate_issuance_production_entry import Fail
 from test_discovery_correlation_contract import NOW, market_identity
 from test_product_snapshot_capture_production_entry import (
@@ -118,15 +122,10 @@ def test_product_snapshot_composition_failure_closes_open_resources(monkeypatch)
     assert closed == [True]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    (MarketObservationScope.LISTING, MarketObservationScope.CANONICAL_PRODUCT),
-)
-def test_product_snapshot_api_captures_ordered_listing_and_canonical_cohort(
-    tmp_path, scope
-):
+def test_product_snapshot_api_captures_ordered_listing_cohort(tmp_path):
+    scope = MarketObservationScope.LISTING
     path = tmp_path / f"capture-{scope.value}.db"
-    identity = market_identity(scope)
+    identity = issuance_command().market_observation_identity
     sources, candidates, issuance, first, second = prepare(
         path,
         candidate_market_identity=identity,

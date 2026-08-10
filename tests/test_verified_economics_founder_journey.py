@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import sqlite3
 
 from fastapi.testclient import TestClient
 import pytest
 
 import app.web as web
-from app.infrastructure.discovery import SQLiteDiscoveryObservationRepository
+from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
+)
+from app.domain.market_intelligence import (
+    MarketObservationIdentity,
+    MarketObservationScope,
+)
 from app.web import app, get_authoritative_discovery_entry
 from tests.test_authoritative_discovery_api import payload as discovery_payload
 from tests.test_candidate_issuance_api import payload as candidate_payload
@@ -23,7 +31,38 @@ from tests.test_verified_economics_operational_admission import (
 
 
 def _prepare_promoted_opportunity(client: TestClient, path) -> tuple[str, str]:
-    entry, *repositories = sqlite_entry(path, CheckpointRuntime([]))
+    runtime = CheckpointRuntime([])
+    runtime.collection_facts = tuple(
+        replace(
+            fact,
+            candidate_market_identity=MarketObservationIdentity(
+                scope=MarketObservationScope.LISTING,
+                market="US",
+                marketplace="ebay",
+                canonical_product_id=None,
+                marketplace_item_id=fact.product.item_id,
+                normalized_query=None,
+                category=None,
+                variant_identity=None,
+                condition=fact.product.condition,
+                window_started_at=fact.observed_at,
+                window_ended_at=fact.observed_at,
+            ),
+            candidate_handoff_policy_name=CANDIDATE_HANDOFF_POLICY_NAME,
+            candidate_handoff_policy_version=CANDIDATE_HANDOFF_POLICY_VERSION,
+        )
+        for fact in runtime.collection_facts
+    )
+    entry, *repositories = sqlite_entry(path, runtime)
+
+    class CandidateReferenceProvider:
+        def __init__(self) -> None:
+            self.values = iter(("candidate-handoff:one", "candidate-handoff:two"))
+
+        def provide_candidate_discovery_reference(self) -> str:
+            return next(self.values)
+
+    entry._candidate_discovery_reference_provider = CandidateReferenceProvider()
     app.dependency_overrides[get_authoritative_discovery_entry] = lambda: entry
     try:
         discovery = client.post(
@@ -35,31 +74,19 @@ def _prepare_promoted_opportunity(client: TestClient, path) -> tuple[str, str]:
         app.dependency_overrides.clear()
         close_all(*repositories)
 
-    observations = SQLiteDiscoveryObservationRepository(path)
-    try:
-        representative = observations.get_observation("observation-one")
-    finally:
-        observations.close()
-    assert representative is not None
-    market_identity = {
-        "scope": "listing",
-        "market": "US",
-        "marketplace": representative.source_marketplace,
-        "canonical_product_id": None,
-        "marketplace_item_id": representative.source_item_id,
-        "normalized_query": None,
-        "category": None,
-        "variant_identity": None,
-        "condition": representative.product.condition,
-        "window_started_at": representative.observed_at.isoformat(),
-        "window_ended_at": representative.observed_at.isoformat(),
-    }
+    groups = client.get(
+        "/api/v1/discovery/executions/execution-1/finalized-groups"
+    )
+    assert groups.status_code == 200
+    group = groups.json()["finalized_groups"][0]
+    handoff = group["candidate_handoff"]
+    assert handoff is not None
     candidate = client.post(
         "/api/v1/candidates",
         json=candidate_payload(
-            finalized_group_id="group-1",
-            discovery_reference="collector:ebay:one",
-            market_observation_identity=market_identity,
+            finalized_group_id=group["finalized_group_id"],
+            discovery_reference=handoff["discovery_reference"],
+            market_observation_identity=handoff["market_observation_identity"],
         ),
     )
     assert candidate.status_code == 201
@@ -70,15 +97,15 @@ def _prepare_promoted_opportunity(client: TestClient, path) -> tuple[str, str]:
         "/api/v1/product-snapshots/capture",
         json=product_payload(
             candidate_id=candidate_id,
-            finalized_group_id="group-1",
+            finalized_group_id=group["finalized_group_id"],
         ),
     )
-    assert captured.status_code == 201
+    assert captured.status_code == 201, captured.text
     analyzed = client.post(
         "/api/v1/price-analyses",
         json=price_payload(
             candidate_id=candidate_id,
-            finalized_group_id="group-1",
+            finalized_group_id=group["finalized_group_id"],
         ),
     )
     assert analyzed.status_code == 201
@@ -86,7 +113,7 @@ def _prepare_promoted_opportunity(client: TestClient, path) -> tuple[str, str]:
         "/api/v1/candidate-promotions",
         json=promotion_payload(candidate_id=candidate_id),
     )
-    assert promoted.status_code == 201
+    assert promoted.status_code == 201, promoted.text
     assert (
         promoted.json()["market_observation_identity"]
         == candidate_market_identity

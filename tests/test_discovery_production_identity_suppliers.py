@@ -7,11 +7,13 @@ import re
 import pytest
 
 from app.application.discovery import (
+    CandidateDiscoveryReferenceProvider,
     FinalizedGroupIdentityProvider,
     ObservationIdentityProvider,
     PersistedDiscoveryExecutionEntry,
 )
 from app.infrastructure.discovery import (
+    ProductionCandidateDiscoveryReferenceProvider,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
 )
@@ -53,27 +55,42 @@ OPAQUE_ID = re.compile(r"^[0-9a-f]{32}$")
 
 def test_production_suppliers_implement_the_existing_application_ports() -> None:
     observation = ProductionObservationIdentityProvider()
+    candidate_reference = ProductionCandidateDiscoveryReferenceProvider()
     finalized_group = ProductionFinalizedGroupIdentityProvider()
 
     assert isinstance(observation, ObservationIdentityProvider)
+    assert isinstance(candidate_reference, CandidateDiscoveryReferenceProvider)
     assert isinstance(finalized_group, FinalizedGroupIdentityProvider)
     assert not hasattr(observation, "__dict__")
+    assert not hasattr(candidate_reference, "__dict__")
     assert not hasattr(finalized_group, "__dict__")
 
 
 def test_production_suppliers_issue_fresh_input_free_opaque_identities() -> None:
     observation = ProductionObservationIdentityProvider()
+    candidate_reference = ProductionCandidateDiscoveryReferenceProvider()
     finalized_group = ProductionFinalizedGroupIdentityProvider()
 
-    values = (
+    opaque_values = (
         observation.provide_observation_id(),
         observation.provide_observation_id(),
         finalized_group.provide_finalized_group_id(),
         finalized_group.provide_finalized_group_id(),
     )
+    candidate_references = (
+        candidate_reference.provide_candidate_discovery_reference(),
+        candidate_reference.provide_candidate_discovery_reference(),
+    )
 
-    assert all(OPAQUE_ID.fullmatch(value) for value in values)
-    assert len(set(values)) == len(values)
+    assert all(OPAQUE_ID.fullmatch(value) for value in opaque_values)
+    assert all(
+        value.startswith("discovery-candidate-handoff:")
+        and OPAQUE_ID.fullmatch(value.split(":", 1)[1])
+        for value in candidate_references
+    )
+    assert len(set(opaque_values + candidate_references)) == (
+        len(opaque_values) + len(candidate_references)
+    )
 
 
 def test_production_suppliers_have_no_shared_mutable_concurrent_state() -> None:
@@ -141,6 +158,9 @@ def test_production_suppliers_flow_unchanged_through_discovery_persistence() -> 
         persist_command=RecordingPersister(events),
         runtime=runtime,
         observation_identity_provider=ProductionObservationIdentityProvider(),
+        candidate_discovery_reference_provider=(
+            ProductionCandidateDiscoveryReferenceProvider()
+        ),
         observation_repository=observation_repository,
         finalized_group_identity_provider=(
             ProductionFinalizedGroupIdentityProvider()
@@ -177,6 +197,9 @@ def test_zero_result_does_not_request_either_identity(monkeypatch) -> None:
         persist_command=RecordingPersister(events),
         runtime=runtime,
         observation_identity_provider=ProductionObservationIdentityProvider(),
+        candidate_discovery_reference_provider=(
+            ProductionCandidateDiscoveryReferenceProvider()
+        ),
         observation_repository=CheckpointObservationRepository(events),
         finalized_group_identity_provider=(
             ProductionFinalizedGroupIdentityProvider()
@@ -203,6 +226,9 @@ def test_completed_replay_does_not_request_either_identity(monkeypatch) -> None:
         persist_command=ReplayPersister(events),
         runtime=ForbiddenRuntime(),
         observation_identity_provider=ProductionObservationIdentityProvider(),
+        candidate_discovery_reference_provider=(
+            ProductionCandidateDiscoveryReferenceProvider()
+        ),
         observation_repository=ReplayObservationRepository(events, observations()),
         finalized_group_identity_provider=(
             ProductionFinalizedGroupIdentityProvider()

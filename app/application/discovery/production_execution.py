@@ -20,6 +20,7 @@ from app.application.discovery.group_finalization import (
     assemble_finalized_product_groups,
 )
 from app.application.discovery.ports import (
+    CandidateDiscoveryReferenceProvider,
     DiscoveryCompletionClock,
     FinalizedGroupIdentityProvider,
     GroupFinalizationClock,
@@ -230,6 +231,9 @@ class PersistedDiscoveryExecutionEntry:
         group_repository: DiscoveryGroupRepository,
         discovery_completion_clock: DiscoveryCompletionClock,
         result_repository: DiscoveryResultRepository,
+        candidate_discovery_reference_provider: (
+            CandidateDiscoveryReferenceProvider | None
+        ) = None,
     ) -> None:
         if not isinstance(observation_identity_provider, ObservationIdentityProvider):
             raise TypeError(
@@ -243,6 +247,17 @@ class PersistedDiscoveryExecutionEntry:
                 "finalized_group_identity_provider must be "
                 "FinalizedGroupIdentityProvider"
             )
+        if (
+            candidate_discovery_reference_provider is not None
+            and not isinstance(
+                candidate_discovery_reference_provider,
+                CandidateDiscoveryReferenceProvider,
+            )
+        ):
+            raise TypeError(
+                "candidate_discovery_reference_provider must be "
+                "CandidateDiscoveryReferenceProvider"
+            )
         if not isinstance(group_finalization_clock, GroupFinalizationClock):
             raise TypeError(
                 "group_finalization_clock must be GroupFinalizationClock"
@@ -254,6 +269,9 @@ class PersistedDiscoveryExecutionEntry:
         self._persist_command = persist_command
         self._runtime = runtime
         self._observation_identity_provider = observation_identity_provider
+        self._candidate_discovery_reference_provider = (
+            candidate_discovery_reference_provider
+        )
         self._observation_repository = observation_repository
         self._finalized_group_identity_provider = (
             finalized_group_identity_provider
@@ -382,6 +400,9 @@ class PersistedDiscoveryExecutionEntry:
                 ),
                 collection_facts=collection_facts,
                 identity_provider=self._observation_identity_provider,
+                candidate_discovery_reference_provider=(
+                    self._candidate_discovery_reference_provider
+                ),
             )
             persisted_observations = tuple(
                 self._observation_repository.save_observation(observation)

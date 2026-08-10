@@ -5,6 +5,9 @@ from decimal import Decimal
 import pytest
 
 from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION,
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
     CandidateIssuanceReplayKey,
     CollectedProductObservation,
     DiscoveryCommand,
@@ -14,6 +17,7 @@ from app.domain.discovery_identity import (
     DiscoveryMarketIdentityResolutionError,
     DiscoveryObservationIdentityConflictError,
     FinalizedProductGroup,
+    MalformedCollectorObservationError,
     MalformedDiscoveryCommandError,
     UnsupportedDiscoveryCommandVersionError,
 )
@@ -185,6 +189,52 @@ def test_collector_observation_accepts_only_exact_explicit_candidate_market_iden
         observation(source_item_id="other")
     with pytest.raises(DiscoveryMarketIdentityResolutionError):
         observation(candidate_market_identity=market_identity(MarketObservationScope.SEARCH_QUERY))
+
+
+def candidate_ready_observation(**changes) -> CollectedProductObservation:
+    source = observation()
+    values = {
+        "collector_provenance": replace(
+            source.collector_provenance,
+            collector_name="ebay",
+        ),
+        "candidate_market_identity": replace(
+            market_identity(),
+            condition=source.product.condition,
+            window_started_at=source.observed_at,
+            window_ended_at=source.observed_at,
+        ),
+        "candidate_discovery_reference": "collector:ebay:item-1",
+        "candidate_handoff_policy_name": CANDIDATE_HANDOFF_POLICY_NAME,
+        "candidate_handoff_policy_version": CANDIDATE_HANDOFF_POLICY_VERSION,
+        "schema_version": CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION,
+    }
+    values.update(changes)
+    return replace(source, **values)
+
+
+def test_candidate_handoff_is_all_or_none_and_policy_exact() -> None:
+    value = candidate_ready_observation()
+    assert value.is_candidate_eligible is True
+    with pytest.raises(MalformedCollectorObservationError):
+        candidate_ready_observation(candidate_discovery_reference=None)
+    with pytest.raises(MalformedCollectorObservationError, match="unsupported"):
+        candidate_ready_observation(candidate_handoff_policy_version="future")
+    with pytest.raises(DiscoveryObservationIdentityConflictError):
+        candidate_ready_observation(
+            candidate_market_identity=replace(
+                value.candidate_market_identity,
+                market="KR",
+            )
+        )
+
+
+def test_historical_observation_remains_non_candidate_eligible() -> None:
+    assert observation().is_candidate_eligible is False
+    assert (
+        observation(candidate_market_identity=market_identity()).is_candidate_eligible
+        is False
+    )
 
 
 def test_finalized_group_preserves_order_and_has_separate_stable_id_and_fingerprint() -> None:

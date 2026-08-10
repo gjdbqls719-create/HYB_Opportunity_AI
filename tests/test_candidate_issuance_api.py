@@ -136,11 +136,8 @@ def test_candidate_composition_failure_closes_already_opened_resources(monkeypat
     assert closed == [True]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    (MarketObservationScope.LISTING, MarketObservationScope.CANONICAL_PRODUCT),
-)
-def test_candidate_api_issues_listing_and_canonical_product_identity(tmp_path, scope):
+def test_candidate_api_issues_exact_listing_handoff_identity(tmp_path):
+    scope = MarketObservationScope.LISTING
     path = tmp_path / f"candidate-{scope.value}.db"
     sources, candidates, entry = production_entry(
         path,
@@ -149,7 +146,7 @@ def test_candidate_api_issues_listing_and_canonical_product_identity(tmp_path, s
         receipt_clock=Counter(ISSUED_AT + timedelta(seconds=1)),
     )
     client = use(entry)
-    identity = market_identity(scope)
+    identity = issuance_command().market_observation_identity
     try:
         response = client.post(
             "/api/v1/candidates",
@@ -173,6 +170,31 @@ def test_candidate_api_issues_listing_and_canonical_product_identity(tmp_path, s
         assert body["issuance_command_id"] == "issuance-command-1"
         assert body["replayed"] is False
         assert counts(candidates._connection) == (1, 1, 1)
+    finally:
+        clear_overrides()
+        close(sources)
+        candidates.close()
+
+
+def test_candidate_api_rejects_canonical_identity_for_ebay_listing_handoff(
+    tmp_path,
+):
+    path = tmp_path / "candidate-canonical.db"
+    sources, candidates, entry = production_entry(
+        path,
+        candidate_id_generator=Counter("candidate-canonical"),
+        issuance_clock=Counter(ISSUED_AT),
+        receipt_clock=Counter(ISSUED_AT + timedelta(seconds=1)),
+    )
+    client = use(entry)
+    identity = market_identity(MarketObservationScope.CANONICAL_PRODUCT)
+    try:
+        response = client.post(
+            "/api/v1/candidates",
+            json=payload(market_observation_identity=identity_payload(identity)),
+        )
+        assert response.status_code == 409
+        assert "does not match representative handoff" in response.json()["detail"]
     finally:
         clear_overrides()
         close(sources)

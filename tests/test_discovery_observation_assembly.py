@@ -9,6 +9,14 @@ from app.application.discovery.production_execution import (
     DiscoveryRuntimeCorrelationError,
 )
 from app.domain.discovery_identity import MalformedCollectorObservationError
+from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
+)
+from app.domain.market_intelligence import (
+    MarketObservationIdentity,
+    MarketObservationScope,
+)
 from app.domain.product_observation import ObservedProductSnapshot
 from app.models import Product, ProductDataSource
 from collectors.collection_fact import CollectionFact
@@ -38,6 +46,16 @@ class SequentialObservationIdentityProvider:
     def provide_observation_id(self) -> str:
         self.calls += 1
         return next(self._observation_ids)
+
+
+class SequentialCandidateDiscoveryReferenceProvider:
+    def __init__(self, *references: str) -> None:
+        self._references = iter(references)
+        self.calls = 0
+
+    def provide_candidate_discovery_reference(self) -> str:
+        self.calls += 1
+        return next(self._references)
 
 
 def product(item_id: str, price: float) -> Product:
@@ -72,15 +90,44 @@ def fact(item_id: str, price: float) -> CollectionFact:
     )
 
 
-def execute(runtime: RecordingRuntime, provider, *, persister=None):
+def execute(
+    runtime: RecordingRuntime,
+    provider,
+    *,
+    persister=None,
+    candidate_reference_provider=None,
+):
     events = runtime.events
     return PersistedDiscoveryExecutionEntry(
         persist_command=persister or RecordingPersister(events),
         runtime=runtime,
         observation_identity_provider=provider,
+        candidate_discovery_reference_provider=candidate_reference_provider,
         observation_repository=RecordingObservationRepository(),
         **finalization_dependencies(),
     ).execute(command())
+
+
+def candidate_fact(item_id: str, price: float) -> CollectionFact:
+    source = fact(item_id, price)
+    return replace(
+        source,
+        candidate_market_identity=MarketObservationIdentity(
+            scope=MarketObservationScope.LISTING,
+            market="US",
+            marketplace="ebay",
+            canonical_product_id=None,
+            marketplace_item_id=source.product.item_id,
+            normalized_query=None,
+            category=None,
+            variant_identity=None,
+            condition=source.product.condition,
+            window_started_at=source.observed_at,
+            window_ended_at=source.observed_at,
+        ),
+        candidate_handoff_policy_name=CANDIDATE_HANDOFF_POLICY_NAME,
+        candidate_handoff_policy_version=CANDIDATE_HANDOFF_POLICY_VERSION,
+    )
 
 
 def test_entry_assembles_one_observation_per_fact_in_input_and_id_order() -> None:
@@ -128,6 +175,36 @@ def test_assembly_copies_product_and_collector_facts_without_calculation() -> No
     assert observation.collector_provenance.source_reference == source.source_reference
     assert observation.observed_at is source.observed_at
     assert observation.candidate_market_identity is None
+
+
+def test_supported_fact_issues_and_persists_one_candidate_handoff_reference() -> None:
+    events: list[str] = []
+    runtime = RecordingRuntime(events)
+    runtime.collection_facts = (candidate_fact("item-1", 11.5),)
+    references = SequentialCandidateDiscoveryReferenceProvider(
+        "candidate-handoff:1"
+    )
+
+    observation = execute(
+        runtime,
+        SequentialObservationIdentityProvider("opaque:1"),
+        candidate_reference_provider=references,
+    ).observations[0]
+
+    assert observation.is_candidate_eligible is True
+    assert observation.candidate_discovery_reference == "candidate-handoff:1"
+    assert observation.candidate_market_identity == (
+        runtime.collection_facts[0].candidate_market_identity
+    )
+    assert references.calls == 1
+
+
+def test_supported_fact_requires_injected_candidate_reference_provider() -> None:
+    events: list[str] = []
+    runtime = RecordingRuntime(events)
+    runtime.collection_facts = (candidate_fact("item-1", 11.5),)
+    with pytest.raises(TypeError, match="candidate_discovery_reference_provider"):
+        execute(runtime, SequentialObservationIdentityProvider("opaque:1"))
 
 
 def test_zero_collection_facts_returns_no_observations_or_provider_calls() -> None:

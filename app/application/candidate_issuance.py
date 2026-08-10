@@ -386,18 +386,35 @@ class IssueOpportunityCandidate:
             raise CandidateExecutionMismatchError(
                 "representative observation execution does not match group"
             )
+        if representative.observation_id not in group.observation_ids:
+            raise CandidateExecutionMismatchError(
+                "representative observation is not a finalized group member"
+            )
+        if not representative.is_candidate_eligible:
+            raise CandidateMarketIdentityConflictError(
+                "representative observation is not Candidate-eligible"
+            )
         self._validate_market_identity(
             request.market_observation_identity,
             representative.source_marketplace,
             representative.source_item_id,
         )
-        # The explicit request field is the authoritative source in this
-        # foundation. It is deliberately never derived from Group or Product data.
+        if (
+            request.market_observation_identity
+            != representative.candidate_market_identity
+        ):
+            raise CandidateMarketIdentityConflictError(
+                "Candidate Market identity does not match representative handoff"
+            )
         discovery_reference = _required(
             request.discovery_reference,
             "discovery_reference",
             CandidateDiscoveryReferenceConflictError,
         )
+        if discovery_reference != representative.candidate_discovery_reference:
+            raise CandidateDiscoveryReferenceConflictError(
+                "Candidate discovery reference does not match representative handoff"
+            )
         try:
             candidate_id = _required(
                 self._candidate_id_generator(),

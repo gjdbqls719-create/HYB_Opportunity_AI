@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7B1 - Candidate Discovery Handoff Implementation
+
+- Implement ADR-0057 for `EBAY_US`: the adapter emits the exact listing Market identity, while the Discovery Application issues a dedicated opaque namespaced discovery reference under `discovery-candidate-handoff / 1.0.0` before immutable observation admission.
+- Add `collector-observation-v2` all-or-none handoff persistence without migrating or inferring historical v1 rows; committed replay, restart reconstruction, and Finalized Group reads preserve the originally persisted facts without issuing new identities or mutating storage.
+- Extend the Finalized Group response with the exact representative `candidate_handoff` and strengthen Candidate issuance to require complete Market-identity and discovery-reference equality, exact representative membership, supported policy, and cross-Group lineage safety.
+- Prove a clean file-backed Discovery, Finalized Group read, Candidate, Product Snapshot, Promotion, and O1 journey through production HTTP interfaces only, removing the Founder journey's private observation-repository workaround.
+
 ## CR-1B7B1A - Candidate Discovery Handoff Authority Decision
 
 - Accept ADR-0057: supported marketplace adapters own exact Candidate Market identity semantics at collection time, while the Discovery Application owns a dedicated opaque Candidate discovery reference issued before immutable observation admission.

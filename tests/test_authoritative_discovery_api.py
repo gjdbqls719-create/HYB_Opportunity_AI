@@ -17,6 +17,7 @@ from app.application.discovery_persistence import (
 )
 from app.infrastructure.discovery import (
     OrchestratorProductionDiscoveryRuntime,
+    ProductionCandidateDiscoveryReferenceProvider,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
     SQLiteDiscoveryCommandRepository,
@@ -102,6 +103,10 @@ def test_production_composition_uses_existing_concrete_boundaries_and_closes_sco
     assert isinstance(
         entry._observation_identity_provider,
         ProductionObservationIdentityProvider,
+    )
+    assert isinstance(
+        entry._candidate_discovery_reference_provider,
+        ProductionCandidateDiscoveryReferenceProvider,
     )
     assert isinstance(
         entry._observation_repository, SQLiteDiscoveryObservationRepository

@@ -7,6 +7,14 @@ from urllib.parse import quote
 
 import requests
 
+from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
+)
+from app.domain.market_intelligence import (
+    MarketObservationIdentity,
+    MarketObservationScope,
+)
 from app.models import Product, ProductDataSource
 from collectors.base import MarketplaceAdapter, parse_price
 from collectors.collection_fact import CollectionFact
@@ -168,6 +176,7 @@ def get_item_by_id(
 def ebay_item_to_product(
     item: dict[str, Any],
     *,
+    marketplace_id: str = DEFAULT_MARKETPLACE_ID,
     collection_fact_sink: Callable[[CollectionFact], None] | None = None,
     observed_at: Callable[[], datetime] | None = None,
 ) -> Product:
@@ -177,12 +186,42 @@ def ebay_item_to_product(
 
     if collection_fact_sink is not None:
         clock = observed_at or (lambda: datetime.now(timezone.utc))
+        collected_at = clock()
+        cleaned_marketplace_id = marketplace_id.strip()
+        identity = None
+        policy_name = None
+        policy_version = None
+        if cleaned_marketplace_id == DEFAULT_MARKETPLACE_ID:
+            raw_condition = item.get("condition")
+            condition = (
+                raw_condition.strip()
+                if isinstance(raw_condition, str) and raw_condition.strip()
+                else None
+            )
+            identity = MarketObservationIdentity(
+                scope=MarketObservationScope.LISTING,
+                market="US",
+                marketplace=EbayAdapter.marketplace_name,
+                canonical_product_id=None,
+                marketplace_item_id=product.item_id,
+                normalized_query=None,
+                category=None,
+                variant_identity=None,
+                condition=condition,
+                window_started_at=collected_at,
+                window_ended_at=collected_at,
+            )
+            policy_name = CANDIDATE_HANDOFF_POLICY_NAME
+            policy_version = CANDIDATE_HANDOFF_POLICY_VERSION
         collection_fact_sink(
             CollectionFact(
                 product=product,
-                observed_at=clock(),
+                observed_at=collected_at,
                 collector_descriptor=EbayAdapter.collector_descriptor,
                 source_reference=product.url,
+                candidate_market_identity=identity,
+                candidate_handoff_policy_name=policy_name,
+                candidate_handoff_policy_version=policy_version,
             )
         )
 
@@ -228,6 +267,7 @@ def search_products(
     return [
         ebay_item_to_product(
             item,
+            marketplace_id=marketplace_id,
             collection_fact_sink=collection_fact_sink,
             observed_at=observed_at,
         )

@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
+import json
 import sqlite3
 from threading import Barrier
 
@@ -30,7 +31,13 @@ from app.infrastructure.discovery import (
     SQLiteDiscoveryObservationRepository,
 )
 from test_discovery_command_sqlite_persistence import receipt
-from test_discovery_correlation_contract import command, group, market_identity, observation
+from test_discovery_correlation_contract import (
+    candidate_ready_observation,
+    command,
+    group,
+    market_identity,
+    observation,
+)
 
 
 def prepare(path, *, second_execution=False):
@@ -112,6 +119,41 @@ def test_observation_exact_round_trip_optional_identity_repeated_listing_and_res
     restarted = SQLiteDiscoveryObservationRepository(path)
     assert restarted.get_observation(first.observation_id) == first
     assert restarted.get_observation(second.observation_id) == second
+    restarted.close()
+
+
+def test_candidate_handoff_v2_round_trip_restart_and_corruption_fail_closed(
+    tmp_path,
+) -> None:
+    path = tmp_path / "handoff.db"
+    prepare(path)
+    repository = SQLiteDiscoveryObservationRepository(path)
+    expected = candidate_ready_observation()
+    assert repository.save_observation(expected) == expected
+    assert repository.get_observation(expected.observation_id) == expected
+    repository.close()
+
+    restarted = SQLiteDiscoveryObservationRepository(path)
+    assert restarted.get_observation(expected.observation_id) == expected
+    restarted._connection.execute(
+        "DROP TRIGGER trg_discovery_collected_observation_history_no_update"
+    )
+    row = restarted._connection.execute(
+        "SELECT observation_payload_json FROM discovery_collected_observation_history "
+        "WHERE observation_id = ?",
+        (expected.observation_id,),
+    ).fetchone()
+    payload = json.loads(row[0])
+    del payload["candidate_discovery_reference"]
+    restarted._connection.execute(
+        "UPDATE discovery_collected_observation_history "
+        "SET observation_payload_json = ? WHERE observation_id = ?",
+        (json.dumps(payload, sort_keys=True, separators=(",", ":")),
+         expected.observation_id),
+    )
+    restarted._connection.commit()
+    with pytest.raises(MalformedDiscoveryObservationPersistenceError):
+        restarted.get_observation(expected.observation_id)
     restarted.close()
 
 

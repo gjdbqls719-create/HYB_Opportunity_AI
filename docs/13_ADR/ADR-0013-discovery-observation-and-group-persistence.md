@@ -70,6 +70,10 @@ invariant. Historical observations remain unchanged and optionality is retained
 for unsupported or non-Candidate-eligible Discovery observations. No historical
 identity or reference is inferred or backfilled.
 
+CR-1B7B1 implements this evolution as `collector-observation-v2`. The existing
+append-only JSON history stores the complete handoff on new eligible rows while
+the v1 serializer and reconstruction contract remain exact and unchanged.
+
 ## Deferred Work
 
 DiscoveryExecutionResult and zero-result completion persistence, Candidate ID

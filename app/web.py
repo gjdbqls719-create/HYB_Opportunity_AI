@@ -554,6 +554,7 @@ from app.domain.economics_calculation_snapshot import EconomicsCalculationParame
 from app.domain.discovery_identity import DiscoveryCommand, DiscoveryCommandParameters
 from app.infrastructure.discovery import (
     OrchestratorProductionDiscoveryRuntime,
+    ProductionCandidateDiscoveryReferenceProvider,
     ProductionCandidateIdentityGenerator,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
@@ -849,8 +850,33 @@ class RepresentativeObservationPreviewResponse(BaseModel):
     url: str
 
 
+class CandidateHandoffMarketIdentityResponse(BaseModel):
+    scope: MarketObservationScope
+    market: str
+    marketplace: str
+    canonical_product_id: str | None
+    marketplace_item_id: str | None
+    normalized_query: str | None
+    category: str | None
+    variant_identity: str | None
+    condition: str | None
+    window_started_at: datetime
+    window_ended_at: datetime
+
+
+class RepresentativeCandidateHandoffResponse(BaseModel):
+    observation_id: str
+    market_observation_identity: CandidateHandoffMarketIdentityResponse
+    discovery_reference: str
+    policy_name: str
+    policy_version: str
+    observed_at: datetime
+    collector_source_reference: str
+
+
 class FounderFinalizedGroupReadResponse(AuthoritativeFinalizedGroupResponse):
     representative_observation: RepresentativeObservationPreviewResponse
+    candidate_handoff: RepresentativeCandidateHandoffResponse | None
     observation_count: int
 
 
@@ -3379,6 +3405,9 @@ def get_authoritative_discovery_entry():
             observation_identity_provider=(
                 ProductionObservationIdentityProvider()
             ),
+            candidate_discovery_reference_provider=(
+                ProductionCandidateDiscoveryReferenceProvider()
+            ),
             observation_repository=observation_repository,
             finalized_group_identity_provider=(
                 ProductionFinalizedGroupIdentityProvider()
@@ -4858,6 +4887,72 @@ def get_authoritative_discovery_groups(
                     price=read_model.representative_observation.price,
                     currency=read_model.representative_observation.currency,
                     url=read_model.representative_observation.url,
+                ),
+                candidate_handoff=(
+                    None
+                    if read_model.candidate_handoff is None
+                    else RepresentativeCandidateHandoffResponse(
+                        observation_id=(
+                            read_model.candidate_handoff.observation_id
+                        ),
+                        market_observation_identity=(
+                            CandidateHandoffMarketIdentityResponse(
+                                scope=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.scope
+                                ),
+                                market=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.market
+                                ),
+                                marketplace=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.marketplace
+                                ),
+                                canonical_product_id=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.canonical_product_id
+                                ),
+                                marketplace_item_id=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.marketplace_item_id
+                                ),
+                                normalized_query=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.normalized_query
+                                ),
+                                category=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.category
+                                ),
+                                variant_identity=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.variant_identity
+                                ),
+                                condition=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.condition
+                                ),
+                                window_started_at=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.window_started_at
+                                ),
+                                window_ended_at=(
+                                    read_model.candidate_handoff
+                                    .market_observation_identity.window_ended_at
+                                ),
+                            )
+                        ),
+                        discovery_reference=(
+                            read_model.candidate_handoff.discovery_reference
+                        ),
+                        policy_name=read_model.candidate_handoff.policy_name,
+                        policy_version=read_model.candidate_handoff.policy_version,
+                        observed_at=read_model.candidate_handoff.observed_at,
+                        collector_source_reference=(
+                            read_model.candidate_handoff.collector_source_reference
+                        ),
+                    )
                 ),
                 observation_count=read_model.observation_count,
             )

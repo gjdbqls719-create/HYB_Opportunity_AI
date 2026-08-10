@@ -18,15 +18,24 @@ from app.application.discovery_persistence import (
     MalformedDiscoveryExecutionResult,
     UnsupportedDiscoveryExecutionResultVersion,
 )
-from app.domain.discovery_identity import DiscoveryExecutionResult
+from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION,
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
+    DiscoveryExecutionResult,
+)
 from app.infrastructure.discovery import (
     SQLiteDiscoveryCommandRepository,
     SQLiteDiscoveryGroupRepository,
+    SQLiteDiscoveryObservationRepository,
     SQLiteDiscoveryResultRepository,
 )
 from test_discovery_command_sqlite_persistence import receipt
-from test_discovery_correlation_contract import NOW, command, group
-from test_discovery_observation_group_sqlite_persistence import prepare, save_members
+from test_discovery_correlation_contract import NOW, command, group, market_identity, observation
+from test_discovery_observation_group_sqlite_persistence import (
+    observation_two,
+    prepare,
+)
 
 
 def result(**changes):
@@ -42,7 +51,37 @@ def result(**changes):
 
 def prepare_group(path):
     prepare(path)
-    save_members(path)
+    observations = SQLiteDiscoveryObservationRepository(path)
+    for reference, source in (
+        ("collector:ebay:item-1", observation()),
+        ("collector:ebay:item-2", observation_two()),
+    ):
+        identity = replace(
+            market_identity(),
+            marketplace_item_id=source.source_item_id,
+            condition=source.product.condition,
+            window_started_at=source.observed_at,
+            window_ended_at=source.observed_at,
+        )
+        observations.save_observation(
+            replace(
+                source,
+                collector_provenance=replace(
+                    source.collector_provenance,
+                    collector_name="ebay",
+                ),
+                candidate_market_identity=identity,
+                candidate_discovery_reference=reference,
+                candidate_handoff_policy_name=CANDIDATE_HANDOFF_POLICY_NAME,
+                candidate_handoff_policy_version=(
+                    CANDIDATE_HANDOFF_POLICY_VERSION
+                ),
+                schema_version=(
+                    CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION
+                ),
+            )
+        )
+    observations.close()
     groups = SQLiteDiscoveryGroupRepository(path)
     groups.save_group(group())
     groups.close()

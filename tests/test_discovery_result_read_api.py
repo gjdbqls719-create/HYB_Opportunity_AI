@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import sqlite3
 
 from fastapi.testclient import TestClient
@@ -9,6 +10,14 @@ from app.application.discovery import (
     DiscoveryCompletionReplayError,
     GroupingCorrelation,
     PersistedDiscoveryResultReader,
+)
+from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_POLICY_NAME,
+    CANDIDATE_HANDOFF_POLICY_VERSION,
+)
+from app.domain.market_intelligence import (
+    MarketObservationIdentity,
+    MarketObservationScope,
 )
 from app.application.discovery_persistence import (
     DiscoveryExecutionResultHistoryError,
@@ -44,7 +53,7 @@ def clear_overrides():
     app.dependency_overrides.clear()
 
 
-def seed(path, *, zero=False, two_groups=False):
+def seed(path, *, zero=False, two_groups=False, candidate_ready=False):
     runtime = CheckpointRuntime([])
     if zero:
         runtime.collection_facts = ()
@@ -54,7 +63,38 @@ def seed(path, *, zero=False, two_groups=False):
             GroupingCorrelation((0,), 0),
             GroupingCorrelation((1,), 1),
         )
+    if candidate_ready:
+        runtime.collection_facts = tuple(
+            replace(
+                fact,
+                candidate_market_identity=MarketObservationIdentity(
+                    scope=MarketObservationScope.LISTING,
+                    market="US",
+                    marketplace="ebay",
+                    canonical_product_id=None,
+                    marketplace_item_id=fact.product.item_id,
+                    normalized_query=None,
+                    category=None,
+                    variant_identity=None,
+                    condition=fact.product.condition,
+                    window_started_at=fact.observed_at,
+                    window_ended_at=fact.observed_at,
+                ),
+                candidate_handoff_policy_name=CANDIDATE_HANDOFF_POLICY_NAME,
+                candidate_handoff_policy_version=CANDIDATE_HANDOFF_POLICY_VERSION,
+            )
+            for fact in runtime.collection_facts
+        )
     entry, *repositories = sqlite_entry(path, runtime)
+    if candidate_ready:
+        class References:
+            def __init__(self):
+                self.values = iter(("handoff-one", "handoff-two"))
+
+            def provide_candidate_discovery_reference(self):
+                return next(self.values)
+
+        entry._candidate_discovery_reference_provider = References()
     if two_groups:
         entry._finalized_group_identity_provider = (
             RecordingFinalizedGroupIdentityProvider("group-b", "group-a")
@@ -206,8 +246,62 @@ def test_reads_are_replay_consistent_and_do_not_mutate_repositories(tmp_path) ->
         value["finalized_group_id"] for value in post_groups
     ]
     assert read_groups[0]["representative_observation"]["title"] == "Product one"
+    assert read_groups[0]["candidate_handoff"] is None
     assert read_groups[0]["observation_count"] == 2
     assert before == after
+
+
+def test_multi_observation_group_exposes_exact_representative_handoff_after_restart(
+    tmp_path,
+) -> None:
+    path = tmp_path / "candidate-handoff-read.db"
+    persisted, repositories = seed(path, candidate_ready=True)
+    reader = PersistedDiscoveryResultReader(
+        result_repository=repositories[3],
+        group_repository=repositories[2],
+        observation_repository=repositories[1],
+    )
+    client = use(reader)
+    try:
+        first = client.get(
+            "/api/v1/discovery/executions/execution-1/finalized-groups"
+        )
+    finally:
+        clear_overrides()
+        close_all(*repositories)
+
+    restarted = PersistedDiscoveryResultReader(
+        result_repository=SQLiteDiscoveryResultRepository(path),
+        group_repository=SQLiteDiscoveryGroupRepository(path),
+        observation_repository=SQLiteDiscoveryObservationRepository(path),
+    )
+    client = use(restarted)
+    try:
+        second = client.get(
+            "/api/v1/discovery/executions/execution-1/finalized-groups"
+        )
+    finally:
+        clear_overrides()
+        restarted._result_repository.close()
+        restarted._group_repository.close()
+        restarted._observation_repository.close()
+
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    group = first.json()["finalized_groups"][0]
+    assert group["observation_count"] == 2
+    assert group["representative_observation_id"] == "observation-one"
+    assert group["representative_observation"]["title"] == "Product one"
+    assert group["candidate_handoff"]["observation_id"] == "observation-one"
+    assert (
+        group["candidate_handoff"]["market_observation_identity"]
+        ["marketplace_item_id"]
+        == "one"
+    )
+    assert group["candidate_handoff"]["discovery_reference"] == "handoff-one"
+    assert persisted.finalized_groups[0].representative_observation_id == (
+        "observation-one"
+    )
 
 
 def test_missing_completion_is_404_for_result_and_groups(tmp_path) -> None:
@@ -275,3 +369,29 @@ def test_read_failures_have_explicit_http_mapping(error, status_code) -> None:
         else str(error)
     )
     assert result_response.json()["detail"] == expected
+
+
+def test_openapi_exposes_complete_candidate_handoff_copy_contract() -> None:
+    schemas = app.openapi()["components"]["schemas"]
+    handoff = schemas["RepresentativeCandidateHandoffResponse"]
+    assert set(handoff["properties"]) == {
+        "observation_id",
+        "market_observation_identity",
+        "discovery_reference",
+        "policy_name",
+        "policy_version",
+        "observed_at",
+        "collector_source_reference",
+    }
+    identity = schemas["CandidateHandoffMarketIdentityResponse"]
+    assert {
+        "scope",
+        "market",
+        "marketplace",
+        "marketplace_item_id",
+        "condition",
+        "window_started_at",
+        "window_ended_at",
+    }.issubset(identity["properties"])
+    group = schemas["FounderFinalizedGroupReadResponse"]
+    assert "candidate_handoff" in group["properties"]

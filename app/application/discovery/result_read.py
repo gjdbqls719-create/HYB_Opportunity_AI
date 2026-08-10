@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.application.discovery.production_execution import (
     DiscoveryCompletionReplayError,
@@ -18,6 +19,7 @@ from app.domain.discovery_identity import (
     DiscoveryExecutionResult,
     FinalizedProductGroup,
 )
+from app.domain.market_intelligence import MarketObservationIdentity
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,9 +33,21 @@ class RepresentativeObservationPreview:
 
 
 @dataclass(frozen=True, slots=True)
+class RepresentativeCandidateHandoff:
+    observation_id: str
+    market_observation_identity: MarketObservationIdentity
+    discovery_reference: str
+    policy_name: str
+    policy_version: str
+    observed_at: datetime
+    collector_source_reference: str
+
+
+@dataclass(frozen=True, slots=True)
 class FinalizedGroupReadModel:
     group: FinalizedProductGroup
     representative_observation: RepresentativeObservationPreview
+    candidate_handoff: RepresentativeCandidateHandoff | None
     observation_count: int
 
 
@@ -119,6 +133,32 @@ class PersistedDiscoveryResultReader:
                     "representative observation conflicts with finalized group lineage"
                 )
             product = observation.product
+            candidate_handoff = None
+            if observation.is_candidate_eligible:
+                identity = observation.candidate_market_identity
+                reference = observation.candidate_discovery_reference
+                policy_name = observation.candidate_handoff_policy_name
+                policy_version = observation.candidate_handoff_policy_version
+                if (
+                    identity is None
+                    or reference is None
+                    or policy_name is None
+                    or policy_version is None
+                ):
+                    raise DiscoveryCompletionReplayError(
+                        "representative Candidate handoff is incomplete"
+                    )
+                candidate_handoff = RepresentativeCandidateHandoff(
+                    observation_id=observation.observation_id,
+                    market_observation_identity=identity,
+                    discovery_reference=reference,
+                    policy_name=policy_name,
+                    policy_version=policy_version,
+                    observed_at=observation.observed_at,
+                    collector_source_reference=(
+                        observation.collector_provenance.source_reference
+                    ),
+                )
             read_models.append(
                 FinalizedGroupReadModel(
                     group=group,
@@ -130,6 +170,7 @@ class PersistedDiscoveryResultReader:
                         currency=product.currency,
                         url=product.url,
                     ),
+                    candidate_handoff=candidate_handoff,
                     observation_count=len(group.observation_ids),
                 )
             )
@@ -140,4 +181,5 @@ __all__ = [
     "FinalizedGroupReadModel",
     "PersistedDiscoveryResultReader",
     "RepresentativeObservationPreview",
+    "RepresentativeCandidateHandoff",
 ]

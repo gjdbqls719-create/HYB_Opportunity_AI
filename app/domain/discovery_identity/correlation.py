@@ -17,6 +17,11 @@ from app.domain.product_observation import CollectorProvenance, ObservedProductS
 
 DISCOVERY_COMMAND_SCHEMA_VERSION = "discovery-command-v1"
 COLLECTOR_OBSERVATION_SCHEMA_VERSION = "collector-observation-v1"
+CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION = (
+    "collector-observation-v2"
+)
+CANDIDATE_HANDOFF_POLICY_NAME = "discovery-candidate-handoff"
+CANDIDATE_HANDOFF_POLICY_VERSION = "1.0.0"
 FINALIZED_PRODUCT_GROUP_SCHEMA_VERSION = "finalized-product-group-v1"
 DISCOVERY_EXECUTION_RESULT_SCHEMA_VERSION = "discovery-execution-result-v1"
 CANDIDATE_ISSUANCE_REPLAY_SCHEMA_VERSION = "candidate-issuance-replay-v1"
@@ -268,6 +273,9 @@ class CollectedProductObservation:
     collector_provenance: CollectorProvenance
     observed_at: datetime
     candidate_market_identity: MarketObservationIdentity | None = None
+    candidate_discovery_reference: str | None = None
+    candidate_handoff_policy_name: str | None = None
+    candidate_handoff_policy_version: str | None = None
     schema_version: str = COLLECTOR_OBSERVATION_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -306,10 +314,85 @@ class CollectedProductObservation:
                 raise DiscoveryObservationIdentityConflictError(
                     "listing Market identity must match source item"
                 )
-        if self.schema_version != COLLECTOR_OBSERVATION_SCHEMA_VERSION:
+        if self.schema_version == COLLECTOR_OBSERVATION_SCHEMA_VERSION:
+            if any(
+                value is not None
+                for value in (
+                    self.candidate_discovery_reference,
+                    self.candidate_handoff_policy_name,
+                    self.candidate_handoff_policy_version,
+                )
+            ):
+                raise MalformedCollectorObservationError(
+                    "legacy observations cannot contain Candidate handoff fields"
+                )
+            return
+        if self.schema_version != CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION:
             raise MalformedCollectorObservationError(
                 f"unsupported collector observation version: {self.schema_version}"
             )
+        if self.candidate_market_identity is None:
+            raise MalformedCollectorObservationError(
+                "Candidate handoff Market identity is required"
+            )
+        object.__setattr__(
+            self,
+            "candidate_discovery_reference",
+            _required(
+                self.candidate_discovery_reference,
+                "candidate_discovery_reference",
+                MalformedCollectorObservationError,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "candidate_handoff_policy_name",
+            _required(
+                self.candidate_handoff_policy_name,
+                "candidate_handoff_policy_name",
+                MalformedCollectorObservationError,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "candidate_handoff_policy_version",
+            _required(
+                self.candidate_handoff_policy_version,
+                "candidate_handoff_policy_version",
+                MalformedCollectorObservationError,
+            ),
+        )
+        if (
+            self.candidate_handoff_policy_name != CANDIDATE_HANDOFF_POLICY_NAME
+            or self.candidate_handoff_policy_version
+            != CANDIDATE_HANDOFF_POLICY_VERSION
+        ):
+            raise MalformedCollectorObservationError(
+                "unsupported Candidate handoff policy"
+            )
+        identity = self.candidate_market_identity
+        if (
+            identity.scope is not MarketObservationScope.LISTING
+            or identity.market != "US"
+            or identity.marketplace != "ebay"
+            or identity.canonical_product_id is not None
+            or identity.normalized_query is not None
+            or identity.category is not None
+            or identity.variant_identity is not None
+            or identity.window_started_at != self.observed_at
+            or identity.window_ended_at != self.observed_at
+            or self.collector_provenance.collector_name != "ebay"
+        ):
+            raise DiscoveryObservationIdentityConflictError(
+                "Candidate handoff identity conflicts with eBay US policy"
+            )
+
+    @property
+    def is_candidate_eligible(self) -> bool:
+        return (
+            self.schema_version
+            == CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION
+        )
 
 
 @dataclass(frozen=True, slots=True)

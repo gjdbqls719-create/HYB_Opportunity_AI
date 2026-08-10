@@ -3,6 +3,7 @@ from app.application.discovery.discover_opportunities import (
     DiscoverOpportunitiesUseCase,
 )
 from app.application.discovery.ports import (
+    CandidateDiscoveryReferenceProvider,
     DiscoveryCompletionClock,
     FinalizedGroupIdentityProvider,
     GroupFinalizationClock,
@@ -35,6 +36,7 @@ from app.application.discovery.result_read import (
     FinalizedGroupReadModel,
     PersistedDiscoveryResultReader,
     RepresentativeObservationPreview,
+    RepresentativeCandidateHandoff,
 )
 from app.application.discovery.session import (
     DiscoverySession,
@@ -48,6 +50,7 @@ from app.application.discovery.workflow import (
 )
 
 __all__ = [
+    "CandidateDiscoveryReferenceProvider",
     "CollectionCheckpointHandler",
     "DiscoverOpportunitiesResponse",
     "DiscoverOpportunitiesUseCase",
@@ -81,5 +84,6 @@ __all__ = [
     "PersistedDiscoveryExecutionEntry",
     "PersistedDiscoveryResultReader",
     "RepresentativeObservationPreview",
+    "RepresentativeCandidateHandoff",
     "resolve_founder_discovery_policy_profile",
 ]

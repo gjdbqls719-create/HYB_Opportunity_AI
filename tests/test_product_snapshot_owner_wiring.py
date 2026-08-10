@@ -5,7 +5,10 @@ import sqlite3
 
 import pytest
 
-from app.application.candidate_issuance import PersistOpportunityCandidateIssuance
+from app.application.candidate_issuance import (
+    CandidateMarketIdentityConflictError,
+    PersistOpportunityCandidateIssuance,
+)
 from app.application.product_snapshot_capture import (
     CaptureProductSnapshots,
     CaptureProductSnapshotsCommand,
@@ -26,7 +29,14 @@ from app.infrastructure.discovery import (
 from app.infrastructure.product_observation import SQLiteProductSnapshotCaptureRepository
 from test_candidate_issuance_foundation import Counter, ISSUED_AT, issuance_command, service
 from test_discovery_command_sqlite_persistence import receipt
-from test_discovery_correlation_contract import NOW, command, group, market_identity, observation
+from test_discovery_correlation_contract import (
+    NOW,
+    candidate_ready_observation,
+    command,
+    group,
+    market_identity,
+    observation,
+)
 from test_discovery_execution_result_sqlite_persistence import result
 
 
@@ -40,24 +50,41 @@ def setup(
 ):
     command_repo=SQLiteDiscoveryCommandRepository(path); command_repo.save_command(command(),receipt(command()))
     observation_repo=SQLiteDiscoveryObservationRepository(path)
-    first=replace(
-        observation(),
-        candidate_market_identity=observation_market_identity,
-    )
+    first=candidate_ready_observation()
+    if observation_market_identity is not None:
+        first=replace(first,candidate_market_identity=observation_market_identity)
     second_product=replace(
         first.product,
         marketplace=second_marketplace,
         item_id=second_item_id,
         url=f"https://example.com/{second_marketplace}/{second_item_id}",
     )
-    second=replace(
-        first,
-        observation_id="observation-2",
-        source_marketplace=second_marketplace,
-        source_item_id=second_item_id,
-        product=second_product,
-        observed_at=NOW+timedelta(seconds=1),
-    )
+    second_observed_at=NOW+timedelta(seconds=1)
+    if second_marketplace == "ebay":
+        second=replace(
+            first,
+            observation_id="observation-2",
+            source_item_id=second_item_id,
+            product=second_product,
+            observed_at=second_observed_at,
+            candidate_market_identity=replace(
+                first.candidate_market_identity,
+                marketplace_item_id=second_item_id,
+                condition=second_product.condition,
+                window_started_at=second_observed_at,
+                window_ended_at=second_observed_at,
+            ),
+            candidate_discovery_reference="candidate-handoff:2",
+        )
+    else:
+        second=replace(
+            observation(),
+            observation_id="observation-2",
+            source_marketplace=second_marketplace,
+            source_item_id=second_item_id,
+            product=second_product,
+            observed_at=second_observed_at,
+        )
     observation_repo.save_observation(first);observation_repo.save_observation(second)
     group_repo=SQLiteDiscoveryGroupRepository(path);group_repo.save_group(group())
     result_repo=SQLiteDiscoveryResultRepository(path);result_repo.save_result(result())
@@ -65,7 +92,10 @@ def setup(
     candidates=SQLiteCandidateIssuanceRepository(path)
     boundary=PersistOpportunityCandidateIssuance(service(sources,Counter("candidate-1"),Counter(ISSUED_AT)),candidates,receipt_clock=Counter(ISSUED_AT))
     issuance=boundary.execute(issuance_command(
-        market_observation_identity=candidate_market_identity or market_identity()
+        market_observation_identity=(
+            candidate_market_identity
+            or issuance_command().market_observation_identity
+        )
     )).issuance
     for value in sources:value.close()
     candidates.close()
@@ -175,7 +205,7 @@ def issuance_command_identity():
 
 
 def test_explicit_matching_observation_identity_is_accepted(tmp_path):
-    path=tmp_path/"explicit-match.db";identity=market_identity()
+    path=tmp_path/"explicit-match.db";identity=issuance_command().market_observation_identity
     issuance,_,_=setup(path,candidate_market_identity=identity,
         observation_market_identity=identity,second_item_id="item-1")
     repo=SQLiteProductSnapshotCaptureRepository(path)
@@ -184,27 +214,19 @@ def test_explicit_matching_observation_identity_is_accepted(tmp_path):
     assert counts(repo)==(2,2,1);repo.close()
 
 
-def test_explicit_conflicting_observation_identity_is_rejected_without_writes(tmp_path):
-    path=tmp_path/"explicit-conflict.db";identity=market_identity()
+def test_fresh_candidate_rejects_conflicting_representative_identity(tmp_path):
+    path=tmp_path/"explicit-conflict.db";identity=issuance_command().market_observation_identity
     conflicting=replace(identity,condition="used")
-    issuance,_,_=setup(path,candidate_market_identity=identity,
-        observation_market_identity=conflicting,second_item_id="item-1")
-    repo=SQLiteProductSnapshotCaptureRepository(path)
-    with pytest.raises(ProductSnapshotSourceConflictError):
-        CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
-    assert counts(repo)==(0,0,0);repo.close()
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        setup(path,candidate_market_identity=identity,
+            observation_market_identity=conflicting,second_item_id="item-1")
 
 
-def test_canonical_candidate_captures_unresolved_multi_listing_group(tmp_path):
+def test_fresh_canonical_candidate_is_unsupported_by_ebay_listing_policy(tmp_path):
     path=tmp_path/"canonical.db"
     identity=market_identity(MarketObservationScope.CANONICAL_PRODUCT)
-    issuance,first,second=setup(path,candidate_market_identity=identity)
-    repo=SQLiteProductSnapshotCaptureRepository(path)
-    result_=CaptureProductSnapshots(repo,receipt_clock=Counter(ISSUED_AT)).execute(capture_command(issuance))
-    assert tuple(value.market_observation_identity for value in result_.snapshots)==(identity,identity)
-    assert tuple(value.product for value in result_.snapshots)==(first.product,second.product)
-    assert tuple(value.collected_observation_id for value in result_.bindings)==("observation-1","observation-2")
-    assert counts(repo)==(2,2,1);repo.close()
+    with pytest.raises(CandidateMarketIdentityConflictError):
+        setup(path,candidate_market_identity=identity)
 
 
 def test_unresolved_cross_market_member_preserves_evidence_source(tmp_path):

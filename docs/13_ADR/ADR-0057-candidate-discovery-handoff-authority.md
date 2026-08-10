@@ -6,8 +6,11 @@ Accepted
 
 ## Implementation Status
 
-Decision only. CR-1B7B1A defines the authority and forward contract. It changes
-no Domain, Application, persistence, API, test, or production behavior.
+Implemented by CR-1B7B1. New supported `EBAY_US` observations persist the exact
+Candidate handoff under `collector-observation-v2`; Finalized Group reads expose
+the exact representative handoff, and Candidate issuance verifies both submitted
+values by complete equality. Historical v1 observations remain unchanged and
+ineligible without migration or read-time reconstruction.
 
 ## Context
 
@@ -185,9 +188,9 @@ Fresh Candidate issuance must strengthen its existing validation to require:
   discovery reference;
 - all existing command/result/execution/Group/representative lineage checks.
 
-The current Candidate owner checks scope, marketplace, and LISTING item identity
-but does not perform both new exact equalities because the persisted handoff
-facts do not yet exist. CR-1B7B1 must add those checks; this ADR adds no code.
+The Candidate owner performs both exact equalities against the persisted
+representative handoff and rejects historical, partial, unsupported, or changed
+handoff facts.
 
 ADR-0015's no-reconstruction rule remains valid. Copying an already persisted
 authoritative handoff value into an explicit Candidate request is not
@@ -208,11 +211,10 @@ market, scope, listing identity, condition, and observation-window semantics are
 approved under a versioned handoff policy. Unsupported collectors may still
 participate in Discovery but cannot silently become Candidate-eligible.
 
-### Future Finalized Group read contract
+### Finalized Group read contract
 
-CR-1B7B1 should extend the existing Finalized Group response additively. A
-nested representative handoff DTO should expose, from the exact representative
-observation:
+CR-1B7B1 extends the existing Finalized Group response additively. The nested
+`candidate_handoff` DTO exposes, from the exact representative observation:
 
 - observation ID;
 - complete Candidate Market identity;
@@ -268,12 +270,11 @@ mapping, or a hidden fallback.
 - Existing observation persistence is extended rather than duplicated.
 - Historical rows are reproducible and never silently upgraded.
 - Marketplace support expands only by explicit versioned policy.
-- CR-1B7B1 becomes a bounded Domain/Application/persistence/read-contract/API
-  implementation rather than a new ingress architecture.
+- CR-1B7B1 closes the bounded Discovery-to-Candidate production handoff without
+  introducing a new ingress architecture.
 
 ## Out of Scope
 
-- production implementation or tests;
 - ItemScout/manual initial ingress;
 - new Candidate or Opportunity domains;
 - group selection automation;

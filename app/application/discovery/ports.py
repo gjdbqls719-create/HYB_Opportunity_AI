@@ -14,6 +14,13 @@ class ObservationIdentityProvider(Protocol):
 
 
 @runtime_checkable
+class CandidateDiscoveryReferenceProvider(Protocol):
+    """Supplies one server-owned opaque Candidate discovery reference."""
+
+    def provide_candidate_discovery_reference(self) -> str: ...
+
+
+@runtime_checkable
 class FinalizedGroupIdentityProvider(Protocol):
     """Supplies one authoritative opaque finalized Group identity."""
 

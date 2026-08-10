@@ -55,6 +55,9 @@ def test_collection_fact_preserves_only_collection_boundary_facts() -> None:
         "observed_at",
         "collector_descriptor",
         "source_reference",
+        "candidate_market_identity",
+        "candidate_handoff_policy_name",
+        "candidate_handoff_policy_version",
     }
 
 

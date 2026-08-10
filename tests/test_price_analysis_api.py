@@ -19,7 +19,7 @@ from app.infrastructure.product_observation import (
 from app.web import app, get_candidate_price_analysis_entry
 import app.web as web
 from engine.price_intelligence import analyze_product_prices
-from test_candidate_issuance_foundation import Counter, ISSUED_AT
+from test_candidate_issuance_foundation import Counter, ISSUED_AT, issuance_command
 from test_candidate_price_analysis_production_entry import (
     COMMITTED_AT,
     GENERATED_AT,
@@ -28,7 +28,7 @@ from test_candidate_price_analysis_production_entry import (
     request,
 )
 from test_candidate_issuance_production_entry import Fail
-from test_discovery_correlation_contract import NOW, market_identity
+from test_discovery_correlation_contract import NOW
 from test_product_snapshot_capture_production_entry import (
     capture_request,
     close_all,
@@ -61,7 +61,8 @@ def clear_overrides():
 
 
 def prepare_analysis_sources(path, scope=MarketObservationScope.LISTING):
-    identity = market_identity(scope)
+    assert scope is MarketObservationScope.LISTING
+    identity = issuance_command().market_observation_identity
     sources, candidates, issuance, _, _ = prepare(
         path,
         candidate_market_identity=identity,
@@ -140,13 +141,8 @@ def test_price_analysis_composition_failure_closes_open_resources(monkeypatch):
     assert closed == [True]
 
 
-@pytest.mark.parametrize(
-    "scope",
-    (MarketObservationScope.LISTING, MarketObservationScope.CANONICAL_PRODUCT),
-)
-def test_price_analysis_api_persists_ordered_listing_and_canonical_result(
-    tmp_path, scope
-):
+def test_price_analysis_api_persists_ordered_listing_result(tmp_path):
+    scope = MarketObservationScope.LISTING
     path = tmp_path / f"price-analysis-{scope.value}.db"
     sources, candidates, captures, issuance, captured = prepare_analysis_sources(
         path, scope

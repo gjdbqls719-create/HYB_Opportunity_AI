@@ -100,6 +100,23 @@ count. The read model does not calculate a price range, score, minimum,
 maximum, or other aggregate. A committed zero-result returns an empty Group
 tuple.
 
+For a Candidate-eligible representative, the same item also contains an
+additive `candidate_handoff` object. It exposes the exact representative
+`observation_id`, the complete `market_observation_identity`, the dedicated
+`discovery_reference`, handoff `policy_name` and `policy_version`, `observed_at`,
+and the external Collector `source_reference`. Decimal display fields remain
+strings and all timestamps are timezone-aware. Historical or unsupported
+representatives return `candidate_handoff: null`; the read never synthesizes,
+backfills, or mutates handoff facts.
+
+The Candidate POST request remains explicit. A client selects a Finalized Group
+and copies the complete Market identity and discovery reference verbatim from
+that exact Group's `candidate_handoff`. Candidate issuance rejects a changed
+market, scope, item, observation window, reference, unsupported policy, or
+cross-Group representative lineage. The response contract therefore supplies
+every machine-known source value needed for Candidate admission without private
+repository access, SQLite reads, URL parsing, or caller-created identity.
+
 API는 Engine 외부 계층이다.
 
 API

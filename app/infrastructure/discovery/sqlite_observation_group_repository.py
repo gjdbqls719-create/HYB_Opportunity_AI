@@ -24,6 +24,7 @@ from app.application.discovery_persistence import (
     UnsupportedDiscoveryObservationVersionError,
 )
 from app.domain.discovery_identity import (
+    CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION,
     COLLECTOR_OBSERVATION_SCHEMA_VERSION,
     FINALIZED_PRODUCT_GROUP_SCHEMA_VERSION,
     CollectedProductObservation,
@@ -98,8 +99,7 @@ def _identity_payload(identity: MarketObservationIdentity | None) -> dict[str, o
 
 
 def _observation_payload(observation: CollectedProductObservation) -> str:
-    return _json(
-        {
+    value = {
             "observation_id": observation.observation_id,
             "discovery_execution_id": observation.discovery_execution_id,
             "source_marketplace": observation.source_marketplace,
@@ -116,7 +116,24 @@ def _observation_payload(observation: CollectedProductObservation) -> str:
             ),
             "schema_version": observation.schema_version,
         }
-    )
+    if (
+        observation.schema_version
+        == CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION
+    ):
+        value.update(
+            {
+                "candidate_discovery_reference": (
+                    observation.candidate_discovery_reference
+                ),
+                "candidate_handoff_policy_name": (
+                    observation.candidate_handoff_policy_name
+                ),
+                "candidate_handoff_policy_version": (
+                    observation.candidate_handoff_policy_version
+                ),
+            }
+        )
+    return _json(value)
 
 
 def _market_identity(value: object) -> MarketObservationIdentity | None:
@@ -332,9 +349,13 @@ class SQLiteDiscoveryObservationRepository(_SQLiteDiscoveryFacts):
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> CollectedProductObservation:
-        if row["observation_schema_version"] != COLLECTOR_OBSERVATION_SCHEMA_VERSION:
+        schema_version = row["observation_schema_version"]
+        if schema_version not in {
+            COLLECTOR_OBSERVATION_SCHEMA_VERSION,
+            CANDIDATE_HANDOFF_COLLECTOR_OBSERVATION_SCHEMA_VERSION,
+        }:
             raise UnsupportedDiscoveryObservationVersionError(
-                f"unsupported observation version: {row['observation_schema_version']}"
+                f"unsupported observation version: {schema_version}"
             )
         try:
             value = json.loads(row["observation_payload_json"])
@@ -365,6 +386,15 @@ class SQLiteDiscoveryObservationRepository(_SQLiteDiscoveryFacts):
                 observed_at=_aware(value["observed_at"], "observed_at"),
                 candidate_market_identity=_market_identity(
                     value["candidate_market_identity"]
+                ),
+                candidate_discovery_reference=value.get(
+                    "candidate_discovery_reference"
+                ),
+                candidate_handoff_policy_name=value.get(
+                    "candidate_handoff_policy_name"
+                ),
+                candidate_handoff_policy_version=value.get(
+                    "candidate_handoff_policy_version"
                 ),
                 schema_version=value["schema_version"],
             )

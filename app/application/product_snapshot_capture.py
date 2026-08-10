@@ -205,7 +205,9 @@ class CaptureProductSnapshots:
                     "collector observation execution lineage differs"
                 )
             if (
-                observation.candidate_market_identity is not None
+                observation.observation_id
+                == group.representative_observation_id
+                and observation.candidate_market_identity is not None
                 and observation.candidate_market_identity
                 != command.market_observation_identity
             ):
