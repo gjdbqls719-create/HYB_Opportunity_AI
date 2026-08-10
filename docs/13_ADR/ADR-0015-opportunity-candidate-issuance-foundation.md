@@ -62,3 +62,18 @@ The boundary does not invoke Collector, grouping, analysis, Snapshot creation,
 Safety, Validation Admission, Opportunity lifecycle, Decision, Dashboard, API,
 or UI. Existing Discovery persistence errors remain distinguishable and are not
 collapsed into generic Candidate errors.
+
+## Relationship to ADR-0057
+
+This foundation's explicit Candidate request and no-reconstruction rule remain
+authoritative. ADR-0057 moves ownership of new Candidate-handoff facts earlier:
+a supported marketplace adapter supplies the exact Candidate Market identity,
+and the Discovery Application issues a dedicated discovery reference before the
+observation is persisted. A client may copy those persisted values verbatim from
+the exact Finalized Group representative into this explicit request. That copy
+is not reconstruction from Product or Group display data.
+
+Once ADR-0057 is implemented, fresh issuance must verify complete equality of
+both submitted values against the representative observation's persisted
+handoff. Historical observations without that handoff remain historical and are
+not made eligible by read-time inference.

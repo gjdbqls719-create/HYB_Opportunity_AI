@@ -50,6 +50,18 @@ An equivalent later command stores only an alias receipt and returns the existin
 Candidate without regenerating its ID or issuance time. This durable state is
 still pre-admission and creates no Opportunity lifecycle.
 
+ADR-0057 defines the decision-only forward contract for production Candidate
+handoff. A supported marketplace adapter owns the exact Candidate Market
+identity at collection time, while the Discovery Application issues a dedicated
+opaque Candidate discovery reference before immutable observation admission.
+Both facts and their handoff policy version are persisted with the observation.
+The exact Finalized Group representative will expose them verbatim, and the
+explicit Candidate request will be required to match both. Historical or
+unsupported observations remain valid Discovery history but are not
+Candidate-eligible; there is no backfill or read-time inference. CR-1B7B1 must
+implement this contract before the clean-database production-only Discovery to
+O1 handoff is closed.
+
 HYB는 Modular Pipeline Architecture를 사용한다.
 
 흐름:

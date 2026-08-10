@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7B1A - Candidate Discovery Handoff Authority Decision
+
+- Accept ADR-0057: supported marketplace adapters own exact Candidate Market identity semantics at collection time, while the Discovery Application owns a dedicated opaque Candidate discovery reference issued before immutable observation admission.
+- Define explicit `EBAY_US` listing handoff semantics under `discovery-candidate-handoff / 1.0.0`, persist identity/reference/policy together on the representative observation, and fail closed for unsupported or incomplete handoffs without URL, title, item-ID, Group, or read-time inference.
+- Preserve explicit Candidate request authority and require future exact equality against the persisted representative handoff; historical observations remain unchanged and ineligible without silent migration or backfill.
+- Record the production P0 closure contract for a clean-database HTTP-only Discovery, Finalized Group, Candidate, Product Snapshot, Promotion, and O1 journey. This change is documentation-only and adds no production, persistence, API, or test behavior.
+
 ## CR-1B6E2 - Conservative vs Actual Variance v2 and Production API
 
 - Implement ADR-0056 as immutable `conservative-actual-variance / 2.0.0` results over one explicit persisted Conservative Economics result and one explicit persisted Actual Outcome, with exact O2/product/economics/capital lineage and no latest lookup or source recalculation.

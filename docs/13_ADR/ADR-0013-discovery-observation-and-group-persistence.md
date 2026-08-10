@@ -60,6 +60,16 @@ created. UPDATE and DELETE triggers protect every authoritative table. Existing
 runtime Products, price history, search results, and ProductGroups are not
 converted, inferred, seeded, migrated, or backfilled.
 
+## Relationship to ADR-0057
+
+ADR-0057 preserves this observation as the Candidate-handoff persistence owner.
+For new Candidate-eligible production observations, the existing optional
+Candidate Market identity is accompanied by an immutable dedicated Candidate
+discovery reference and handoff policy name/version under an all-or-none
+invariant. Historical observations remain unchanged and optionality is retained
+for unsupported or non-Candidate-eligible Discovery observations. No historical
+identity or reference is inferred or backfilled.
+
 ## Deferred Work
 
 DiscoveryExecutionResult and zero-result completion persistence, Candidate ID
