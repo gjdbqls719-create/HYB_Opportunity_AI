@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7C2 - Candidate Promotion v2 and O1 Admission Authority Decision
+
+- Accept ADR-0059: O1 means a Founder-selected `discovered` Opportunity admitted for deeper validation, not BUY readiness, authoritative ROI/economics, Production Safety, Capital approval, or permission to spend.
+- Define a v2 promotion prerequisite over the exact Candidate/Context/issuance/finalized Group and complete Candidate-owned Product Snapshot capture, while removing unauthoritative recommendation, score, ROI, currency, and safety inputs without placeholders.
+- Preserve all v1 commands, rows, fingerprints, receipts, O1s, replay, and shared one-Candidate/one-Opportunity cardinality; keep PriceIntelligence optional and downstream Economics/Safety/O2 authorities unchanged.
+- Confirm the genuine Candidate, Group, Product Snapshot, source binding, and capture receipt are intact and unpromoted; mark the Founder runbook STOP at v1 Promotion until the bounded v2 implementation lands.
+
 ## CR-1B7B3 - First Real-World Operational Contract and Swagger Safety
 
 - Harden the existing Actual Acquisition and Actual Sale HTTP schemas with the exact Domain enums for canonical categories, `known` / `not_applicable` / `unknown`, and payout reconciliation; add synthetic OpenAPI examples for the four highest-risk real-money requests without changing Domain authority.

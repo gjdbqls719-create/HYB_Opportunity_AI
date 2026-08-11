@@ -117,6 +117,24 @@ cross-Group representative lineage. The response contract therefore supplies
 every machine-known source value needed for Candidate admission without private
 repository access, SQLite reads, URL parsing, or caller-created identity.
 
+## Candidate Promotion v2 decision status
+
+`POST /api/v1/candidate-promotions` currently implements Candidate Promotion v1.
+Its request still requires caller-supplied admission recommendation, score, ROI,
+currency, and admission safety status. Those fields do not have an authoritative
+persisted pre-promotion source in the genuine Founder flow and must not be
+invented to continue a real run.
+
+ADR-0059 accepts an explicit future `contract_version = "2.0.0"` request on this
+boundary. V2 will name only the exact Candidate, finalized Group,
+representative Product Snapshot anchor, command, operator, reason, requested
+time, and optional note. The Application will reconstruct the committed capture
+receipt and complete ordered Product cohort, issue O1 in lifecycle state
+`discovered`, and return exact binding/source lineage. Recommendation, score,
+ROI, currency-as-decision, and safety fields will not exist in the v2 request or
+response. This section documents direction only; production v2 is not yet
+callable and the genuine run remains stopped before Promotion.
+
 API는 Engine 외부 계층이다.
 
 API

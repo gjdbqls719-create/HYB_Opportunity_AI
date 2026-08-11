@@ -92,6 +92,17 @@ admission snapshot, market binding, immutable Candidate/Opportunity binding, and
 receipt atomically. Candidate and Opportunity remain distinct identities.
 Snapshot-chain ownership and Production Safety are not part of this flow.
 
+That paragraph describes implemented historical Candidate Promotion v1.
+ADR-0059 accepts a bounded v2 evolution because v1 requires caller-supplied
+recommendation, score, ROI, currency, and safety values without an authoritative
+pre-promotion source. V2 defines O1 only as a Founder-selected `discovered`
+Opportunity for deeper validation. It requires exact persisted Candidate,
+Context, finalized Group, complete Product Snapshot capture, representative
+Snapshot, operator, reason, and requested time; it admits no economic or safety
+conclusion. A separate additive v2 admission record and Product-source companion
+preserve the existing common Candidate/Opportunity cardinality anchor while v1
+history remains unchanged. This is decision-only until the implementation CR.
+
 ## Candidate-scoped Snapshot chain (PR35-A)
 
 Marketplace Collection owns Candidate-scoped Product Observation snapshots;

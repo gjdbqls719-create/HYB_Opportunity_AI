@@ -44,3 +44,10 @@ missing and is a later owner-wiring concern.
 No existing Opportunity or Candidate is inferred, matched, promoted, or backfilled.
 Collector, grouping, Snapshot owners, Production Safety, Review, Decision,
 Dashboard, API, and CLI behavior remain outside this decision.
+
+## Relationship to ADR-0059
+
+This decision remains the historical Candidate Promotion v1 contract. ADR-0059
+defines an additive v2 admission authority now that Candidate-owned Product
+Snapshot capture is persisted. V1 rows, commands, fingerprints, receipts, and
+replay retain this ADR's exact meaning and are never migrated or aliased to v2.

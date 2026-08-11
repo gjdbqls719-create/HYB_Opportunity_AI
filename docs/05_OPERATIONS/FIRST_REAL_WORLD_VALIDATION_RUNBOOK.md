@@ -16,6 +16,12 @@ Closed-loop operational validation additionally requires the exact
 pre-purchase Conservative result, the genuine Actual Outcome, and Variance v2.
 It does not perform automatic calibration, learning, or policy changes.
 
+> **Current genuine-run hold:** Candidate Promotion v1 requires caller-supplied
+> recommendation, score, ROI, currency, and safety values without an
+> authoritative persisted source. Do not invent them. ADR-0059 defines
+> Candidate Promotion v2, but it is decision-only. Stop after Product Snapshot
+> capture until the v2 implementation is deployed and validated.
+
 ## 2. Non-goals and external prerequisites
 
 This procedure does not automate ItemScout, Coupang, supplier checkout,
@@ -149,7 +155,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 3 | `GET /api/v1/discovery/executions/{discovery_execution_id}/finalized-groups` | exact execution ID | `finalized_group_id`, representative `candidate_handoff` | handoff is available; Candidate |
 | 4 | `POST /api/v1/candidates` | chosen group plus representative handoff copied verbatim | `candidate_id` | issuance succeeds; Snapshot |
 | 5 | `POST /api/v1/product-snapshots/capture` | Candidate ID and exact returned observation bindings | `product_snapshot_ids[]` | capture succeeds; Promotion |
-| 6 | `POST /api/v1/candidate-promotions` | Candidate ID, exact snapshot IDs, Founder promotion facts | `opportunity_id` as O1, `binding_id` | O1 lifecycle/market binding returned; Domestic Admission |
+| 6 | `POST /api/v1/candidate-promotions` | **CURRENT STOP:** do not use v1 with invented admission signals; after ADR-0059 implementation use exact Candidate/Group/representative Snapshot plus Founder decision facts | future v2 `opportunity_id` as O1, `binding_id` | proceed only after v2 is production-validated; then Domestic Admission |
 | 7 | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, KR Market identity, equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | exact distinct KR O2 returned |
 | 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
 | 9 | `POST /api/v1/opportunities/{o2}/demand-observations` | ItemScout/Coupang demand observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Validation |
