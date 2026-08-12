@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.application.competition_observation_admission import FinalizeCompetitionObservationAdmission
 from app.application.decision_readiness import DecisionReadinessService
@@ -70,6 +71,27 @@ def test_conflicts_validation_and_bounded_failure():
         assert failed.status_code == 503
         assert "private sqlite failure" not in failed.text
         assert observations.get_history("competition", bound_identity()) == ()
+    finally:
+        app.dependency_overrides.clear(); observations.close(); opportunities.close()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("confidence", "not-a-decimal"), ("median_price", "not-a-decimal")),
+)
+def test_historical_decimal_input_invalidity_is_422(field, value):
+    opportunities, observations, _ = setup()
+    client = TestClient(app, raise_server_exceptions=False)
+    payload = body()
+    if field == "confidence":
+        payload["evidence"]["competitor_count"]["confidence"] = value
+    else:
+        payload["evidence"][field]["value"] = value
+    try:
+        assert client.post(
+            "/api/v1/opportunities/opp-bound/competition-observations",
+            json=payload,
+        ).status_code == 422
     finally:
         app.dependency_overrides.clear(); observations.close(); opportunities.close()
 

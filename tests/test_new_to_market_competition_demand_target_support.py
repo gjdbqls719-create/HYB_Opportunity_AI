@@ -263,6 +263,41 @@ def test_default_app_composition_isolated_from_genuine_production_database():
     assert state() == before
 
 
+@pytest.mark.parametrize(
+    "kind,metric,bad_value",
+    (
+        ("competition", None, "not-a-decimal"),
+        ("competition", "median_price", "not-a-decimal"),
+        ("competition", "median_price", "NaN"),
+        ("competition", "median_price", "Infinity"),
+        ("demand", None, "not-a-decimal"),
+        ("demand", "rating", "not-a-decimal"),
+        ("demand", "rating", "NaN"),
+        ("demand", "sales_proxy", "-Infinity"),
+    ),
+)
+def test_target_decimal_input_invalidity_is_422(tmp_path, kind, metric, bad_value):
+    path, publication = _target_o2(tmp_path)
+    target = publication.target_binding.target_identity
+    opportunities, observations, _ = _api_setup(path)
+    client = TestClient(app, raise_server_exceptions=False)
+    route = f"/api/v1/opportunities/{publication.lifecycle.opportunity_id}/{kind}-observations"
+    body = _target_body(kind, target.domestic_selling_target_id)
+    if metric is None:
+        body["evidence"][next(iter(body["evidence"]))]["confidence"] = bad_value
+    elif metric == "sales_proxy":
+        body["evidence"] = {"sales_proxy": _api_evidence(bad_value, "units")}
+    else:
+        body["evidence"][metric]["value"] = bad_value
+    try:
+        response = client.post(route, json=body)
+        assert response.status_code == 422, response.text
+    finally:
+        app.dependency_overrides.clear()
+        observations.close()
+        opportunities.close()
+
+
 @pytest.mark.parametrize("kind", ("competition", "demand"))
 def test_target_api_fresh_replay_conflict_market_safety_and_restart(tmp_path, kind):
     path, publication = _target_o2(tmp_path)

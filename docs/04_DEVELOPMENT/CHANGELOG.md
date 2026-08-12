@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B7D4A - Competition/Demand Decimal Input Validation Production Fix
+
+- Convert malformed caller-supplied Competition/Demand confidence, price, rating, and sales-proxy Decimal text into deterministic HTTP 422 responses instead of allowing `decimal.InvalidOperation` to escape as HTTP 500.
+- Preserve valid Decimal behavior and existing Domain authority for finite, range, metric, identity, analyzer, replay, and persistence validation across historical v1 and target-subject v2 requests.
+- Confirm the failed genuine target-bound Competition request committed no Competition or Demand receipt and keep the genuine database byte-for-byte unchanged throughout focused, related, API/OpenAPI, and full regression testing.
+
 ## CR-1B7D4 - New-to-Market O2 Operational Eligibility and Competition/Demand Target Support
 
 - Add a discriminated operational eligibility subject over exactly one historical Market binding or ADR-0060 domestic-selling target binding, with archived/missing behavior preserved and dual or malformed bindings failing closed.

@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 from fastapi.testclient import TestClient
+import pytest
 from app.application.demand_observation_admission import FinalizeDemandObservationAdmission
 from app.application.decision_readiness import DecisionReadinessService
 from app.infrastructure.market_observation import SQLiteMarketObservationRepository
@@ -41,6 +42,20 @@ def test_identity_validation_rollback_and_bounded_errors():
         observations._connection.execute("""CREATE TRIGGER fail_demand_receipt BEFORE INSERT ON demand_admission_receipts BEGIN SELECT RAISE(ABORT,'private sqlite');END""")
         failed=client.post("/api/v1/opportunities/opp-bound/demand-observations",json=body());assert failed.status_code==503 and "private sqlite" not in failed.text
         assert observations.get_history("demand",bound_identity())==() and observations.get_latest("demand",bound_identity()) is None
+    finally: app.dependency_overrides.clear();observations.close();opportunities.close()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("confidence", "not-a-decimal"), ("rating", "not-a-decimal"),
+     ("sales_proxy", "not-a-decimal")),
+)
+def test_historical_decimal_input_invalidity_is_422(field, value):
+    opportunities,observations,_=setup();client=TestClient(app,raise_server_exceptions=False);payload=body()
+    if field=="confidence": payload["evidence"]["search_volume"]["confidence"]=value
+    elif field=="sales_proxy": payload["evidence"]={"sales_proxy":payload["evidence"]["rating"]|{"value":value}}
+    else: payload["evidence"][field]["value"]=value
+    try: assert client.post("/api/v1/opportunities/opp-bound/demand-observations",json=payload).status_code==422
     finally: app.dependency_overrides.clear();observations.close();opportunities.close()
 
 

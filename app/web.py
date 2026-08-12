@@ -5,7 +5,7 @@ from pathlib import Path
 
 from datetime import datetime, timezone
 from uuid import uuid4
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import sqlite3
 from typing import Any, Literal
 
@@ -8663,6 +8663,15 @@ def _competition_payload(result) -> dict[str, object]:
             "policy_version": snapshot.policy_version}}
 
 
+def _request_decimal(value: object, field_name: str) -> Decimal:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a Decimal string")
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError) as error:
+        raise ValueError(f"{field_name} must be valid Decimal text") from error
+
+
 @app.post("/api/v1/opportunities/{opportunity_id}/competition-observations", status_code=201)
 def finalize_competition_observation(
     opportunity_id: str, request: CompetitionObservationAdmissionRequest | TargetCompetitionObservationAdmissionRequest, response: Response,
@@ -8685,10 +8694,9 @@ def finalize_competition_observation(
             if name in count_metrics and raw is not None and (isinstance(raw, bool) or not isinstance(raw, int)):
                 raise ValueError(f"{name} must be an integer")
             if name in price_metrics and raw is not None:
-                if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
-                raw = Decimal(raw)
+                raw = _request_decimal(raw, name)
             evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
-                value.status, Decimal(value.confidence),
+                value.status, _request_decimal(value.confidence, f"{name}.confidence"),
                 value.market if target_request else identity.market,
                 value.marketplace if target_request else identity.marketplace,
                 value.collection_method, "market-evidence-v1", value.keyword, value.category,
@@ -8763,10 +8771,9 @@ def finalize_demand_observation(opportunity_id: str, request: DemandObservationA
             if name in integer_metrics and raw is not None and (isinstance(raw, bool) or not isinstance(raw, int)):
                 raise ValueError(f"{name} must be an integer")
             if name in decimal_metrics and raw is not None:
-                if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
-                raw = Decimal(raw)
+                raw = _request_decimal(raw, name)
             evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
-                value.status, Decimal(value.confidence),
+                value.status, _request_decimal(value.confidence, f"{name}.confidence"),
                 value.market if target_request else identity.market,
                 value.marketplace if target_request else identity.marketplace,
                 value.collection_method, "market-evidence-v1", value.keyword, value.category,
