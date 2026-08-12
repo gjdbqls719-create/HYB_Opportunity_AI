@@ -504,6 +504,13 @@ from app.application.competition_observation_admission import (
     CompetitionAdmissionUnavailableError, FinalizeCompetitionObservationAdmission,
     FinalizeCompetitionObservationAdmissionCommand,
 )
+from app.application.competition_v2_admission import (
+    CompetitionV2AdmissionConflictError,
+    CompetitionV2AdmissionNotFoundError,
+    CompetitionV2AdmissionUnavailableError,
+    FinalizeCompetitionV2Admission,
+    FinalizeCompetitionV2AdmissionCommand,
+)
 from app.application.demand_observation_admission import (
     DemandAdmissionConflictError, DemandAdmissionNotFoundError,
     DemandAdmissionUnavailableError, FinalizeDemandObservationAdmission,
@@ -550,6 +557,18 @@ from app.application.review_api import (
     ReviewSessionResponseDTO,
 )
 from app.domain.opportunity import NewToMarketDomesticSellingTargetIdentity
+from app.domain.market_intelligence.competition_v2 import (
+    CompetitionV2Card,
+    CompetitionV2Cohort,
+    ResultPlacement,
+    RocketObservationOutcome,
+    assessment_to_data,
+    cohort_to_data,
+    subject_to_data,
+)
+from app.infrastructure.market_observation.competition_v2_sqlite_repository import (
+    SQLiteCompetitionV2Repository,
+)
 from app.domain.market_intelligence import (
     ArtifactOrigin,
     ArtifactReference,
@@ -1200,6 +1219,86 @@ class TargetDemandObservationAdmissionRequest(
     TargetCompetitionObservationAdmissionRequest
 ):
     pass
+
+
+class CompetitionV2CardRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    result_ordinal: StrictInt = Field(ge=1)
+    placement: ResultPlacement
+    included: bool
+    is_comparable: bool
+    exclusion_reason: str | None = None
+    marketplace_item_id: str | None = None
+    raw_title: str = Field(min_length=1)
+    displayed_price: str | None = None
+    currency: str | None = None
+    price_unit: str | None = None
+    raw_rocket_labels: tuple[str, ...] = ()
+    delivery_promise_text: str | None = None
+    rocket_outcome: RocketObservationOutcome | None = None
+    comparability_confidence: str = "1"
+    price_confidence: str = "1"
+    rocket_label_confidence: str | None = None
+    visible_seller_text: str | None = None
+    visible_variant_count: StrictInt = Field(default=1, ge=1)
+    raw_payload_reference: str | None = None
+    badge_color: str | None = None
+    badge_icon: str | None = None
+
+
+class CompetitionV2CohortRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cohort_id: str = Field(min_length=1)
+    market: str = Field(min_length=1)
+    marketplace: str = Field(min_length=1)
+    query: str | None = None
+    category: str | None = None
+    product_use: str = Field(min_length=1)
+    category_form_factor: str = Field(min_length=1)
+    condition: str = Field(min_length=1)
+    locale: str = Field(min_length=1)
+    result_surface: str = Field(min_length=1)
+    window_started_at: datetime
+    window_ended_at: datetime
+    artifact_reference: str = Field(min_length=1)
+    artifact_sha256: str = Field(pattern="^[0-9a-fA-F]{64}$")
+    bound_start: StrictInt = Field(ge=1)
+    bound_end: StrictInt = Field(ge=1)
+    cards: tuple[CompetitionV2CardRequest, ...]
+    collector_name: str | None = None
+    collector_version: str | None = None
+    source_schema_version: str | None = None
+
+
+class CompetitionV2HistoricalAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_version: str = Field(pattern="^2\\.0\\.0$")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    identity: MarketObservationIdentityRequest
+    cohort: CompetitionV2CohortRequest
+
+
+class CompetitionV2TargetAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_version: str = Field(pattern="^2\\.0\\.0$")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    subject: NewToMarketAssessmentSubjectRequest
+    cohort: CompetitionV2CohortRequest
+
+
+class CompetitionV2AdmissionResponse(BaseModel):
+    opportunity_id: str
+    subject: dict[str, Any]
+    cohort: dict[str, Any]
+    artifact: dict[str, str]
+    core_metrics: dict[str, Any]
+    coupang_signal: dict[str, Any] | None
+    assessment: dict[str, Any]
+    receipt: dict[str, Any]
 
 
 class StartReviewRequest(BaseModel):
@@ -4981,6 +5080,15 @@ def get_competition_admission_service():
         observations.close(); opportunities.close()
 
 
+def get_competition_v2_admission_service():
+    opportunities = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+    repository = SQLiteCompetitionV2Repository(DEFAULT_DATABASE_PATH)
+    try:
+        yield FinalizeCompetitionV2Admission(opportunities, repository)
+    finally:
+        repository.close(); opportunities.close()
+
+
 def get_demand_admission_service():
     opportunities = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     observations = SQLiteMarketObservationRepository(DEFAULT_DATABASE_PATH)
@@ -8670,6 +8778,114 @@ def _request_decimal(value: object, field_name: str) -> Decimal:
         return Decimal(value)
     except (InvalidOperation, ValueError) as error:
         raise ValueError(f"{field_name} must be valid Decimal text") from error
+
+
+def _competition_v2_card(value: CompetitionV2CardRequest) -> CompetitionV2Card:
+    return CompetitionV2Card(
+        result_ordinal=value.result_ordinal,
+        placement=value.placement,
+        included=value.included,
+        is_comparable=value.is_comparable,
+        exclusion_reason=value.exclusion_reason,
+        marketplace_item_id=value.marketplace_item_id,
+        raw_title=value.raw_title,
+        displayed_price=None if value.displayed_price is None else _request_decimal(value.displayed_price, "displayed_price"),
+        currency=value.currency,
+        price_unit=value.price_unit,
+        raw_rocket_labels=value.raw_rocket_labels,
+        delivery_promise_text=value.delivery_promise_text,
+        rocket_outcome=value.rocket_outcome,
+        comparability_confidence=_request_decimal(value.comparability_confidence, "comparability_confidence"),
+        price_confidence=_request_decimal(value.price_confidence, "price_confidence"),
+        rocket_label_confidence=None if value.rocket_label_confidence is None else _request_decimal(value.rocket_label_confidence, "rocket_label_confidence"),
+        visible_seller_text=value.visible_seller_text,
+        visible_variant_count=value.visible_variant_count,
+        raw_payload_reference=value.raw_payload_reference,
+        badge_color=value.badge_color,
+        badge_icon=value.badge_icon,
+    )
+
+
+def _competition_v2_payload(result) -> dict[str, object]:
+    publication = result.publication
+    cohort = cohort_to_data(publication.cohort)
+    assessment = assessment_to_data(publication.assessment)
+    return {
+        "opportunity_id": publication.opportunity_id,
+        "subject": subject_to_data(publication.cohort.subject),
+        "cohort": cohort,
+        "artifact": {"reference": publication.cohort.artifact_reference, "sha256": publication.cohort.artifact_sha256},
+        "core_metrics": assessment["core_metrics"],
+        "coupang_signal": assessment["coupang_signal"],
+        "assessment": assessment,
+        "receipt": {
+            "state": "replayed" if result.replayed else "aliased" if result.aliased else "committed",
+            "replayed": result.replayed,
+            "aliased": result.aliased,
+            "committed_at": publication.committed_at.isoformat(),
+        },
+    }
+
+
+@app.post(
+    "/api/v2/opportunities/{opportunity_id}/competition-observations",
+    status_code=201,
+    response_model=CompetitionV2AdmissionResponse,
+)
+def finalize_competition_v2_observation(
+    opportunity_id: str,
+    request: CompetitionV2HistoricalAdmissionRequest | CompetitionV2TargetAdmissionRequest,
+    response: Response,
+    service: FinalizeCompetitionV2Admission = Depends(get_competition_v2_admission_service),
+):
+    try:
+        subject = (
+            NewToMarketDomesticSellingTargetIdentity(request.subject.domestic_selling_target_id)
+            if isinstance(request, CompetitionV2TargetAdmissionRequest)
+            else MarketObservationIdentity(**request.identity.model_dump())
+        )
+        value = request.cohort
+        cohort = CompetitionV2Cohort(
+            cohort_id=value.cohort_id,
+            subject=subject,
+            market=value.market,
+            marketplace=value.marketplace,
+            query=value.query,
+            category=value.category,
+            product_use=value.product_use,
+            category_form_factor=value.category_form_factor,
+            condition=value.condition,
+            locale=value.locale,
+            result_surface=value.result_surface,
+            window_started_at=value.window_started_at,
+            window_ended_at=value.window_ended_at,
+            artifact_reference=value.artifact_reference,
+            artifact_sha256=value.artifact_sha256,
+            bound_start=value.bound_start,
+            bound_end=value.bound_end,
+            operator_id=request.operator_id,
+            cards=tuple(_competition_v2_card(card) for card in value.cards),
+            collector_name=value.collector_name,
+            collector_version=value.collector_version,
+            source_schema_version=value.source_schema_version,
+        )
+        result = service.execute(FinalizeCompetitionV2AdmissionCommand(
+            opportunity_id=opportunity_id,
+            command_id=request.command_id,
+            operator_id=request.operator_id,
+            submitted_at=request.submitted_at,
+            cohort=cohort,
+        ))
+        response.status_code = 200 if result.replayed or result.aliased else 201
+        return _competition_v2_payload(result)
+    except CompetitionV2AdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except CompetitionV2AdmissionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (CompetitionV2AdmissionUnavailableError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="Competition v2 admission unavailable") from error
 
 
 @app.post("/api/v1/opportunities/{opportunity_id}/competition-observations", status_code=201)

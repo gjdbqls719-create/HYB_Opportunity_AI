@@ -6,10 +6,16 @@ Accepted
 
 ## Implementation Status
 
-Architecture decision only. Competition policy v2, its observation and
-assessment schemas, the API v2 route, persistence, UI, and collector support do
-not yet exist. Competition v1 and Domestic Market Validation v1 remain
-unchanged. The genuine run remains stopped before Competition and Demand.
+Implemented in CR-1B7D4E at the Domain, Application, additive SQLite, and
+dedicated API v2/OpenAPI boundaries. The implementation derives core and
+Coupang signal facts from an immutable bounded card manifest, supports both
+historical Market and ADR-0060 target subjects, and preserves receipt-first
+replay, aliases, corruption detection, and current-schema read stability.
+
+Competition v1, Demand, Decision Composition, and Domestic Market Validation v1
+remain unchanged. Automated Coupang collection, UI entry, DMV v2, and genuine
+Competition/Demand admission remain unimplemented or unexecuted as applicable.
+The genuine run remains stopped before Competition and Demand.
 
 ## Context
 

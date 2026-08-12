@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B7D4E - Competition v2 Bounded Cohort and Coupang Signal Foundation
+
+- Add dedicated Competition v2 bounded-cohort Domain contracts and a pure analyzer that derives comparable listing count, median, spread, Competition level, price pressure, optional explicit Coupang label signals, availability, and separate confidence/coverage values.
+- Add receipt-first Application admission for both historical Market and ADR-0060 target subjects, with deterministic fingerprints, exact replay, convergent cohort aliases, and no v1/v2 cross-version alias.
+- Add detection-driven immutable SQLite cohort/receipt persistence with restart reconstruction, append-only triggers, aggregate reconciliation, corruption detection, and current-schema byte stability.
+- Add the dedicated `/api/v2/opportunities/{opportunity_id}/competition-observations` raw-manifest contract and OpenAPI schemas without caller-derived aggregates, seller identity, or fabricated target listing identity.
+- Preserve Competition v1, Demand, DMV v1, Decision Composition, collectors, and UI; keep the genuine Competition/Demand run stopped and the production SQLite unchanged.
+
 ## CR-1B7D4D - Coupang Rocket Competition Evidence Authority Decision
 
 - Accept ADR-0061 and preserve Competition v1 while defining a versioned Competition v2 bounded comparable-listing core with optional marketplace-specific signal envelopes.

@@ -304,7 +304,7 @@ exact replay returns 200. Missing Opportunity returns 404, identity/provenance/c
 conflicts return 409, malformed domain input returns 422, and bounded infrastructure
 failures return 503.
 
-### Competition v2 direction (not implemented)
+### Competition v2 bounded cohort admission
 
 ADR-0061 reserves
 `POST /api/v2/opportunities/{opportunity_id}/competition-observations` for a
@@ -316,11 +316,15 @@ explicit taxonomy states, observation outcomes, artifact references, and
 provenance. Clients never submit derived shares, levels, availability, coverage,
 or confidence results.
 
-The v2 response distinguishes complete core with complete, partial, or absent
+The implemented v2 response distinguishes complete core with complete, partial, or absent
 marketplace enrichment from unavailable core evidence. V1 and v2 use separate
 schema/policy versions, fingerprints, and replay namespaces. The existing API
-v1 request, response, analyzer, and persisted history remain unchanged. This
-route and its schemas do not yet exist.
+v1 request, response, analyzer, and persisted history remain unchanged. The v2
+server derives count, median, spread, label counts/shares, levels,
+availability, and confidence; caller-supplied aggregates and seller identity
+are forbidden. Fresh commit returns 201, exact replay or convergent cohort alias
+returns 200, missing Opportunity returns 404, conflicts return 409, malformed
+input returns 422, and bounded persistence failure returns 503.
 
 ## Demand operational admission
 

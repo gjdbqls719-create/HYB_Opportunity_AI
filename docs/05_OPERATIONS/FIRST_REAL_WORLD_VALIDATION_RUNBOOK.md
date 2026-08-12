@@ -50,13 +50,20 @@ observation semantics. Do not submit a guessed count, substitute zero, treat a
 listing as a seller, or equate `판매자로켓`, `로켓배송`, `로켓그로스`,
 arrival-speed text, badge colors, or icons.
 
-ADR-0061 resolves the architecture decision by defining an unimplemented
-Competition v2 direction: one immutable bounded cohort of comparable organic
+ADR-0061 resolves the architecture decision, and CR-1B7D4E implements its
+Competition v2 foundation. One immutable bounded cohort of comparable organic
 listing cards supplies the core count and prices, while explicit Coupang Rocket
-labels are optional, separate, versioned marketplace enrichment. Until the
-Competition v2 implementation is complete, keep the server stopped and do not
-POST Competition or Demand or open the genuine database. ADR acceptance alone
-does not advance the run.
+labels are optional, separate, versioned marketplace enrichment. CR-1B7D4E does
+not itself authorize or perform a genuine write: keep the server stopped and do
+not POST Competition or Demand during implementation validation.
+
+After CR-1B7D4E is committed, pushed, and separately authorized for genuine-run
+operation, resume exactly at
+`POST /api/v2/opportunities/{opportunity_id}/competition-observations` using the
+Founder-reviewed bounded manifest and pinned external artifact reference/hash.
+Archive the request and response before any Demand step. Do not use the v1
+Competition route for this evidence. DMV remains blocked because DMV v2 is not
+implemented.
 
 ## 2. Non-goals and external prerequisites
 

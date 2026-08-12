@@ -20,8 +20,10 @@ Competition v2 uses separate core and marketplace-signal availability,
 confidence, and coverage. It requires a new observation/assessment/policy
 version and dedicated API v2 contract. Competition v1 rows, snapshots,
 receipts, fingerprints, analyzers, and ADR-0044 DMV-v1 requirements remain
-unchanged. This direction is accepted but not implemented, and the genuine run
-remains stopped.
+unchanged. CR-1B7D4E implements this foundation through dedicated v2 Domain and
+Application owners, additive immutable SQLite cohort/receipt tables, and the
+API v2/OpenAPI contract. Automated Coupang collection, Decision Composition v2,
+DMV v2, and UI support remain absent, and the genuine run remains stopped.
 
 ## Pre-admission discovery identity
 
