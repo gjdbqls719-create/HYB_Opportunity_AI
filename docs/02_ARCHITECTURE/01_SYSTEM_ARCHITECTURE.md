@@ -223,6 +223,19 @@ and the independent `VERIFIED_MATCH` requirement. The two HTTP calls are
 separate committed authorities; there is no cross-request transaction or
 automatic Economics, Market Validation, Capital, execution, UI, or auth flow.
 
+ADR-0060 accepts a separate additive path for an exact O1 source product that
+the Founder selects as a new-to-market KR selling target before an exact KR
+listing or canonical-product identity exists. The Application will own a
+server-issued opaque `NewToMarketDomesticSellingTargetIdentity`, a distinct O2,
+and an immutable `OpportunityDomesticSellingTargetBinding`. The existing
+ADR-0049 listing/canonical admission and every historical Market binding remain
+unchanged. Comparable Coupang products stay evidence rather than target
+identity, and a later real listing will attach through a new append-only fact
+without mutating the original binding or creating another O2 automatically.
+This is an accepted architecture direction only; no runtime implementation or
+new-to-market production route currently exists, and the genuine run remains
+stopped before O2.
+
 CR-1B5D2F keeps Validation Queue membership distinct from authoritative
 Opportunity existence at operational ingress. Competition, Demand, and Verified
 Economics now share a narrow read contract that requires one exact non-archived

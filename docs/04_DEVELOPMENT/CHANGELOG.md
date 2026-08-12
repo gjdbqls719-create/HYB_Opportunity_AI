@@ -1,5 +1,11 @@
 # HYB Changelog
 
+## CR-1B7D2 - New-to-Market KR Selling Target Authority Decision
+
+- Accept ADR-0060 and confirm FR-013 is unsupported by the current listing/canonical-only `MarketObservationIdentity`, Opportunity binding, and ADR-0049 equivalence contract.
+- Choose a separate additive new-to-market authority with a server-owned opaque KR selling-target identity, distinct O2, immutable target binding, bounded search evidence, and append-only later-listing attachment semantics while preserving ADR-0049 and ADR-0059 history.
+- Record every direct downstream identity blocker, keep comparable Coupang products in Competition/Demand evidence, and leave the genuine run stopped at O1 `c2d4479a7f32437b9b0aefa614ae85c1` with no O2 and no production implementation claim.
+
 ## CR-1B7C3 - Candidate Promotion v2 Implementation
 
 - Implement ADR-0059 through the existing production route with an explicit `2.0.0` request containing only exact Candidate/Product lineage and factual Founder selection inputs.

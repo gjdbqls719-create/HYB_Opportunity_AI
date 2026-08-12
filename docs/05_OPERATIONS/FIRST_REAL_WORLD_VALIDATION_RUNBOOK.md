@@ -21,6 +21,22 @@ It does not perform automatic calibration, learning, or policy changes.
 > representative Product Snapshot IDs from archived production responses. Never
 > use legacy v1 admission signal fields for a genuine run.
 
+### FR-013 current genuine-run STOP
+
+The current genuine run has reached O1
+`c2d4479a7f32437b9b0aefa614ae85c1` for the exact persisted eBay/US source
+product. KR investigation found category and comparable Coupang evidence but did
+not establish an exact-equivalent KR listing or authoritative KR canonical-
+product identity. Therefore the existing step 7 ADR-0049 route cannot be used:
+`product_equivalence_confirmed=true`, a fake Coupang item ID, the eBay item ID as
+a KR ID, a comparable listing, and an invented canonical ID are all prohibited.
+
+ADR-0060 resolves the architecture with a separate new-to-market KR selling-
+target authority, but that authority is not implemented. Operational status is
+`FR-013 / no O2 yet`. Keep the production database unchanged and stop after the
+archived O1 response until the bounded implementation and its runbook/OpenAPI
+update are complete.
+
 ## 2. Non-goals and external prerequisites
 
 This procedure does not automate ItemScout, Coupang, supplier checkout,
@@ -155,7 +171,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 4 | `POST /api/v1/candidates` | chosen group plus representative handoff copied verbatim | `candidate_id` | issuance succeeds; Snapshot |
 | 5 | `POST /api/v1/product-snapshots/capture` | Candidate ID and exact returned observation bindings | `product_snapshot_ids[]` | capture succeeds; Promotion |
 | 6 | `POST /api/v1/candidate-promotions` | `contract_version=2.0.0`, exact Candidate/Group/representative Snapshot, unique command ID, Founder/operator, factual selection reason and time | `opportunity_id` as O1, `binding_id`, `admission_id`, exact capture/Snapshot lineage | lifecycle is `discovered`; archive response, then Domestic Admission |
-| 7 | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, KR Market identity, equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | exact distinct KR O2 returned |
+| 7 | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | use only when exact equivalence is established; the current FR-013 run must STOP |
 | 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
 | 9 | `POST /api/v1/opportunities/{o2}/demand-observations` | ItemScout/Coupang demand observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Validation |
 | 10 | `POST /api/v1/opportunities/{o2}/domestic-market-validations` | four exact Competition/Demand IDs | `assessment_id` | state `validated_for_capital`; Sourcing/Capital |

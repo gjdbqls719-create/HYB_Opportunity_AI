@@ -66,3 +66,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0057: Candidate Discovery Handoff Authority](ADR-0057-candidate-discovery-handoff-authority.md)
 - [ADR-0058: Purchase Execution Monetary Authority](ADR-0058-purchase-execution-monetary-authority.md)
 - [ADR-0059: Candidate Promotion v2 and O1 Admission Authority](ADR-0059-candidate-promotion-v2-o1-admission-authority.md)
+- [ADR-0060: New-to-Market KR Selling Target Authority](ADR-0060-new-to-market-kr-selling-target-authority.md)
