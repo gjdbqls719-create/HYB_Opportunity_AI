@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B7D4 - New-to-Market O2 Operational Eligibility and Competition/Demand Target Support
+
+- Add a discriminated operational eligibility subject over exactly one historical Market binding or ADR-0060 domestic-selling target binding, with archived/missing behavior preserved and dual or malformed bindings failing closed.
+- Add versioned target-subject Competition and Demand observations, assessment snapshots, deterministic persistence, restart/replay, and API/OpenAPI request variants while preserving all historical MarketObservationIdentity rows, request shapes, fingerprints, and analyzer policies.
+- Keep the opaque KR target distinct from actual Coupang/query/category/listing evidence provenance; reject foreign-market evidence without inferring product equivalence or converting a comparable listing into the target.
+- Add a fail-closed pytest SQLite guard and session-isolated application/CLI database default so import-only, TestClient, CLI, focused, related, and full-suite execution cannot open the genuine production database.
+- Leave the genuine O2 without Competition/Demand writes and keep Domestic Market Validation, Sourcing, Economics, Safety, Capital, execution, listing attachment, and UI support explicitly blocked.
+
 ## CR-1B7D3 - New-to-Market KR Selling Target Admission Foundation
 
 - Implement ADR-0060 with immutable KR target, bounded-search, exact ADR-0059 v2 source-manifest, target-binding, admission, publication, replay/alias, and server-owned identity/time contracts without weakening ADR-0049.

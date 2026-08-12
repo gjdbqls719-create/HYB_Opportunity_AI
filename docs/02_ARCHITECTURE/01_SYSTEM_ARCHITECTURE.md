@@ -417,8 +417,13 @@ with an immutable target binding. Append-only SQLite admission, target, binding,
 and receipt history provides replay/alias, restart, rollback, corruption, and
 concurrency safety. Reciprocal checks with ADR-0049 enforce one O1 to one O2
 across both modes. No `OpportunityMarketIdentityBinding` is synthesized for the
-new target, and target-aware downstream Market, Sourcing, Economics, Safety,
-Capital, UI, and later-listing support remain explicitly outside the foundation.
+new target. CR-1B7D4 adds an explicit operational subject union over exactly one
+historical Market binding or ADR-0060 target binding, plus versioned
+Competition/Demand observations and snapshots for the target subject. Actual KR
+marketplace/query/category/listing provenance remains on each evidence item and
+never becomes the target identity. Historical Market-observation rows and
+analyzer policy remain unchanged. Domestic Market Validation, Sourcing,
+Economics, Safety, Capital, UI, and later-listing support remain blocked.
 
 CR-1B5D2B implements the ADR-0049 Domain/Application foundation that preserves
 one foreign/source Opportunity O1 and admits a distinct KR domestic-selling

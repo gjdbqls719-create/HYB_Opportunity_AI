@@ -35,11 +35,12 @@ from storage.opportunity_history import (
     SavedOpportunity,
 )
 from storage.price_history import (
+    DEFAULT_DATABASE_PATH as STORAGE_DEFAULT_DATABASE_PATH,
     PriceHistoryRepository,
 )
 
 
-DEFAULT_DATABASE_PATH = "data/hyb_opportunity.db"
+DEFAULT_DATABASE_PATH = str(STORAGE_DEFAULT_DATABASE_PATH)
 
 
 def build_parser() -> argparse.ArgumentParser:

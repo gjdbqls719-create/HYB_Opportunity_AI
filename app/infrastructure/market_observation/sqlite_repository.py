@@ -33,6 +33,13 @@ from app.domain.market_intelligence import (
     PricePressure,
     ReviewQuality,
     RocketCompetitionLevel,
+    AssessmentSubjectKind,
+    assessment_subject_kind,
+    is_new_to_market_target_subject,
+)
+from app.domain.opportunity import (
+    NewToMarketDomesticSellingTargetIdentity,
+    NewToMarketDomesticSellingTargetKind,
 )
 from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
 from app.application.assessment_snapshot import (
@@ -383,7 +390,10 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             raise CompetitionAdmissionUnavailableError("competition receipt is unavailable") from error
         if row is None:
             return None
-        if row["schema_version"] != "competition-admission-receipt-v1":
+        if row["schema_version"] not in {
+            "competition-admission-receipt-v1",
+            "competition-admission-receipt-v2",
+        }:
             from app.application.competition_observation_admission import CompetitionAdmissionUnavailableError
             raise CompetitionAdmissionUnavailableError("unsupported competition receipt version")
         return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
@@ -398,7 +408,10 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             from app.application.demand_observation_admission import DemandAdmissionUnavailableError
             raise DemandAdmissionUnavailableError("demand receipt is unavailable") from error
         if row is None: return None
-        if row["schema_version"] != "demand-admission-receipt-v1":
+        if row["schema_version"] not in {
+            "demand-admission-receipt-v1",
+            "demand-admission-receipt-v2",
+        }:
             from app.application.demand_observation_admission import DemandAdmissionUnavailableError
             raise DemandAdmissionUnavailableError("unsupported demand receipt version")
         return {"fingerprint": row["command_fingerprint"], "opportunity_id": row["opportunity_id"],
@@ -424,8 +437,10 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
                 (identity_key, snapshot.snapshot_id, snapshot.generated_at.isoformat(), payload))
             self._connection.execute("""INSERT INTO demand_admission_receipts
                 (command_id, command_fingerprint, opportunity_id, observation_id, snapshot_id, operator_id, schema_version)
-                VALUES (?, ?, ?, ?, ?, ?, 'demand-admission-receipt-v1')""",
-                (command_id, fingerprint, opportunity_id, observation.observation_id, snapshot.snapshot_id, operator_id))
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (command_id, fingerprint, opportunity_id, observation.observation_id,
+                 snapshot.snapshot_id, operator_id,
+                 self._admission_receipt_schema("demand", observation.identity)))
             self._connection.commit()
         except (DuplicateMarketObservationError, sqlite3.IntegrityError) as error:
             self._connection.rollback()
@@ -471,9 +486,10 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             self._connection.execute(
                 """INSERT INTO competition_admission_receipts
                 (command_id, command_fingerprint, opportunity_id, observation_id, snapshot_id, operator_id, schema_version)
-                VALUES (?, ?, ?, ?, ?, ?, 'competition-admission-receipt-v1')""",
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (command_id, fingerprint, opportunity_id,
-                 observation.observation_id, snapshot.snapshot_id, operator_id),
+                 observation.observation_id, snapshot.snapshot_id, operator_id,
+                 self._admission_receipt_schema("competition", observation.identity)),
             )
             self._connection.commit()
         except (DuplicateMarketObservationError, sqlite3.IntegrityError) as error:
@@ -629,15 +645,24 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             ]
         value = {
             "observation_type": observation_type.value,
-            "identity": cls._identity_data(observation.identity, include_window=True),
             "provenance": provenance,
             "observed_at": cls._iso(cls._observation_time(observation)),
         }
+        if isinstance(observation.identity, MarketObservationIdentity):
+            value["identity"] = cls._identity_data(
+                observation.identity, include_window=True
+            )
+        else:
+            value["subject"] = cls._subject_data(observation.identity)
         return hashlib.sha256(cls._canonical_json(value).encode("utf-8")).hexdigest()
 
     @classmethod
-    def _identity_key(cls, identity: MarketObservationIdentity) -> str:
-        value = cls._canonical_json(cls._identity_data(identity, include_window=False))
+    def _identity_key(cls, identity) -> str:
+        if isinstance(identity, MarketObservationIdentity):
+            data = cls._identity_data(identity, include_window=False)
+        else:
+            data = cls._subject_data(identity)
+        value = cls._canonical_json(data)
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
     @classmethod
@@ -679,9 +704,14 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
     ) -> str:
         common = {
             "observation_type": observation_type.value,
-            "identity": cls._identity_data(observation.identity, include_window=True),
             "schema_version": observation.schema_version,
         }
+        if isinstance(observation.identity, MarketObservationIdentity):
+            common["identity"] = cls._identity_data(
+                observation.identity, include_window=True
+            )
+        else:
+            common["subject"] = cls._subject_data(observation.identity)
         if isinstance(observation, ExternalMarketSignal):
             common.update({
                 "signal_id": observation.signal_id,
@@ -712,7 +742,6 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
         assessment = snapshot.assessment
         common = {
             "snapshot_id": snapshot.snapshot_id,
-            "identity": cls._identity_data(snapshot.identity, include_window=True),
             "source_observation_id": snapshot.source_observation_id,
             "availability": snapshot.availability.value,
             "confidence": str(snapshot.confidence),
@@ -721,6 +750,12 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             "schema_version": snapshot.schema_version,
             "policy_version": snapshot.policy_version,
         }
+        if isinstance(snapshot.identity, MarketObservationIdentity):
+            common["identity"] = cls._identity_data(
+                snapshot.identity, include_window=True
+            )
+        else:
+            common["subject"] = cls._subject_data(snapshot.identity)
         if isinstance(snapshot, CompetitionAssessmentSnapshot):
             common["assessment_type"] = "competition"
             common["assessment"] = {
@@ -783,7 +818,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             snapshot_class = DemandAssessmentSnapshot
         return snapshot_class(
             snapshot_id=data["snapshot_id"],
-            identity=cls._identity_from_data(data["identity"]),
+            identity=cls._subject_from_container(data),
             source_observation_id=data["source_observation_id"],
             assessment=assessment,
             availability=DecisionEvidenceAvailability(data["availability"]),
@@ -798,7 +833,7 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
     def _from_payload(cls, payload_json: str) -> MarketObservation:
         data = json.loads(payload_json)
         observation_type = MarketObservationType(data["observation_type"])
-        identity = cls._identity_from_data(data["identity"])
+        identity = cls._subject_from_container(data)
         if observation_type is MarketObservationType.EXTERNAL_SIGNAL:
             return ExternalMarketSignal(
                 signal_id=data["signal_id"],
@@ -909,6 +944,52 @@ class SQLiteMarketObservationRepository(MarketObservationRepository):
             window_started_at=cls._datetime(data["window_started_at"]),
             window_ended_at=cls._datetime(data["window_ended_at"]),
         )
+
+    @classmethod
+    def _subject_data(cls, subject) -> dict[str, Any]:
+        if not is_new_to_market_target_subject(subject):
+            raise TypeError("unsupported target assessment subject")
+        return {
+            "kind": AssessmentSubjectKind.NEW_TO_MARKET_DOMESTIC_SELLING_TARGET.value,
+            "target_identity": {
+                "domestic_selling_target_id": subject.domestic_selling_target_id,
+                "market": subject.market,
+                "kind": subject.kind.value,
+                "schema_version": subject.schema_version,
+            },
+        }
+
+    @classmethod
+    def _subject_from_container(cls, data: Mapping[str, Any]):
+        has_identity = "identity" in data
+        has_subject = "subject" in data
+        if has_identity == has_subject:
+            raise ValueError("persisted assessment subject variant is malformed")
+        if has_identity:
+            return cls._identity_from_data(data["identity"])
+        subject = data["subject"]
+        if set(subject) != {"kind", "target_identity"}:
+            raise ValueError("persisted target assessment subject is malformed")
+        if subject["kind"] != AssessmentSubjectKind.NEW_TO_MARKET_DOMESTIC_SELLING_TARGET.value:
+            raise ValueError("unsupported persisted assessment subject kind")
+        target = subject["target_identity"]
+        if set(target) != {
+            "domestic_selling_target_id", "market", "kind", "schema_version"
+        }:
+            raise ValueError("persisted target identity is malformed")
+        return NewToMarketDomesticSellingTargetIdentity(
+            domestic_selling_target_id=target["domestic_selling_target_id"],
+            market=target["market"],
+            kind=NewToMarketDomesticSellingTargetKind(target["kind"]),
+            schema_version=target["schema_version"],
+        )
+
+    @staticmethod
+    def _admission_receipt_schema(assessment_type: str, subject) -> str:
+        version = (
+            "v1" if isinstance(subject, MarketObservationIdentity) else "v2"
+        )
+        return f"{assessment_type}-admission-receipt-{version}"
 
     @classmethod
     def _encode_value(cls, value: Any) -> Any:

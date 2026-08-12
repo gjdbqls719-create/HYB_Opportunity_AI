@@ -3,13 +3,16 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Iterable
 
 from app.models import Product
 
 
-DEFAULT_DATABASE_PATH = Path("data") / "hyb_opportunity.db"
+DEFAULT_DATABASE_PATH = Path(
+    os.environ.get("HYB_DATABASE_PATH", str(Path("data") / "hyb_opportunity.db"))
+)
 
 
 class PriceObservationConflictError(RuntimeError):

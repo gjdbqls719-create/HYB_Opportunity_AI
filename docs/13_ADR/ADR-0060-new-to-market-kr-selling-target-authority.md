@@ -10,9 +10,12 @@ Foundation implemented by CR-1B7D3. Domain, Application, append-only SQLite,
 production API, and OpenAPI contracts now admit the exact ADR-0059 v2 O1 source
 lineage to a server-owned KR selling target and distinct target-bound O2.
 Replay, alias, corruption, rollback, restart, cross-authority cardinality, and
-concurrency behavior are covered. Downstream target-aware Market, Sourcing,
-Economics, Safety, Capital, UI, and later-listing attachment support are not
-implemented. The genuine run remains stopped before O2.
+concurrency behavior are covered. CR-1B7D4 additionally implements binding-aware
+operational eligibility and target-subject Competition/Demand admission while
+preserving each metric's actual market-observation provenance. Domestic Market
+Validation, Sourcing, Economics, Safety, Capital, UI, and later-listing
+attachment support remain unimplemented. The genuine run has not advanced
+through Competition or Demand.
 
 ## Context
 

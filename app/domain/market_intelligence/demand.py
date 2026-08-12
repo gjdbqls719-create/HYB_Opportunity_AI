@@ -7,7 +7,11 @@ from types import MappingProxyType
 from typing import Mapping
 
 from app.domain.market_intelligence.evidence import MarketEvidence
-from app.domain.market_intelligence.identity import MarketObservationIdentity
+from app.domain.market_intelligence.assessment_subject import (
+    AssessmentSubject,
+    assessment_subject_kind,
+    validate_evidence_context,
+)
 
 
 DEMAND_METRICS = frozenset({
@@ -53,14 +57,13 @@ class DemandObservation:
     """
 
     observation_id: str
-    identity: MarketObservationIdentity
+    identity: AssessmentSubject
     observed_at: datetime
     schema_version: str
     evidence: Mapping[str, MarketEvidence]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.identity, MarketObservationIdentity):
-            raise TypeError("identity must be MarketObservationIdentity")
+        assessment_subject_kind(self.identity)
         if not isinstance(self.evidence, Mapping):
             raise TypeError("evidence must be a mapping")
 
@@ -72,10 +75,7 @@ class DemandObservation:
         for metric, item in values.items():
             if not isinstance(item, MarketEvidence):
                 raise TypeError("demand evidence values must be MarketEvidence")
-            if item.market != self.identity.market:
-                raise ValueError("evidence market must match observation identity")
-            if item.marketplace != self.identity.marketplace:
-                raise ValueError("evidence marketplace must match observation identity")
+            validate_evidence_context(self.identity, item)
             if item.value is None:
                 continue
             if metric in _RANK_METRICS:

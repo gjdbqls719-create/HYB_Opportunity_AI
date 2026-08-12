@@ -31,9 +31,19 @@ state. Existing ADR-0049 request/response/OpenAPI contracts remain unchanged.
 A later real KR listing will use a separate append-only attachment contract and
 will not mutate this binding.
 
-This foundation does not make target-bound O2 compatible with downstream
-Market, Sourcing, Economics, Safety, Capital, or execution routes. It creates no
-`OpportunityMarketIdentityBinding` and grants no permission for real-money work.
+CR-1B7D4 makes target-bound O2 eligible for the existing Competition and Demand
+routes through additive `contract_version = "2.0.0"` request variants. The
+request carries an explicit new-to-market target subject containing only the
+opaque target ID; each evidence item separately carries its actual market,
+marketplace, query/category, and optional listing/canonical provenance. Foreign-
+market evidence is rejected for the KR target, and comparable/search/listing
+evidence never becomes the target identity. Historical request shapes remain
+unchanged.
+
+Target-bound O2 is still incompatible with Domestic Market Validation,
+Sourcing, Economics, Safety, Capital, and execution routes. No
+`OpportunityMarketIdentityBinding` is synthesized, and no real-money permission
+is granted.
 
 ## Domestic Selling Opportunity Admission API
 

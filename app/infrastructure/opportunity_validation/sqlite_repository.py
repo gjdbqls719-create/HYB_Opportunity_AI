@@ -16,7 +16,15 @@ from app.application.opportunity_validation import (
     canonicalize_discovery_reference,
 )
 from app.application.opportunity_lifecycle import LifecycleVersionConflictError
+from app.application.operational_opportunity_eligibility import (
+    OperationalOpportunityBindingUnavailableError,
+)
 from app.domain.opportunity import OpportunityLifecycle, OpportunityLifecycleStatus, OpportunityLifecycleTransition
+from app.domain.opportunity import (
+    NewToMarketDomesticSellingTargetIdentity,
+    NewToMarketDomesticSellingTargetKind,
+    OpportunityDomesticSellingTargetBinding,
+)
 from app.domain.opportunity import EstimatedEconomicsSnapshot
 from app.domain.market_intelligence import MarketObservationIdentity, MarketObservationScope
 from app.domain.decision_engine import (
@@ -683,6 +691,65 @@ class SQLiteValidationQueueRepository:
                 production_safety.opportunity_id
             ) from error
         raise error
+
+    def get_target_binding(
+        self, opportunity_id: str
+    ) -> OpportunityDomesticSellingTargetBinding | None:
+        table_names = {
+            row["name"]
+            for row in self._connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?)",
+                (
+                    "opportunity_domestic_selling_target_bindings",
+                    "new_to_market_domestic_selling_target_history",
+                ),
+            ).fetchall()
+        }
+        if not table_names:
+            return None
+        if table_names != {
+            "opportunity_domestic_selling_target_bindings",
+            "new_to_market_domestic_selling_target_history",
+        }:
+            raise OperationalOpportunityBindingUnavailableError(
+                "target binding persistence is incomplete"
+            )
+        row = self._connection.execute(
+            """SELECT b.*, l.discovery_reference AS lifecycle_reference,
+            t.domestic_selling_target_id AS persisted_target_id,
+            t.market AS target_market, t.kind AS target_kind,
+            t.schema_version AS target_schema_version
+            FROM opportunity_domestic_selling_target_bindings AS b
+            JOIN opportunity_lifecycles AS l ON l.opportunity_id = b.opportunity_id
+            LEFT JOIN new_to_market_domestic_selling_target_history AS t
+              ON t.domestic_selling_target_id = b.domestic_selling_target_id
+            WHERE b.opportunity_id = ?""",
+            (opportunity_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            if row["discovery_reference"] != row["lifecycle_reference"]:
+                raise ValueError("target binding discovery reference differs from lifecycle")
+            if row["persisted_target_id"] is None:
+                raise ValueError("target binding references missing target identity")
+            target = NewToMarketDomesticSellingTargetIdentity(
+                domestic_selling_target_id=row["persisted_target_id"],
+                market=row["target_market"],
+                kind=NewToMarketDomesticSellingTargetKind(row["target_kind"]),
+                schema_version=row["target_schema_version"],
+            )
+            return OpportunityDomesticSellingTargetBinding(
+                opportunity_id=row["opportunity_id"],
+                discovery_reference=row["discovery_reference"],
+                target_identity=target,
+                bound_at=datetime.fromisoformat(row["bound_at"]),
+                schema_version=row["schema_version"],
+            )
+        except Exception as error:
+            raise OperationalOpportunityBindingUnavailableError(
+                "target binding persistence is malformed"
+            ) from error
 
     def get_market_identity_binding(
         self, opportunity_id: str

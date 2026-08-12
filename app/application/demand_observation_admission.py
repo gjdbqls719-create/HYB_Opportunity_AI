@@ -7,9 +7,21 @@ from datetime import datetime
 
 from app.application.assessment_snapshot import DemandAssessmentSnapshot
 from app.application.decision_composition import ASSESSMENT_SCHEMA_VERSION, DEMAND_POLICY_VERSION, FRESHNESS_WINDOW
-from app.application.operational_opportunity_eligibility import get_operational_opportunity_eligibility
+from app.application.operational_opportunity_eligibility import (
+    OperationalOpportunityBindingConflictError,
+    OperationalOpportunityBindingUnavailableError,
+    get_operational_opportunity_eligibility,
+)
 from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
-from app.domain.market_intelligence import DemandAssessmentAvailability, DemandObservation, analyze_demand
+from app.domain.market_intelligence import (
+    DemandAssessmentAvailability,
+    DemandObservation,
+    analyze_demand,
+    is_new_to_market_target_subject,
+)
+
+
+TARGET_ASSESSMENT_SCHEMA_VERSION = "market-assessment-target-v1"
 
 
 class DemandAdmissionNotFoundError(LookupError): pass
@@ -65,18 +77,30 @@ class FinalizeDemandObservationAdmission:
             snapshot = self._observations.get_demand_assessment_snapshot(receipt["snapshot_id"])
             if observation is None or snapshot is None: raise DemandAdmissionUnavailableError("committed demand admission is unavailable")
             return DemandAdmissionResult(observation, snapshot, True)
-        eligibility = get_operational_opportunity_eligibility(self._opportunities, command.opportunity_id)
+        try:
+            eligibility = get_operational_opportunity_eligibility(self._opportunities, command.opportunity_id)
+        except OperationalOpportunityBindingConflictError as error:
+            raise DemandAdmissionConflictError(str(error)) from error
+        except OperationalOpportunityBindingUnavailableError as error:
+            raise DemandAdmissionUnavailableError(str(error)) from error
         if eligibility is None: raise DemandAdmissionNotFoundError(command.opportunity_id)
-        binding = eligibility.market_binding
-        if binding is None or binding.market_observation_identity != command.observation.identity:
+        subject = None
+        if eligibility.market_binding is not None:
+            subject = eligibility.market_binding.market_observation_identity
+        elif eligibility.target_binding is not None:
+            subject = eligibility.target_binding.target_identity
+        if subject is None or subject != command.observation.identity:
             raise DemandAdmissionConflictError("demand observation identity conflicts with Opportunity")
         assessment = analyze_demand(command.observation, generated_at=command.generated_at)
         availability = (DecisionEvidenceAvailability.COMPLETE if assessment.availability is DemandAssessmentAvailability.COMPLETE
                         else DecisionEvidenceAvailability.PARTIAL)
         freshness = DecisionFreshness.FRESH if command.generated_at - command.observation.observed_at <= FRESHNESS_WINDOW else DecisionFreshness.STALE
+        snapshot_schema = (TARGET_ASSESSMENT_SCHEMA_VERSION
+            if is_new_to_market_target_subject(command.observation.identity)
+            else ASSESSMENT_SCHEMA_VERSION)
         snapshot = DemandAssessmentSnapshot(f"demand-assessment:{command.observation.observation_id}",
             command.observation.identity, command.observation.observation_id, assessment, availability,
-            assessment.confidence, freshness, command.generated_at, ASSESSMENT_SCHEMA_VERSION, DEMAND_POLICY_VERSION)
+            assessment.confidence, freshness, command.generated_at, snapshot_schema, DEMAND_POLICY_VERSION)
         self._observations.finalize_demand_admission(command.observation, snapshot, command.opportunity_id,
             command.command_id, fingerprint, command.operator_id)
         return DemandAdmissionResult(command.observation, snapshot, False)

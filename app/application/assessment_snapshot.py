@@ -11,6 +11,8 @@ from app.domain.market_intelligence import (
     DemandAssessment,
     DemandAssessmentAvailability,
     ExternalMarketSignal,
+    AssessmentSubject,
+    assessment_subject_kind,
     MarketObservationIdentity,
 )
 
@@ -30,8 +32,7 @@ def _required(value: str, name: str) -> str:
 
 
 def _common(snapshot) -> None:
-    if not isinstance(snapshot.identity, MarketObservationIdentity):
-        raise TypeError("identity must be MarketObservationIdentity")
+    assessment_subject_kind(snapshot.identity)
     for name in ("snapshot_id", "source_observation_id", "schema_version", "policy_version"):
         object.__setattr__(snapshot, name, _required(getattr(snapshot, name), name))
     if not isinstance(snapshot.availability, DecisionEvidenceAvailability):
@@ -51,7 +52,7 @@ def _common(snapshot) -> None:
 @dataclass(frozen=True, slots=True)
 class CompetitionAssessmentSnapshot:
     snapshot_id: str
-    identity: MarketObservationIdentity
+    identity: AssessmentSubject
     source_observation_id: str
     assessment: CompetitionAssessment
     availability: DecisionEvidenceAvailability
@@ -76,7 +77,7 @@ class CompetitionAssessmentSnapshot:
 @dataclass(frozen=True, slots=True)
 class DemandAssessmentSnapshot:
     snapshot_id: str
-    identity: MarketObservationIdentity
+    identity: AssessmentSubject
     source_observation_id: str
     assessment: DemandAssessment
     availability: DecisionEvidenceAvailability

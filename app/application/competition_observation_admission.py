@@ -12,10 +12,19 @@ from app.application.decision_composition import (
     FRESHNESS_WINDOW,
 )
 from app.application.operational_opportunity_eligibility import (
+    OperationalOpportunityBindingConflictError,
+    OperationalOpportunityBindingUnavailableError,
     get_operational_opportunity_eligibility,
 )
 from app.domain.decision_engine import DecisionEvidenceAvailability, DecisionFreshness
-from app.domain.market_intelligence import CompetitionObservation, analyze_competition
+from app.domain.market_intelligence import (
+    CompetitionObservation,
+    analyze_competition,
+    is_new_to_market_target_subject,
+)
+
+
+TARGET_ASSESSMENT_SCHEMA_VERSION = "market-assessment-target-v1"
 
 
 class CompetitionAdmissionNotFoundError(LookupError): pass
@@ -81,22 +90,36 @@ class FinalizeCompetitionObservationAdmission:
             if observation is None or snapshot is None:
                 raise CompetitionAdmissionUnavailableError("committed competition admission is unavailable")
             return CompetitionAdmissionResult(observation, snapshot, True)
-        eligibility = get_operational_opportunity_eligibility(
-            self._opportunities,
-            command.opportunity_id,
-        )
+        try:
+            eligibility = get_operational_opportunity_eligibility(
+                self._opportunities,
+                command.opportunity_id,
+            )
+        except OperationalOpportunityBindingConflictError as error:
+            raise CompetitionAdmissionConflictError(str(error)) from error
+        except OperationalOpportunityBindingUnavailableError as error:
+            raise CompetitionAdmissionUnavailableError(str(error)) from error
         if eligibility is None:
             raise CompetitionAdmissionNotFoundError(command.opportunity_id)
-        binding = eligibility.market_binding
-        if binding is None or binding.market_observation_identity != command.observation.identity:
+        subject = None
+        if eligibility.market_binding is not None:
+            subject = eligibility.market_binding.market_observation_identity
+        elif eligibility.target_binding is not None:
+            subject = eligibility.target_binding.target_identity
+        if subject is None or subject != command.observation.identity:
             raise CompetitionAdmissionConflictError("competition observation identity conflicts with Opportunity")
         assessment = analyze_competition(command.observation, generated_at=command.generated_at)
         freshness = (DecisionFreshness.FRESH if command.generated_at - command.observation.observed_at <= FRESHNESS_WINDOW
                      else DecisionFreshness.STALE)
+        snapshot_schema = (
+            TARGET_ASSESSMENT_SCHEMA_VERSION
+            if is_new_to_market_target_subject(command.observation.identity)
+            else ASSESSMENT_SCHEMA_VERSION
+        )
         snapshot = CompetitionAssessmentSnapshot(
             f"competition-assessment:{command.observation.observation_id}", command.observation.identity,
             command.observation.observation_id, assessment, DecisionEvidenceAvailability.COMPLETE,
-            assessment.confidence, freshness, command.generated_at, ASSESSMENT_SCHEMA_VERSION,
+            assessment.confidence, freshness, command.generated_at, snapshot_schema,
             COMPETITION_POLICY_VERSION)
         self._observations.finalize_competition_admission(
             command.observation, snapshot, command.opportunity_id, command.command_id,

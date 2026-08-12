@@ -33,10 +33,12 @@ a KR ID, a comparable listing, and an invented canonical ID are all prohibited.
 
 CR-1B7D3 implements ADR-0060's separate new-to-market KR selling-target
 admission foundation. Operational status remains `FR-013 / no O2 yet`: this
-runbook does not authorize invoking it for the genuine run, and the production
-database remains unchanged. Even after a future authorized admission, the
-target-bound O2 must STOP before Market, Sourcing, Economics, Safety, Capital,
-or execution work until those target-aware downstream contracts are implemented.
+runbook does not authorize Competition or Demand writes to the genuine O2, and
+the production database remains unchanged by CR-1B7D4. The API now supports
+target-subject Competition and Demand with separate factual evidence provenance,
+but the target-bound O2 must STOP before Domestic Market Validation, Sourcing,
+Economics, Safety, Capital, or execution work until those downstream contracts
+are implemented.
 
 ## 2. Non-goals and external prerequisites
 
@@ -173,7 +175,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 5 | `POST /api/v1/product-snapshots/capture` | Candidate ID and exact returned observation bindings | `product_snapshot_ids[]` | capture succeeds; Promotion |
 | 6 | `POST /api/v1/candidate-promotions` | `contract_version=2.0.0`, exact Candidate/Group/representative Snapshot, unique command ID, Founder/operator, factual selection reason and time | `opportunity_id` as O1, `binding_id`, `admission_id`, exact capture/Snapshot lineage | lifecycle is `discovered`; archive response, then Domestic Admission |
 | 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | use only when exact equivalence is established; the current FR-013 run must STOP |
-| 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; requires explicit authorization, and then STOP because downstream target-aware contracts are not implemented |
+| 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; requires explicit authorization; Competition/Demand are API-capable but not authorized for the current genuine run, and Domestic Market Validation remains the next STOP |
 | 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
 | 9 | `POST /api/v1/opportunities/{o2}/demand-observations` | ItemScout/Coupang demand observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Validation |
 | 10 | `POST /api/v1/opportunities/{o2}/domestic-market-validations` | four exact Competition/Demand IDs | `assessment_id` | state `validated_for_capital`; Sourcing/Capital |

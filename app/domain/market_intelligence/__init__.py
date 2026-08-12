@@ -7,6 +7,12 @@ from app.domain.market_intelligence.artifact import (
 )
 from app.domain.market_intelligence.evidence import MarketEvidence, MarketEvidenceStatus
 from app.domain.market_intelligence.competition import CompetitionObservation
+from app.domain.market_intelligence.assessment_subject import (
+    AssessmentSubject,
+    AssessmentSubjectKind,
+    assessment_subject_kind,
+    is_new_to_market_target_subject,
+)
 from app.domain.market_intelligence.competition_analysis import (
     CompetitionAssessment,
     CompetitionEvidenceUnavailableError,
@@ -65,6 +71,8 @@ from app.domain.market_intelligence.domestic_market_validation import (
 )
 
 __all__ = [
+    "AssessmentSubject",
+    "AssessmentSubjectKind",
     "CandidateSkipRecord",
     "CandidateReviewStatus",
     "ArtifactOrigin",
@@ -73,6 +81,8 @@ __all__ = [
     "MarketEvidence",
     "MarketEvidenceStatus",
     "CompetitionObservation",
+    "assessment_subject_kind",
+    "is_new_to_market_target_subject",
     "CompetitionAssessment",
     "CompetitionEvidenceUnavailableError",
     "CompetitionLevel",

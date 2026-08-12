@@ -7,7 +7,11 @@ from types import MappingProxyType
 from typing import Mapping
 
 from app.domain.market_intelligence.evidence import MarketEvidence
-from app.domain.market_intelligence.identity import MarketObservationIdentity
+from app.domain.market_intelligence.assessment_subject import (
+    AssessmentSubject,
+    assessment_subject_kind,
+    validate_evidence_context,
+)
 
 
 COMPETITION_METRICS = frozenset({
@@ -50,13 +54,6 @@ def _aware(value: datetime, name: str) -> datetime:
     return value
 
 
-def _validate_context(identity: MarketObservationIdentity, evidence: MarketEvidence) -> None:
-    if evidence.market != identity.market:
-        raise ValueError("evidence market must match observation identity")
-    if evidence.marketplace != identity.marketplace:
-        raise ValueError("evidence marketplace must match observation identity")
-
-
 @dataclass(frozen=True, slots=True)
 class CompetitionObservation:
     """Immutable competition snapshot.
@@ -67,14 +64,13 @@ class CompetitionObservation:
     """
 
     observation_id: str
-    identity: MarketObservationIdentity
+    identity: AssessmentSubject
     observed_at: datetime
     schema_version: str
     evidence: Mapping[str, MarketEvidence]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.identity, MarketObservationIdentity):
-            raise TypeError("identity must be MarketObservationIdentity")
+        assessment_subject_kind(self.identity)
         if not isinstance(self.evidence, Mapping):
             raise TypeError("evidence must be a mapping")
 
@@ -86,7 +82,7 @@ class CompetitionObservation:
         for metric, item in values.items():
             if not isinstance(item, MarketEvidence):
                 raise TypeError("competition evidence values must be MarketEvidence")
-            _validate_context(self.identity, item)
+            validate_evidence_context(self.identity, item)
             if item.value is None:
                 continue
             if metric in _COUNT_METRICS:

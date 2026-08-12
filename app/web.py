@@ -549,6 +549,7 @@ from app.application.review_api import (
     ReviewSessionListResponseDTO,
     ReviewSessionResponseDTO,
 )
+from app.domain.opportunity import NewToMarketDomesticSellingTargetIdentity
 from app.domain.market_intelligence import (
     ArtifactOrigin,
     ArtifactReference,
@@ -1157,6 +1158,17 @@ class CompetitionEvidenceRequest(BaseModel):
     unit: str | None = None
 
 
+class TargetMarketEvidenceRequest(CompetitionEvidenceRequest):
+    market: str = Field(min_length=1)
+    marketplace: str = Field(min_length=1)
+
+
+class NewToMarketAssessmentSubjectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: str = Field(pattern="^new_to_market_domestic_selling_target$")
+    domestic_selling_target_id: str = Field(min_length=1)
+
+
 class CompetitionObservationAdmissionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     command_id: str = Field(min_length=1)
@@ -1169,6 +1181,24 @@ class CompetitionObservationAdmissionRequest(BaseModel):
 
 
 class DemandObservationAdmissionRequest(CompetitionObservationAdmissionRequest):
+    pass
+
+
+class TargetCompetitionObservationAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_version: str = Field(pattern="^2\\.0\\.0$")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    observation_id: str = Field(min_length=1)
+    subject: NewToMarketAssessmentSubjectRequest
+    observed_at: datetime
+    evidence: dict[str, TargetMarketEvidenceRequest]
+
+
+class TargetDemandObservationAdmissionRequest(
+    TargetCompetitionObservationAdmissionRequest
+):
     pass
 
 
@@ -8589,19 +8619,39 @@ def finalize_verified_economics_admission(
 
 def _competition_payload(result) -> dict[str, object]:
     observation, snapshot = result.observation, result.snapshot
+    target_subject = isinstance(
+        observation.identity, NewToMarketDomesticSellingTargetIdentity
+    )
+    subject_payload = (
+        {"subject": {
+            "kind": "new_to_market_domestic_selling_target",
+            "domestic_selling_target_id": observation.identity.domestic_selling_target_id,
+            "market": observation.identity.market,
+            "schema_version": observation.identity.schema_version,
+        }}
+        if target_subject
+        else {"identity": {"scope": observation.identity.scope.value,
+            "market": observation.identity.market, "marketplace": observation.identity.marketplace,
+            "canonical_product_id": observation.identity.canonical_product_id,
+            "marketplace_item_id": observation.identity.marketplace_item_id,
+            "normalized_query": observation.identity.normalized_query,
+            "category": observation.identity.category, "variant_identity": observation.identity.variant_identity,
+            "condition": observation.identity.condition, "window_started_at": observation.identity.window_started_at.isoformat(),
+            "window_ended_at": observation.identity.window_ended_at.isoformat()}}
+    )
     return {"observation": {"observation_id": observation.observation_id,
-            "identity": {"scope": observation.identity.scope.value, "market": observation.identity.market,
-                "marketplace": observation.identity.marketplace, "canonical_product_id": observation.identity.canonical_product_id,
-                "marketplace_item_id": observation.identity.marketplace_item_id, "normalized_query": observation.identity.normalized_query,
-                "category": observation.identity.category, "variant_identity": observation.identity.variant_identity,
-                "condition": observation.identity.condition, "window_started_at": observation.identity.window_started_at.isoformat(),
-                "window_ended_at": observation.identity.window_ended_at.isoformat()},
+            **subject_payload,
             "observed_at": observation.observed_at.isoformat(),
             "evidence": {name: {"value": str(item.value) if isinstance(item.value, Decimal) else item.value,
                 "source": item.source, "reference": item.reference,
                 "observed_at": item.observed_at.isoformat() if item.observed_at else None,
                 "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
-                "collection_method": item.collection_method} for name, item in observation.evidence.items()}},
+                "collection_method": item.collection_method,
+                **({"market": item.market, "marketplace": item.marketplace,
+                    "keyword": item.keyword, "category": item.category,
+                    "marketplace_item_id": item.marketplace_item_id,
+                    "canonical_product_id": item.canonical_product_id}
+                   if target_subject else {})} for name, item in observation.evidence.items()}},
         "assessment": {"snapshot_id": snapshot.snapshot_id,
             "competition_level": snapshot.assessment.competition_level.value,
             "price_pressure": snapshot.assessment.price_pressure.value,
@@ -8615,11 +8665,18 @@ def _competition_payload(result) -> dict[str, object]:
 
 @app.post("/api/v1/opportunities/{opportunity_id}/competition-observations", status_code=201)
 def finalize_competition_observation(
-    opportunity_id: str, request: CompetitionObservationAdmissionRequest, response: Response,
+    opportunity_id: str, request: CompetitionObservationAdmissionRequest | TargetCompetitionObservationAdmissionRequest, response: Response,
     service: FinalizeCompetitionObservationAdmission = Depends(get_competition_admission_service),
 ):
     try:
-        identity = MarketObservationIdentity(**request.identity.model_dump())
+        target_request = isinstance(request, TargetCompetitionObservationAdmissionRequest)
+        identity = (
+            NewToMarketDomesticSellingTargetIdentity(
+                request.subject.domestic_selling_target_id
+            )
+            if target_request
+            else MarketObservationIdentity(**request.identity.model_dump())
+        )
         count_metrics = {"competitor_count", "rocket_seller_count", "sponsored_result_count", "organic_result_count"}
         price_metrics = {"lowest_price", "highest_price", "median_price", "price_spread"}
         evidence = {}
@@ -8631,11 +8688,13 @@ def finalize_competition_observation(
                 if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
                 raw = Decimal(raw)
             evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
-                value.status, Decimal(value.confidence), identity.market, identity.marketplace,
+                value.status, Decimal(value.confidence),
+                value.market if target_request else identity.market,
+                value.marketplace if target_request else identity.marketplace,
                 value.collection_method, "market-evidence-v1", value.keyword, value.category,
                 value.marketplace_item_id, value.canonical_product_id, value.unit)
         observation = CompetitionObservation(request.observation_id, identity, request.observed_at,
-                                             "competition-v1", evidence)
+            "competition-target-v1" if target_request else "competition-v1", evidence)
         result = service.execute(FinalizeCompetitionObservationAdmissionCommand(
             opportunity_id, request.command_id, request.operator_id, observation, request.submitted_at))
         response.status_code = 200 if result.replayed else 201
@@ -8652,13 +8711,28 @@ def finalize_competition_observation(
 
 def _demand_payload(result):
     observation, snapshot, assessment = result.observation, result.snapshot, result.snapshot.assessment
+    target_subject = isinstance(
+        observation.identity, NewToMarketDomesticSellingTargetIdentity
+    )
+    subject_payload = ({"subject": {
+        "kind": "new_to_market_domestic_selling_target",
+        "domestic_selling_target_id": observation.identity.domestic_selling_target_id,
+        "market": observation.identity.market,
+        "schema_version": observation.identity.schema_version,
+    }} if target_subject else {})
     return {"observation": {"observation_id": observation.observation_id,
+        **subject_payload,
         "observed_at": observation.observed_at.isoformat(),
         "evidence": {name: {"value": str(item.value) if isinstance(item.value, Decimal) else item.value,
             "source": item.source, "reference": item.reference,
             "observed_at": item.observed_at.isoformat() if item.observed_at else None,
             "status": item.status.value, "confidence": str(item.confidence), "unit": item.unit,
-            "collection_method": item.collection_method} for name, item in observation.evidence.items()}},
+            "collection_method": item.collection_method,
+            **({"market": item.market, "marketplace": item.marketplace,
+                "keyword": item.keyword, "category": item.category,
+                "marketplace_item_id": item.marketplace_item_id,
+                "canonical_product_id": item.canonical_product_id}
+               if target_subject else {})} for name, item in observation.evidence.items()}},
         "assessment": {"snapshot_id": snapshot.snapshot_id,
             "demand_level": assessment.demand_level.value if assessment.demand_level else None,
             "popularity_level": assessment.popularity_level.value if assessment.popularity_level else None,
@@ -8670,10 +8744,17 @@ def _demand_payload(result):
 
 
 @app.post("/api/v1/opportunities/{opportunity_id}/demand-observations", status_code=201)
-def finalize_demand_observation(opportunity_id: str, request: DemandObservationAdmissionRequest,
+def finalize_demand_observation(opportunity_id: str, request: DemandObservationAdmissionRequest | TargetDemandObservationAdmissionRequest,
     response: Response, service: FinalizeDemandObservationAdmission = Depends(get_demand_admission_service)):
     try:
-        identity = MarketObservationIdentity(**request.identity.model_dump())
+        target_request = isinstance(request, TargetDemandObservationAdmissionRequest)
+        identity = (
+            NewToMarketDomesticSellingTargetIdentity(
+                request.subject.domestic_selling_target_id
+            )
+            if target_request
+            else MarketObservationIdentity(**request.identity.model_dump())
+        )
         integer_metrics = {"search_volume", "review_count", "coupang_popularity_rank",
                            "itemscout_popularity_rank", "observed_result_position"}
         decimal_metrics = {"rating", "sales_proxy"}; evidence = {}
@@ -8685,10 +8766,13 @@ def finalize_demand_observation(opportunity_id: str, request: DemandObservationA
                 if not isinstance(raw, str): raise ValueError(f"{name} must be a Decimal string")
                 raw = Decimal(raw)
             evidence[name] = MarketEvidence(raw, value.source, value.reference, value.observed_at,
-                value.status, Decimal(value.confidence), identity.market, identity.marketplace,
+                value.status, Decimal(value.confidence),
+                value.market if target_request else identity.market,
+                value.marketplace if target_request else identity.marketplace,
                 value.collection_method, "market-evidence-v1", value.keyword, value.category,
                 value.marketplace_item_id, value.canonical_product_id, value.unit)
-        observation = DemandObservation(request.observation_id, identity, request.observed_at, "demand-v1", evidence)
+        observation = DemandObservation(request.observation_id, identity, request.observed_at,
+            "demand-target-v1" if target_request else "demand-v1", evidence)
         result = service.execute(FinalizeDemandObservationAdmissionCommand(
             opportunity_id, request.command_id, request.operator_id, observation, request.submitted_at))
         response.status_code = 200 if result.replayed else 201
