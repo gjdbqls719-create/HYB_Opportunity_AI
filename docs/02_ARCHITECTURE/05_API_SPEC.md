@@ -303,6 +303,25 @@ assessment history/current, and the command receipt are atomic. First commit ret
 exact replay returns 200. Missing Opportunity returns 404, identity/provenance/command
 conflicts return 409, malformed domain input returns 422, and bounded infrastructure
 failures return 503.
+
+### Competition v2 direction (not implemented)
+
+ADR-0061 reserves
+`POST /api/v2/opportunities/{opportunity_id}/competition-observations` for a
+new, non-reinterpreting contract. Its mandatory core submits one immutable
+bounded comparable-organic-listing cohort with `comparable_listing_count`,
+`price_spread`, and `median_price`. An optional
+`coupang-rocket-signal-v1` envelope submits ordered per-card raw labels,
+explicit taxonomy states, observation outcomes, artifact references, and
+provenance. Clients never submit derived shares, levels, availability, coverage,
+or confidence results.
+
+The v2 response distinguishes complete core with complete, partial, or absent
+marketplace enrichment from unavailable core evidence. V1 and v2 use separate
+schema/policy versions, fingerprints, and replay namespaces. The existing API
+v1 request, response, analyzer, and persisted history remain unchanged. This
+route and its schemas do not yet exist.
+
 ## Demand operational admission
 
 `POST /api/v1/opportunities/{opportunity_id}/demand-observations` accepts an authoritative

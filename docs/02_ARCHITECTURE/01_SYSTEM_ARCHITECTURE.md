@@ -1,5 +1,28 @@
 # HYB System Architecture
 
+## Competition v2 evidence authority direction
+
+ADR-0061 preserves historical Competition v1 and separates future Competition
+v2 into a mandatory marketplace-independent core plus optional
+marketplace-specific signals. The v2 core is derived from one immutable bounded
+cohort of unique comparable organic listing cards and requires
+`comparable_listing_count`, `price_spread`, and `median_price`. Sponsored cards
+are recorded separately, and all price facts use the exact same core cohort.
+
+Coupang Rocket evidence is an optional `coupang-rocket-signal-v1` envelope over
+that cohort. Explicit `판매자로켓`, `로켓배송`, `로켓그로스`, and other Rocket
+labels remain separate taxonomy states; arrival-speed text, icons, and colors
+do not imply a state. Per-card unknown, unsupported, and extraction-failure
+outcomes never become false or zero. No seller identity or deduplication is
+inferred.
+
+Competition v2 uses separate core and marketplace-signal availability,
+confidence, and coverage. It requires a new observation/assessment/policy
+version and dedicated API v2 contract. Competition v1 rows, snapshots,
+receipts, fingerprints, analyzers, and ADR-0044 DMV-v1 requirements remain
+unchanged. This direction is accepted but not implemented, and the genuine run
+remains stopped.
+
 ## Pre-admission discovery identity
 
 One finalized ProductGroup is a discovery candidate, not an admitted

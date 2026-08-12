@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7D4D - Coupang Rocket Competition Evidence Authority Decision
+
+- Accept ADR-0061 and preserve Competition v1 while defining a versioned Competition v2 bounded comparable-listing core with optional marketplace-specific signal envelopes.
+- Define explicit, non-equivalent Coupang Rocket label states, fail-closed unknown/error outcomes, one immutable organic price cohort, separate sponsored observations, and Founder-assisted/future-collector provenance.
+- Require distinct Competition v2 assessment availability/confidence semantics and a dedicated API v2 contract without changing Demand, target-bound identity support, historical facts, or ADR-0044 DMV v1.
+- Close the FR-014 authority decision but leave implementation and the genuine Competition/Demand run stopped.
+
 ## CR-1B7D4C - Production SQLite Read-Safety Fix
 
 - Make Validation Queue canonical-reference migration detection-driven so current-schema repository construction performs no unnecessary DROP, UPDATE, or index recreation.

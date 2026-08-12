@@ -40,6 +40,24 @@ but the target-bound O2 must STOP before Domestic Market Validation, Sourcing,
 Economics, Safety, Capital, or execution work until those downstream contracts
 are implemented.
 
+### FR-014 current genuine-run STOP
+
+The genuine run now has O2 `fcdb01d411fd46d5bd07020634e5b74c` bound to
+new-to-market KR target `cd050cd4f8734a71a61a219de9281a5f`, but Competition
+and Demand are not admitted. FR-014 proved that Competition v1
+`rocket_seller_count` has arithmetic behavior but no authoritative Coupang
+observation semantics. Do not submit a guessed count, substitute zero, treat a
+listing as a seller, or equate `판매자로켓`, `로켓배송`, `로켓그로스`,
+arrival-speed text, badge colors, or icons.
+
+ADR-0061 resolves the architecture decision by defining an unimplemented
+Competition v2 direction: one immutable bounded cohort of comparable organic
+listing cards supplies the core count and prices, while explicit Coupang Rocket
+labels are optional, separate, versioned marketplace enrichment. Until the
+Competition v2 implementation is complete, keep the server stopped and do not
+POST Competition or Demand or open the genuine database. ADR acceptance alone
+does not advance the run.
+
 ## 2. Non-goals and external prerequisites
 
 This procedure does not automate ItemScout, Coupang, supplier checkout,
@@ -217,6 +235,11 @@ and safety meaning; it does not replace the generated schema.
   competition count/quality and demand metrics using the exact API fields.
 - Preserve Coupang listing references/screenshots used for the selected O2.
 - Do not treat a title, URL, or displayed value as an identity.
+- For future Competition v2 evidence, preserve the declared finite result
+  bounds, ordered cards, organic/sponsored classification, comparability
+  decisions, displayed prices, raw labels, per-card observation outcomes,
+  operator/time, and screenshot artifact references. Do not calculate or submit
+  a v1 `rocket_seller_count` from this evidence.
 
 ### Sourcing
 
