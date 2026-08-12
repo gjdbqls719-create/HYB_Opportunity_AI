@@ -1358,20 +1358,50 @@ class SQLiteValidationQueueRepository:
         ).fetchone() is not None
 
     def _migrate_canonical_references(self) -> None:
-        self._connection.execute("DROP INDEX IF EXISTS uq_active_validation_discovery_reference")
         rows = self._connection.execute(
             "SELECT opportunity_id, discovery_reference FROM opportunity_lifecycles"
         ).fetchall()
-        for row in rows:
-            canonical = canonicalize_discovery_reference(row["discovery_reference"])
+        migrations = tuple(
+            (row["opportunity_id"], canonical)
+            for row in rows
+            if (canonical := canonicalize_discovery_reference(
+                row["discovery_reference"]
+            ))
+            != row["discovery_reference"]
+        )
+        index_row = self._connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
+            ("uq_active_validation_discovery_reference",),
+        ).fetchone()
+
+        def normalized_index_sql(value: str) -> str:
+            return " ".join(value.lower().split()).replace(
+                " if not exists", ""
+            )
+
+        expected_index_sql = normalized_index_sql(
+            _NON_ARCHIVED_REFERENCE_INDEX
+        )
+        current_index_sql = (
+            normalized_index_sql(index_row["sql"])
+            if index_row is not None and index_row["sql"] is not None
+            else None
+        )
+        if not migrations and current_index_sql == expected_index_sql:
+            return
+
+        self._connection.execute(
+            "DROP INDEX IF EXISTS uq_active_validation_discovery_reference"
+        )
+        for opportunity_id, canonical in migrations:
             self._connection.execute(
                 "UPDATE opportunity_lifecycles SET discovery_reference = ? WHERE opportunity_id = ?",
-                (canonical, row["opportunity_id"]),
+                (canonical, opportunity_id),
             )
             self._connection.execute(
                 "UPDATE validation_queue_admission_snapshots SET discovery_reference = ? "
                 "WHERE opportunity_id = ?",
-                (canonical, row["opportunity_id"]),
+                (canonical, opportunity_id),
             )
 
     @staticmethod

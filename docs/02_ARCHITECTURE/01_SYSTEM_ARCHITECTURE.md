@@ -425,6 +425,14 @@ never becomes the target identity. Historical Market-observation rows and
 analyzer policy remain unchanged. Domestic Market Validation, Sourcing,
 Economics, Safety, Capital, UI, and later-listing support remain blocked.
 
+CR-1B7D4C makes canonical-reference migration detection-driven so an already
+initialized current-schema SQLite database is byte-stable across repository
+construction and production GET/read composition. Fresh bootstrap and actual
+legacy canonicalization still create or repair the required partial unique
+index, but ordinary reads do not drop/recreate it or rewrite canonical rows.
+Schema bootstrap and migration remain persistence concerns; read operations do
+not masquerade as migrations.
+
 CR-1B5D2B implements the ADR-0049 Domain/Application foundation that preserves
 one foreign/source Opportunity O1 and admits a distinct KR domestic-selling
 Opportunity O2. The replay-first owner reconstructs O1's exact lifecycle,

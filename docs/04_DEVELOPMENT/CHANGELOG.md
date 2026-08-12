@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7D4C - Production SQLite Read-Safety Fix
+
+- Make Validation Queue canonical-reference migration detection-driven so current-schema repository construction performs no unnecessary DROP, UPDATE, or index recreation.
+- Preserve fresh SQLite bootstrap and actual legacy reference/index migration while making repeated construction and restart byte-for-byte stable.
+- Add SHA-256/bytes/size/nanosecond-mtime/sidecar regressions for the Validation repository, Verified Signal composition, and representative production GET, Swagger, OpenAPI, bootstrap, migration, and restart paths.
+- Keep the genuine production database unchanged and leave CR-1B7D4B stopped without changing Competition or Demand semantics.
+
 ## CR-1B7D4A - Competition/Demand Decimal Input Validation Production Fix
 
 - Convert malformed caller-supplied Competition/Demand confidence, price, rating, and sales-proxy Decimal text into deterministic HTTP 422 responses instead of allowing `decimal.InvalidOperation` to escape as HTTP 500.
