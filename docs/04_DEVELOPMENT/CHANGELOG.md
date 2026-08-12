@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7D3 - New-to-Market KR Selling Target Admission Foundation
+
+- Implement ADR-0060 with immutable KR target, bounded-search, exact ADR-0059 v2 source-manifest, target-binding, admission, publication, replay/alias, and server-owned identity/time contracts without weakening ADR-0049.
+- Add append-only SQLite target, binding, admission, and receipt history with integrity reconstruction, atomic rollback/retry, restart-safe replay, and reciprocal one-O1-to-one-O2 enforcement across ADR-0049 and ADR-0060 under concurrent writers.
+- Expose the strict production `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` route and distinct OpenAPI schemas with bounded 201/200/404/409/422/503 behavior.
+- Keep the genuine FR-013 database unchanged at O1 with no O2, and explicitly exclude target-aware downstream Market, Sourcing, Economics, Safety, Capital, execution, UI, and later-listing attachment support.
+
 ## CR-1B7D2 - New-to-Market KR Selling Target Authority Decision
 
 - Accept ADR-0060 and confirm FR-013 is unsupported by the current listing/canonical-only `MarketObservationIdentity`, Opportunity binding, and ADR-0049 equivalence contract.

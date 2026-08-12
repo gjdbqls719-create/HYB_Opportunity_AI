@@ -407,6 +407,19 @@ convergence without latest-source selection or policy re-evaluation. Production
 API exposure is added by CR-1B5D2G without changing that policy. UI, operator
 authentication and Capital Readiness consumption remain separate future boundaries.
 
+CR-1B7D3 implements ADR-0060 as a separate additive new-to-market admission
+authority. It reconstructs the exact ADR-0059 v2 O1, capture, ordered Product
+Snapshot cohort, representative Snapshot, selected Snapshot/source observation,
+and eBay/US Market lineage; records a bounded KR search whose only admissible
+conclusion is `exact_kr_identity_not_established`; then atomically issues a
+server-owned opaque KR selling target and distinct `DISCOVERED` version 1 O2
+with an immutable target binding. Append-only SQLite admission, target, binding,
+and receipt history provides replay/alias, restart, rollback, corruption, and
+concurrency safety. Reciprocal checks with ADR-0049 enforce one O1 to one O2
+across both modes. No `OpportunityMarketIdentityBinding` is synthesized for the
+new target, and target-aware downstream Market, Sourcing, Economics, Safety,
+Capital, UI, and later-listing support remain explicitly outside the foundation.
+
 CR-1B5D2B implements the ADR-0049 Domain/Application foundation that preserves
 one foreign/source Opportunity O1 and admits a distinct KR domestic-selling
 Opportunity O2. The replay-first owner reconstructs O1's exact lifecycle,

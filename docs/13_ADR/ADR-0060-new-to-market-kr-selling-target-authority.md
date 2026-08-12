@@ -6,8 +6,13 @@ Accepted
 
 ## Implementation Status
 
-Decision only. No Domain, Application, SQLite, API, OpenAPI, UI, or runtime
-implementation exists. The genuine run remains stopped before O2.
+Foundation implemented by CR-1B7D3. Domain, Application, append-only SQLite,
+production API, and OpenAPI contracts now admit the exact ADR-0059 v2 O1 source
+lineage to a server-owned KR selling target and distinct target-bound O2.
+Replay, alias, corruption, rollback, restart, cross-authority cardinality, and
+concurrency behavior are covered. Downstream target-aware Market, Sourcing,
+Economics, Safety, Capital, UI, and later-listing attachment support are not
+implemented. The genuine run remains stopped before O2.
 
 ## Context
 
@@ -353,8 +358,8 @@ Rejected as semantic fabrication and cross-market reinterpretation.
 
 ## Genuine-Run Status
 
-FR-013 is architecture-resolved by this ADR and implementation-open. The
-genuine run remains exactly:
+FR-013 is architecture-resolved and its admission foundation is implemented.
+The genuine run has not invoked that authority and remains exactly:
 
 ```text
 O1 c2d4479a7f32437b9b0aefa614ae85c1
@@ -364,10 +369,10 @@ O1 c2d4479a7f32437b9b0aefa614ae85c1
 
 No genuine database row is created or changed by this decision.
 
-## Exact Next Implementation PR
+## Implemented Foundation PR
 
-The smallest next PR is `CR-1B7D3 - New-to-Market KR Selling Target Admission
-Foundation` with this exact scope:
+`CR-1B7D3 - New-to-Market KR Selling Target Admission Foundation` implements
+this exact bounded scope:
 
 - additive target identity, admission, target-binding, command/publication,
   policy, replay, and error contracts;

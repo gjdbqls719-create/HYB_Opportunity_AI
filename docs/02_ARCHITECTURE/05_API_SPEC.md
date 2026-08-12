@@ -2,31 +2,38 @@
 
 ## New-to-Market KR Selling Target Admission Direction
 
-ADR-0060 accepts a future separate route:
+CR-1B7D3 implements the separate ADR-0060 route:
 
 ```text
 POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions
 ```
 
-This route is not implemented. It will reconstruct the exact ADR-0059 v2 O1 and
+This route reconstructs the exact ADR-0059 v2 O1 and
 Product Snapshot source manifest, require an explicit Founder new-market
 selection plus bounded KR search evidence, issue a server-owned opaque KR
 selling-target identity, and atomically create a distinct O2, immutable target
 binding, admission, and receipt.
 
-The request will not contain a KR marketplace item ID, canonical product ID,
-caller-selected target/O2 identity, or `product_equivalence_confirmed`. It will
-use a distinct strict schema rather than nullable ADR-0049 fields. The bounded
+The strict request does not contain a KR marketplace item ID, canonical product
+ID, caller-selected target/O2 identity, or `product_equivalence_confirmed`. It
+uses a distinct schema rather than nullable ADR-0049 fields. The bounded
 search result means only that an exact KR identity was not established by the
 recorded search; it is not proof of universal absence. Comparable listing,
 query, and category references are evidence only.
 
-The response will be a discriminated new-to-market publication containing the
+Fresh creation returns `201`; exact replay and same-subject command alias return
+`200`. Missing exact source lineage returns `404`, conflicts return `409`, strict
+request validation returns `422`, and unavailable persistence returns `503`.
+The response is a discriminated new-to-market publication containing the
 persisted source manifest, target identity, O2 lifecycle and target binding,
 operator decision provenance, policy/schema versions, server times, and replay
 state. Existing ADR-0049 request/response/OpenAPI contracts remain unchanged.
 A later real KR listing will use a separate append-only attachment contract and
 will not mutate this binding.
+
+This foundation does not make target-bound O2 compatible with downstream
+Market, Sourcing, Economics, Safety, Capital, or execution routes. It creates no
+`OpportunityMarketIdentityBinding` and grants no permission for real-money work.
 
 ## Domestic Selling Opportunity Admission API
 

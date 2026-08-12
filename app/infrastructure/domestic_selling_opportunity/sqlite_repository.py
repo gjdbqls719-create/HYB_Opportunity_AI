@@ -259,6 +259,18 @@ class SQLiteDomesticSellingOpportunityAdmissionRepository(
                     replay.lifecycle, replay.creation_transition, replay.market_binding,
                     replay.admission, replay.receipt, True,
                 )
+            new_to_market_table = self._connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='new_to_market_domestic_selling_admission_history'"
+            ).fetchone()
+            if new_to_market_table is not None and self._connection.execute(
+                "SELECT 1 FROM new_to_market_domestic_selling_admission_history "
+                "WHERE source_opportunity_id=?",
+                (command.source_opportunity_id,),
+            ).fetchone() is not None:
+                raise DomesticSellingOpportunityCardinalityConflictError(
+                    "source Opportunity already has a new-to-market domestic-selling Opportunity"
+                )
             source = self._lifecycles.get(command.source_opportunity_id)
             promotion = self.get_promotion_by_opportunity(command.source_opportunity_id)
             snapshot = self._products.get_snapshot(command.source_product_snapshot_id)
@@ -277,6 +289,18 @@ class SQLiteDomesticSellingOpportunityAdmissionRepository(
             if existing is not None:
                 raise DomesticSellingOpportunityCardinalityConflictError(
                     "source Opportunity already has a domestic-selling Opportunity"
+                )
+            target_binding_table = self._connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='opportunity_domestic_selling_target_bindings'"
+            ).fetchone()
+            if target_binding_table is not None and self._connection.execute(
+                "SELECT 1 FROM opportunity_domestic_selling_target_bindings "
+                "WHERE opportunity_id=?",
+                (lifecycle.opportunity_id,),
+            ).fetchone() is not None:
+                raise DomesticSellingOpportunityCardinalityConflictError(
+                    "domestic Opportunity already has another binding variant"
                 )
             self._write("lifecycle", self._lifecycles._insert_current, lifecycle)
             self._write("transition", self._lifecycles._insert_transition, transition)

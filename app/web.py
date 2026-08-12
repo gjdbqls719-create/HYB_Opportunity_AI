@@ -46,7 +46,23 @@ from app.application.domestic_selling_opportunity import (
     DomesticSellingOpportunitySourceNotFoundError,
     DomesticSellingOpportunityVerificationError,
 )
+from app.application.new_to_market_domestic_selling import (
+    AdmitNewToMarketDomesticSellingOpportunity,
+    AdmitNewToMarketDomesticSellingOpportunityCommand,
+    NewToMarketDomesticSellingCardinalityConflictError,
+    NewToMarketDomesticSellingError,
+    NewToMarketDomesticSellingLineageError,
+    NewToMarketDomesticSellingPolicyError,
+    NewToMarketDomesticSellingReplayConflictError,
+    NewToMarketDomesticSellingSourceNotFoundError,
+    NewToMarketDomesticSellingVerificationError,
+)
 from app.domain.decision_engine import OpportunityIdentity
+from app.domain.opportunity import (
+    BoundedKRSearchConclusion,
+    BoundedKRSearchManifest,
+    BoundedKRSearchScopeKind,
+)
 from app.domain.sourcing import (
     CommercialFactAvailability,
     CostAllocationBasis,
@@ -79,6 +95,14 @@ from app.infrastructure.domestic_selling_opportunity import (
     ProductionDomesticSellingOpportunityAdmissionIdentityGenerator,
     ProductionDomesticSellingOpportunityIdentityGenerator,
     SQLiteDomesticSellingOpportunityAdmissionRepository,
+)
+from app.infrastructure.new_to_market_domestic_selling import (
+    MalformedNewToMarketDomesticSellingPersistenceError,
+    NewToMarketDomesticSellingPersistenceError,
+    ProductionNewToMarketDomesticOpportunityIdentityGenerator,
+    ProductionNewToMarketDomesticSellingAdmissionIdentityGenerator,
+    ProductionNewToMarketDomesticSellingTargetIdentityGenerator,
+    SQLiteNewToMarketDomesticSellingAdmissionRepository,
 )
 from app.application.opportunity_lifecycle import (
     LifecycleNotFoundError,
@@ -1296,6 +1320,71 @@ class DomesticSellingOpportunityAdmissionRequest(BaseModel):
         default="domestic-selling-opportunity-admission", min_length=1
     )
     policy_version: str = Field(default="1.0.0", min_length=1)
+
+
+class BoundedKRSearchManifestRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    searched_channels: tuple[str, ...] = Field(min_length=1)
+    scope_kind: Literal["query", "category"]
+    scope_value: str = Field(min_length=1)
+    performed_at: datetime
+    operator_id: str = Field(min_length=1)
+    evidence_references: tuple[str, ...] = Field(min_length=1)
+    conclusion: Literal["exact_kr_identity_not_established"]
+
+    def to_domain(self) -> BoundedKRSearchManifest:
+        return BoundedKRSearchManifest(
+            searched_channels=self.searched_channels,
+            scope_kind=BoundedKRSearchScopeKind(self.scope_kind),
+            scope_value=self.scope_value,
+            performed_at=self.performed_at,
+            operator_id=self.operator_id,
+            evidence_references=self.evidence_references,
+            conclusion=BoundedKRSearchConclusion(self.conclusion),
+        )
+
+
+class NewToMarketDomesticSellingOpportunityAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    source_product_snapshot_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    decision_reason: str = Field(min_length=1)
+    bounded_kr_search: BoundedKRSearchManifestRequest
+    verified_at: datetime
+    requested_at: datetime
+    policy_name: str = Field(
+        default="new-to-market-domestic-selling-admission", min_length=1
+    )
+    policy_version: str = Field(default="1.0.0", min_length=1)
+
+
+class NewToMarketDomesticSellingOpportunityAdmissionResponse(BaseModel):
+    command_id: str
+    admission_id: str
+    source_opportunity_identity: dict[str, str]
+    source_lifecycle: dict[str, str | int]
+    source_market_identity: dict[str, Any]
+    source_candidate_promotion: dict[str, Any]
+    source_product_snapshot: dict[str, str]
+    domestic_selling_target: dict[str, str]
+    domestic_opportunity_identity: dict[str, str]
+    lifecycle: dict[str, str | int]
+    target_binding: dict[str, Any]
+    bounded_kr_search: dict[str, Any]
+    operator_id: str
+    decision_reason: str
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    verified_at: datetime
+    admitted_at: datetime
+    committed_at: datetime
+    admission_schema_version: str
+    receipt_schema_version: str
+    replayed: bool
 
 
 class SourcingMoneyFactRequest(BaseModel):
@@ -3647,6 +3736,39 @@ def get_domestic_selling_opportunity_entry():
         raise HTTPException(
             status_code=503,
             detail="domestic selling Opportunity persistence unavailable",
+        ) from error
+    finally:
+        resources.close()
+
+
+def get_new_to_market_domestic_selling_entry():
+    resources = ExitStack()
+    try:
+        repository = SQLiteNewToMarketDomesticSellingAdmissionRepository(
+            DEFAULT_DATABASE_PATH
+        )
+        resources.callback(repository.close)
+        yield AdmitNewToMarketDomesticSellingOpportunity(
+            repository,
+            opportunity_id_generator=(
+                ProductionNewToMarketDomesticOpportunityIdentityGenerator()
+            ),
+            target_id_generator=(
+                ProductionNewToMarketDomesticSellingTargetIdentityGenerator()
+            ),
+            admission_id_generator=(
+                ProductionNewToMarketDomesticSellingAdmissionIdentityGenerator()
+            ),
+            admitted_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+    except (
+        sqlite3.Error,
+        NewToMarketDomesticSellingPersistenceError,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="new-to-market domestic selling persistence unavailable",
         ) from error
     finally:
         resources.close()
@@ -8839,6 +8961,160 @@ def admit_domestic_selling_opportunity(
     except DomesticSellingOpportunityError as error:
         raise HTTPException(
             status_code=503, detail="domestic selling Opportunity unavailable"
+        ) from error
+
+
+def _new_to_market_result_payload(result) -> dict[str, object]:
+    admission = result.admission
+    source = admission.source_manifest
+    source_opportunity = source.source_opportunity_identity
+    domestic = admission.domestic_opportunity_identity
+    target = admission.target_identity
+    binding = result.target_binding
+    search = admission.search_manifest
+    return {
+        "command_id": result.receipt.command_id,
+        "admission_id": admission.admission_id,
+        "source_opportunity_identity": {
+            "opportunity_id": source_opportunity.opportunity_id,
+            "discovery_reference": source_opportunity.discovery_reference,
+        },
+        "source_lifecycle": {
+            "status": source.source_lifecycle_status.value,
+            "version": source.source_lifecycle_version,
+        },
+        "source_market_identity": _market_identity_payload(
+            source.source_market_identity
+        ),
+        "source_candidate_promotion": {
+            "candidate_id": source.candidate_id,
+            "candidate_opportunity_binding_id": (
+                source.candidate_opportunity_binding_id
+            ),
+            "promotion_command_id": source.promotion_command_id,
+            "promotion_admission_id": source.promotion_admission_id,
+            "finalized_group_id": source.finalized_group_id,
+            "product_snapshot_capture_command_id": (
+                source.product_snapshot_capture_command_id
+            ),
+            "product_snapshot_ids": list(source.product_snapshot_ids),
+            "representative_product_snapshot_id": (
+                source.representative_product_snapshot_id
+            ),
+            "schema_version": source.schema_version,
+        },
+        "source_product_snapshot": {
+            "product_snapshot_id": source.selected_product_snapshot_id,
+            "source_observation_id": source.selected_source_observation_id,
+        },
+        "domestic_selling_target": {
+            "domestic_selling_target_id": target.domestic_selling_target_id,
+            "market": target.market,
+            "kind": target.kind.value,
+            "schema_version": target.schema_version,
+        },
+        "domestic_opportunity_identity": {
+            "opportunity_id": domestic.opportunity_id,
+            "discovery_reference": domestic.discovery_reference,
+        },
+        "lifecycle": {
+            "status": result.lifecycle.status.value,
+            "version": result.lifecycle.version,
+        },
+        "target_binding": {
+            "opportunity_id": binding.opportunity_id,
+            "discovery_reference": binding.discovery_reference,
+            "domestic_selling_target_id": (
+                binding.target_identity.domestic_selling_target_id
+            ),
+            "bound_at": binding.bound_at.isoformat(),
+            "schema_version": binding.schema_version,
+        },
+        "bounded_kr_search": {
+            "searched_channels": list(search.searched_channels),
+            "scope_kind": search.scope_kind.value,
+            "scope_value": search.scope_value,
+            "performed_at": search.performed_at.isoformat(),
+            "operator_id": search.operator_id,
+            "evidence_references": list(search.evidence_references),
+            "conclusion": search.conclusion.value,
+            "market": search.market,
+            "schema_version": search.schema_version,
+        },
+        "operator_id": admission.operator_id,
+        "decision_reason": admission.decision_reason,
+        "policy_name": admission.policy_name,
+        "policy_version": admission.policy_version,
+        "requested_at": admission.requested_at.isoformat(),
+        "verified_at": admission.verified_at.isoformat(),
+        "admitted_at": admission.admitted_at.isoformat(),
+        "committed_at": result.receipt.committed_at.isoformat(),
+        "admission_schema_version": admission.schema_version,
+        "receipt_schema_version": result.receipt.schema_version,
+        "replayed": result.replayed,
+    }
+
+
+@app.post(
+    "/api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions",
+    status_code=201,
+    response_model=NewToMarketDomesticSellingOpportunityAdmissionResponse,
+)
+def admit_new_to_market_domestic_selling_opportunity(
+    source_opportunity_id: str,
+    request: NewToMarketDomesticSellingOpportunityAdmissionRequest,
+    response: Response,
+    entry: AdmitNewToMarketDomesticSellingOpportunity = Depends(
+        get_new_to_market_domestic_selling_entry
+    ),
+):
+    try:
+        result = entry.execute(
+            AdmitNewToMarketDomesticSellingOpportunityCommand(
+                command_id=request.command_id,
+                source_opportunity_id=source_opportunity_id,
+                source_product_snapshot_id=request.source_product_snapshot_id,
+                operator_id=request.operator_id,
+                decision_reason=request.decision_reason,
+                search_manifest=request.bounded_kr_search.to_domain(),
+                verified_at=request.verified_at,
+                requested_at=request.requested_at,
+                policy_name=request.policy_name,
+                policy_version=request.policy_version,
+            )
+        )
+        response.status_code = 200 if result.replayed else 201
+        return NewToMarketDomesticSellingOpportunityAdmissionResponse.model_validate(
+            _new_to_market_result_payload(result)
+        )
+    except NewToMarketDomesticSellingSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        NewToMarketDomesticSellingReplayConflictError,
+        NewToMarketDomesticSellingCardinalityConflictError,
+        NewToMarketDomesticSellingLineageError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        NewToMarketDomesticSellingPolicyError,
+        NewToMarketDomesticSellingVerificationError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        NewToMarketDomesticSellingPersistenceError,
+        MalformedNewToMarketDomesticSellingPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="new-to-market domestic selling persistence unavailable",
+        ) from error
+    except NewToMarketDomesticSellingError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="new-to-market domestic selling Opportunity unavailable",
         ) from error
 
 
