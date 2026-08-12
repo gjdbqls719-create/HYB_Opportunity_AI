@@ -183,6 +183,9 @@ from app.application.candidate_promotion import (
     MalformedCandidatePromotionPersistenceError,
     OpportunityAlreadyBoundToCandidateError,
     PromoteOpportunityCandidateCommand,
+    PromoteOpportunityCandidateV2Command,
+    CandidatePromotionV2SourceNotFoundError,
+    CandidatePromotionV2LineageConflictError,
 )
 from app.application.product_snapshot_capture import (
     CandidateProductSnapshotCaptureProductionEntry,
@@ -567,6 +570,7 @@ from app.infrastructure.discovery import (
 from app.infrastructure.opportunity_validation import (
     ProductionCandidateOpportunityBindingIdentityGenerator,
     ProductionOpportunityIdentityGenerator,
+    ProductionCandidatePromotionAdmissionIdentityGenerator,
     SQLiteCandidatePromotionRepository,
     SQLiteValidationQueueRepository,
 )
@@ -1959,6 +1963,56 @@ class EconomicsSnapshotResponse(BaseModel):
     passes_net_profit_filter: bool
     passes_roi_filter: bool
     passes_profitability_filter: bool
+    replayed: bool
+
+
+class CandidatePromotionV2Request(BaseModel):
+    """Founder selection of exact persisted Candidate/Product provenance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contract_version: Literal["2.0.0"] = "2.0.0"
+    promotion_command_id: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    finalized_group_id: str = Field(min_length=1)
+    representative_product_snapshot_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    requested_at: datetime
+    note: str | None = None
+
+    def to_command(self) -> PromoteOpportunityCandidateV2Command:
+        return PromoteOpportunityCandidateV2Command(**self.model_dump())
+
+
+class CandidatePromotionV2Response(BaseModel):
+    """O1 lineage only; this response is not BUY/economics/safety authority."""
+
+    contract_version: Literal["2.0.0"]
+    promotion_command_id: str
+    candidate_id: str
+    opportunity_id: str
+    binding_id: str
+    admission_id: str
+    discovery_reference: str
+    discovery_command_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    product_snapshot_capture_command_id: str
+    product_snapshot_ids: tuple[str, ...]
+    representative_product_snapshot_id: str
+    market_observation_identity: MarketObservationIdentityRequest
+    marketplace: str
+    title: str
+    currency: str
+    admission_kind: Literal["founder_selected_for_deeper_validation"]
+    operator_id: str
+    reason: str
+    lifecycle_status: OpportunityLifecycleStatus
+    lifecycle_version: int
+    requested_at: datetime
+    promoted_at: datetime
+    committed_at: datetime
     replayed: bool
 
 
@@ -3769,12 +3823,19 @@ def get_candidate_promotion_entry():
             DEFAULT_DATABASE_PATH
         )
         resources.callback(promotion_repository.close)
+        capture_repository = resources.enter_context(
+            SQLiteProductSnapshotCaptureRepository(DEFAULT_DATABASE_PATH)
+        )
         entry = CandidatePromotionProductionEntry(
             candidate_repository=candidate_repository,
             promotion_repository=promotion_repository,
             opportunity_id_generator=ProductionOpportunityIdentityGenerator(),
             binding_id_generator=(
                 ProductionCandidateOpportunityBindingIdentityGenerator()
+            ),
+            product_snapshot_capture_repository=capture_repository,
+            admission_id_generator=(
+                ProductionCandidatePromotionAdmissionIdentityGenerator()
             ),
             clock=lambda: datetime.now(timezone.utc),
         )
@@ -5346,21 +5407,26 @@ def issue_opportunity_candidate(
 
 @app.post(
     "/api/v1/candidate-promotions",
-    response_model=CandidatePromotionResponse,
+    response_model=CandidatePromotionResponse | CandidatePromotionV2Response,
     status_code=status.HTTP_201_CREATED,
 )
 def promote_opportunity_candidate(
-    request: CandidatePromotionRequest,
+    request: CandidatePromotionRequest | CandidatePromotionV2Request,
     response: Response,
     entry: CandidatePromotionProductionEntry = Depends(
         get_candidate_promotion_entry
     ),
-) -> CandidatePromotionResponse:
+) -> CandidatePromotionResponse | CandidatePromotionV2Response:
     try:
-        result = entry.execute(request.to_command())
+        result = (
+            entry.execute_v2(request.to_command())
+            if isinstance(request, CandidatePromotionV2Request)
+            else entry.execute(request.to_command())
+        )
     except (
         CandidateForPromotionNotFoundError,
         CandidatePromotionContextNotFoundError,
+        CandidatePromotionV2SourceNotFoundError,
     ) as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except (
@@ -5369,6 +5435,7 @@ def promote_opportunity_candidate(
         CandidatePromotionIdentityConflictError,
         CandidatePromotionMarketIdentityConflictError,
         OpportunityAlreadyBoundToCandidateError,
+        CandidatePromotionV2LineageConflictError,
     ) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except (
@@ -5393,6 +5460,40 @@ def promote_opportunity_candidate(
     binding = result.binding
     receipt = result.receipt
     identity = binding.market_observation_identity
+    if isinstance(request, CandidatePromotionV2Request):
+        basis = item.admission_basis
+        return CandidatePromotionV2Response(
+            contract_version="2.0.0",
+            promotion_command_id=receipt.promotion_command_id,
+            candidate_id=receipt.candidate_id,
+            opportunity_id=receipt.opportunity_id,
+            binding_id=binding.binding_id,
+            admission_id=basis.admission_id,
+            discovery_reference=binding.discovery_reference,
+            discovery_command_id=binding.discovery_command_id,
+            discovery_execution_id=binding.discovery_execution_id,
+            finalized_group_id=binding.finalized_group_id,
+            product_snapshot_capture_command_id=basis.product_snapshot_capture_command_id,
+            product_snapshot_ids=basis.product_snapshot_ids,
+            representative_product_snapshot_id=basis.representative_product_snapshot_id,
+            market_observation_identity=MarketObservationIdentityRequest(
+                scope=identity.scope, market=identity.market,
+                marketplace=identity.marketplace,
+                canonical_product_id=identity.canonical_product_id,
+                marketplace_item_id=identity.marketplace_item_id,
+                normalized_query=identity.normalized_query,
+                category=identity.category, variant_identity=identity.variant_identity,
+                condition=identity.condition,
+                window_started_at=identity.window_started_at,
+                window_ended_at=identity.window_ended_at,
+            ),
+            marketplace=item.marketplace, title=item.title, currency=item.currency,
+            admission_kind=basis.admission_kind, operator_id=basis.operator_id,
+            reason=basis.reason, lifecycle_status=item.lifecycle_status,
+            lifecycle_version=item.lifecycle_version,
+            requested_at=basis.requested_at, promoted_at=basis.promoted_at,
+            committed_at=receipt.committed_at, replayed=result.replayed,
+        )
     return CandidatePromotionResponse(
         promotion_command_id=receipt.promotion_command_id,
         candidate_id=receipt.candidate_id,

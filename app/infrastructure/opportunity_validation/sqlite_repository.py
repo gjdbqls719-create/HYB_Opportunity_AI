@@ -11,6 +11,8 @@ from app.application.opportunity_validation import (
     DuplicateValidationConflictError,
     ValidationAdmissionSnapshot,
     ValidationQueueItem,
+    FounderSelectedAdmissionBasis,
+    ValidationQueueItemV2,
     canonicalize_discovery_reference,
 )
 from app.application.opportunity_lifecycle import LifecycleVersionConflictError
@@ -199,6 +201,32 @@ CREATE TABLE IF NOT EXISTS opportunity_candidate_promotion_receipts (
  FOREIGN KEY(candidate_id) REFERENCES opportunity_candidate_promotion_history(candidate_id),
  FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id))
 """
+_CANDIDATE_PROMOTION_V2_SOURCE_HISTORY = """
+CREATE TABLE IF NOT EXISTS opportunity_candidate_promotion_v2_source_history (
+ binding_id TEXT PRIMARY KEY, candidate_id TEXT NOT NULL,
+ finalized_group_id TEXT NOT NULL, capture_command_id TEXT NOT NULL,
+ ordered_product_snapshot_ids_json TEXT NOT NULL,
+ representative_product_snapshot_id TEXT NOT NULL,
+ schema_version TEXT NOT NULL, inserted_at TEXT NOT NULL,
+ FOREIGN KEY(binding_id) REFERENCES opportunity_candidate_promotion_history(binding_id))
+"""
+_CANDIDATE_PROMOTION_V2_ADMISSION_HISTORY = """
+CREATE TABLE IF NOT EXISTS candidate_promotion_v2_admission_history (
+ admission_id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL UNIQUE,
+ candidate_id TEXT NOT NULL, binding_id TEXT NOT NULL UNIQUE,
+ discovery_command_id TEXT NOT NULL, discovery_execution_id TEXT NOT NULL,
+ finalized_group_id TEXT NOT NULL, capture_command_id TEXT NOT NULL,
+ ordered_product_snapshot_ids_json TEXT NOT NULL,
+ representative_product_snapshot_id TEXT NOT NULL,
+ operator_id TEXT NOT NULL, reason TEXT NOT NULL, note TEXT,
+ requested_at TEXT NOT NULL, promoted_at TEXT NOT NULL, committed_at TEXT NOT NULL,
+ admission_kind TEXT NOT NULL, policy_name TEXT NOT NULL,
+ policy_version TEXT NOT NULL, schema_version TEXT NOT NULL,
+ command_fingerprint TEXT NOT NULL, subject_fingerprint TEXT NOT NULL,
+ inserted_at TEXT NOT NULL,
+ FOREIGN KEY(binding_id) REFERENCES opportunity_candidate_promotion_history(binding_id),
+ FOREIGN KEY(opportunity_id) REFERENCES opportunity_lifecycles(opportunity_id))
+"""
 
 
 class SQLiteValidationQueueRepository:
@@ -230,7 +258,14 @@ class SQLiteValidationQueueRepository:
             self._connection.execute(_OPPORTUNITY_REVIEW_BINDING_CURRENT)
             self._connection.execute(_CANDIDATE_PROMOTION_HISTORY)
             self._connection.execute(_CANDIDATE_PROMOTION_RECEIPTS)
-            for table in ("opportunity_candidate_promotion_history", "opportunity_candidate_promotion_receipts"):
+            self._connection.execute(_CANDIDATE_PROMOTION_V2_SOURCE_HISTORY)
+            self._connection.execute(_CANDIDATE_PROMOTION_V2_ADMISSION_HISTORY)
+            for table in (
+                "opportunity_candidate_promotion_history",
+                "opportunity_candidate_promotion_receipts",
+                "opportunity_candidate_promotion_v2_source_history",
+                "candidate_promotion_v2_admission_history",
+            ):
                 for operation in ("UPDATE", "DELETE"):
                     self._connection.execute(f"""CREATE TRIGGER IF NOT EXISTS trg_{table}_no_{operation.lower()}
                     BEFORE {operation} ON {table}
@@ -1134,7 +1169,7 @@ class SQLiteValidationQueueRepository:
         *,
         statuses: tuple[OpportunityLifecycleStatus, ...],
         limit: int,
-    ) -> tuple[ValidationQueueItem, ...]:
+    ) -> tuple[ValidationQueueItem | ValidationQueueItemV2, ...]:
         if limit < 1:
             raise ValueError("limit must be at least 1")
         if not statuses:
@@ -1149,7 +1184,22 @@ class SQLiteValidationQueueRepository:
             LIMIT ?""",
             tuple(status.value for status in statuses) + (limit,),
         ).fetchall()
-        return tuple(self._to_item(row) for row in rows)
+        v1 = [self._to_item(row) for row in rows]
+        if not self._table_exists("product_observation_snapshot_history"):
+            return tuple(v1[:limit])
+        v2_rows = self._connection.execute(
+            f"""SELECT a.*, l.discovery_reference, l.status, l.version,
+            l.created_at, l.updated_at, p.observed_product_payload_json
+            FROM candidate_promotion_v2_admission_history AS a
+            JOIN opportunity_lifecycles AS l ON l.opportunity_id=a.opportunity_id
+            JOIN product_observation_snapshot_history AS p
+              ON p.snapshot_id=a.representative_product_snapshot_id
+            WHERE l.archived_at IS NULL AND l.status IN ({placeholders})""",
+            tuple(status.value for status in statuses),
+        ).fetchall()
+        combined = v1 + [self._to_v2_item(row) for row in v2_rows]
+        combined.sort(key=lambda value: (value.created_at, value.opportunity_id))
+        return tuple(combined[:limit])
 
     def get_queue_item(self, opportunity_id: str) -> ValidationQueueItem | None:
         row = self._connection.execute(
@@ -1159,7 +1209,21 @@ class SQLiteValidationQueueRepository:
             WHERE l.opportunity_id = ? AND l.archived_at IS NULL""",
             (opportunity_id,),
         ).fetchone()
-        return self._to_item(row) if row is not None else None
+        if row is not None:
+            return self._to_item(row)
+        if not self._table_exists("product_observation_snapshot_history"):
+            return None
+        v2 = self._connection.execute(
+            """SELECT a.*, l.discovery_reference, l.status, l.version,
+            l.created_at, l.updated_at, p.observed_product_payload_json
+            FROM candidate_promotion_v2_admission_history AS a
+            JOIN opportunity_lifecycles AS l ON l.opportunity_id=a.opportunity_id
+            JOIN product_observation_snapshot_history AS p
+              ON p.snapshot_id=a.representative_product_snapshot_id
+            WHERE l.opportunity_id=? AND l.archived_at IS NULL""",
+            (opportunity_id,),
+        ).fetchone()
+        return self._to_v2_item(v2) if v2 is not None else None
 
     def create(self, lifecycle, transition) -> None:
         self._lifecycles.create(lifecycle, transition)
@@ -1220,6 +1284,12 @@ class SQLiteValidationQueueRepository:
         ).fetchone()
         return row is not None
 
+    def _table_exists(self, table_name: str) -> bool:
+        return self._connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,),
+        ).fetchone() is not None
+
     def _migrate_canonical_references(self) -> None:
         self._connection.execute("DROP INDEX IF EXISTS uq_active_validation_discovery_reference")
         rows = self._connection.execute(
@@ -1254,3 +1324,39 @@ class SQLiteValidationQueueRepository:
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
+
+    @staticmethod
+    def _to_v2_item(row: sqlite3.Row) -> ValidationQueueItemV2:
+        try:
+            product = json.loads(row["observed_product_payload_json"])
+            ids = json.loads(row["ordered_product_snapshot_ids_json"])
+            if not isinstance(ids, list):
+                raise ValueError("ordered Product Snapshot IDs must be a list")
+            basis = FounderSelectedAdmissionBasis(
+                admission_id=row["admission_id"], candidate_id=row["candidate_id"],
+                candidate_opportunity_binding_id=row["binding_id"],
+                discovery_command_id=row["discovery_command_id"],
+                discovery_execution_id=row["discovery_execution_id"],
+                finalized_group_id=row["finalized_group_id"],
+                product_snapshot_capture_command_id=row["capture_command_id"],
+                product_snapshot_ids=tuple(ids),
+                representative_product_snapshot_id=row["representative_product_snapshot_id"],
+                operator_id=row["operator_id"], reason=row["reason"],
+                requested_at=datetime.fromisoformat(row["requested_at"]),
+                promoted_at=datetime.fromisoformat(row["promoted_at"]),
+                committed_at=datetime.fromisoformat(row["committed_at"]),
+                admission_kind=row["admission_kind"], policy_name=row["policy_name"],
+                policy_version=row["policy_version"], schema_version=row["schema_version"],
+            )
+            return ValidationQueueItemV2(
+                opportunity_id=row["opportunity_id"],
+                discovery_reference=row["discovery_reference"],
+                marketplace=product["marketplace"], title=product["title"],
+                currency=product["currency"], admission_basis=basis,
+                lifecycle_status=OpportunityLifecycleStatus(row["status"]),
+                lifecycle_version=int(row["version"]),
+                created_at=datetime.fromisoformat(row["created_at"]),
+                updated_at=datetime.fromisoformat(row["updated_at"]),
+            )
+        except Exception as error:
+            raise ValueError("malformed Candidate Promotion v2 admission") from error

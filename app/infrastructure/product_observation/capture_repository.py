@@ -128,6 +128,9 @@ class SQLiteProductSnapshotCaptureRepository:
         except Exception as error:
             raise MalformedProductSnapshotCapturePersistenceError("persisted source binding is malformed") from error
 
+    def get_binding(self, snapshot_id):
+        return self._binding(snapshot_id)
+
     def get_result(self, receipt):
         snapshots = tuple(self._snapshots.get_snapshot(value) for value in receipt.product_snapshot_ids)
         bindings = tuple(self._binding(value) for value in receipt.product_snapshot_ids)

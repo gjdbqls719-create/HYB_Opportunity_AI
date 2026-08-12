@@ -117,23 +117,23 @@ cross-Group representative lineage. The response contract therefore supplies
 every machine-known source value needed for Candidate admission without private
 repository access, SQLite reads, URL parsing, or caller-created identity.
 
-## Candidate Promotion v2 decision status
+## Candidate Promotion v2
 
-`POST /api/v1/candidate-promotions` currently implements Candidate Promotion v1.
-Its request still requires caller-supplied admission recommendation, score, ROI,
-currency, and admission safety status. Those fields do not have an authoritative
-persisted pre-promotion source in the genuine Founder flow and must not be
-invented to continue a real run.
+`POST /api/v1/candidate-promotions` supports the explicit
+`contract_version = "2.0.0"` request alongside historical v1 compatibility. V2
+accepts only command, Candidate, finalized Group, representative Product
+Snapshot, operator, reason, requested time, and optional note. It reconstructs
+the exact capture receipt, ordered Product cohort, source bindings, Candidate
+Context, issuance, and representative relationship before issuing a
+server-identified O1 in lifecycle state `discovered` version 1.
 
-ADR-0059 accepts an explicit future `contract_version = "2.0.0"` request on this
-boundary. V2 will name only the exact Candidate, finalized Group,
-representative Product Snapshot anchor, command, operator, reason, requested
-time, and optional note. The Application will reconstruct the committed capture
-receipt and complete ordered Product cohort, issue O1 in lifecycle state
-`discovered`, and return exact binding/source lineage. Recommendation, score,
-ROI, currency-as-decision, and safety fields will not exist in the v2 request or
-response. This section documents direction only; production v2 is not yet
-callable and the genuine run remains stopped before Promotion.
+The v2 response returns the O1, binding, admission, capture, ordered Snapshot,
+representative Snapshot, Market identity, display, lifecycle, and Founder-
+selection facts. It contains no recommendation, score, ROI, or safety signal.
+Display currency is copied from the representative persisted Product Snapshot;
+it is not an admission or economic judgment. Fresh success is 201, exact
+replay/alias is 200, missing source is 404, lineage/cardinality conflict is 409,
+invalid structure is 422, and bounded persistence failure is 503.
 
 API는 Engine 외부 계층이다.
 

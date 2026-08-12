@@ -3,11 +3,13 @@ from app.infrastructure.opportunity_validation.sqlite_candidate_promotion import
 from app.infrastructure.opportunity_validation.identity_suppliers import (
     ProductionCandidateOpportunityBindingIdentityGenerator,
     ProductionOpportunityIdentityGenerator,
+    ProductionCandidatePromotionAdmissionIdentityGenerator,
 )
 
 __all__ = [
     "ProductionCandidateOpportunityBindingIdentityGenerator",
     "ProductionOpportunityIdentityGenerator",
+    "ProductionCandidatePromotionAdmissionIdentityGenerator",
     "SQLiteCandidatePromotionRepository",
     "SQLiteValidationQueueRepository",
 ]

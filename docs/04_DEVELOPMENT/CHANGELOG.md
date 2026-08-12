@@ -1,5 +1,12 @@
 # HYB Changelog
 
+## CR-1B7C3 - Candidate Promotion v2 Implementation
+
+- Implement ADR-0059 through the existing production route with an explicit `2.0.0` request containing only exact Candidate/Product lineage and factual Founder selection inputs.
+- Atomically persist O1 lifecycle, Market binding, common Candidate/Opportunity binding, v2 Product-source companion, v2 Founder-selection admission, and receipt after exact complete-cohort reconstruction.
+- Add the versioned Validation Queue read union without fabricated recommendation, score, ROI, or safety signals while preserving v1 rows, fingerprints, replay, and global cardinality.
+- Verify HTTP creation/replay/alias, fail-closed source validation, OpenAPI isolation, v1 regression, and O1-to-O2 structural compatibility without adding economics, safety, or capital work.
+
 ## CR-1B7C2 - Candidate Promotion v2 and O1 Admission Authority Decision
 
 - Accept ADR-0059: O1 means a Founder-selected `discovered` Opportunity admitted for deeper validation, not BUY readiness, authoritative ROI/economics, Production Safety, Capital approval, or permission to spend.

@@ -101,7 +101,8 @@ Context, finalized Group, complete Product Snapshot capture, representative
 Snapshot, operator, reason, and requested time; it admits no economic or safety
 conclusion. A separate additive v2 admission record and Product-source companion
 preserve the existing common Candidate/Opportunity cardinality anchor while v1
-history remains unchanged. This is decision-only until the implementation CR.
+history remains unchanged. CR-1B7C3 implements this production boundary and its
+versioned Validation Queue read union; no legacy v1 admission row is fabricated.
 
 ## Candidate-scoped Snapshot chain (PR35-A)
 

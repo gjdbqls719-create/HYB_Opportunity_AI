@@ -6,9 +6,10 @@ Accepted
 
 ## Implementation Status
 
-Decision only. Candidate Promotion v1 remains the only implemented production
-write contract. A genuine run must not submit invented v1 admission
-recommendation, score, ROI, currency, or safety facts while v2 is unimplemented.
+Implemented by CR-1B7C3. The production boundary accepts the explicit `2.0.0`
+request, reconstructs the exact immutable Product Snapshot capture and
+representative source, and commits separate v2 admission/source facts without a
+legacy Validation Admission snapshot. Historical v1 read/replay remains exact.
 
 ## Context
 

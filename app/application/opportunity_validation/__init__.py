@@ -4,6 +4,8 @@ from app.application.opportunity_validation.models import (
     ValidationAdmissionSnapshot,
     ValidationQueueItem,
     ValidationQueueQuery,
+    FounderSelectedAdmissionBasis,
+    ValidationQueueItemV2,
 )
 from app.application.opportunity_validation.ports import (
     DuplicateActiveValidationError,
@@ -24,5 +26,6 @@ __all__ = [
     "OpportunityValidationService", "RejectOpportunity", "ReturnToReview",
     "StartOpportunityReview", "ValidationActionCommand", "ValidationAdmissionSnapshot",
     "ValidationQueueItem", "ValidationQueueQuery", "ValidationQueueRepository",
+    "FounderSelectedAdmissionBasis", "ValidationQueueItemV2",
     "canonicalize_discovery_reference",
 ]
