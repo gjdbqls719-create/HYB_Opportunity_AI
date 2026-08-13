@@ -1,5 +1,13 @@
 # HYB Changelog
 
+## CR-1B7D4F - New-to-Market Demand v2 Evidence Authority Decision
+
+- Accept ADR-0062 and architecture-resolve FR-015 with two mandatory pre-listing Demand v2 core families: one provider-scoped KR query/search count and one immutable bounded comparable-organic-listing review-response cohort.
+- Define raw per-card review authority, robust median/coverage aggregates, optional rating/provider signals/target traction, explicit unknown and failure outcomes, and separate family confidence without a generic Demand level or synthetic sales proxy.
+- Permit exact Competition v2 cohort reference without copying Competition facts, require immutable artifact/reference/hash provenance, and separate Founder-assisted evidence authority from future provider automation.
+- Preserve Demand v1, ADR-0044 DMV v1, ADR-0060, ADR-0061, genuine Competition v2, and all historical rows/contracts; reserve separate Demand v2 API/persistence/replay direction without implementing Demand v2, provider integrations, Decision Composition v2, or DMV v2.
+- Keep genuine Demand `NOT ADMITTED`, DMV `BLOCKED`, and the HYB server stopped with no genuine database mutation.
+
 ## CR-1B7D4E - Competition v2 Bounded Cohort and Coupang Signal Foundation
 
 - Add dedicated Competition v2 bounded-cohort Domain contracts and a pure analyzer that derives comparable listing count, median, spread, Competition level, price pressure, optional explicit Coupang label signals, availability, and separate confidence/coverage values.

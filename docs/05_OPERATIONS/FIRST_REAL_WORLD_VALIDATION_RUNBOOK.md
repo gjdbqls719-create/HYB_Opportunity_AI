@@ -65,6 +65,13 @@ Archive the request and response before any Demand step. Do not use the v1
 Competition route for this evidence. DMV remains blocked because DMV v2 is not
 implemented.
 
+The genuine Competition v2 step has since been verified with cohort
+`5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 architecture-resolves FR-015
+by defining a separate Demand v2 authority, but no Demand v2 runtime route or
+provider integration exists. Keep Demand `NOT ADMITTED`, keep the server
+stopped, and do not call the Demand v1 route with invented or reinterpreted
+values. DMV remains blocked; no DMV v2 exists.
+
 ## 2. Non-goals and external prerequisites
 
 This procedure does not automate ItemScout, Coupang, supplier checkout,
@@ -202,7 +209,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | use only when exact equivalence is established; the current FR-013 run must STOP |
 | 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; requires explicit authorization; Competition/Demand are API-capable but not authorized for the current genuine run, and Domestic Market Validation remains the next STOP |
 | 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
-| 9 | `POST /api/v1/opportunities/{o2}/demand-observations` | ItemScout/Coupang demand observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Validation |
+| 9 | **STOP: Demand v2 not implemented** | Future ADR-0062 Market Intent and Comparable Market Response evidence | no ID yet | do not POST Demand v1; wait for CR-1B7D4G implementation and explicit genuine-run authorization |
 | 10 | `POST /api/v1/opportunities/{o2}/domestic-market-validations` | four exact Competition/Demand IDs | `assessment_id` | state `validated_for_capital`; Sourcing/Capital |
 | 11 | `POST /api/v1/sourcing/admissions` | O2 domestic admission, Supplier/Product/option/SKU, verified Product Match, Quote, shipping scope, evidence | `admission_id`, `revision`, `supplier.supplier_id`, `sourcing_product.sourcing_product_id`, `match_verification.verification_id`, `quote.quote_id/revision` | exact Product Match and valid Quote |
 | 12 | `POST /api/v1/opportunities/{o2}/verified-economics` | Founder-verified sale/cost/fee/tax facts and evidence | O2-keyed verified snapshot response | every required fact verified; Binding |
@@ -247,6 +254,16 @@ and safety meaning; it does not replace the generated schema.
   decisions, displayed prices, raw labels, per-card observation outcomes,
   operator/time, and screenshot artifact references. Do not calculate or submit
   a v1 `rocket_seller_count` from this evidence.
+- For future Demand v2 Market Intent, capture one exact provider field that is
+  explicitly a KR query/search count, including the exact query, provider/field,
+  geography, locale, match semantics, period, unit, observed time, reference,
+  artifact, and hash. An undocumented number, result count, rank, or index is
+  unsupported.
+- For future Demand v2 Comparable Market Response, preserve raw review-count
+  outcomes for every included organic card in the exact bounded cohort. The
+  existing Competition cohort may be referenced, but new artifacts are required
+  when its capture does not expose complete review regions. Ratings are optional
+  and never become a target rating.
 
 ### Sourcing
 

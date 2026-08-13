@@ -68,3 +68,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0059: Candidate Promotion v2 and O1 Admission Authority](ADR-0059-candidate-promotion-v2-o1-admission-authority.md)
 - [ADR-0060: New-to-Market KR Selling Target Authority](ADR-0060-new-to-market-kr-selling-target-authority.md)
 - [ADR-0061: Coupang Rocket Competition Evidence Authority](ADR-0061-coupang-rocket-competition-evidence-authority.md)
+- [ADR-0062: New-to-Market Demand v2 Evidence Authority](ADR-0062-new-to-market-demand-v2-evidence-authority.md)

@@ -1,5 +1,35 @@
 # HYB System Architecture
 
+## Demand v2 evidence authority direction
+
+ADR-0062 preserves Demand v1 and introduces a separate, not-yet-implemented
+Demand v2 authority for pre-listing new-to-market assessment. Its mandatory core
+has two independent families: one exact provider-scoped KR query/search count
+for Market Intent, and raw per-listing review counts from one immutable bounded
+comparable-organic-listing cohort for Comparable Market Response. Different
+provider counts remain separate; ranks, indices, rating, estimated sales,
+sponsored context, and post-listing target traction are optional.
+
+Demand v2 derives review coverage, sorted review counts, median review count,
+engaged-listing count/share, family availability, and separate family
+confidence. It emits no generic high/medium/low demand level and no blended
+confidence. Unknown, unsupported semantics, extraction failure, provider
+unavailability, not-applicable facts, and absence of a target listing remain
+distinct from observed zero.
+
+An exact Competition v2 cohort may be referenced only by immutable source IDs,
+versions, artifact/integrity hash, and matching subject/scope. Demand attaches
+its own review/rating facts to the pinned cards and never copies Competition
+assessment, price, Rocket, or count values as Demand. Manual and future
+automated evidence share one provider envelope and immutable reference/hash
+pattern; no current provider integration is implied.
+
+Implementation requires separate Demand v2 schemas, additive persistence,
+receipt/replay namespace, and a dedicated API v2 route. Demand v1 and ADR-0044
+DMV v1 remain unchanged. Decision Composition v2 and DMV v2 do not exist. The
+genuine run remains Competition v2 verified, Demand not admitted, and DMV
+blocked.
+
 ## Competition v2 evidence authority direction
 
 ADR-0061 preserves historical Competition v1 and separates future Competition
@@ -257,9 +287,9 @@ ADR-0049 listing/canonical admission and every historical Market binding remain
 unchanged. Comparable Coupang products stay evidence rather than target
 identity, and a later real listing will attach through a new append-only fact
 without mutating the original binding or creating another O2 automatically.
-This is an accepted architecture direction only; no runtime implementation or
-new-to-market production route currently exists, and the genuine run remains
-stopped before O2.
+CR-1B7D3 implements this authority and its production route. The genuine run has
+created the separate O2 and opaque target without creating a KR listing or
+canonical-product identity.
 
 CR-1B5D2F keeps Validation Queue membership distinct from authoritative
 Opportunity existence at operational ingress. Competition, Demand, and Verified

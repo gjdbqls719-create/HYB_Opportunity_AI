@@ -330,7 +330,10 @@ input returns 422, and bounded persistence failure returns 503.
 
 `POST /api/v1/opportunities/{opportunity_id}/demand-observations` accepts an authoritative
 raw `DemandObservation`, metric-level `MarketEvidence`, and command metadata. Identity must
-exactly equal the Opportunity Market Identity. Counts/ranks are JSON integers; rating,
+exactly equal the Opportunity's historical Market binding or, for the strict
+`2.0.0` target request variant, its ADR-0060 target binding. Target requests keep
+marketplace/query/category/listing fields as evidence provenance rather than
+target identity. Counts/ranks are JSON integers; rating,
 sales proxy, and confidence use exact Decimal strings. Schema and policy versions are
 server-owned.
 
@@ -343,6 +346,28 @@ quality result, confidence result, availability, freshness, readiness, or Decisi
 Observation history/current, assessment history/current, and receipt are one transaction.
 First commit returns 201, exact replay 200, missing Opportunity 404, identity/provenance/
 command conflict 409, malformed domain input 422, and bounded infrastructure failure 503.
+
+### Demand v2 evidence authority direction
+
+ADR-0062 reserves
+`POST /api/v2/opportunities/{opportunity_id}/demand-observations` for a new,
+non-reinterpreting contract. This route is not implemented.
+
+The v2 mandatory core submits one exact provider-scoped KR query/search count
+and one immutable bounded comparable-organic-listing cohort with raw per-card
+review-count outcomes. The server derives review coverage, sorted counts,
+median review count, engaged-listing count/share, family availability,
+confidence, and the narrow deeper-commercial-validation evidence conclusion.
+Optional per-card rating, provider-specific rank/index/estimated-sales,
+sponsored context, and post-listing target traction cannot complete the core.
+
+Clients never submit aggregates, availability, derived confidence, conclusion,
+or demand level. Manual evidence requires immutable artifact/reference and
+SHA-256 facts; future collectors target the same provider envelope. V1 and v2
+must use separate observation/assessment/policy schemas, persistence/current
+projections, fingerprints, receipts, and replay namespaces. No provider
+integration, Demand v2 runtime, Decision Composition v2, or DMV v2 currently
+exists.
 
 ## Domestic Market Validation production entry
 
