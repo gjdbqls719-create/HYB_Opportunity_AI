@@ -1,5 +1,16 @@
 # First Real-World Validation Runbook
 
+## Demand v2 foundation gate (CR-1B7D4G)
+
+Repository implementation does not authorize a genuine run. Keep the HYB
+server stopped and do not call the production API or open the genuine SQLite
+database during implementation verification. A future genuine Demand admission
+requires independently preserved provider query-count authority, a bounded
+comparable cohort, one explicit review outcome per included organic listing,
+artifact hashes/references, operational target eligibility, and a separately
+approved production run. Genuine Demand and DMV remain blocked until that run
+is admitted and verified.
+
 ## 1. Purpose and milestone
 
 This runbook is the operational contract for one private Founder to execute one

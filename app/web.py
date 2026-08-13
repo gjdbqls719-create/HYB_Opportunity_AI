@@ -1,5 +1,40 @@
 from __future__ import annotations
 
+from typing import Literal as DemandLiteral
+
+from app.application.demand_v2_admission import (
+    DemandV2AdmissionConflictError,
+    DemandV2AdmissionNotFoundError,
+    DemandV2AdmissionUnavailableError,
+    DemandV2Submission,
+    FinalizeDemandV2Admission,
+    FinalizeDemandV2AdmissionCommand,
+)
+from app.domain.market_intelligence.demand_v2 import (
+    CompetitionCohortReference as DemandCompetitionCohortReference,
+    DemandArtifactReference,
+    DemandComparableCard,
+    DemandComparableCohortManifest,
+    DemandEvidenceOutcome,
+    DemandResultPlacement,
+    ListingRatingEvidence,
+    ListingReviewEvidence,
+    MarketIntentEvidence,
+    ProviderFieldKind,
+    ProviderSignalEvidence,
+    QueryMatchSemantics,
+    assessment_to_data as demand_v2_assessment_to_data,
+    cohort_manifest_to_data as demand_v2_cohort_manifest_to_data,
+    market_intent_to_data as demand_v2_market_intent_to_data,
+    provider_signal_to_data as demand_v2_provider_signal_to_data,
+    rating_to_data as demand_v2_rating_to_data,
+    review_to_data as demand_v2_review_to_data,
+)
+from app.infrastructure.market_observation.demand_v2_sqlite_repository import (
+    DemandV2PersistenceError,
+    SQLiteDemandV2Repository,
+)
+
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -1219,6 +1254,189 @@ class TargetDemandObservationAdmissionRequest(
     TargetCompetitionObservationAdmissionRequest
 ):
     pass
+
+
+class DemandV2ArtifactRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reference: str = Field(min_length=1)
+    sha256: str = Field(pattern="^[0-9a-fA-F]{64}$")
+
+
+class DemandV2MarketIntentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider_name: str = Field(min_length=1)
+    provider_field_name: str = Field(min_length=1)
+    provider_field_schema_version: str = Field(min_length=1)
+    provider_field_kind: ProviderFieldKind
+    query: str = Field(min_length=1)
+    market: str = Field(min_length=1)
+    geography: str = Field(min_length=1)
+    locale: str = Field(min_length=1)
+    query_match_semantics: QueryMatchSemantics
+    period_started_at: datetime
+    period_ended_at: datetime
+    value_unit: str = Field(min_length=1)
+    value: StrictInt | None = Field(default=None, ge=0)
+    source: str = Field(min_length=1)
+    reference: str = Field(min_length=1)
+    artifact: DemandV2ArtifactRequest
+    collection_method: str = Field(min_length=1)
+    observed_at: datetime
+    outcome: DemandEvidenceOutcome
+    confidence: str = "1"
+    reason: str | None = None
+    collector_name: str | None = None
+    collector_version: str | None = None
+    category: str | None = None
+    device_scope: str | None = None
+    result_surface: str | None = None
+
+
+class DemandV2ComparableCardRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    result_ordinal: StrictInt = Field(ge=1)
+    placement: DemandResultPlacement
+    included: bool
+    is_comparable: bool
+    exclusion_reason: str | None = None
+    marketplace_item_id: str | None = None
+    raw_title: str = Field(min_length=1)
+    visible_variant_count: StrictInt = Field(default=1, ge=1)
+
+
+class DemandV2OwnedCohortRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_kind: DemandLiteral["demand_owned"] = "demand_owned"
+    market: str = Field(min_length=1)
+    marketplace: str = Field(min_length=1)
+    query: str = Field(min_length=1)
+    category: str | None = None
+    product_use: str = Field(min_length=1)
+    category_form_factor: str = Field(min_length=1)
+    condition: str = Field(min_length=1)
+    locale: str = Field(min_length=1)
+    result_surface: str = Field(min_length=1)
+    window_started_at: datetime
+    window_ended_at: datetime
+    artifact: DemandV2ArtifactRequest
+    bound_start: StrictInt = Field(ge=1)
+    bound_end: StrictInt = Field(ge=1)
+    cards: tuple[DemandV2ComparableCardRequest, ...]
+
+
+class DemandV2CompetitionCohortReferenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_kind: DemandLiteral["competition_reference"] = "competition_reference"
+    competition_observation_id: str = Field(min_length=1)
+    observation_identity_kind: DemandLiteral["issued", "legacy_compatibility"]
+    observation_identity_version: str = Field(min_length=1)
+    cohort_id: str = Field(min_length=1)
+    authority_fingerprint: str = Field(pattern="^[0-9a-fA-F]{64}$")
+    observation_schema_version: str = Field(min_length=1)
+    cohort_policy_version: str = Field(min_length=1)
+    artifact: DemandV2ArtifactRequest
+
+
+class DemandV2ReviewEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    result_ordinal: StrictInt = Field(ge=1)
+    listing_reference: str = Field(min_length=1)
+    review_count: StrictInt | None = Field(default=None, ge=0)
+    source: str = Field(min_length=1)
+    reference: str = Field(min_length=1)
+    artifact: DemandV2ArtifactRequest
+    collection_method: str = Field(min_length=1)
+    observed_at: datetime
+    outcome: DemandEvidenceOutcome
+    confidence: str = "1"
+    reason: str | None = None
+
+
+class DemandV2RatingEvidenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    result_ordinal: StrictInt = Field(ge=1)
+    listing_reference: str = Field(min_length=1)
+    rating_value: str | None = None
+    rating_scale: str
+    source: str = Field(min_length=1)
+    reference: str = Field(min_length=1)
+    artifact: DemandV2ArtifactRequest
+    collection_method: str = Field(min_length=1)
+    observed_at: datetime
+    outcome: DemandEvidenceOutcome
+    confidence: str = "1"
+    reason: str | None = None
+
+
+class DemandV2ProviderSignalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    signal_name: str = Field(min_length=1)
+    provider: str = Field(min_length=1)
+    provider_field_name: str = Field(min_length=1)
+    provider_schema_version: str = Field(min_length=1)
+    population: str = Field(min_length=1)
+    result_surface: str = Field(min_length=1)
+    query: str | None = None
+    category: str | None = None
+    geography: str = Field(min_length=1)
+    locale: str = Field(min_length=1)
+    period_started_at: datetime
+    period_ended_at: datetime
+    directionality: str | None = None
+    tie_semantics: str | None = None
+    value: str | None = None
+    unit: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    reference: str = Field(min_length=1)
+    artifact: DemandV2ArtifactRequest
+    collection_method: str = Field(min_length=1)
+    collection_method_version: str | None = None
+    observed_at: datetime
+    outcome: DemandEvidenceOutcome
+    confidence: str = "1"
+    reason: str | None = None
+
+
+class DemandV2ComparableResponseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cohort: DemandV2OwnedCohortRequest | DemandV2CompetitionCohortReferenceRequest
+    reviews: tuple[DemandV2ReviewEvidenceRequest, ...]
+    ratings: tuple[DemandV2RatingEvidenceRequest, ...] = ()
+    provider_signals: tuple[DemandV2ProviderSignalRequest, ...] = ()
+
+
+class DemandV2HistoricalAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_version: str = Field(pattern="^2\\.0\\.0$")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    identity: MarketObservationIdentityRequest
+    market_intent: DemandV2MarketIntentRequest
+    comparable_response: DemandV2ComparableResponseRequest
+
+
+class DemandV2TargetAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_version: str = Field(pattern="^2\\.0\\.0$")
+    command_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    submitted_at: datetime
+    subject: NewToMarketAssessmentSubjectRequest
+    market_intent: DemandV2MarketIntentRequest
+    comparable_response: DemandV2ComparableResponseRequest
+
+
+class DemandV2AdmissionResponse(BaseModel):
+    opportunity_id: str
+    subject: dict[str, Any]
+    observation: dict[str, Any]
+    market_intent: dict[str, Any]
+    comparable_response: dict[str, Any]
+    optional_enrichment: dict[str, Any]
+    target_traction: dict[str, Any]
+    assessment: dict[str, Any]
+    receipt: dict[str, Any]
 
 
 class CompetitionV2CardRequest(BaseModel):
@@ -8971,6 +9189,184 @@ def _demand_payload(result):
             "confidence": str(snapshot.confidence), "summary": assessment.summary,
             "freshness": snapshot.freshness.value, "generated_at": snapshot.generated_at.isoformat(),
             "schema_version": snapshot.schema_version, "policy_version": snapshot.policy_version}}
+
+
+def get_demand_v2_admission_service():
+    opportunities = competition = repository = None
+    try:
+        opportunities = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+        competition = SQLiteCompetitionV2Repository(DEFAULT_DATABASE_PATH)
+        repository = SQLiteDemandV2Repository(DEFAULT_DATABASE_PATH)
+        yield FinalizeDemandV2Admission(opportunities, repository, competition)
+    except DemandV2PersistenceError as error:
+        raise HTTPException(status_code=503, detail="Demand v2 admission unavailable") from error
+    finally:
+        for resource in (repository, competition, opportunities):
+            if resource is not None:
+                resource.close()
+
+
+def _demand_v2_artifact(value: DemandV2ArtifactRequest) -> DemandArtifactReference:
+    return DemandArtifactReference(value.reference, value.sha256.lower())
+
+
+def _demand_v2_market_intent(value: DemandV2MarketIntentRequest) -> MarketIntentEvidence:
+    return MarketIntentEvidence(
+        provider=value.provider_name, provider_field_name=value.provider_field_name,
+        provider_schema_version=value.provider_field_schema_version,
+        provider_field_kind=value.provider_field_kind, query=value.query, market=value.market,
+        geography=value.geography, locale=value.locale,
+        match_semantics=value.query_match_semantics,
+        period_started_at=value.period_started_at, period_ended_at=value.period_ended_at,
+        unit=value.value_unit, value=value.value, source=value.source,
+        reference=value.reference, artifact=_demand_v2_artifact(value.artifact),
+        collection_method=value.collection_method, observed_at=value.observed_at,
+        outcome=value.outcome, confidence=_request_decimal(value.confidence, "market_intent.confidence"),
+        reason=value.reason, collector_name=value.collector_name, collector_version=value.collector_version,
+        category=value.category, device_scope=value.device_scope, result_surface=value.result_surface,
+    )
+
+
+def _demand_v2_review(value: DemandV2ReviewEvidenceRequest) -> ListingReviewEvidence:
+    return ListingReviewEvidence(
+        result_ordinal=value.result_ordinal, listing_reference=value.listing_reference, value=value.review_count,
+        source=value.source, reference=value.reference, artifact=_demand_v2_artifact(value.artifact),
+        collection_method=value.collection_method, observed_at=value.observed_at, outcome=value.outcome,
+        confidence=_request_decimal(value.confidence, "review.confidence"),
+        reason=value.reason,
+    )
+
+
+def _demand_v2_rating(value: DemandV2RatingEvidenceRequest) -> ListingRatingEvidence:
+    return ListingRatingEvidence(
+        result_ordinal=value.result_ordinal, listing_reference=value.listing_reference,
+        value=None if value.rating_value is None else _request_decimal(value.rating_value, "rating_value"),
+        scale_min=Decimal("0"), scale_max=_request_decimal(value.rating_scale, "rating_scale"),
+        source=value.source, reference=value.reference,
+        artifact=_demand_v2_artifact(value.artifact), collection_method=value.collection_method,
+        observed_at=value.observed_at,
+        outcome=value.outcome, confidence=_request_decimal(value.confidence, "rating.confidence"),
+        reason=value.reason,
+    )
+
+
+def _demand_v2_provider_signal(value: DemandV2ProviderSignalRequest) -> ProviderSignalEvidence:
+    return ProviderSignalEvidence(
+        signal_name=value.signal_name, provider=value.provider,
+        provider_field_name=value.provider_field_name,
+        provider_schema_version=value.provider_schema_version,
+        population=value.population, result_surface=value.result_surface,
+        query=value.query, category=value.category, geography=value.geography, locale=value.locale,
+        period_started_at=value.period_started_at, period_ended_at=value.period_ended_at,
+        directionality=value.directionality, tie_semantics=value.tie_semantics,
+        value=value.value, unit=value.unit, source=value.source, reference=value.reference,
+        artifact=_demand_v2_artifact(value.artifact), collection_method=value.collection_method,
+        collection_method_version=value.collection_method_version, observed_at=value.observed_at,
+        outcome=value.outcome, confidence=_request_decimal(value.confidence, "provider_signal.confidence"),
+        reason=value.reason,
+    )
+
+
+def _demand_v2_cohort(value, subject, operator_id: str):
+    if isinstance(value, DemandV2CompetitionCohortReferenceRequest):
+        return DemandCompetitionCohortReference(
+            competition_observation_id=value.competition_observation_id,
+            observation_identity_kind=value.observation_identity_kind,
+            observation_identity_version=value.observation_identity_version,
+            cohort_id=value.cohort_id, authority_fingerprint=value.authority_fingerprint.lower(),
+            observation_schema_version=value.observation_schema_version,
+            cohort_policy_version=value.cohort_policy_version,
+            artifact_reference=value.artifact.reference, artifact_sha256=value.artifact.sha256.lower(),
+        )
+    artifact = _demand_v2_artifact(value.artifact)
+    cards = tuple(DemandComparableCard(
+        result_ordinal=card.result_ordinal, placement=card.placement, included=card.included,
+        is_comparable=card.is_comparable, exclusion_reason=card.exclusion_reason,
+        marketplace_item_id=card.marketplace_item_id,
+        observation_reference=(card.marketplace_item_id or f"{artifact.reference}#result:{card.result_ordinal}"),
+        raw_title=card.raw_title, visible_variant_count=card.visible_variant_count,
+    ) for card in value.cards)
+    return DemandComparableCohortManifest(
+        subject=subject, market=value.market, marketplace=value.marketplace, query=value.query,
+        category=value.category, product_use=value.product_use,
+        category_form_factor=value.category_form_factor, condition=value.condition,
+        locale=value.locale, result_surface=value.result_surface,
+        window_started_at=value.window_started_at, window_ended_at=value.window_ended_at,
+        artifact=artifact, bound_start=value.bound_start, bound_end=value.bound_end,
+        operator_id=operator_id, cards=cards,
+    )
+
+
+def _demand_v2_payload(result) -> dict[str, object]:
+    publication = result.publication
+    observation = publication.observation
+    assessment = demand_v2_assessment_to_data(publication.assessment)
+    return {
+        "opportunity_id": publication.opportunity_id,
+        "subject": subject_to_data(observation.subject),
+        "observation": {"observation_id": observation.observation_id,
+            "observed_at": observation.observed_at.isoformat(),
+            "schema_version": observation.schema_version,
+            "policy_version": publication.assessment.policy_version},
+        "market_intent": demand_v2_market_intent_to_data(observation.market_intent),
+        "comparable_response": {"cohort_id": observation.comparable_cohort.cohort_id,
+            "manifest": demand_v2_cohort_manifest_to_data(observation.comparable_cohort.manifest),
+            "reviews": [demand_v2_review_to_data(value) for value in observation.reviews],
+            "status": assessment["comparable_response_status"],
+            "aggregates": assessment["review_aggregates"],
+            "confidence": assessment["comparable_response_confidence"]},
+        "optional_enrichment": {
+            "ratings": [demand_v2_rating_to_data(value) for value in observation.ratings],
+            "rating_aggregates": assessment["rating_aggregates"],
+            "provider_signals": [demand_v2_provider_signal_to_data(value) for value in observation.provider_signals]},
+        "target_traction": {"outcome": observation.target_traction_outcome.value},
+        "assessment": assessment,
+        "receipt": {"state": "replayed" if result.replayed else "aliased" if result.aliased else "committed",
+            "replayed": result.replayed, "aliased": result.aliased,
+            "generated_at": publication.generated_at.isoformat(),
+            "committed_at": publication.committed_at.isoformat()},
+    }
+
+
+@app.post(
+    "/api/v2/opportunities/{opportunity_id}/demand-observations",
+    status_code=201,
+    response_model=DemandV2AdmissionResponse,
+)
+def finalize_demand_v2_observation(
+    opportunity_id: str,
+    request: DemandV2HistoricalAdmissionRequest | DemandV2TargetAdmissionRequest,
+    response: Response,
+    service: FinalizeDemandV2Admission = Depends(get_demand_v2_admission_service),
+):
+    try:
+        subject = (
+            NewToMarketDomesticSellingTargetIdentity(request.subject.domestic_selling_target_id)
+            if isinstance(request, DemandV2TargetAdmissionRequest)
+            else MarketObservationIdentity(**request.identity.model_dump())
+        )
+        comparable = request.comparable_response
+        result = service.execute(FinalizeDemandV2AdmissionCommand(
+            opportunity_id=opportunity_id, command_id=request.command_id,
+            operator_id=request.operator_id, submitted_at=request.submitted_at,
+            submission=DemandV2Submission(
+                subject=subject, market_intent=_demand_v2_market_intent(request.market_intent),
+                cohort_source=_demand_v2_cohort(comparable.cohort, subject, request.operator_id),
+                reviews=tuple(_demand_v2_review(value) for value in comparable.reviews),
+                ratings=tuple(_demand_v2_rating(value) for value in comparable.ratings),
+                provider_signals=tuple(_demand_v2_provider_signal(value) for value in comparable.provider_signals),
+            ),
+        ))
+        response.status_code = 200 if result.replayed or result.aliased else 201
+        return _demand_v2_payload(result)
+    except DemandV2AdmissionNotFoundError as error:
+        raise HTTPException(status_code=404, detail="opportunity not found") from error
+    except DemandV2AdmissionConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (DemandV2AdmissionUnavailableError, DemandV2PersistenceError, sqlite3.Error) as error:
+        raise HTTPException(status_code=503, detail="Demand v2 admission unavailable") from error
 
 
 @app.post("/api/v1/opportunities/{opportunity_id}/demand-observations", status_code=201)

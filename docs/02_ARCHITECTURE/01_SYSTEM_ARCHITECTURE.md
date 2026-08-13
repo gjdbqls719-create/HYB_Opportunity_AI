@@ -9,6 +9,16 @@ versioned deterministic compatibility identity without migration or writes.
 Receipts and existing command/cohort fingerprints remain cohort-based and
 unchanged.
 
+## Demand v2 evidence foundation (CR-1B7D4G)
+
+Demand v2 is an additive authority boundary beside Demand v1. It persists one
+provider-scoped Market Intent fact family and one immutable bounded Comparable
+Market Response family, with optional rating/provider envelopes. Demand v2 has
+dedicated publication, current-projection, receipt, fingerprint, observation,
+assessment, and policy namespaces. It may pin an immutable Competition v2
+cohort, but Demand owns its listing review/rating facts and never copies a
+Competition assessment. No Decision Composition v2 or DMV v2 wiring is added.
+
 ## Demand v2 evidence authority direction
 
 ADR-0062 preserves Demand v1 and introduces a separate, not-yet-implemented

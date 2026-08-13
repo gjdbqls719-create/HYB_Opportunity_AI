@@ -13,6 +13,19 @@
   replay, schema, corruption, legacy stability, and transaction tests.
 - Do not implement Demand v2, call production APIs, or mutate the genuine DB.
 
+## CR-1B7D4G - Demand v2 Evidence Foundation
+
+- Implemented Demand v2 provider-field, artifact, bounded cohort, listing review,
+  optional rating/provider-signal, observation, and assessment contracts.
+- Added deterministic family-level coverage, confidence, aggregate,
+  availability, and conclusion semantics without blended confidence.
+- Added operational-subject admission, server-owned authority, replay/alias
+  receipts, immutable Competition cohort references, and dedicated SQLite v2
+  publication/current/receipt persistence.
+- Added the exact Demand v2 POST route and OpenAPI surface while preserving v1.
+- Added synthetic tests only; no genuine provider facts, production API call,
+  production database mutation, Decision Composition v2, or DMV v2 admission.
+
 ## CR-1B7D4F - New-to-Market Demand v2 Evidence Authority Decision
 
 - Accept ADR-0062 and architecture-resolve FR-015 with two mandatory pre-listing Demand v2 core families: one provider-scoped KR query/search count and one immutable bounded comparable-organic-listing review-response cohort.

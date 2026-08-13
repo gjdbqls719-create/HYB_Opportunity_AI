@@ -9,6 +9,23 @@ response exposes `observation_id`, `observation_identity_kind`, and
 are unchanged. Legacy publications expose a deterministic, explicitly labeled
 compatibility identity without database backfill.
 
+## Demand v2 admission (CR-1B7D4G)
+
+`POST /api/v2/opportunities/{opportunity_id}/demand-observations` admits a
+historical MarketObservationIdentity or a New-to-Market target subject. The
+request carries exact provider-field Market Intent evidence and either a
+Demand-owned bounded cohort or an immutable Competition v2 cohort reference,
+plus one review outcome for every included organic comparable. Observation,
+cohort and assessment identifiers and generated/committed timestamps are
+server-owned. Exact command replay returns the committed publication; an
+equivalent authority under a new command creates only an alias receipt.
+
+The response exposes the subject, observation/policy versions, raw evidence,
+cohort authority, review coverage/aggregates, family confidences, optional
+enrichment, target-traction state, deterministic conclusion, and receipt state.
+Malformed values return 422, authority conflicts return 409, missing
+opportunities return 404, and unavailable persistence returns 503.
+
 ## New-to-Market KR Selling Target Admission Direction
 
 CR-1B7D3 implements the separate ADR-0060 route:

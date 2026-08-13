@@ -11,9 +11,15 @@ this ADR's future source reference. Demand must pin that identity and
 `cohort_id` to the same one-to-one Competition publication; this clarification
 does not implement or admit Demand v2.
 
-Architecture decision only. Demand v2 Domain, analysis, admission, persistence,
-API, provider integration, Decision Composition, and Domestic Market Validation
-support are not implemented. Demand v1 remains implemented and unchanged.
+CR-1B7D4G implements this decision as an additive Demand v2 foundation. The
+domain model, deterministic assessment, admission service, exact v2 POST route,
+and dedicated SQLite publication/current/receipt namespace are implemented.
+This status does not assert genuine Demand admission, provider availability,
+Decision Composition v2, or DMV v2.
+
+Demand v1 remains implemented and unchanged. Provider integration, Decision
+Composition v2, Domestic Market Validation v2, and genuine Demand admission are
+not implemented.
 
 This ADR architecture-resolves FR-015, the missing authoritative pre-listing
 Demand semantics for a genuine new-to-market target. It does not admit genuine
@@ -221,9 +227,11 @@ copying it when all of the following match the Demand purpose:
 - comparability policy and included organic cards;
 - artifact and cohort integrity fingerprint.
 
-The reference must pin the Competition v2 observation ID, cohort ID, cohort
-schema/policy version, and integrity fingerprint. The Demand repository must
-reconstruct that exact source. It must not select the latest cohort.
+The reference must pin the Competition v2 observation ID, observation identity
+kind/version, cohort ID, cohort schema/policy version, and integrity fingerprint.
+Demand resolves both issued and legacy-compatibility observation identities
+through Competition authority, validates the exact observation/cohort pair, and
+must not derive an observation ID or select the latest cohort.
 
 Demand then supplies separate review/rating facts tied to the pinned cards and
 derives only Demand aggregates. It may not copy `competition_level`, price
