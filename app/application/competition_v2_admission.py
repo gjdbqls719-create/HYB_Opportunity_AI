@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from typing import Callable
+from uuid import uuid4
 
 from app.application.operational_opportunity_eligibility import (
     OperationalOpportunityBindingConflictError,
@@ -14,6 +15,9 @@ from app.application.operational_opportunity_eligibility import (
 from app.domain.market_intelligence.competition_v2 import (
     CompetitionV2Assessment,
     CompetitionV2Cohort,
+    CompetitionV2ObservationIdentity,
+    CompetitionV2ObservationIdentityKind,
+    COMPETITION_V2_OBSERVATION_IDENTITY_VERSION,
     analyze_competition_v2,
     cohort_to_data,
 )
@@ -66,6 +70,11 @@ class CompetitionV2Publication:
     cohort: CompetitionV2Cohort
     assessment: CompetitionV2Assessment
     committed_at: datetime
+    observation_identity: CompetitionV2ObservationIdentity
+
+    @property
+    def observation_id(self) -> str:
+        return self.observation_identity.observation_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,9 +85,11 @@ class CompetitionV2AdmissionResult:
 
 
 class FinalizeCompetitionV2Admission:
-    def __init__(self, opportunities, repository, *, clock: Callable[[], datetime] | None = None):
+    def __init__(self, opportunities, repository, *, clock: Callable[[], datetime] | None = None,
+                 observation_id_generator: Callable[[], str] | None = None):
         self._opportunities, self._repository = opportunities, repository
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._observation_id = observation_id_generator or (lambda: str(uuid4()))
 
     def execute(self, command: FinalizeCompetitionV2AdmissionCommand) -> CompetitionV2AdmissionResult:
         fingerprint = command.fingerprint()
@@ -112,9 +123,21 @@ class FinalizeCompetitionV2Admission:
             self._repository.save_alias_receipt(command.command_id, fingerprint, command.cohort.cohort_id,
                 command.opportunity_id, command.operator_id, self._clock())
             return CompetitionV2AdmissionResult(existing, False, True)
+        try:
+            self._repository.require_current_schema_for_write()
+        except Exception as error:
+            raise CompetitionV2AdmissionUnavailableError(
+                "Competition v2 observation identity schema upgrade is required"
+            ) from error
+        observation_identity = CompetitionV2ObservationIdentity(
+            self._observation_id(),
+            CompetitionV2ObservationIdentityKind.ISSUED,
+            COMPETITION_V2_OBSERVATION_IDENTITY_VERSION,
+        )
         committed_at = self._clock()
         publication = CompetitionV2Publication(command.opportunity_id, command.cohort,
-            analyze_competition_v2(command.cohort, generated_at=committed_at), committed_at)
+            analyze_competition_v2(command.cohort, generated_at=committed_at), committed_at,
+            observation_identity)
         try:
             self._repository.finalize(publication, command.command_id, fingerprint,
                 authority_fingerprint, command.operator_id)

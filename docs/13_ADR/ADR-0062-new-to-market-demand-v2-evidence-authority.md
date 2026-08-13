@@ -6,6 +6,11 @@ Accepted
 
 ## Implementation Status
 
+ADR-0063 supplies the distinct Competition observation identity required by
+this ADR's future source reference. Demand must pin that identity and
+`cohort_id` to the same one-to-one Competition publication; this clarification
+does not implement or admit Demand v2.
+
 Architecture decision only. Demand v2 Domain, analysis, admission, persistence,
 API, provider integration, Decision Composition, and Domestic Market Validation
 support are not implemented. Demand v1 remains implemented and unchanged.

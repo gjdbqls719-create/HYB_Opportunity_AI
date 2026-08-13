@@ -1292,6 +1292,9 @@ class CompetitionV2TargetAdmissionRequest(BaseModel):
 
 class CompetitionV2AdmissionResponse(BaseModel):
     opportunity_id: str
+    observation_id: str
+    observation_identity_kind: str
+    observation_identity_version: str
     subject: dict[str, Any]
     cohort: dict[str, Any]
     artifact: dict[str, str]
@@ -8812,6 +8815,9 @@ def _competition_v2_payload(result) -> dict[str, object]:
     assessment = assessment_to_data(publication.assessment)
     return {
         "opportunity_id": publication.opportunity_id,
+        "observation_id": publication.observation_identity.observation_id,
+        "observation_identity_kind": publication.observation_identity.identity_kind.value,
+        "observation_identity_version": publication.observation_identity.identity_version,
         "subject": subject_to_data(publication.cohort.subject),
         "cohort": cohort,
         "artifact": {"reference": publication.cohort.artifact_reference, "sha256": publication.cohort.artifact_sha256},

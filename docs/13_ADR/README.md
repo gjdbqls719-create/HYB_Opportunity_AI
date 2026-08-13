@@ -69,3 +69,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0060: New-to-Market KR Selling Target Authority](ADR-0060-new-to-market-kr-selling-target-authority.md)
 - [ADR-0061: Coupang Rocket Competition Evidence Authority](ADR-0061-coupang-rocket-competition-evidence-authority.md)
 - [ADR-0062: New-to-Market Demand v2 Evidence Authority](ADR-0062-new-to-market-demand-v2-evidence-authority.md)
+- [ADR-0063: Competition v2 Observation and Publication Identity Authority](ADR-0063-competition-v2-observation-publication-identity-authority.md)

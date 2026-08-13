@@ -6,6 +6,8 @@ from decimal import Decimal
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Mapping
+import hashlib
+import json
 import re
 
 from app.domain.market_intelligence.assessment_subject import (
@@ -22,6 +24,8 @@ COMPETITION_V2_ASSESSMENT_VERSION = "competition-assessment-v2"
 COUPANG_ROCKET_SIGNAL_VERSION = "coupang-rocket-signal-v1"
 COUPANG_ROCKET_TAXONOMY_VERSION = "coupang-rocket-taxonomy-v1"
 BOUNDED_COHORT_POLICY_VERSION = "bounded-comparable-cohort-v1"
+COMPETITION_V2_OBSERVATION_IDENTITY_VERSION = "competition-observation-identity-v1"
+COMPETITION_V2_LEGACY_OBSERVATION_IDENTITY_VERSION = "competition-observation-legacy-compatibility-v1"
 
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _LABELS = {
@@ -29,6 +33,60 @@ _LABELS = {
     "\ub85c\ucf13\ubc30\uc1a1": "rocket_delivery",
     "\ub85c\ucf13\uadf8\ub85c\uc2a4": "rocket_growth",
 }
+
+
+class CompetitionV2ObservationIdentityKind(StrEnum):
+    ISSUED = "issued"
+    LEGACY_COMPATIBILITY = "legacy_compatibility"
+
+
+@dataclass(frozen=True, slots=True)
+class CompetitionV2ObservationIdentity:
+    observation_id: str
+    identity_kind: CompetitionV2ObservationIdentityKind
+    identity_version: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.observation_id, str) or not self.observation_id.strip():
+            raise ValueError("observation_id must be non-empty text")
+        kind = CompetitionV2ObservationIdentityKind(self.identity_kind)
+        expected_version = (
+            COMPETITION_V2_OBSERVATION_IDENTITY_VERSION
+            if kind is CompetitionV2ObservationIdentityKind.ISSUED
+            else COMPETITION_V2_LEGACY_OBSERVATION_IDENTITY_VERSION
+        )
+        if self.identity_version != expected_version:
+            raise ValueError("observation identity kind/version mismatch")
+        if kind is CompetitionV2ObservationIdentityKind.LEGACY_COMPATIBILITY:
+            prefix = "legacy-competition-v2-observation-v1:"
+            digest = self.observation_id.removeprefix(prefix)
+            if not self.observation_id.startswith(prefix) or not _SHA256.fullmatch(digest):
+                raise ValueError("legacy compatibility observation ID is malformed")
+        object.__setattr__(self, "observation_id", self.observation_id.strip())
+        object.__setattr__(self, "identity_kind", kind)
+
+
+def legacy_competition_v2_observation_identity(
+    cohort_id: str,
+    authority_fingerprint: str,
+) -> CompetitionV2ObservationIdentity:
+    if not isinstance(cohort_id, str) or not cohort_id.strip():
+        raise ValueError("cohort_id must be non-empty text")
+    if not isinstance(authority_fingerprint, str) or not _SHA256.fullmatch(authority_fingerprint):
+        raise ValueError("authority_fingerprint must be 64 hexadecimal characters")
+    payload = {
+        "authority_fingerprint": authority_fingerprint.lower(),
+        "cohort_id": cohort_id.strip(),
+        "namespace": "competition-v2-legacy-observation-identity",
+        "version": COMPETITION_V2_LEGACY_OBSERVATION_IDENTITY_VERSION,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return CompetitionV2ObservationIdentity(
+        f"legacy-competition-v2-observation-v1:{digest}",
+        CompetitionV2ObservationIdentityKind.LEGACY_COMPATIBILITY,
+        COMPETITION_V2_LEGACY_OBSERVATION_IDENTITY_VERSION,
+    )
 
 
 class ResultPlacement(StrEnum):

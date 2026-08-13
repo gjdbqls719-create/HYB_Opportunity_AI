@@ -1,5 +1,14 @@
 # HYB System Architecture
 
+## Competition v2 observation identity
+
+ADR-0063 separates server-owned Competition v2 publication identity from the
+caller-declared immutable bounded cohort identity. Current schemas persist a
+one-to-one append-only observation/cohort mapping. Legacy schemas reconstruct a
+versioned deterministic compatibility identity without migration or writes.
+Receipts and existing command/cohort fingerprints remain cohort-based and
+unchanged.
+
 ## Demand v2 evidence authority direction
 
 ADR-0062 preserves Demand v1 and introduces a separate, not-yet-implemented

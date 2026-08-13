@@ -1,5 +1,18 @@
 # HYB Changelog
 
+## Competition v2 Observation Identity Correction
+
+- Accept ADR-0063 and distinguish server-owned Competition publication identity
+  from immutable bounded cohort identity with strict one-to-one cardinality.
+- Add atomic append-only identity persistence for new publications and
+  deterministic read-only compatibility identity reconstruction for legacy
+  rows, without migration or backfill.
+- Preserve Competition receipts, command fingerprints, cohort authority
+  fingerprints, raw manifests, assessments, and existing request fields.
+- Add server-owned identity response/OpenAPI fields and focused synthetic
+  replay, schema, corruption, legacy stability, and transaction tests.
+- Do not implement Demand v2, call production APIs, or mutate the genuine DB.
+
 ## CR-1B7D4F - New-to-Market Demand v2 Evidence Authority Decision
 
 - Accept ADR-0062 and architecture-resolve FR-015 with two mandatory pre-listing Demand v2 core families: one provider-scoped KR query/search count and one immutable bounded comparable-organic-listing review-response cohort.

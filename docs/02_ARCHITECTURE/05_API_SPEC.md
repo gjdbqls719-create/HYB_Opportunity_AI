@@ -1,5 +1,14 @@
 # HYB API Specification
 
+## Competition v2 observation identity
+
+`POST /api/v2/opportunities/{opportunity_id}/competition-observations` does not
+accept an observation ID. The server issues it for a new publication and the
+response exposes `observation_id`, `observation_identity_kind`, and
+`observation_identity_version`. Existing cohort and assessment response fields
+are unchanged. Legacy publications expose a deterministic, explicitly labeled
+compatibility identity without database backfill.
+
 ## New-to-Market KR Selling Target Admission Direction
 
 CR-1B7D3 implements the separate ADR-0060 route:

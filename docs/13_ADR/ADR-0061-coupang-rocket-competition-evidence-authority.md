@@ -6,6 +6,10 @@ Accepted
 
 ## Implementation Status
 
+ADR-0063 additively distinguishes the server-owned Competition v2 observation
+and publication identity from this ADR's immutable bounded `cohort_id`. It does
+not alter this ADR's cohort facts, assessment, receipts, or fingerprints.
+
 Implemented in CR-1B7D4E at the Domain, Application, additive SQLite, and
 dedicated API v2/OpenAPI boundaries. The implementation derives core and
 Coupang signal facts from an immutable bounded card manifest, supports both
