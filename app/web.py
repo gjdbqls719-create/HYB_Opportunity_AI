@@ -31,6 +31,7 @@ from app.domain.market_intelligence.demand_v2 import (
     review_to_data as demand_v2_review_to_data,
 )
 from app.infrastructure.market_observation.demand_v2_sqlite_repository import (
+    DemandV2CorruptionError,
     DemandV2PersistenceError,
     SQLiteDemandV2Repository,
 )
@@ -42,7 +43,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from decimal import Decimal, InvalidOperation
 import sqlite3
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import requests
 
@@ -560,6 +561,11 @@ from app.application.domestic_market_validation import (
     DomesticMarketValidationSourceNotFoundError,
     ValidateDomesticMarketForCapital,
 )
+from app.application.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2SourceConflictError,
+    DomesticMarketValidationV2SourceNotFoundError,
+    ValidateDomesticMarketV2ForCapital,
+)
 from app.application.review import (
     ApproveCandidateCommand,
     CancelReviewCommand,
@@ -602,6 +608,8 @@ from app.domain.market_intelligence.competition_v2 import (
     subject_to_data,
 )
 from app.infrastructure.market_observation.competition_v2_sqlite_repository import (
+    CompetitionV2CorruptionError,
+    CompetitionV2PersistenceError,
     SQLiteCompetitionV2Repository,
 )
 from app.domain.market_intelligence import (
@@ -764,6 +772,9 @@ from app.infrastructure.domestic_market_validation import (
     DomesticMarketValidationPersistenceError,
     ProductionDomesticMarketValidationIdentityGenerator,
     SQLiteDomesticMarketValidationRepository,
+)
+from app.infrastructure.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2SourceRepositoryAdapter,
 )
 from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
 from app.infrastructure.snapshot_chain_identity import (
@@ -1558,6 +1569,93 @@ class CompetitionV2AdmissionResponse(BaseModel):
     coupang_signal: dict[str, Any] | None
     assessment: dict[str, Any]
     receipt: dict[str, Any]
+
+
+class DomesticMarketValidationV2TargetIdentityResponse(BaseModel):
+    domestic_selling_target_id: str
+    market: str
+    kind: str
+    schema_version: str
+
+
+class DomesticMarketValidationV2TargetBindingResponse(BaseModel):
+    opportunity_id: str
+    discovery_reference: str
+    target_identity: DomesticMarketValidationV2TargetIdentityResponse
+    bound_at: datetime
+    schema_version: str
+
+
+class DomesticMarketValidationV2CompetitionIdentityResponse(BaseModel):
+    observation_id: str
+    identity_kind: str
+    identity_version: str
+
+
+class DomesticMarketValidationV2CompetitionSourceResponse(BaseModel):
+    observation_identity: DomesticMarketValidationV2CompetitionIdentityResponse
+    cohort_id: str
+    authority_fingerprint: str
+    observation_schema_version: str
+    cohort_policy_version: str
+    assessment_schema_version: str
+    assessment_policy_version: str
+    availability: str
+    generated_at: datetime
+    committed_at: datetime
+    artifact_reference: str
+    artifact_sha256: str
+
+
+class DomesticMarketValidationV2CompetitionReferenceResponse(BaseModel):
+    competition_observation_id: str
+    observation_identity_kind: str
+    observation_identity_version: str
+    cohort_id: str
+    authority_fingerprint: str
+    observation_schema_version: str
+    cohort_policy_version: str
+    artifact_reference: str
+    artifact_sha256: str
+
+
+class DomesticMarketValidationV2DemandSourceResponse(BaseModel):
+    observation_id: str
+    assessment_id: str
+    comparable_cohort_id: str
+    authority_fingerprint: str
+    observation_schema_version: str
+    assessment_schema_version: str
+    assessment_policy_version: str
+    comparable_cohort_version: str
+    market_intent_status: str
+    comparable_response_status: str
+    availability: str
+    generated_at: datetime
+    committed_at: datetime
+    source_competition_cohort: (
+        DomesticMarketValidationV2CompetitionReferenceResponse | None
+    )
+
+
+class DomesticMarketValidationV2SourceManifestResponse(BaseModel):
+    target_binding: DomesticMarketValidationV2TargetBindingResponse
+    competition: DomesticMarketValidationV2CompetitionSourceResponse
+    demand: DomesticMarketValidationV2DemandSourceResponse
+    schema_version: str
+
+
+class DomesticMarketValidationV2SourcePreviewResponse(BaseModel):
+    opportunity_id: str
+    source_manifest: DomesticMarketValidationV2SourceManifestResponse
+    source_manifest_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+
+
+class DomesticMarketValidationV2SourcePreviewQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    competition_observation_id: str = Field(min_length=1)
+    demand_observation_id: str = Field(min_length=1)
 
 
 class StartReviewRequest(BaseModel):
@@ -5346,6 +5444,41 @@ def get_competition_v2_admission_service():
         yield FinalizeCompetitionV2Admission(opportunities, repository)
     finally:
         repository.close(); opportunities.close()
+
+
+def _domestic_market_validation_v2_preview_only_supplier():
+    raise RuntimeError("DMV v2 source preview must not issue identities or times")
+
+
+def get_domestic_market_validation_v2_source_preview():
+    targets = competition = demand = None
+    try:
+        targets = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+        competition = SQLiteCompetitionV2Repository(DEFAULT_DATABASE_PATH)
+        demand = SQLiteDemandV2Repository(DEFAULT_DATABASE_PATH)
+        sources = DomesticMarketValidationV2SourceRepositoryAdapter(
+            targets, competition, demand,
+        )
+        yield ValidateDomesticMarketV2ForCapital(
+            sources,
+            assessment_id_generator=(
+                _domestic_market_validation_v2_preview_only_supplier
+            ),
+            evaluated_clock=_domestic_market_validation_v2_preview_only_supplier,
+        )
+    except (
+        CompetitionV2PersistenceError,
+        DemandV2PersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Domestic Market Validation v2 source preview unavailable",
+        ) from error
+    finally:
+        for resource in (demand, competition, targets):
+            if resource is not None:
+                resource.close()
 
 
 def get_demand_admission_service():
@@ -9450,6 +9583,123 @@ def finalize_demand_observation(opportunity_id: str, request: DemandObservationA
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (DemandAdmissionUnavailableError, sqlite3.Error) as error:
         raise HTTPException(status_code=503, detail="demand admission unavailable") from error
+
+
+def _domestic_market_validation_v2_competition_reference_payload(value):
+    if value is None:
+        return None
+    return {
+        "competition_observation_id": value.competition_observation_id,
+        "observation_identity_kind": value.observation_identity_kind,
+        "observation_identity_version": value.observation_identity_version,
+        "cohort_id": value.cohort_id,
+        "authority_fingerprint": value.authority_fingerprint,
+        "observation_schema_version": value.observation_schema_version,
+        "cohort_policy_version": value.cohort_policy_version,
+        "artifact_reference": value.artifact_reference,
+        "artifact_sha256": value.artifact_sha256,
+    }
+
+
+def _domestic_market_validation_v2_source_preview_payload(manifest):
+    binding = manifest.target_binding
+    target = binding.target_identity
+    competition = manifest.competition
+    demand = manifest.demand
+    return {
+        "opportunity_id": binding.opportunity_id,
+        "source_manifest": {
+            "target_binding": {
+                "opportunity_id": binding.opportunity_id,
+                "discovery_reference": binding.discovery_reference,
+                "target_identity": {
+                    "domestic_selling_target_id": target.domestic_selling_target_id,
+                    "market": target.market,
+                    "kind": target.kind.value,
+                    "schema_version": target.schema_version,
+                },
+                "bound_at": binding.bound_at,
+                "schema_version": binding.schema_version,
+            },
+            "competition": {
+                "observation_identity": {
+                    "observation_id": competition.observation_identity.observation_id,
+                    "identity_kind": competition.observation_identity.identity_kind.value,
+                    "identity_version": competition.observation_identity.identity_version,
+                },
+                "cohort_id": competition.cohort_id,
+                "authority_fingerprint": competition.authority_fingerprint,
+                "observation_schema_version": competition.observation_schema_version,
+                "cohort_policy_version": competition.cohort_policy_version,
+                "assessment_schema_version": competition.assessment_schema_version,
+                "assessment_policy_version": competition.assessment_policy_version,
+                "availability": competition.availability.value,
+                "generated_at": competition.generated_at,
+                "committed_at": competition.committed_at,
+                "artifact_reference": competition.artifact_reference,
+                "artifact_sha256": competition.artifact_sha256,
+            },
+            "demand": {
+                "observation_id": demand.observation_id,
+                "assessment_id": demand.assessment_id,
+                "comparable_cohort_id": demand.comparable_cohort_id,
+                "authority_fingerprint": demand.authority_fingerprint,
+                "observation_schema_version": demand.observation_schema_version,
+                "assessment_schema_version": demand.assessment_schema_version,
+                "assessment_policy_version": demand.assessment_policy_version,
+                "comparable_cohort_version": demand.comparable_cohort_version,
+                "market_intent_status": demand.market_intent_status.value,
+                "comparable_response_status": demand.comparable_response_status.value,
+                "availability": demand.availability.value,
+                "generated_at": demand.generated_at,
+                "committed_at": demand.committed_at,
+                "source_competition_cohort": (
+                    _domestic_market_validation_v2_competition_reference_payload(
+                        demand.source_competition_cohort
+                    )
+                ),
+            },
+            "schema_version": manifest.schema_version,
+        },
+        "source_manifest_fingerprint": manifest.fingerprint,
+    }
+
+
+@app.get(
+    "/api/v2/opportunities/{opportunity_id}/domestic-market-validations/source-manifest",
+    response_model=DomesticMarketValidationV2SourcePreviewResponse,
+)
+def preview_domestic_market_validation_v2_source_manifest(
+    opportunity_id: str,
+    query: Annotated[DomesticMarketValidationV2SourcePreviewQuery, Query()],
+    service: ValidateDomesticMarketV2ForCapital = Depends(
+        get_domestic_market_validation_v2_source_preview
+    ),
+):
+    try:
+        manifest = service.resolve_source_manifest(
+            opportunity_id,
+            query.competition_observation_id,
+            query.demand_observation_id,
+        )
+        return _domestic_market_validation_v2_source_preview_payload(manifest)
+    except DomesticMarketValidationV2SourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except DomesticMarketValidationV2SourceConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        CompetitionV2PersistenceError,
+        CompetitionV2CorruptionError,
+        DemandV2PersistenceError,
+        DemandV2CorruptionError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Domestic Market Validation v2 source preview unavailable",
+        ) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 def _sourcing_money_payload(value) -> dict[str, object]:

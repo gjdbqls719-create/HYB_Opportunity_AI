@@ -404,8 +404,14 @@ def test_sqlite_round_trip_restart_current_and_corruption_detection(tmp_path, mo
         assessment_id_generator=lambda: "persisted-assessment", generated_clock=lambda: NOW,
         committed_clock=lambda: NOW).execute(_command())
     assert repository.get_current_publication(subject) == result.publication
+    assert repository.get_authority_fingerprint("persisted-observation") == (
+        repository.get_receipt("command-1")["authority_fingerprint"]
+    )
     repository.close(); reopened = SQLiteDemandV2Repository(path)
     assert reopened.get_publication("persisted-observation") == result.publication
+    assert reopened.get_authority_fingerprint("persisted-observation") == (
+        reopened.get_receipt("command-1")["authority_fingerprint"]
+    )
     reopened.close(); connection = sqlite3.connect(path)
     connection.execute("DROP TRIGGER trg_demand_v2_publications_no_update")
     connection.execute("UPDATE demand_v2_publications SET assessment_json='{}'")

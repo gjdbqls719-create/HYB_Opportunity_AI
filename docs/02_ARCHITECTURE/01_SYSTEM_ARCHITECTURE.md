@@ -1,5 +1,20 @@
 # HYB System Architecture
 
+## Domestic Market Validation v2 source preview (PR B1.5)
+
+DMV v2 now has one read-only production composition boundary over the existing
+ADR-0060 target-binding, Competition v2 publication, and Demand v2 publication
+owners. A stateless adapter delegates exact named reads and the API invokes the
+same `ValidateDomesticMarketV2ForCapital.resolve_source_manifest` used by the
+authority core. The deterministic response fingerprint is the existing Domain
+manifest fingerprint; no API hash, latest-source lookup, copied publication, or
+new table exists.
+
+Preview reads create no assessment, verification, state, identity, clock value,
+history, or receipt. They allow the Founder to review one exact manifest before
+creating the explicit current-use verification required by ADR-0064. The final
+DMV v2 POST and production persistence composition remain deferred to PR B2.
+
 ## Competition v2 observation identity
 
 ADR-0063 separates server-owned Competition v2 publication identity from the

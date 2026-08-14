@@ -403,7 +403,33 @@ or demand level. Manual evidence requires immutable artifact/reference and
 SHA-256 facts; future collectors target the same provider envelope. V1 and v2
 must use separate observation/assessment/policy schemas, persistence/current
 projections, fingerprints, receipts, and replay namespaces. No provider
-integration, Decision Composition v2, or DMV v2 currently exists.
+integration or Decision Composition v2 currently exists. DMV v2 has only the
+read-only source-manifest preview described below; its final validation POST is
+not implemented yet.
+
+### Domestic Market Validation v2 source-manifest preview
+
+`GET /api/v2/opportunities/{opportunity_id}/domestic-market-validations/source-manifest`
+requires the exact `competition_observation_id` and `demand_observation_id` as
+query parameters. It resolves the existing ADR-0060 target binding and the two
+named immutable v2 publications through the same Application resolver used by
+final DMV v2 validation. It never selects a latest/current source.
+
+The response contains `opportunity_id`, the exact approved
+`source_manifest` (target binding, Competition pin, Demand pin, optional exact
+Competition cohort reference, and manifest schema version), and exactly
+`DomesticMarketValidationV2SourceManifest.fingerprint` as
+`source_manifest_fingerprint`. It contains no assessment, verification,
+receipt, state, Capital decision, profitability, or raw upstream evidence.
+
+The read creates no identity, timestamp, history, receipt, or other persisted
+fact. A 404 means an exact named source or target binding is absent; a 409 means
+target/source/cross-authority lineage conflicts; malformed query input returns
+422; bounded source persistence/corruption failures return 503 without storage
+details. Reading the response is not current-use verification. The operator
+must review it and later copy its exact fingerprint into an explicit
+`DomesticMarketVerificationV2`; the future final DMV v2 POST independently
+resolves the same named sources and enforces equality.
 
 ## Domestic Market Validation production entry
 

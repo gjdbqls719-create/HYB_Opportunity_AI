@@ -115,6 +115,17 @@ class SQLiteDemandV2Repository:
         ).fetchone()
         return None if row is None else self.get_publication(row["observation_id"])
 
+    def get_authority_fingerprint(self, observation_id):
+        row = self._connection.execute(
+            "SELECT authority_fingerprint FROM demand_v2_publications WHERE observation_id=?",
+            (observation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        # Reconstruct first so a fingerprint is never exposed from malformed authority.
+        self.get_publication(observation_id)
+        return row["authority_fingerprint"]
+
     def get_publication(self, observation_id):
         row = self._connection.execute("SELECT * FROM demand_v2_publications WHERE observation_id=?", (observation_id,)).fetchone()
         if row is None:

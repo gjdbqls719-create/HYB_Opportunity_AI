@@ -12,8 +12,11 @@ reconstruction and integrity verification, and exact command replay. Persisted
 historical replay is resolved before live upstream source resolution and does
 not re-evaluate the trust policy.
 
-PR B2 remains responsible for the production API, OpenAPI, and production
-composition/wiring. This status does not claim those boundaries are implemented.
+PR B1.5 exposes the existing exact source-manifest resolver through a read-only
+production GET boundary. It creates no assessment, receipt, verification,
+state, identity, timestamp, or persistence fact. PR B2 remains responsible for
+the final validation POST and its persistence composition. This status does not
+claim that final write boundary is implemented.
 
 ## Context
 
@@ -91,6 +94,23 @@ Exact immutable source absence, target mismatch, publication mismatch, or the
 cross-authority mismatch above is instead a source/precondition error. DMV does
 not publish an assessment for those conditions.
 
+### Operational verification workflow
+
+The Founder/operator names one exact Competition v2 observation and one exact
+Demand v2 observation and reads the DMV v2 source-manifest preview. The preview
+delegates to the same Application resolver used by final validation and returns
+the existing manifest plus exactly
+`DomesticMarketValidationV2SourceManifest.fingerprint`; there is no preview
+fingerprint or latest-source selection.
+
+Reading the preview is not verification. After reviewing the returned target
+binding and source pins, the operator explicitly supplies that fingerprint in
+`DomesticMarketVerificationV2` with current-use confirmation. The future final
+POST must resolve the same named authorities again. A changed fingerprint is
+handled by the existing verification mismatch policy; the server never updates
+or substitutes the reviewed fingerprint. Preview retrieval performs no DMV
+history or receipt write and emits no assessment state.
+
 ## Time Contract
 
 DMV v2 adds no TTL or arbitrary freshness window. Existing authoritative target
@@ -129,5 +149,7 @@ a distinct trust event.
 PR A owns the ADR, v2 Domain contract, v2 Application use case/read ports, and
 focused authority tests. PR B1 owns only append-only SQLite assessment history
 and receipts, exact reconstruction/integrity checks, and replay persistence.
-PR B2 may add the v2 API/OpenAPI and production composition. Neither PR A nor
-PR B1 claims the PR B2 boundaries are implemented.
+PR B1.5 owns only the read-only source-manifest preview API and delegating
+production source adapter. PR B2 may add the final v2 validation POST and
+production persistence composition. PR A, PR B1, and PR B1.5 do not claim that
+final PR B2 write boundary is implemented.

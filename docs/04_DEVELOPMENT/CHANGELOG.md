@@ -1,5 +1,18 @@
 # HYB Changelog
 
+## PR B1.5 - Domestic Market Validation v2 Source Manifest Preview
+
+- Add a read-only v2 GET boundary that resolves one exact ADR-0060 target,
+  Competition v2 observation, and Demand v2 observation through the existing
+  PR A source-manifest resolver and returns its exact Domain fingerprint.
+- Add a stateless production adapter over the existing three source owners and
+  a validated Demand v2 fingerprint read; no source copy, latest selection,
+  DMV assessment, verification, state, history, receipt, identity, or clock is
+  created by preview.
+- Document the explicit Founder review workflow and keep the final DMV v2 POST,
+  persistence composition, replay HTTP contract, and final OpenAPI write model
+  deferred to PR B2. DMV v1 and upstream v2 authorities remain unchanged.
+
 ## PR B1 - Domestic Market Validation v2 Persistence and Replay Core
 
 - Add a separate append-only DMV v2 SQLite history and command-receipt
