@@ -1,5 +1,17 @@
 # HYB Changelog
 
+## PR A - Domestic Market Validation v2 Authority Core
+
+- Accept ADR-0064 and define DMV v2 as an additive Capital trust-admission
+  authority over the exact ADR-0060 target and exact Competition/Demand v2
+  publications.
+- Add deterministic source-manifest and command fingerprints, explicit
+  current-use verification, exact Competition/Demand cross-authority checks,
+  and v2-specific durable blocking reasons without a TTL or lifecycle version.
+- Add the read-only Application core and focused synthetic tests. SQLite
+  history/receipts, replay persistence, API/OpenAPI, and production wiring
+  remain deferred to PR B; DMV v1 and upstream v2 authorities are unchanged.
+
 ## CR-1B7D4H - Demand v2 Provider Evidence Semantic Preservation
 
 - Preserve the Founder-entered Market Intent query separately from an optional
