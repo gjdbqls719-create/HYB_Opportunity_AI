@@ -83,6 +83,14 @@ def _optional(value: str | None, name: str) -> str | None:
     return value.strip() or None
 
 
+def _optional_exact(value: str | None, name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be text or None")
+    return value if value.strip() else None
+
+
 def _aware(value: datetime, name: str) -> datetime:
     if not isinstance(value, datetime):
         raise TypeError(f"{name} must be datetime")
@@ -154,8 +162,8 @@ class MarketIntentEvidence:
     geography: str
     locale: str
     match_semantics: QueryMatchSemantics
-    period_started_at: datetime
-    period_ended_at: datetime
+    period_started_at: datetime | None
+    period_ended_at: datetime | None
     unit: str
     value: int | None
     source: str
@@ -172,18 +180,31 @@ class MarketIntentEvidence:
     device_scope: str | None = None
     result_surface: str | None = None
     schema_version: str = DEMAND_PROVIDER_EVIDENCE_VERSION
+    provider_returned_query: str | None = None
+    provider_period_label: str | None = None
 
     def __post_init__(self) -> None:
         outcome = DemandEvidenceOutcome(self.outcome)
         kind = ProviderFieldKind(self.provider_field_kind)
         if kind is not ProviderFieldKind.QUERY_COUNT:
             raise ValueError("Market Intent requires an explicit provider query-count field")
-        started = _aware(self.period_started_at, "period_started_at")
-        ended = _aware(self.period_ended_at, "period_ended_at")
+        if self.provider_returned_query is not None and not self.provider_returned_query.strip():
+            raise ValueError("provider_returned_query must be non-empty text")
+        if self.provider_period_label is not None and not self.provider_period_label.strip():
+            raise ValueError("provider_period_label must be non-empty text")
+        label = _optional_exact(self.provider_period_label, "provider_period_label")
+        has_started = self.period_started_at is not None
+        has_ended = self.period_ended_at is not None
+        if has_started != has_ended:
+            raise ValueError("exact provider period requires both start and end")
+        if has_started == (label is not None):
+            raise ValueError("provide exactly one provider period authority")
+        started = _aware(self.period_started_at, "period_started_at") if has_started else None
+        ended = _aware(self.period_ended_at, "period_ended_at") if has_ended else None
         observed = _aware(self.observed_at, "observed_at")
-        if ended < started:
+        if started is not None and ended < started:
             raise ValueError("period_ended_at cannot precede period_started_at")
-        if observed < started:
+        if started is not None and observed < started:
             raise ValueError("observed_at cannot precede the observation period")
         _validate_count(self.value, outcome, "market intent value")
         if not isinstance(self.artifact, DemandArtifactReference):
@@ -204,6 +225,10 @@ class MarketIntentEvidence:
         object.__setattr__(self, "reason", _evidence_reason(outcome, self.reason))
         for name in ("collector_name", "collector_version", "category", "device_scope", "result_surface"):
             object.__setattr__(self, name, _optional(getattr(self, name), name))
+        object.__setattr__(self, "provider_returned_query", _optional_exact(
+            self.provider_returned_query, "provider_returned_query"
+        ))
+        object.__setattr__(self, "provider_period_label", label)
         if self.schema_version != DEMAND_PROVIDER_EVIDENCE_VERSION:
             raise ValueError("unsupported Demand provider evidence version")
 
@@ -701,14 +726,12 @@ def artifact_to_data(value: DemandArtifactReference) -> dict[str, object]:
 
 
 def market_intent_to_data(value: MarketIntentEvidence) -> dict[str, object]:
-    return {
+    data = {
         "provider": value.provider, "provider_field_name": value.provider_field_name,
         "provider_schema_version": value.provider_schema_version,
         "provider_field_kind": value.provider_field_kind.value, "query": value.query,
         "market": value.market, "geography": value.geography, "locale": value.locale,
-        "match_semantics": value.match_semantics.value,
-        "period_started_at": value.period_started_at.isoformat(),
-        "period_ended_at": value.period_ended_at.isoformat(), "unit": value.unit,
+        "match_semantics": value.match_semantics.value, "unit": value.unit,
         "value": value.value, "source": value.source, "reference": value.reference,
         "artifact": artifact_to_data(value.artifact), "collection_method": value.collection_method,
         "observed_at": value.observed_at.isoformat(), "outcome": value.outcome.value,
@@ -718,6 +741,14 @@ def market_intent_to_data(value: MarketIntentEvidence) -> dict[str, object]:
         "device_scope": value.device_scope, "result_surface": value.result_surface,
         "schema_version": value.schema_version,
     }
+    if value.period_started_at is not None:
+        data["period_started_at"] = value.period_started_at.isoformat()
+        data["period_ended_at"] = value.period_ended_at.isoformat()
+    if value.provider_returned_query is not None:
+        data["provider_returned_query"] = value.provider_returned_query
+    if value.provider_period_label is not None:
+        data["provider_period_label"] = value.provider_period_label
+    return data
 
 
 def competition_reference_to_data(value: CompetitionCohortReference | None):

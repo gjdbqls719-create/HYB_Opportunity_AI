@@ -49,7 +49,7 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
@@ -1263,18 +1263,42 @@ class DemandV2ArtifactRequest(BaseModel):
 
 
 class DemandV2MarketIntentRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "oneOf": [
+            {"required": ["period_started_at", "period_ended_at"],
+             "not": {"required": ["provider_period_label"]}},
+            {"required": ["provider_period_label"],
+             "not": {"anyOf": [
+                 {"required": ["period_started_at"]},
+                 {"required": ["period_ended_at"]},
+             ]}},
+        ]
+    })
     provider_name: str = Field(min_length=1)
     provider_field_name: str = Field(min_length=1)
     provider_field_schema_version: str = Field(min_length=1)
     provider_field_kind: ProviderFieldKind
     query: str = Field(min_length=1)
+    provider_returned_query: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Exact provider-returned query; not an HYB normalization.",
+    )
     market: str = Field(min_length=1)
     geography: str = Field(min_length=1)
     locale: str = Field(min_length=1)
     query_match_semantics: QueryMatchSemantics
-    period_started_at: datetime
-    period_ended_at: datetime
+    period_started_at: datetime | None = Field(
+        default=None, description="Exact provider period start; requires period_ended_at."
+    )
+    period_ended_at: datetime | None = Field(
+        default=None, description="Exact provider period end; requires period_started_at."
+    )
+    provider_period_label: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Exact provider-native period label used instead of exact boundaries.",
+    )
     value_unit: str = Field(min_length=1)
     value: StrictInt | None = Field(default=None, ge=0)
     source: str = Field(min_length=1)
@@ -1290,6 +1314,20 @@ class DemandV2MarketIntentRequest(BaseModel):
     category: str | None = None
     device_scope: str | None = None
     result_surface: str | None = None
+
+    @model_validator(mode="after")
+    def validate_period_authority(self):
+        exact = self.period_started_at is not None or self.period_ended_at is not None
+        if exact and (
+            self.period_started_at is None or self.period_ended_at is None
+        ):
+            raise ValueError("exact provider period requires both start and end")
+        label = self.provider_period_label
+        if label is not None and not label.strip():
+            raise ValueError("provider_period_label must be non-empty text")
+        if exact == (label is not None):
+            raise ValueError("provide exactly one provider period authority")
+        return self
 
 
 class DemandV2ComparableCardRequest(BaseModel):
@@ -9224,6 +9262,8 @@ def _demand_v2_market_intent(value: DemandV2MarketIntentRequest) -> MarketIntent
         outcome=value.outcome, confidence=_request_decimal(value.confidence, "market_intent.confidence"),
         reason=value.reason, collector_name=value.collector_name, collector_version=value.collector_version,
         category=value.category, device_scope=value.device_scope, result_surface=value.result_surface,
+        provider_returned_query=value.provider_returned_query,
+        provider_period_label=value.provider_period_label,
     )
 
 

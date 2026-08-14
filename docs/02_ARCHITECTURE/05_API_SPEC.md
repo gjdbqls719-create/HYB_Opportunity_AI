@@ -26,6 +26,15 @@ enrichment, target-traction state, deterministic conclusion, and receipt state.
 Malformed values return 422, authority conflicts return 409, missing
 opportunities return 404, and unavailable persistence returns 503.
 
+Market Intent preserves the original `query` and, when the provider returns a
+distinct keyword/query, the optional exact `provider_returned_query`. The latter
+is provider evidence, not an HYB-normalized value. Exactly one period authority
+variant is required: both `period_started_at` and `period_ended_at`, or one
+non-empty `provider_period_label`. Partial, mixed, and absent period variants
+return 422; the server does not infer dates from a label. Both query facts and
+the selected period variant are returned, persisted, and included in command
+and evidence authority fingerprints.
+
 ## New-to-Market KR Selling Target Admission Direction
 
 CR-1B7D3 implements the separate ADR-0060 route:
@@ -377,7 +386,9 @@ command conflict 409, malformed domain input 422, and bounded infrastructure fai
 
 ADR-0062 reserves
 `POST /api/v2/opportunities/{opportunity_id}/demand-observations` for a new,
-non-reinterpreting contract. This route is not implemented.
+non-reinterpreting contract. CR-1B7D4G implements this route and its dedicated
+Domain/Application/SQLite authority; its existence does not authorize a genuine
+Demand admission.
 
 The v2 mandatory core submits one exact provider-scoped KR query/search count
 and one immutable bounded comparable-organic-listing cohort with raw per-card
@@ -392,8 +403,7 @@ or demand level. Manual evidence requires immutable artifact/reference and
 SHA-256 facts; future collectors target the same provider envelope. V1 and v2
 must use separate observation/assessment/policy schemas, persistence/current
 projections, fingerprints, receipts, and replay namespaces. No provider
-integration, Demand v2 runtime, Decision Composition v2, or DMV v2 currently
-exists.
+integration, Decision Composition v2, or DMV v2 currently exists.
 
 ## Domestic Market Validation production entry
 

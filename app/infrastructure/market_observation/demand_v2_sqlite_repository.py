@@ -244,12 +244,16 @@ def _observation_from_data(data):
         intent["provider"], intent["provider_field_name"], intent["provider_schema_version"],
         ProviderFieldKind(intent["provider_field_kind"]), intent["query"], intent["market"],
         intent["geography"], intent["locale"], QueryMatchSemantics(intent["match_semantics"]),
-        datetime.fromisoformat(intent["period_started_at"]), datetime.fromisoformat(intent["period_ended_at"]),
+        (datetime.fromisoformat(intent["period_started_at"])
+         if intent.get("period_started_at") is not None else None),
+        (datetime.fromisoformat(intent["period_ended_at"])
+         if intent.get("period_ended_at") is not None else None),
         intent["unit"], intent["value"], intent["source"], intent["reference"], _artifact(intent["artifact"]),
         intent["collection_method"], datetime.fromisoformat(intent["observed_at"]),
         DemandEvidenceOutcome(intent["outcome"]), Decimal(intent["confidence"]), intent["reason"],
         intent["collector_name"], intent["collector_version"], intent["category"],
         intent["device_scope"], intent["result_surface"], intent["schema_version"],
+        intent.get("provider_returned_query"), intent.get("provider_period_label"),
     )
     cohort_data = data["comparable_cohort"]
     manifest_data = cohort_data["manifest"]

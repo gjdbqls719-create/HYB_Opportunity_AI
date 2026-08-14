@@ -17,6 +17,16 @@ and dedicated SQLite publication/current/receipt namespace are implemented.
 This status does not assert genuine Demand admission, provider availability,
 Decision Composition v2, or DMV v2.
 
+CR-1B7D4H corrects the implemented Market Intent envelope to preserve the
+Founder-entered `query` separately from an optional exact
+`provider_returned_query`. It also implements the ADR's exclusive period
+authority variants: either exact `period_started_at` plus `period_ended_at`, or
+one exact non-empty `provider_period_label`. HYB neither normalizes the
+provider-returned text nor derives dates from a provider label. These fields are
+persisted, fingerprinted, replayed, reconstructed, and returned as immutable
+evidence. Existing exact-period payloads retain their prior serialized shape
+and meaning; genuine Demand remains not admitted.
+
 Demand v1 remains implemented and unchanged. Provider integration, Decision
 Composition v2, Domestic Market Validation v2, and genuine Demand admission are
 not implemented.

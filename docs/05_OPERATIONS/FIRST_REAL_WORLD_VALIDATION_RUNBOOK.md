@@ -1,6 +1,6 @@
 # First Real-World Validation Runbook
 
-## Demand v2 foundation gate (CR-1B7D4G)
+## Demand v2 foundation gate (CR-1B7D4G / CR-1B7D4H)
 
 Repository implementation does not authorize a genuine run. Keep the HYB
 server stopped and do not call the production API or open the genuine SQLite
@@ -10,6 +10,15 @@ comparable cohort, one explicit review outcome per included organic listing,
 artifact hashes/references, operational target eligibility, and a separately
 approved production run. Genuine Demand and DMV remain blocked until that run
 is admitted and verified.
+
+CR-1B7D4H makes provider evidence faithfully representable without authorizing
+that run. Archive the Founder-entered query separately from the exact
+provider-returned query, if present. For the period, submit either both exact
+boundaries or the exact provider-native label; never invent boundaries from a
+label, and never submit both forms. Preserve all text verbatim in the evidence
+archive. The current genuine NAVER evidence remains `NOT ADMITTED` until a
+separate production-run authorization supplies the real artifact reference,
+content hash, and observation facts.
 
 ## 1. Purpose and milestone
 
@@ -77,11 +86,12 @@ Competition route for this evidence. DMV remains blocked because DMV v2 is not
 implemented.
 
 The genuine Competition v2 step has since been verified with cohort
-`5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 architecture-resolves FR-015
-by defining a separate Demand v2 authority, but no Demand v2 runtime route or
-provider integration exists. Keep Demand `NOT ADMITTED`, keep the server
-stopped, and do not call the Demand v1 route with invented or reinterpreted
-values. DMV remains blocked; no DMV v2 exists.
+`5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 architecture-resolves FR-015,
+and CR-1B7D4G implements the separate Demand v2 runtime route. The route is not
+provider integration and is not authorization for a genuine write. Keep Demand
+`NOT ADMITTED`, keep the server stopped, and do not call either Demand route
+until a separate genuine-run authorization is issued. DMV remains blocked; no
+DMV v2 exists.
 
 ## 2. Non-goals and external prerequisites
 
@@ -220,7 +230,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | use only when exact equivalence is established; the current FR-013 run must STOP |
 | 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; requires explicit authorization; Competition/Demand are API-capable but not authorized for the current genuine run, and Domestic Market Validation remains the next STOP |
 | 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
-| 9 | **STOP: Demand v2 not implemented** | Future ADR-0062 Market Intent and Comparable Market Response evidence | no ID yet | do not POST Demand v1; wait for CR-1B7D4G implementation and explicit genuine-run authorization |
+| 9 | `POST /api/v2/opportunities/{o2}/demand-observations` (**current genuine run: STOP until separately authorized**) | ADR-0062 exact Market Intent, exact bounded Comparable Market Response/reference, per-card review outcomes, artifacts/hashes; preserve original/provider-returned queries and exactly one period authority | `observation.observation_id`, `assessment.assessment_id` | archive response; do not use Demand v1; DMV still waits for a compatible v2 consumer policy |
 | 10 | `POST /api/v1/opportunities/{o2}/domestic-market-validations` | four exact Competition/Demand IDs | `assessment_id` | state `validated_for_capital`; Sourcing/Capital |
 | 11 | `POST /api/v1/sourcing/admissions` | O2 domestic admission, Supplier/Product/option/SKU, verified Product Match, Quote, shipping scope, evidence | `admission_id`, `revision`, `supplier.supplier_id`, `sourcing_product.sourcing_product_id`, `match_verification.verification_id`, `quote.quote_id/revision` | exact Product Match and valid Quote |
 | 12 | `POST /api/v1/opportunities/{o2}/verified-economics` | Founder-verified sale/cost/fee/tax facts and evidence | O2-keyed verified snapshot response | every required fact verified; Binding |
@@ -265,12 +275,14 @@ and safety meaning; it does not replace the generated schema.
   decisions, displayed prices, raw labels, per-card observation outcomes,
   operator/time, and screenshot artifact references. Do not calculate or submit
   a v1 `rocket_seller_count` from this evidence.
-- For future Demand v2 Market Intent, capture one exact provider field that is
+- For Demand v2 Market Intent, capture one exact provider field that is
   explicitly a KR query/search count, including the exact query, provider/field,
-  geography, locale, match semantics, period, unit, observed time, reference,
-  artifact, and hash. An undocumented number, result count, rank, or index is
-  unsupported.
-- For future Demand v2 Comparable Market Response, preserve raw review-count
+  optional exact provider-returned query, geography, locale, match semantics,
+  either both exact period boundaries or one exact provider period label, unit,
+  observed time, reference, artifact, and hash. Do not normalize either query
+  or derive dates from a label. An undocumented number, result count, rank, or
+  index is unsupported.
+- For Demand v2 Comparable Market Response, preserve raw review-count
   outcomes for every included organic card in the exact bounded cohort. The
   existing Competition cohort may be referenced, but new artifacts are required
   when its capture does not expose complete review regions. Ratings are optional

@@ -1,5 +1,18 @@
 # HYB Changelog
 
+## CR-1B7D4H - Demand v2 Provider Evidence Semantic Preservation
+
+- Preserve the Founder-entered Market Intent query separately from an optional
+  exact provider-returned query, without HYB normalization.
+- Support exactly one provider period authority: exact start/end boundaries or
+  an exact non-empty provider-native period label, with partial, mixed, and
+  absent variants rejected.
+- Persist, fingerprint, replay, reconstruct, and return both additive facts
+  while preserving historical exact-period serialization and Demand v1.
+- Add focused Domain, API/OpenAPI, persistence, restart, replay/conflict, and
+  read-purity coverage using isolated synthetic data only. Genuine Demand is
+  still not admitted, and no production API or genuine database is touched.
+
 ## Competition v2 Observation Identity Correction
 
 - Accept ADR-0063 and distinguish server-owned Competition publication identity

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
 import sqlite3
@@ -16,6 +17,7 @@ from app.domain.market_intelligence.demand_v2 import (
     DemandV2Availability, DemandV2Conclusion, DemandV2Observation,
     ListingRatingEvidence, ListingReviewEvidence, MarketIntentEvidence,
     ProviderFieldKind, QueryMatchSemantics, analyze_demand_v2,
+    market_intent_to_data,
 )
 from app.domain.opportunity.new_to_market_domestic_selling import NewToMarketDomesticSellingTargetIdentity
 from app.infrastructure.market_observation.demand_v2_sqlite_repository import (
@@ -25,7 +27,8 @@ from app.web import (
     DemandV2CompetitionCohortReferenceRequest, DemandV2MarketIntentRequest,
     DemandV2ProviderSignalRequest, DemandV2RatingEvidenceRequest,
     DemandV2ReviewEvidenceRequest, _demand_v2_cohort, _demand_v2_market_intent,
-    _demand_v2_provider_signal, _demand_v2_rating, _demand_v2_review, app,
+    _demand_v2_payload, _demand_v2_provider_signal, _demand_v2_rating,
+    _demand_v2_review, app,
 )
 
 
@@ -50,6 +53,58 @@ def _intent(value=120, outcome=DemandEvidenceOutcome.OBSERVED_VALUE, confidence=
         reference="provider://query/portable-blender", artifact=_artifact("intent.json"),
         collection_method="founder-assisted-export", observed_at=NOW, outcome=outcome,
         confidence=Decimal(confidence), reason=reason)
+
+
+def test_naver_market_intent_preserves_returned_query_and_provider_period_label():
+    intent = _naver_intent()
+
+    assert intent.query == "차량용 시트백 수납함"
+    assert intent.provider_returned_query == "차량용시트백수납함"
+    assert intent.provider_period_label == "최근 한 달"
+    assert intent.period_started_at is intent.period_ended_at is None
+
+
+def _naver_intent(*, returned_query="차량용시트백수납함", period_label="최근 한 달"):
+    return MarketIntentEvidence(
+        provider="NAVER Search Ads Keyword Tool", provider_field_name="월간검색수",
+        provider_schema_version="unknown", provider_field_kind=ProviderFieldKind.QUERY_COUNT,
+        query="차량용 시트백 수납함", market="KR", geography="KR", locale="ko-KR",
+        match_semantics=QueryMatchSemantics.PROVIDER_SPECIFIC,
+        period_started_at=None, period_ended_at=None, unit="searches", value=30,
+        source="NAVER Search Ads Keyword Tool web UI", reference="naver-evidence.zip#result",
+        artifact=_artifact("naver-evidence.zip"), collection_method="founder-assisted-capture",
+        observed_at=NOW, outcome=DemandEvidenceOutcome.OBSERVED_VALUE,
+        confidence=Decimal("1"), provider_returned_query=returned_query,
+        provider_period_label=period_label, device_scope="모바일",
+        result_surface="NAVER 통합검색",
+    )
+
+
+def test_market_intent_period_authority_variants_fail_closed():
+    assert _intent().period_started_at == EARLIER
+    with pytest.raises(ValueError, match="exactly one provider period"):
+        replace(_intent(), period_started_at=None, period_ended_at=None)
+    with pytest.raises(ValueError, match="both start and end"):
+        replace(_intent(), period_ended_at=None)
+    with pytest.raises(ValueError, match="exactly one provider period"):
+        replace(_intent(), provider_period_label="recent month")
+    with pytest.raises(ValueError, match="non-empty text"):
+        replace(_intent(), period_started_at=None, period_ended_at=None,
+            provider_period_label="   ")
+    with pytest.raises(ValueError, match="non-empty text"):
+        replace(_intent(), provider_returned_query="   ")
+
+
+def test_market_intent_serialization_preserves_historical_exact_shape():
+    historical = market_intent_to_data(_intent())
+    assert historical["period_started_at"] == EARLIER.isoformat()
+    assert historical["period_ended_at"] == NOW.isoformat()
+    assert "provider_returned_query" not in historical
+    assert "provider_period_label" not in historical
+    naver = market_intent_to_data(_naver_intent())
+    assert "period_started_at" not in naver and "period_ended_at" not in naver
+    assert naver["provider_returned_query"] == "차량용시트백수납함"
+    assert naver["provider_period_label"] == "최근 한 달"
 
 
 def _manifest(subject=None):
@@ -201,6 +256,54 @@ def test_api_translation_uses_domain_constructor_contracts():
         "competition-observation-1", "competition-cohort-1")
 
 
+def test_api_translation_preserves_provider_query_and_period_label_exactly():
+    artifact = {"reference": "naver-evidence.zip", "sha256": SHA}
+    request = DemandV2MarketIntentRequest(
+        provider_name="NAVER Search Ads Keyword Tool", provider_field_name="월간검색수",
+        provider_field_schema_version="unknown", provider_field_kind="query_count",
+        query="차량용 시트백 수납함", provider_returned_query="차량용시트백수납함",
+        market="KR", geography="KR", locale="ko-KR",
+        query_match_semantics="provider_specific", provider_period_label="최근 한 달",
+        value_unit="searches", value=30, source="NAVER Search Ads Keyword Tool web UI",
+        reference="naver-evidence.zip#result", artifact=artifact,
+        collection_method="founder-assisted-capture", observed_at=NOW,
+        outcome="observed_value", device_scope="모바일",
+        result_surface="NAVER 통합검색",
+    )
+
+    intent = _demand_v2_market_intent(request)
+
+    assert intent.query == "차량용 시트백 수납함"
+    assert intent.provider_returned_query == "차량용시트백수납함"
+    assert intent.provider_period_label == "최근 한 달"
+    assert intent.device_scope == "모바일"
+    assert intent.result_surface == "NAVER 통합검색"
+    assert intent.period_started_at is intent.period_ended_at is None
+
+
+@pytest.mark.parametrize("period", [
+    {},
+    {"period_started_at": EARLIER},
+    {"period_ended_at": NOW},
+    {"period_started_at": EARLIER, "period_ended_at": NOW,
+     "provider_period_label": "recent month"},
+    {"provider_period_label": "   "},
+])
+def test_api_period_authority_variants_fail_closed(period):
+    payload = {
+        "provider_name": "provider-a", "provider_field_name": "monthly_query_count",
+        "provider_field_schema_version": "provider-a-v1", "provider_field_kind": "query_count",
+        "query": "portable blender", "market": "KR", "geography": "KR", "locale": "ko-KR",
+        "query_match_semantics": "exact", "value_unit": "queries", "value": 10,
+        "source": "provider-export", "reference": "provider://query",
+        "artifact": {"reference": "capture.json", "sha256": SHA},
+        "collection_method": "founder-assisted-export", "observed_at": NOW,
+        "outcome": "observed_value", **period,
+    }
+    with pytest.raises(ValueError):
+        DemandV2MarketIntentRequest(**payload)
+
+
 @pytest.mark.parametrize("kind,version", [
     ("issued", "competition-observation-identity-v1"),
     ("legacy_compatibility", "competition-observation-legacy-compatibility-v1"),
@@ -260,10 +363,11 @@ class _MemoryRepository:
             "observation_id": publication.observation.observation_id}
 
 
-def _command(command_id="command-1", subject=None):
+def _command(command_id="command-1", subject=None, intent=None):
     subject = subject or _subject()
+    intent = intent or _intent()
     return FinalizeDemandV2AdmissionCommand("opp-1", command_id, "founder", NOW,
-        DemandV2Submission(subject, _intent(), _manifest(subject),
+        DemandV2Submission(subject, intent, replace(_manifest(subject), query=intent.query),
             (_review("item-1", 10), _review("item-2", 20))))
 
 
@@ -310,6 +414,41 @@ def test_sqlite_round_trip_restart_current_and_corruption_detection(tmp_path, mo
         SQLiteDemandV2Repository(path)
 
 
+def test_provider_handoff_round_trip_replay_conflict_and_read_purity(tmp_path, monkeypatch):
+    subject = _subject()
+    eligibility = SimpleNamespace(market_binding=None, target_binding=SimpleNamespace(target_identity=subject))
+    monkeypatch.setattr(admission_module, "get_operational_opportunity_eligibility", lambda repo, opportunity_id: eligibility)
+    path = tmp_path / "provider-semantics.sqlite3"
+    repository = SQLiteDemandV2Repository(path)
+    service = FinalizeDemandV2Admission(
+        object(), repository, observation_id_generator=lambda: "provider-observation",
+        cohort_id_generator=lambda: "provider-cohort", assessment_id_generator=lambda: "provider-assessment",
+        generated_clock=lambda: NOW, committed_clock=lambda: NOW,
+    )
+    command = _command(intent=_naver_intent())
+    result = service.execute(command)
+    assert result.publication.observation.market_intent.provider_returned_query == "차량용시트백수납함"
+    assert result.publication.observation.market_intent.provider_period_label == "최근 한 달"
+    response = _demand_v2_payload(result)["market_intent"]
+    assert response["query"] == "차량용 시트백 수납함"
+    assert response["provider_returned_query"] == "차량용시트백수납함"
+    assert response["provider_period_label"] == "최근 한 달"
+    repository.close()
+
+    persisted_bytes = path.read_bytes()
+    reopened = SQLiteDemandV2Repository(path)
+    reconstructed = reopened.get_publication("provider-observation")
+    assert reconstructed.observation.market_intent == _naver_intent()
+    replay_service = FinalizeDemandV2Admission(object(), reopened)
+    assert replay_service.execute(command).replayed is True
+    with pytest.raises(DemandV2AdmissionConflictError):
+        replay_service.execute(_command(intent=_naver_intent(returned_query="changed")))
+    with pytest.raises(DemandV2AdmissionConflictError):
+        replay_service.execute(_command(intent=_naver_intent(period_label="previous month")))
+    reopened.close()
+    assert path.read_bytes() == persisted_bytes
+
+
 def test_sqlite_rejects_partial_schema(tmp_path):
     path = tmp_path / "partial.sqlite3"; connection = sqlite3.connect(path)
     connection.execute("CREATE TABLE demand_v2_receipts (wrong TEXT)")
@@ -320,3 +459,7 @@ def test_sqlite_rejects_partial_schema(tmp_path):
 def test_openapi_exposes_exact_demand_v2_route():
     schema = app.openapi(); path = "/api/v2/opportunities/{opportunity_id}/demand-observations"
     assert path in schema["paths"] and "post" in schema["paths"][path]
+    intent_schema = schema["components"]["schemas"]["DemandV2MarketIntentRequest"]
+    assert "provider_returned_query" in intent_schema["properties"]
+    assert "provider_period_label" in intent_schema["properties"]
+    assert len(intent_schema["oneOf"]) == 2
