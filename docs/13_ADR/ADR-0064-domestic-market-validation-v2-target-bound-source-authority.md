@@ -4,9 +4,16 @@
 
 Accepted and implementation-authorizing.
 
-PR A implements the Domain and Application authority core described here. It
-does not implement SQLite history or receipts, replay persistence, a production
-API, OpenAPI, or production composition. Those remain the bounded PR B scope.
+PR A implements the Domain and Application authority core described here.
+
+PR B1 implements a separate append-only DMV v2 SQLite history and receipt
+namespace, atomic assessment/receipt finalization, deterministic payload
+reconstruction and integrity verification, and exact command replay. Persisted
+historical replay is resolved before live upstream source resolution and does
+not re-evaluate the trust policy.
+
+PR B2 remains responsible for the production API, OpenAPI, and production
+composition/wiring. This status does not claim those boundaries are implemented.
 
 ## Context
 
@@ -119,7 +126,8 @@ a distinct trust event.
 
 ## Implementation Boundary
 
-PR A owns only the ADR, v2 Domain contract, v2 Application use case/read ports,
-and focused tests. PR B may add append-only SQLite assessment history and
-receipts, exact reconstruction/integrity checks, replay, v2 API/OpenAPI, and
-production composition. PR A does not claim those boundaries are implemented.
+PR A owns the ADR, v2 Domain contract, v2 Application use case/read ports, and
+focused authority tests. PR B1 owns only append-only SQLite assessment history
+and receipts, exact reconstruction/integrity checks, and replay persistence.
+PR B2 may add the v2 API/OpenAPI and production composition. Neither PR A nor
+PR B1 claims the PR B2 boundaries are implemented.

@@ -32,6 +32,9 @@ from app.domain.opportunity import OpportunityDomesticSellingTargetBinding
 DOMESTIC_MARKET_VALIDATION_V2_COMMAND_SCHEMA_VERSION = (
     "domestic-market-validation-command-v2"
 )
+DOMESTIC_MARKET_VALIDATION_V2_RECEIPT_SCHEMA_VERSION = (
+    "domestic-market-validation-receipt-v2"
+)
 
 
 class DomesticMarketValidationV2Error(RuntimeError):
@@ -47,6 +50,10 @@ class DomesticMarketValidationV2SourceNotFoundError(DomesticMarketValidationV2Er
 
 
 class DomesticMarketValidationV2SourceConflictError(DomesticMarketValidationV2Error):
+    pass
+
+
+class DomesticMarketValidationV2ReplayConflictError(DomesticMarketValidationV2Error):
     pass
 
 
@@ -117,6 +124,77 @@ class ValidateDomesticMarketV2Command:
     @property
     def fingerprint(self) -> str:
         return _fingerprint(self)
+
+
+@dataclass(frozen=True, slots=True)
+class DomesticMarketValidationV2Receipt:
+    command_id: str
+    assessment_id: str
+    command_fingerprint: str
+    source_manifest_fingerprint: str
+    committed_at: datetime
+    schema_version: str = DOMESTIC_MARKET_VALIDATION_V2_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "command_id", _text(self.command_id, "command_id"))
+        object.__setattr__(
+            self, "assessment_id", _text(self.assessment_id, "assessment_id")
+        )
+        for name in ("command_fingerprint", "source_manifest_fingerprint"):
+            fingerprint = _text(getattr(self, name), name).lower()
+            if len(fingerprint) != 64 or any(
+                value not in "0123456789abcdef" for value in fingerprint
+            ):
+                raise ValueError(f"{name} must be SHA-256 text")
+            object.__setattr__(self, name, fingerprint)
+        object.__setattr__(
+            self, "committed_at", _aware(self.committed_at, "committed_at")
+        )
+        if self.schema_version != DOMESTIC_MARKET_VALIDATION_V2_RECEIPT_SCHEMA_VERSION:
+            raise ValueError("unsupported Domestic Market Validation v2 receipt schema")
+
+
+@dataclass(frozen=True, slots=True)
+class DomesticMarketValidationV2Publication:
+    assessment: DomesticMarketValidationV2Assessment
+    receipt: DomesticMarketValidationV2Receipt
+    replayed: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.assessment, DomesticMarketValidationV2Assessment):
+            raise TypeError("assessment must be DomesticMarketValidationV2Assessment")
+        if not isinstance(self.receipt, DomesticMarketValidationV2Receipt):
+            raise TypeError("receipt must be DomesticMarketValidationV2Receipt")
+        if self.receipt.assessment_id != self.assessment.assessment_id:
+            raise ValueError("receipt must reference assessment")
+        if (
+            self.receipt.source_manifest_fingerprint
+            != self.assessment.source_manifest_fingerprint
+        ):
+            raise ValueError("receipt must reference the exact source manifest")
+        if not isinstance(self.replayed, bool):
+            raise TypeError("replayed must be bool")
+
+
+class DomesticMarketValidationV2PersistenceRepository(Protocol):
+    def validate_replay(
+        self, command_id: str, command_fingerprint: str,
+    ) -> DomesticMarketValidationV2Publication | None: ...
+
+    def save_assessment(
+        self,
+        command: ValidateDomesticMarketV2Command,
+        assessment: DomesticMarketValidationV2Assessment,
+        receipt: DomesticMarketValidationV2Receipt,
+    ) -> DomesticMarketValidationV2Publication: ...
+
+    def get_assessment(
+        self, assessment_id: str,
+    ) -> DomesticMarketValidationV2Assessment | None: ...
+
+    def get_receipt(
+        self, command_id: str,
+    ) -> DomesticMarketValidationV2Receipt | None: ...
 
 
 class DomesticMarketValidationV2SourceRepository(Protocol):
@@ -344,8 +422,41 @@ class ValidateDomesticMarketV2ForCapital:
             )
 
 
+class PersistDomesticMarketValidationV2ForCapital:
+    """Replay-first persistence boundary around the pure PR A authority core."""
+
+    def __init__(
+        self,
+        repository: DomesticMarketValidationV2PersistenceRepository,
+        owner: ValidateDomesticMarketV2ForCapital,
+        *,
+        committed_clock: Callable[[], datetime],
+    ) -> None:
+        self._repository = repository
+        self._owner = owner
+        self._committed = committed_clock
+
+    def execute(
+        self, command: ValidateDomesticMarketV2Command,
+    ) -> DomesticMarketValidationV2Publication:
+        if not isinstance(command, ValidateDomesticMarketV2Command):
+            raise TypeError("command must be ValidateDomesticMarketV2Command")
+        replay = self._repository.validate_replay(command.command_id, command.fingerprint)
+        if replay is not None:
+            return replay
+        assessment = self._owner.execute(command)
+        receipt = DomesticMarketValidationV2Receipt(
+            command_id=command.command_id,
+            assessment_id=assessment.assessment_id,
+            command_fingerprint=command.fingerprint,
+            source_manifest_fingerprint=assessment.source_manifest_fingerprint,
+            committed_at=_aware(self._committed(), "committed_at"),
+        )
+        return self._repository.save_assessment(command, assessment, receipt)
+
+
 __all__ = [
     name for name in globals()
     if name.startswith("DomesticMarket") or name.startswith("ValidateDomestic")
-    or name.startswith("DOMESTIC_MARKET")
+    or name.startswith("PersistDomestic") or name.startswith("DOMESTIC_MARKET")
 ]

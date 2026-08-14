@@ -1,5 +1,17 @@
 # HYB Changelog
 
+## PR B1 - Domestic Market Validation v2 Persistence and Replay Core
+
+- Add a separate append-only DMV v2 SQLite history and command-receipt
+  namespace without writing v1 compatibility rows or querying production data.
+- Atomically commit assessment and receipt, preserve exact source-manifest and
+  command fingerprints, and reconstruct historical assessments from their own
+  deterministic payload without live Competition/Demand source resolution.
+- Fail closed on payload, row, source-manifest, receipt, linkage, policy, and
+  schema corruption; exact replay precedes identity, clocks, source resolution,
+  and trust-policy evaluation. API/OpenAPI and production composition remain
+  deferred to PR B2.
+
 ## PR A - Domestic Market Validation v2 Authority Core
 
 - Accept ADR-0064 and define DMV v2 as an additive Capital trust-admission
