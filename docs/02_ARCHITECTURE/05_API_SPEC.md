@@ -404,8 +404,8 @@ SHA-256 facts; future collectors target the same provider envelope. V1 and v2
 must use separate observation/assessment/policy schemas, persistence/current
 projections, fingerprints, receipts, and replay namespaces. No provider
 integration or Decision Composition v2 currently exists. DMV v2 has only the
-read-only source-manifest preview described below; its final validation POST is
-not implemented yet.
+read-only source-manifest preview and explicit final validation POST described
+below.
 
 ### Domestic Market Validation v2 source-manifest preview
 
@@ -428,8 +428,40 @@ target/source/cross-authority lineage conflicts; malformed query input returns
 422; bounded source persistence/corruption failures return 503 without storage
 details. Reading the response is not current-use verification. The operator
 must review it and later copy its exact fingerprint into an explicit
-`DomesticMarketVerificationV2`; the future final DMV v2 POST independently
+`DomesticMarketVerificationV2`; the final DMV v2 POST independently
 resolves the same named sources and enforces equality.
+
+### Domestic Market Validation v2 final validation
+
+`POST /api/v2/opportunities/{opportunity_id}/domestic-market-validations`
+accepts only `command_id`, exact Competition and Demand observation IDs,
+`operator_id`, `verified_at`, explicit `current_use_confirmed`, the reviewed
+preview `source_manifest_fingerprint`, and `requested_at`. Extra fields are
+forbidden. The caller cannot submit a target/market identity, source manifest,
+policy/schema, assessment/state/reasons, raw evidence, Capital result,
+profitability, BUY, or INVEST fact.
+
+The server constructs `DomesticMarketVerificationV2`, independently resolves
+the exact named immutable authorities through the same preview resolver,
+derives the trust result, and atomically commits the B1 append-only assessment
+and command receipt. Correct sources with failed current-use confirmation,
+fingerprint equality, source timing, or core completeness produce a successful
+persisted `BLOCKED` response. `VALIDATED_FOR_CAPITAL` is only Capital evidence
+admission; it is not BUY/INVEST or permission to spend.
+
+Fresh `VALIDATED_FOR_CAPITAL` and `BLOCKED` publications return 201. Exact
+command replay returns 200 with the same assessment, manifest, timestamps and
+receipt plus `replayed=true`. Missing exact authority returns 404; source/
+target/cross-authority or command-replay conflicts return 409; malformed input
+returns 422; bounded SQLite, source-persistence, corrupt-history, and unsupported
+history-version failures return 503 without persisted payload details. A new
+command ID over the same sources is a new explicit verification event, not a
+source-fingerprint alias.
+
+The typed response exposes the exact target/Competition/Demand source manifest
+and fingerprint, verification, derived state and ordered reasons, policy and
+times, assessment schema, durable receipt fingerprints/time/schema, and replay
+indicator. DMV v1 remains a separate route, contract, and persistence namespace.
 
 ## Domestic Market Validation production entry
 

@@ -14,9 +14,9 @@ not re-evaluate the trust policy.
 
 PR B1.5 exposes the existing exact source-manifest resolver through a read-only
 production GET boundary. It creates no assessment, receipt, verification,
-state, identity, timestamp, or persistence fact. PR B2 remains responsible for
-the final validation POST and its persistence composition. This status does not
-claim that final write boundary is implemented.
+state, identity, timestamp, or persistence fact. PR B2 implements the final
+validation POST, strict explicit verification request, production source/core/
+persistence composition, typed response, HTTP error mapping, and OpenAPI.
 
 ## Context
 
@@ -106,7 +106,7 @@ fingerprint or latest-source selection.
 Reading the preview is not verification. After reviewing the returned target
 binding and source pins, the operator explicitly supplies that fingerprint in
 `DomesticMarketVerificationV2` with current-use confirmation. The future final
-POST must resolve the same named authorities again. A changed fingerprint is
+POST resolves the same named authorities again. A changed fingerprint is
 handled by the existing verification mismatch policy; the server never updates
 or substitutes the reviewed fingerprint. Preview retrieval performs no DMV
 history or receipt write and emits no assessment state.
@@ -150,6 +150,7 @@ PR A owns the ADR, v2 Domain contract, v2 Application use case/read ports, and
 focused authority tests. PR B1 owns only append-only SQLite assessment history
 and receipts, exact reconstruction/integrity checks, and replay persistence.
 PR B1.5 owns only the read-only source-manifest preview API and delegating
-production source adapter. PR B2 may add the final v2 validation POST and
-production persistence composition. PR A, PR B1, and PR B1.5 do not claim that
-final PR B2 write boundary is implemented.
+production source adapter. PR B2 owns the final v2 validation POST and
+request-scoped production persistence composition. The final route reuses the
+same source resolver, persists through the B1 replay-first owner, and does not
+add v1 compatibility, source selection, or a new authority.

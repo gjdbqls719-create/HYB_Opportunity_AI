@@ -12,6 +12,9 @@ from app.infrastructure.domestic_market_validation_v2.sqlite_repository import (
 from app.infrastructure.domestic_market_validation_v2.source_repository import (
     DomesticMarketValidationV2SourceRepositoryAdapter,
 )
+from app.infrastructure.domestic_market_validation_v2.identity_suppliers import (
+    ProductionDomesticMarketValidationV2IdentityGenerator,
+)
 
 __all__ = [
     "DOMESTIC_MARKET_VALIDATION_V2_HISTORY_SCHEMA_VERSION",
@@ -24,4 +27,5 @@ __all__ = [
     "DomesticMarketValidationV2UnsupportedVersionError",
     "SQLiteDomesticMarketValidationV2Repository",
     "DomesticMarketValidationV2SourceRepositoryAdapter",
+    "ProductionDomesticMarketValidationV2IdentityGenerator",
 ]

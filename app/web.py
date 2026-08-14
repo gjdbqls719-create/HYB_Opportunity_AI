@@ -562,9 +562,20 @@ from app.application.domestic_market_validation import (
     ValidateDomesticMarketForCapital,
 )
 from app.application.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2PolicyError,
+    DomesticMarketValidationV2ReplayConflictError,
     DomesticMarketValidationV2SourceConflictError,
     DomesticMarketValidationV2SourceNotFoundError,
+    PersistDomesticMarketValidationV2ForCapital,
+    ValidateDomesticMarketV2Command,
     ValidateDomesticMarketV2ForCapital,
+)
+from app.domain.market_intelligence.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2ReasonCode,
+    DomesticMarketVerificationV2,
+)
+from app.domain.market_intelligence.domestic_market_validation import (
+    DomesticMarketValidationState,
 )
 from app.application.review import (
     ApproveCandidateCommand,
@@ -774,7 +785,12 @@ from app.infrastructure.domestic_market_validation import (
     SQLiteDomesticMarketValidationRepository,
 )
 from app.infrastructure.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2CorruptionError,
+    DomesticMarketValidationV2PersistenceError,
+    DomesticMarketValidationV2UnsupportedVersionError,
     DomesticMarketValidationV2SourceRepositoryAdapter,
+    ProductionDomesticMarketValidationV2IdentityGenerator,
+    SQLiteDomesticMarketValidationV2Repository,
 )
 from app.infrastructure.snapshot_chain import SQLiteSnapshotChainBindingRepository
 from app.infrastructure.snapshot_chain_identity import (
@@ -1656,6 +1672,54 @@ class DomesticMarketValidationV2SourcePreviewQuery(BaseModel):
 
     competition_observation_id: str = Field(min_length=1)
     demand_observation_id: str = Field(min_length=1)
+
+
+class DomesticMarketValidationV2Request(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    competition_observation_id: str = Field(min_length=1)
+    demand_observation_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    verified_at: datetime
+    current_use_confirmed: bool
+    reviewed_source_manifest_fingerprint: str = Field(
+        pattern="^[0-9a-fA-F]{64}$"
+    )
+    requested_at: datetime
+
+
+class DomesticMarketValidationV2VerificationResponse(BaseModel):
+    operator_id: str
+    verified_at: datetime
+    current_use_confirmed: bool
+    reviewed_source_manifest_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+    schema_version: str
+
+
+class DomesticMarketValidationV2ReceiptResponse(BaseModel):
+    command_id: str
+    command_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+    source_manifest_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+    committed_at: datetime
+    schema_version: str
+
+
+class DomesticMarketValidationV2Response(BaseModel):
+    assessment_id: str
+    opportunity_id: str
+    source_manifest: DomesticMarketValidationV2SourceManifestResponse
+    source_manifest_fingerprint: str = Field(pattern="^[0-9a-f]{64}$")
+    verification: DomesticMarketValidationV2VerificationResponse
+    state: DomesticMarketValidationState
+    blocking_reasons: tuple[DomesticMarketValidationV2ReasonCode, ...]
+    policy_name: str
+    policy_version: str
+    requested_at: datetime
+    evaluated_at: datetime
+    assessment_schema_version: str
+    receipt: DomesticMarketValidationV2ReceiptResponse
+    replayed: bool
 
 
 class StartReviewRequest(BaseModel):
@@ -5477,6 +5541,47 @@ def get_domestic_market_validation_v2_source_preview():
         ) from error
     finally:
         for resource in (demand, competition, targets):
+            if resource is not None:
+                resource.close()
+
+
+def get_domestic_market_validation_v2_entry():
+    targets = competition = demand = persistence = None
+    try:
+        targets = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
+        competition = SQLiteCompetitionV2Repository(DEFAULT_DATABASE_PATH)
+        demand = SQLiteDemandV2Repository(DEFAULT_DATABASE_PATH)
+        persistence = SQLiteDomesticMarketValidationV2Repository(
+            DEFAULT_DATABASE_PATH
+        )
+        sources = DomesticMarketValidationV2SourceRepositoryAdapter(
+            targets, competition, demand,
+        )
+        clock = ProductionUTCClock()
+        owner = ValidateDomesticMarketV2ForCapital(
+            sources,
+            assessment_id_generator=(
+                ProductionDomesticMarketValidationV2IdentityGenerator()
+            ),
+            evaluated_clock=clock,
+        )
+        yield PersistDomesticMarketValidationV2ForCapital(
+            persistence,
+            owner,
+            committed_clock=clock,
+        )
+    except (
+        DomesticMarketValidationV2PersistenceError,
+        CompetitionV2PersistenceError,
+        DemandV2PersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Domestic Market Validation v2 unavailable",
+        ) from error
+    finally:
+        for resource in (persistence, demand, competition, targets):
             if resource is not None:
                 resource.close()
 
@@ -9700,6 +9805,106 @@ def preview_domestic_market_validation_v2_source_manifest(
         ) from error
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+def _domestic_market_validation_v2_payload(publication):
+    assessment = publication.assessment
+    verification = assessment.verification
+    receipt = publication.receipt
+    source = _domestic_market_validation_v2_source_preview_payload(
+        assessment.source_manifest
+    )
+    return {
+        "assessment_id": assessment.assessment_id,
+        "opportunity_id": source["opportunity_id"],
+        "source_manifest": source["source_manifest"],
+        "source_manifest_fingerprint": source["source_manifest_fingerprint"],
+        "verification": {
+            "operator_id": verification.operator_id,
+            "verified_at": verification.verified_at,
+            "current_use_confirmed": verification.current_use_confirmed,
+            "reviewed_source_manifest_fingerprint": (
+                verification.reviewed_source_manifest_fingerprint
+            ),
+            "schema_version": verification.schema_version,
+        },
+        "state": assessment.state.value,
+        "blocking_reasons": tuple(
+            reason.code.value for reason in assessment.blocking_reasons
+        ),
+        "policy_name": assessment.policy_name,
+        "policy_version": assessment.policy_version,
+        "requested_at": assessment.requested_at,
+        "evaluated_at": assessment.evaluated_at,
+        "assessment_schema_version": assessment.schema_version,
+        "receipt": {
+            "command_id": receipt.command_id,
+            "command_fingerprint": receipt.command_fingerprint,
+            "source_manifest_fingerprint": receipt.source_manifest_fingerprint,
+            "committed_at": receipt.committed_at,
+            "schema_version": receipt.schema_version,
+        },
+        "replayed": publication.replayed,
+    }
+
+
+@app.post(
+    "/api/v2/opportunities/{opportunity_id}/domestic-market-validations",
+    response_model=DomesticMarketValidationV2Response,
+    status_code=201,
+)
+def validate_domestic_market_v2_for_capital(
+    opportunity_id: str,
+    request: DomesticMarketValidationV2Request,
+    response: Response,
+    entry: PersistDomesticMarketValidationV2ForCapital = Depends(
+        get_domestic_market_validation_v2_entry
+    ),
+):
+    try:
+        verification = DomesticMarketVerificationV2(
+            operator_id=request.operator_id,
+            verified_at=request.verified_at,
+            current_use_confirmed=request.current_use_confirmed,
+            reviewed_source_manifest_fingerprint=(
+                request.reviewed_source_manifest_fingerprint
+            ),
+        )
+        publication = entry.execute(ValidateDomesticMarketV2Command(
+            command_id=request.command_id,
+            opportunity_id=opportunity_id,
+            competition_observation_id=request.competition_observation_id,
+            demand_observation_id=request.demand_observation_id,
+            verification=verification,
+            requested_at=request.requested_at,
+        ))
+    except DomesticMarketValidationV2SourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DomesticMarketValidationV2SourceConflictError,
+        DomesticMarketValidationV2ReplayConflictError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (
+        DomesticMarketValidationV2PersistenceError,
+        DomesticMarketValidationV2CorruptionError,
+        DomesticMarketValidationV2UnsupportedVersionError,
+        CompetitionV2PersistenceError,
+        CompetitionV2CorruptionError,
+        DemandV2PersistenceError,
+        DemandV2CorruptionError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Domestic Market Validation v2 unavailable",
+        ) from error
+    except (DomesticMarketValidationV2PolicyError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    response.status_code = 200 if publication.replayed else 201
+    return DomesticMarketValidationV2Response.model_validate(
+        _domestic_market_validation_v2_payload(publication)
+    )
 
 
 def _sourcing_money_payload(value) -> dict[str, object]:

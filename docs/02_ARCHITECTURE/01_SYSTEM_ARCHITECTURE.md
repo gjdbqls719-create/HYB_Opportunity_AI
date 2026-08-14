@@ -1,6 +1,6 @@
 # HYB System Architecture
 
-## Domestic Market Validation v2 source preview (PR B1.5)
+## Domestic Market Validation v2 production workflow (PR B1.5 / PR B2)
 
 DMV v2 now has one read-only production composition boundary over the existing
 ADR-0060 target-binding, Competition v2 publication, and Demand v2 publication
@@ -12,8 +12,17 @@ new table exists.
 
 Preview reads create no assessment, verification, state, identity, clock value,
 history, or receipt. They allow the Founder to review one exact manifest before
-creating the explicit current-use verification required by ADR-0064. The final
-DMV v2 POST and production persistence composition remain deferred to PR B2.
+creating the explicit current-use verification required by ADR-0064.
+
+PR B2 adds the separate final POST. Its request-scoped composition opens the
+existing ADR-0060 target-binding, Competition v2 and Demand v2 source owners,
+wraps them in the B1.5 adapter, invokes the PR A trust owner with a v2 UUID
+assessment supplier and UTC evaluation clock, and persists through the B1
+replay-first owner and append-only SQLite v2 repository with a UTC commit clock.
+All repositories use the configured application SQLite path and close after the
+request. Exact replay is resolved from persisted history before live sources,
+identity, or clocks. The workflow adds no v1 compatibility, latest-source
+selection, lifecycle version, TTL, or new business authority.
 
 ## Competition v2 observation identity
 

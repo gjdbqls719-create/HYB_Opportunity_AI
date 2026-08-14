@@ -1,5 +1,21 @@
 # HYB Changelog
 
+## PR B2 - Domestic Market Validation v2 Final API and Production Composition
+
+- Add the strict final DMV v2 POST over exact Competition/Demand observation
+  IDs and an explicit Founder-reviewed source-manifest fingerprint; caller
+  target, manifest, policy, state, evidence, Capital, and profitability fields
+  are forbidden.
+- Compose the existing ADR-0060, Competition v2 and Demand v2 source owners
+  through the B1.5 adapter, PR A validation owner, B1 replay-first persistence
+  owner, dedicated UUID assessment supplier, UTC clocks, and append-only SQLite
+  v2 repository with request-scoped resource closing.
+- Return typed exact source, verification, state/reasons, receipt and replay
+  facts; preserve successful durable BLOCKED results, 404 source absence, 409
+  source/replay conflicts, and bounded 503 persistence/corruption failures.
+  DMV v1 and upstream authority semantics remain unchanged, and no genuine DMV
+  validation is performed by this implementation PR.
+
 ## PR B1.5 - Domestic Market Validation v2 Source Manifest Preview
 
 - Add a read-only v2 GET boundary that resolves one exact ADR-0060 target,
