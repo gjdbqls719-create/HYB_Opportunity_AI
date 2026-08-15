@@ -15,8 +15,9 @@ operational eligibility and target-subject Competition/Demand admission while
 preserving each metric's actual market-observation provenance. Domestic Market
 Validation v2 is implemented by ADR-0064. PR C1/ADR-0065 adds exact target-aware
 Founder Sourcing and Verified Economics ingress without a Market identity.
-Capital Readiness consumption, UI, and later-listing attachment support remain
-unimplemented.
+PR C2/ADR-0066 adds target-bound DMV v2 consumption to the existing Capital
+Readiness authority. UI and later-listing attachment support remain separate,
+unimplemented boundaries.
 
 ## Context
 
@@ -245,13 +246,15 @@ returns the committed attachment. A changed assertion conflicts and cannot
 overwrite an earlier attachment. An attachment is evidence and relationship
 authority, not a mutation of the pre-listing fact.
 
-## Downstream Compatibility and Implementation Blockers
+## Downstream Compatibility at Decision Time
 
-The following current contracts directly assume a listing/canonical
-`MarketObservationIdentity` and require implementation changes before the new
-O2 can traverse them:
+When ADR-0060 was accepted, the following contracts directly assumed a
+listing/canonical `MarketObservationIdentity` and required additive changes
+before the new O2 could traverse them. This table preserves that historical
+implementation analysis; ADR-0064, ADR-0065, and ADR-0066 have since resolved
+the DMV, Sourcing/Economics, and Capital Readiness entries.
 
-| Area | Current blocker | Required additive change |
+| Area | Blocker at decision time | Required additive change |
 | --- | --- | --- |
 | Identity and Opportunity binding | `MarketObservationIdentity` has no target scope; `OpportunityMarketIdentityBinding` rejects non-listing/canonical subjects. | Add the target identity and target-binding variant; keep v1 unchanged. |
 | SQLite Market binding | `opportunity_market_identity_bindings` stores only observation-scope columns and reconstructs only `MarketObservationIdentity`. | Add separate append-only target/binding tables and a fail-closed version-aware resolver. |
@@ -362,16 +365,23 @@ Rejected as semantic fabrication and cross-market reinterpretation.
 
 ## Genuine-Run Status
 
-FR-013 is architecture-resolved and its admission foundation is implemented.
-The genuine run has not invoked that authority and remains exactly:
+FR-013 is architecture-resolved and its admission foundation has been invoked.
+The current Genuine lineage is:
 
 ```text
 O1 c2d4479a7f32437b9b0aefa614ae85c1
--> FR-013
--> no O2 yet
+-> O2 fcdb01d411fd46d5bd07020634e5b74c
+-> NewToMarketDomesticSellingTargetIdentity
+   cd050cd4f8734a71a61a219de9281a5f
+-> Competition v2 verified/persisted
+-> Demand v2 NOT ADMITTED
 ```
 
-No genuine database row is created or changed by this decision.
+The first operational blocker is the pending official NAVER geography
+clarification required to qualify Demand v2 evidence. Genuine DMV v2, Capital
+Readiness, and Capital Gate have not been executed. The ADR-0060 admission ID
+and exact Competition observation/fingerprint must be recovered from archived
+production responses rather than guessed or recreated.
 
 ## Implemented Foundation PR
 

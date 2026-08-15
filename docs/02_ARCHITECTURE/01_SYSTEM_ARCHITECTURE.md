@@ -1,5 +1,28 @@
 # HYB System Architecture
 
+## Current target-bound capital path
+
+```text
+ADR-0060 target
+  -> Competition v2 + Demand v2
+  -> Domestic Market Validation v2
+  -> target-aware Founder Sourcing + Verified Economics
+  -> Economics Source Composition
+  -> Conservative Economics + Critical Cost
+  -> Capital Readiness
+  -> Capital Gate
+```
+
+The path is implemented through Capital Gate. The current Genuine run remains
+stopped before Demand v2 because the official NAVER geography clarification is
+pending; Genuine Demand v2, DMV v2, Capital Readiness, and Capital Gate have not
+been executed.
+
+DMV `VALIDATED_FOR_CAPITAL` admits exact market-evidence trust only. It is not a
+BUY/INVEST decision and does not authorize spending. Capital Readiness verifies
+the exact trusted-market, Sourcing, Economics, and Critical Cost composition;
+Capital Gate remains the economic and capital-eligibility boundary.
+
 ## Domestic Market Validation v2 production workflow (PR B1.5 / PR B2)
 
 DMV v2 now has one read-only production composition boundary over the existing
@@ -41,12 +64,14 @@ Market Response family, with optional rating/provider envelopes. Demand v2 has
 dedicated publication, current-projection, receipt, fingerprint, observation,
 assessment, and policy namespaces. It may pin an immutable Competition v2
 cohort, but Demand owns its listing review/rating facts and never copies a
-Competition assessment. No Decision Composition v2 or DMV v2 wiring is added.
+Competition assessment. This foundation increment added no Decision
+Composition or DMV wiring; ADR-0064 and PR B1/B1.5/B2 later added DMV v2.
 
 ## Demand v2 evidence authority direction
 
-ADR-0062 preserves Demand v1 and introduces a separate, not-yet-implemented
-Demand v2 authority for pre-listing new-to-market assessment. Its mandatory core
+At the time of ADR-0062, this section specified a separate future Demand v2
+authority while preserving Demand v1. Demand v2 is now implemented for
+pre-listing new-to-market assessment. Its mandatory core
 has two independent families: one exact provider-scoped KR query/search count
 for Market Intent, and raw per-listing review counts from one immutable bounded
 comparable-organic-listing cohort for Comparable Market Response. Different
@@ -67,18 +92,18 @@ assessment, price, Rocket, or count values as Demand. Manual and future
 automated evidence share one provider envelope and immutable reference/hash
 pattern; no current provider integration is implied.
 
-Implementation requires separate Demand v2 schemas, additive persistence,
-receipt/replay namespace, and a dedicated API v2 route. Demand v1 and ADR-0044
-DMV v1 remain unchanged. Decision Composition v2 and DMV v2 do not exist. The
-genuine run remains Competition v2 verified, Demand not admitted, and DMV
-blocked.
+The resulting implementation uses separate Demand v2 schemas, additive
+persistence, a receipt/replay namespace, and a dedicated API v2 route. Demand
+v1 and ADR-0044 DMV v1 remain unchanged. ADR-0064 and PR B1/B1.5/B2 now provide
+the separate DMV v2 authority and production workflow. The Genuine run remains
+Competition v2 verified and Demand not admitted, so Genuine DMV has not run.
 
 ## Competition v2 evidence authority direction
 
-ADR-0061 preserves historical Competition v1 and separates future Competition
-v2 into a mandatory marketplace-independent core plus optional
-marketplace-specific signals. The v2 core is derived from one immutable bounded
-cohort of unique comparable organic listing cards and requires
+ADR-0061 preserved historical Competition v1 and specified the then-future
+Competition v2 authority as a mandatory marketplace-independent core plus
+optional marketplace-specific signals. The implemented v2 core is derived from
+one immutable bounded cohort of unique comparable organic listing cards and requires
 `comparable_listing_count`, `price_spread`, and `median_price`. Sponsored cards
 are recorded separately, and all price facts use the exact same core cohort.
 
@@ -96,7 +121,9 @@ receipts, fingerprints, analyzers, and ADR-0044 DMV-v1 requirements remain
 unchanged. CR-1B7D4E implements this foundation through dedicated v2 Domain and
 Application owners, additive immutable SQLite cohort/receipt tables, and the
 API v2/OpenAPI contract. Automated Coupang collection, Decision Composition v2,
-DMV v2, and UI support remain absent, and the genuine run remains stopped.
+DMV v2, and UI support were outside that increment. DMV v2 was subsequently
+implemented by ADR-0064 and PR B1/B1.5/B2; the Genuine run remains stopped at
+Demand evidence qualification.
 
 ## Pre-admission discovery identity
 

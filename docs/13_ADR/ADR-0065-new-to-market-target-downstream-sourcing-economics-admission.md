@@ -9,8 +9,9 @@ Accepted
 PR C1 implements the additive target-aware Founder Sourcing lineage, exact
 ADR-0060 admission-reference ingress, existing Product Match support, append-only
 Sourcing persistence/API reconstruction, and target-bound O2 admission into the
-existing Verified Economics snapshot authority. Capital Readiness consumption is
-deferred.
+existing Verified Economics snapshot authority. PR C2/ADR-0066 subsequently
+implements exact target-bound DMV v2 consumption in the existing Capital
+Readiness authority.
 
 ## Context
 
@@ -145,8 +146,10 @@ Landed Cost, normalization, Economics Source Composition, Conservative
 Economics, and Critical Cost can continue using their exact O2/source-ID
 contracts.
 
-Capital Readiness still cannot consume DMV v2 and is the next post-DMV blocker.
-This ADR does not grant capital approval or real-money execution permission.
+ADR-0066 now permits Capital Readiness to consume one exact DMV v2 assessment
+and compare its ADR-0060 target with the target preserved by this Sourcing
+lineage. ADR-0065 itself does not own Capital Readiness and does not grant
+capital approval or real-money execution permission.
 
 ## Rejected alternatives
 

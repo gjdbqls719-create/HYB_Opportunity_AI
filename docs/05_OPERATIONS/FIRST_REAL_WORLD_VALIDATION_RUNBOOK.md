@@ -1,24 +1,56 @@
 # First Real-World Validation Runbook
 
-## Demand v2 foundation gate (CR-1B7D4G / CR-1B7D4H)
+## Current target-bound Genuine-run gate
+
+The target-bound path is technically implemented through Capital Gate:
+
+```text
+ADR-0060 target
+-> Competition v2
+-> Demand v2
+-> DMV v2
+-> target-aware Founder Sourcing
+-> Verified Economics
+-> Economics Source Composition
+-> Conservative Economics
+-> Critical Cost
+-> Capital Readiness
+-> Capital Gate
+```
 
 Repository implementation does not authorize a genuine run. Keep the HYB
 server stopped and do not call the production API or open the genuine SQLite
-database during implementation verification. A future genuine Demand admission
-requires independently preserved provider query-count authority, a bounded
-comparable cohort, one explicit review outcome per included organic listing,
-artifact hashes/references, operational target eligibility, and a separately
-approved production run. Genuine Demand and DMV remain blocked until that run
-is admitted and verified.
+database during documentation verification.
 
-CR-1B7D4H makes provider evidence faithfully representable without authorizing
-that run. Archive the Founder-entered query separately from the exact
-provider-returned query, if present. For the period, submit either both exact
-boundaries or the exact provider-native label; never invent boundaries from a
-label, and never submit both forms. Preserve all text verbatim in the evidence
-archive. The current genuine NAVER evidence remains `NOT ADMITTED` until a
-separate production-run authorization supplies the real artifact reference,
-content hash, and observation facts.
+The first Genuine-run blocker is external evidence qualification: the official
+NAVER geography clarification required for Demand v2 has not arrived. Do not
+infer that answer. Consequently Genuine Demand v2 is not admitted, and Genuine
+DMV v2, Capital Readiness, and Capital Gate have not been executed.
+
+### Current Genuine authority ledger
+
+| Authority fact | Current exact value/status |
+|---|---|
+| O1 Opportunity | `c2d4479a7f32437b9b0aefa614ae85c1` |
+| O2 Opportunity | `fcdb01d411fd46d5bd07020634e5b74c` |
+| ADR-0060 target | `cd050cd4f8734a71a61a219de9281a5f` |
+| ADR-0060 admission ID | **RECOVER FROM ARCHIVED PRODUCTION RESPONSE** |
+| Competition v2 cohort | `5237034f-371f-4517-8648-51d4e42dd062` |
+| Competition v2 observation ID | **RECOVER FROM ARCHIVED PRODUCTION RESPONSE** |
+| Competition v2 authority fingerprint | **RECOVER FROM ARCHIVED PRODUCTION RESPONSE** |
+| Demand v2 | **NOT ADMITTED — pending official NAVER geography clarification** |
+| DMV v2 / Capital Readiness / Capital Gate | **NOT EXECUTED** |
+
+Do not recreate an authority merely because an exact ID was not copied into
+this document. Recover it from the archived request/response artifacts first.
+
+Demand v2 requires independently preserved provider query-count authority, a
+bounded comparable cohort, one explicit review outcome per included organic
+listing, artifact hashes/references, and operational target eligibility.
+Archive the Founder-entered query separately from the exact provider-returned
+query, if present. For the period, submit either both exact boundaries or the
+exact provider-native label; never invent boundaries from a label, and never
+submit both forms. Preserve all text verbatim in the evidence archive.
 
 ## 1. Purpose and milestone
 
@@ -41,9 +73,9 @@ It does not perform automatic calibration, learning, or policy changes.
 > representative Product Snapshot IDs from archived production responses. Never
 > use legacy v1 admission signal fields for a genuine run.
 
-### FR-013 current genuine-run STOP
+### Historical checkpoint: FR-013
 
-The current genuine run has reached O1
+At the FR-013 checkpoint, the Genuine run had reached O1
 `c2d4479a7f32437b9b0aefa614ae85c1` for the exact persisted eBay/US source
 product. KR investigation found category and comparable Coupang evidence but did
 not establish an exact-equivalent KR listing or authoritative KR canonical-
@@ -51,47 +83,32 @@ product identity. Therefore the existing step 7 ADR-0049 route cannot be used:
 `product_equivalence_confirmed=true`, a fake Coupang item ID, the eBay item ID as
 a KR ID, a comparable listing, and an invented canonical ID are all prohibited.
 
-CR-1B7D3 implements ADR-0060's separate new-to-market KR selling-target
-admission foundation. Operational status remains `FR-013 / no O2 yet`: this
-runbook does not authorize Competition or Demand writes to the genuine O2, and
-the production database remains unchanged by CR-1B7D4. The API now supports
-target-subject Competition and Demand with separate factual evidence provenance,
-but the target-bound O2 must STOP before Domestic Market Validation, Sourcing,
-Economics, Safety, Capital, or execution work until those downstream contracts
-are implemented.
+CR-1B7D3 implemented ADR-0060's separate new-to-market KR selling-target
+admission foundation. At the FR-013 checkpoint no O2 existed and downstream
+target-subject contracts were not yet complete. That historical STOP is now
+superseded by the exact O2 and target recorded in the current ledger above.
 
-### FR-014 current genuine-run STOP
+### Historical checkpoint: FR-014
 
-The genuine run now has O2 `fcdb01d411fd46d5bd07020634e5b74c` bound to
-new-to-market KR target `cd050cd4f8734a71a61a219de9281a5f`, but Competition
-and Demand are not admitted. FR-014 proved that Competition v1
+At the FR-014 checkpoint, the genuine run had O2
+`fcdb01d411fd46d5bd07020634e5b74c` bound to new-to-market KR target
+`cd050cd4f8734a71a61a219de9281a5f`, while Competition and Demand were not yet
+admitted. FR-014 proved that Competition v1
 `rocket_seller_count` has arithmetic behavior but no authoritative Coupang
 observation semantics. Do not submit a guessed count, substitute zero, treat a
 listing as a seller, or equate `판매자로켓`, `로켓배송`, `로켓그로스`,
 arrival-speed text, badge colors, or icons.
 
-ADR-0061 resolves the architecture decision, and CR-1B7D4E implements its
-Competition v2 foundation. One immutable bounded cohort of comparable organic
-listing cards supplies the core count and prices, while explicit Coupang Rocket
-labels are optional, separate, versioned marketplace enrichment. CR-1B7D4E does
-not itself authorize or perform a genuine write: keep the server stopped and do
-not POST Competition or Demand during implementation validation.
+ADR-0061 resolved the Competition authority and CR-1B7D4E implemented its v2
+foundation. One immutable bounded cohort of comparable organic listing cards
+supplies the core count and prices, while explicit Coupang Rocket labels remain
+optional, separate, versioned marketplace enrichment.
 
-After CR-1B7D4E is committed, pushed, and separately authorized for genuine-run
-operation, resume exactly at
-`POST /api/v2/opportunities/{opportunity_id}/competition-observations` using the
-Founder-reviewed bounded manifest and pinned external artifact reference/hash.
-Archive the request and response before any Demand step. Do not use the v1
-Competition route for this evidence. DMV remains blocked because DMV v2 is not
-implemented.
-
-The genuine Competition v2 step has since been verified with cohort
-`5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 architecture-resolves FR-015,
-and CR-1B7D4G implements the separate Demand v2 runtime route. The route is not
-provider integration and is not authorization for a genuine write. Keep Demand
-`NOT ADMITTED`, keep the server stopped, and do not call either Demand route
-until a separate genuine-run authorization is issued. DMV remains blocked; no
-DMV v2 exists.
+The Genuine Competition v2 step has since been verified and persisted with
+cohort `5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 and CR-1B7D4G/4H
+implemented Demand v2 evidence admission, and ADR-0064 through ADR-0066
+implemented the downstream target-bound path. The active STOP is now the
+pending official NAVER geography clarification, not missing software.
 
 ## 2. Non-goals and external prerequisites
 
@@ -153,12 +170,16 @@ MARKET:
   o1_opportunity_id: null
   o1_market_binding_id: null
   domestic_selling_admission_id: null
+  new_to_market_domestic_selling_admission_id: null
   o2_opportunity_id: null
   competition_observation_id: null
   competition_assessment_id: null
+  competition_authority_fingerprint: null
   demand_observation_id: null
   demand_assessment_id: null
+  demand_authority_fingerprint: null
   domestic_market_validation_assessment_id: null
+  domestic_market_validation_source_manifest_fingerprint: null
 SOURCING:
   sourcing_admission_id: null
   sourcing_admission_revision: null
@@ -203,6 +224,9 @@ API_RESPONSE_FILES: []
 - Exact replay means the same command ID and byte-equivalent business payload.
   Never reuse a command ID with changed facts; that is a conflict.
 - Preserve every command ID in the request archive and manifest.
+- Capital-facing target commands must name exact source IDs. Never select a
+  latest/current target, admission, observation, economics result, or
+  assessment as a substitute for a missing archived reference.
 - All caller timestamps must be timezone-aware and factual. Never backdate.
 - `observed_at` records evidence observation; `verified_at` verification;
   `approved_at` Founder approval; `confirmed_at` checkout confirmation;
@@ -218,6 +242,9 @@ JSON floating-point number for a Decimal field.
 
 Every row means: archive the response, copy the exact returned ID(s), inspect
 the business state, then continue. Human inputs are genuine facts/evidence.
+For the current run, first qualify the official NAVER geography response when
+it arrives, then resume at step 9. Steps 1–8 are retained as exact historical
+lineage and recovery context; do not recreate them.
 
 | # | Method and route | Human input and prior IDs | Returned manifest key | Continue only when / next consumer |
 |---|---|---|---|---|
@@ -227,12 +254,13 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 4 | `POST /api/v1/candidates` | chosen group plus representative handoff copied verbatim | `candidate_id` | issuance succeeds; Snapshot |
 | 5 | `POST /api/v1/product-snapshots/capture` | Candidate ID and exact returned observation bindings | `product_snapshot_ids[]` | capture succeeds; Promotion |
 | 6 | `POST /api/v1/candidate-promotions` | `contract_version=2.0.0`, exact Candidate/Group/representative Snapshot, unique command ID, Founder/operator, factual selection reason and time | `opportunity_id` as O1, `binding_id`, `admission_id`, exact capture/Snapshot lineage | lifecycle is `discovered`; archive response, then Domestic Admission |
-| 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | use only when exact equivalence is established; the current FR-013 run must STOP |
-| 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; requires explicit authorization; Competition/Demand are API-capable but not authorized for the current genuine run, and Domestic Market Validation remains the next STOP |
-| 8 | `POST /api/v1/opportunities/{o2}/competition-observations` | ItemScout/Coupang competition observations and evidence | `observation.observation_id`, `assessment.snapshot_id` | no invented metrics; Demand |
-| 9 | `POST /api/v2/opportunities/{o2}/demand-observations` (**current genuine run: STOP until separately authorized**) | ADR-0062 exact Market Intent, exact bounded Comparable Market Response/reference, per-card review outcomes, artifacts/hashes; preserve original/provider-returned queries and exactly one period authority | `observation.observation_id`, `assessment.assessment_id` | archive response; do not use Demand v1; DMV still waits for a compatible v2 consumer policy |
-| 10 | `POST /api/v1/opportunities/{o2}/domestic-market-validations` | four exact Competition/Demand IDs | `assessment_id` | state `validated_for_capital`; Sourcing/Capital |
-| 11 | `POST /api/v1/sourcing/admissions` | O2 domestic admission, Supplier/Product/option/SKU, verified Product Match, Quote, shipping scope, evidence | `admission_id`, `revision`, `supplier.supplier_id`, `sourcing_product.sourcing_product_id`, `match_verification.verification_id`, `quote.quote_id/revision` | exact Product Match and valid Quote |
+| 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | ADR-0049 existing-product path only; not applicable to the current ADR-0060 target and must not be used as compatibility |
+| 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; current authority exists—recover its exact admission ID from the archived response before Sourcing |
+| 8 | `POST /api/v2/opportunities/{o2}/competition-observations` | Founder-reviewed bounded Competition v2 cohort and pinned artifacts/hashes | `observation_id`, `cohort.cohort_id` and exact committed response | current Genuine step is already verified/persisted; recover exact response pins before Demand |
+| 9 | `POST /api/v2/opportunities/{o2}/demand-observations` (**current Genuine run: STOP pending official NAVER geography clarification**) | ADR-0062 exact Market Intent, exact bounded Comparable Market Response/reference, per-card review outcomes, artifacts/hashes; preserve original/provider-returned queries and exactly one period authority | `observation.observation_id`, `assessment.assessment_id` | archive response; do not use Demand v1; continue only after a factual admitted response |
+| 10a | `GET /api/v2/opportunities/{o2}/domestic-market-validations/source-manifest` | exact `competition_observation_id` and `demand_observation_id` query parameters | exact manifest and `source_manifest_fingerprint` | preview only; Founder reviews every exact source pin; no verification or assessment is created |
+| 10b | `POST /api/v2/opportunities/{o2}/domestic-market-validations` | exact Competition/Demand observation IDs, operator/current-use confirmation, reviewed fingerprint, factual times | `assessment_id`, exact source manifest/fingerprint | continue only on `validated_for_capital`; do not use DMV v1 compatibility |
+| 11 | `POST /api/v1/sourcing/admissions` | `kind=new_to_market_domestic_selling_admission` plus exact ADR-0060 admission ID; Supplier/Product/option/SKU, independent verified Product Match, Quote, shipping scope, evidence | `admission_id`, `revision`, `supplier.supplier_id`, `sourcing_product.sourcing_product_id`, `match_verification.verification_id`, `quote.quote_id/revision` | exact target-aware lineage, Product Match, and valid Quote |
 | 12 | `POST /api/v1/opportunities/{o2}/verified-economics` | Founder-verified sale/cost/fee/tax facts and evidence | O2-keyed verified snapshot response | every required fact verified; Binding |
 | 13 | `POST /api/v1/opportunities/{o2}/sourcing-economics-bindings` | Sourcing Admission/revision, Quote/revision, verified economics O2 | `binding_id` | exact lineage; Landed Cost |
 | 14 | `POST /api/v1/opportunities/{o2}/landed-cost-compositions` | Binding and explicit cost components/evidence | `composition_id` | no unresolved shipping scope; Allocation |
@@ -242,7 +270,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 18 | `POST /api/v1/opportunities/{o2}/economics-source-compositions` | normalization ID plus verified economics source | `composition_id` | state supports Conservative |
 | 19 | `POST /api/v1/opportunities/{o2}/conservative-economics` | exact source composition | `result_id` | state `calculable`; **freeze this pre-purchase ID** |
 | 20 | `POST /api/v1/opportunities/{o2}/critical-cost-assessments` | exact normalization/composition chain | `assessment_id` | state `complete`; Readiness |
-| 21 | `POST /api/v1/opportunities/{o2}/capital-readiness-assessments` | Market Validation, Conservative, Critical IDs as current contract requires | `assessment_id` | state `ready_for_capital_review` |
+| 21 | `POST /api/v1/opportunities/{o2}/capital-readiness-assessments` | command v2: exact Conservative and Critical Cost IDs plus `domestic_market_validation_source.kind=domestic_market_validation_v2` and exact DMV v2 `assessment_id` | `assessment_id`, server-derived DMV source fingerprint | continue only on `ready_for_capital_review` |
 | 22 | `POST /api/v1/opportunities/{o2}/intended-order-quantities` | Admission/revision, Quote/revision, intended quantity/unit | `intent_id` | quantity satisfies genuine commercial constraints |
 | 23 | `POST /api/v1/deployable-capital-snapshots` | factual reserve-adjusted capital before Gate | `snapshot_id` as A | currency matches Requirement plan |
 | 24 | `POST /api/v1/opportunities/{o2}/planned-acquisition-capital-requirements` | Intended Quantity, normalization, complete upfront scope evidence | `requirement_id` | state `calculable` |
@@ -251,7 +279,7 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 | 27 | `POST /api/v1/deployable-capital-snapshots` | current post-Approval capital declaration | `snapshot_id` as B | current contract accepts it |
 | 28 | `POST /api/v1/opportunities/{o2}/real-money-execution-intents` | `contract_version=2.0.0`, Approval, Quote, Snapshot B, quantity, proposed checkout money, evidence, confirmation | `intent_id` | state `ready_for_manual_execution` |
 | 29 | external supplier checkout | compare the READY purchase sheet below | external order reference/evidence | exact match only; otherwise STOP |
-| 30 | `POST /api/v1/opportunities/{o2}/purchase-execution-records` | v2 READY Intent, exact actual supplier commitment, order reference/evidence/time | `record_id` | genuine action exactly represented |
+| 30 | `POST /api/v1/opportunities/{o2}/purchase-execution-records` | v2 READY Intent, exact actual supplier commitment, order reference/evidence/time | `record_id` | records the already completed external commitment; it does not place an order |
 | 31 | `POST /api/v1/opportunities/{o2}/actual-acquisition-settlements` | Purchase ID, canonical acquisition facts/actual FX; exact predecessor for revision | `settlement_id` | downstream only from state `complete` |
 | 32 | `POST /api/v1/opportunities/{o2}/goods-receipts` | Purchase ID, receipt/inspection quantities and evidence | `record_id` | factual inspection complete enough for next step |
 | 33 | `GET /api/v1/opportunities/{o2}/owned-inventory` | O2 | archived product key/position | select exact receipt-backed product key |
@@ -261,6 +289,23 @@ the business state, then continue. Human inputs are genuine facts/evidence.
 
 Swagger is authoritative for each exact request body. This table supplies order
 and safety meaning; it does not replace the generated schema.
+
+For target-bound DMV v2, the Capital Readiness request must use the strict
+command-v2 source reference:
+
+```json
+{
+  "domestic_market_validation_source": {
+    "kind": "domestic_market_validation_v2",
+    "assessment_id": "exact DMV v2 assessment ID"
+  }
+}
+```
+
+The caller supplies no target identity, `MarketObservationIdentity`, or DMV v2
+source-manifest fingerprint. The server reconstructs the exact target and
+fingerprint from the named assessment. Historical DMV v1 remains supported by
+its own exact contract; it is never a compatibility path for a target-bound O2.
 
 ## 7. Market, sourcing, economics, and capital checklists
 
@@ -371,6 +416,12 @@ HTTP 200/201 proves admission/replay, not business readiness. Inspect state:
 HTTP 404 means an exact source is missing; 409 means replay/lineage/cardinality
 conflict; 422 means structurally invalid facts; 503 means persistence is
 unavailable. Never change genuine evidence merely to clear an error.
+
+`BLOCKED` is an authoritative business result rather than a transport error,
+but it stops progression. Capital Gate `rejected` is a business rejection and
+must never be bypassed. Persistence corruption or unavailable exact authority
+is **STOP / INVESTIGATE**; never backfill, recreate, or substitute an authority
+to make the run continue.
 
 ## 11. Pre-purchase STOP checklist
 

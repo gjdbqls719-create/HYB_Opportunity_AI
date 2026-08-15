@@ -1,5 +1,19 @@
 # HYB Changelog
 
+## Documentation Sync - Post-ADR-0066 Genuine Run Workflow
+
+- Refresh the active Genuine-run ledger and route order for the implemented
+  ADR-0060 through ADR-0066 target-bound path without claiming that pending
+  Demand, DMV, Readiness, or Gate actions have occurred.
+- Replace obsolete DMV v1 compatibility instructions with the exact DMV v2
+  preview, explicit verification, target-aware Sourcing, Verified Economics,
+  and Capital Readiness command-v2 source contracts.
+- Preserve historical ADR context while updating current implementation notes;
+  keep the official NAVER geography clarification as the first operational
+  blocker and mark untracked authority IDs for archived-response recovery.
+- Change documentation only. Do not access the production database, mutate
+  Genuine evidence, execute a Genuine API call, or infer the NAVER response.
+
 ## PR C2 - ADR-0066 Capital Readiness Target-Bound Domestic Market Validation Source Admission
 
 - Preserve the historical Capital Readiness command v1 and fingerprint while
