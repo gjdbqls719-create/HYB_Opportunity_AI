@@ -13,9 +13,10 @@ Replay, alias, corruption, rollback, restart, cross-authority cardinality, and
 concurrency behavior are covered. CR-1B7D4 additionally implements binding-aware
 operational eligibility and target-subject Competition/Demand admission while
 preserving each metric's actual market-observation provenance. Domestic Market
-Validation, Sourcing, Economics, Safety, Capital, UI, and later-listing
-attachment support remain unimplemented. The genuine run has not advanced
-through Competition or Demand.
+Validation v2 is implemented by ADR-0064. PR C1/ADR-0065 adds exact target-aware
+Founder Sourcing and Verified Economics ingress without a Market identity.
+Capital Readiness consumption, UI, and later-listing attachment support remain
+unimplemented.
 
 ## Context
 

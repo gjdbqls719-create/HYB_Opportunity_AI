@@ -10,12 +10,17 @@ from app.application.sourcing.models import (
 )
 from app.domain.sourcing import FounderSourcingAdmission
 from app.domain.opportunity import DomesticSellingOpportunityAdmission
+from app.domain.opportunity import NewToMarketDomesticSellingOpportunityAdmission
 
 
 class SourcingAuthorityRepository(Protocol):
     def get_domestic_selling_admission(
         self, admission_id: str
     ) -> DomesticSellingOpportunityAdmission | None: ...
+
+    def get_new_to_market_domestic_selling_admission(
+        self, admission_id: str
+    ) -> NewToMarketDomesticSellingOpportunityAdmission | None: ...
 
     def save_admission(
         self,

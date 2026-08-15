@@ -321,6 +321,16 @@ and the independent `VERIFIED_MATCH` requirement. The two HTTP calls are
 separate committed authorities; there is no cross-request transaction or
 automatic Economics, Market Validation, Capital, execution, UI, or auth flow.
 
+PR C1 implements ADR-0065 by adding a third target-aware Sourcing lineage. It
+pins one exact ADR-0060 admission, O2 identity, and target identity while the
+existing independent Product Match continues to bind that lineage to one exact
+Sourcing Product. Existing append-only Sourcing tables store the new
+discriminator in admission and Match payloads under additive admission v4;
+legacy v2 and ADR-0049 v3 remain unchanged. The existing Verified Economics
+owner also accepts the mutually exclusive ADR-0060 target-binding subject while
+retaining its Opportunity-owned snapshot, receipt, evidence, and replay
+contracts.
+
 ADR-0060 accepts a separate additive path for an exact O1 source product that
 the Founder selects as a new-to-market KR selling target before an exact KR
 listing or canonical-product identity exists. The Application will own a
@@ -520,8 +530,9 @@ historical Market binding or ADR-0060 target binding, plus versioned
 Competition/Demand observations and snapshots for the target subject. Actual KR
 marketplace/query/category/listing provenance remains on each evidence item and
 never becomes the target identity. Historical Market-observation rows and
-analyzer policy remain unchanged. Domestic Market Validation, Sourcing,
-Economics, Safety, Capital, UI, and later-listing support remain blocked.
+analyzer policy remain unchanged. DMV v2, target-aware Founder Sourcing, and
+Verified Economics ingress are now implemented additively. Capital Readiness
+consumption, UI, and later-listing support remain blocked.
 
 CR-1B7D4C makes canonical-reference migration detection-driven so an already
 initialized current-schema SQLite database is byte-stable across repository

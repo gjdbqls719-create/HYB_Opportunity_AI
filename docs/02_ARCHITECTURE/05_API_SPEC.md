@@ -75,10 +75,10 @@ market evidence is rejected for the KR target, and comparable/search/listing
 evidence never becomes the target identity. Historical request shapes remain
 unchanged.
 
-Target-bound O2 is still incompatible with Domestic Market Validation,
-Sourcing, Economics, Safety, Capital, and execution routes. No
-`OpportunityMarketIdentityBinding` is synthesized, and no real-money permission
-is granted.
+Target-bound O2 now has additive Competition, Demand, DMV v2, Founder Sourcing,
+and Verified Economics ingress without synthesizing an
+`OpportunityMarketIdentityBinding`. Capital Readiness still cannot consume DMV
+v2, and no real-money permission is granted.
 
 ## Domestic Selling Opportunity Admission API
 
@@ -156,6 +156,16 @@ persisted admission; callers do not repeat those claims. The resulting Sourcing
 Admission is owned by O2 and its response exposes the domestic lineage kind and
 exact admission reference. Existing `VERIFIED_MATCH` Supplier Product Match is
 still mandatory and is not implied by domestic product-equivalence confirmation.
+
+ADR-0065 adds a third explicit variant:
+`{"kind":"new_to_market_domestic_selling_admission",`
+`"new_to_market_domestic_selling_admission_id":"..."}`. The caller supplies
+only the exact ADR-0060 admission ID. The Application reconstructs its exact O2
+and immutable target binding, then creates the normal independent Product Match,
+Supplier, Sourcing Product, and Quote admission. Caller-created target,
+discovery, O1 manifest, and Market-identity fields are rejected. Target-aware
+admissions use the additive v4 payload; legacy v2 and ADR-0049 v3 remain
+unchanged.
 
 Fresh commits return 201 and exact restart-safe replay returns 200 without new
 identities, clocks, or rows. Changed command payloads and revision conflicts
@@ -290,10 +300,13 @@ The vanilla JavaScript client renders API values with `textContent`, uses the cu
 
 `POST /api/v1/opportunities/{opportunity_id}/verified-economics` admits the existing
 `VerifiedEconomicsInput` as the Opportunity's single immutable authoritative snapshot.
-Opportunity eligibility is established by the exact persisted non-archived lifecycle
-and immutable Market binding, not by Validation Queue membership. A Domestic Selling
-O2 therefore submits its own new Economics facts through this route without copying or
-relabeling O1 Economics and without creating a queue admission snapshot.
+Opportunity eligibility is established by the exact persisted non-archived
+lifecycle and exactly one immutable operational Market or ADR-0060 target
+binding, not by Validation Queue membership. A Domestic Selling O2 therefore
+submits its own new Economics facts through this route without copying or
+relabeling O1 Economics and without creating a queue admission snapshot. The
+target variant does not add target fields to the existing snapshot/receipt and
+exact replay does not reread current subject bindings.
 All money amounts and rates are JSON strings so Decimal scale is preserved. Every input
 contains its existing evidence status, source, optional reference, and optional aware
 `observed_at`. The command additionally requires `command_id`, `operator_id`, and an aware

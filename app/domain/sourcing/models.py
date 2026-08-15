@@ -13,11 +13,20 @@ from app.domain.market_intelligence import (
     MarketObservationIdentity,
     MarketObservationScope,
 )
+from app.domain.opportunity.new_to_market_domestic_selling import (
+    NewToMarketDomesticSellingTargetIdentity,
+)
 
 
 SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v2"
 DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION = "founder-sourcing-admission-v3"
 DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION = "domestic-selling-product-lineage-v1"
+NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION = (
+    "founder-sourcing-admission-v4"
+)
+NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION = (
+    "new-to-market-domestic-selling-product-lineage-v1"
+)
 SUPPLIER_IDENTITY_SCHEMA_VERSION = "supplier-identity-v1"
 SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION = "sourcing-product-identity-v1"
 SUPPLIER_QUOTE_SCHEMA_VERSION = "supplier-quote-revision-v1"
@@ -260,11 +269,57 @@ class DomesticSellingProductLineage:
             raise ValueError("unsupported domestic selling Product lineage version")
 
 
-SellingProductLineageValue = SellingProductLineage | DomesticSellingProductLineage
+@dataclass(frozen=True, slots=True)
+class NewToMarketDomesticSellingProductLineage:
+    opportunity_identity: OpportunityIdentity
+    new_to_market_domestic_selling_admission_id: str
+    target_identity: NewToMarketDomesticSellingTargetIdentity
+    schema_version: str = (
+        NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.opportunity_identity, OpportunityIdentity):
+            raise TypeError("opportunity_identity must be OpportunityIdentity")
+        object.__setattr__(
+            self,
+            "new_to_market_domestic_selling_admission_id",
+            _required(
+                self.new_to_market_domestic_selling_admission_id,
+                "new_to_market_domestic_selling_admission_id",
+            ),
+        )
+        if not isinstance(
+            self.target_identity,
+            NewToMarketDomesticSellingTargetIdentity,
+        ):
+            raise TypeError(
+                "target_identity must be NewToMarketDomesticSellingTargetIdentity"
+            )
+        if self.schema_version != (
+            NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION
+        ):
+            raise ValueError(
+                "unsupported new-to-market domestic selling Product lineage version"
+            )
+
+
+SellingProductLineageValue = (
+    SellingProductLineage
+    | DomesticSellingProductLineage
+    | NewToMarketDomesticSellingProductLineage
+)
 
 
 def _is_selling_lineage(value: object) -> bool:
-    return isinstance(value, (SellingProductLineage, DomesticSellingProductLineage))
+    return isinstance(
+        value,
+        (
+            SellingProductLineage,
+            DomesticSellingProductLineage,
+            NewToMarketDomesticSellingProductLineage,
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -403,6 +458,15 @@ class FounderSourcingAdmission:
             != DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
         ):
             raise ValueError("Sourcing admission schema does not match lineage kind")
+        if (
+            isinstance(
+                self.selling_product_lineage,
+                NewToMarketDomesticSellingProductLineage,
+            )
+            and self.schema_version
+            != NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
+        ):
+            raise ValueError("Sourcing admission schema does not match lineage kind")
         if not isinstance(self.supplier_identity, SupplierIdentity):
             raise TypeError("supplier_identity must be SupplierIdentity")
         if not isinstance(self.sourcing_product_identity, SourcingProductIdentity):
@@ -439,6 +503,7 @@ __all__ = (
     "CommercialFactAvailability",
     "FounderSourcingAdmission",
     "DomesticSellingProductLineage",
+    "NewToMarketDomesticSellingProductLineage",
     "SellingProductLineageValue",
     "MatchVerificationStatus",
     "ProductMatchVerification",
@@ -456,6 +521,8 @@ __all__ = (
     "SOURCING_AUTHORITY_SCHEMA_VERSION",
     "DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION",
     "DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION",
+    "NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION",
+    "NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION",
     "SOURCING_EVIDENCE_SCHEMA_VERSION",
     "SOURCING_PRODUCT_IDENTITY_SCHEMA_VERSION",
     "SUPPLIER_IDENTITY_SCHEMA_VERSION",

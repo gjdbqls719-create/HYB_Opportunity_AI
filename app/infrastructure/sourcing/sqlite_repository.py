@@ -30,13 +30,20 @@ from app.domain.market_intelligence import (
     MarketObservationIdentity,
     MarketObservationScope,
 )
+from app.domain.opportunity import (
+    NewToMarketDomesticSellingTargetIdentity,
+    NewToMarketDomesticSellingTargetKind,
+)
 from app.domain.sourcing import (
     CommercialFactAvailability,
     DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION,
     DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
+    NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION,
+    NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
     DomesticSellingProductLineage,
     FounderSourcingAdmission,
     MatchVerificationStatus,
+    NewToMarketDomesticSellingProductLineage,
     ProductMatchVerification,
     SellingProductLineage,
     ShippingScope,
@@ -57,6 +64,10 @@ from app.domain.sourcing import (
 )
 from app.infrastructure.domestic_selling_opportunity import (
     SQLiteDomesticSellingOpportunityAdmissionRepository,
+)
+from app.infrastructure.new_to_market_domestic_selling import (
+    NewToMarketDomesticSellingPersistenceError,
+    SQLiteNewToMarketDomesticSellingAdmissionRepository,
 )
 
 
@@ -189,6 +200,25 @@ def _load_market(value: object) -> MarketObservationIdentity:
 
 
 def _lineage(value) -> dict[str, object]:
+    if isinstance(value, NewToMarketDomesticSellingProductLineage):
+        target = value.target_identity
+        return {
+            "lineage_kind": "new_to_market_domestic_selling_admission",
+            "opportunity_identity": {
+                "opportunity_id": value.opportunity_identity.opportunity_id,
+                "discovery_reference": value.opportunity_identity.discovery_reference,
+            },
+            "new_to_market_domestic_selling_admission_id": (
+                value.new_to_market_domestic_selling_admission_id
+            ),
+            "target_identity": {
+                "domestic_selling_target_id": target.domestic_selling_target_id,
+                "market": target.market,
+                "kind": target.kind.value,
+                "schema_version": target.schema_version,
+            },
+            "schema_version": value.schema_version,
+        }
     if isinstance(value, DomesticSellingProductLineage):
         return {
             "lineage_kind": "domestic_selling_admission",
@@ -222,6 +252,31 @@ def _load_lineage(value: object):
     if not isinstance(value, dict) or not isinstance(value.get("opportunity_identity"), dict):
         raise ValueError("selling lineage must be an object")
     opportunity = value["opportunity_identity"]
+    if value.get("lineage_kind") == "new_to_market_domestic_selling_admission":
+        if value.get("schema_version") != (
+            NEW_TO_MARKET_DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION
+        ):
+            raise UnsupportedSourcingAuthorityVersionError(
+                "unsupported new-to-market domestic selling lineage version"
+            )
+        target = value.get("target_identity")
+        if not isinstance(target, dict):
+            raise ValueError("new-to-market target identity is malformed")
+        return NewToMarketDomesticSellingProductLineage(
+            opportunity_identity=OpportunityIdentity(
+                opportunity["opportunity_id"], opportunity["discovery_reference"]
+            ),
+            new_to_market_domestic_selling_admission_id=value[
+                "new_to_market_domestic_selling_admission_id"
+            ],
+            target_identity=NewToMarketDomesticSellingTargetIdentity(
+                domestic_selling_target_id=target["domestic_selling_target_id"],
+                market=target["market"],
+                kind=NewToMarketDomesticSellingTargetKind(target["kind"]),
+                schema_version=target["schema_version"],
+            ),
+            schema_version=value["schema_version"],
+        )
     if value.get("lineage_kind") == "domestic_selling_admission":
         if value.get("schema_version") != DOMESTIC_SELLING_PRODUCT_LINEAGE_SCHEMA_VERSION:
             raise UnsupportedSourcingAuthorityVersionError(
@@ -454,6 +509,7 @@ def _load_admission(value: object) -> FounderSourcingAdmission:
     if value.get("schema_version") not in {
         SOURCING_AUTHORITY_SCHEMA_VERSION,
         DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
+        NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
     }:
         raise UnsupportedSourcingAuthorityVersionError("unsupported Admission version")
     return FounderSourcingAdmission(
@@ -490,6 +546,18 @@ class SQLiteSourcingAuthorityRepository:
         )
         publication = reader.get_admission(admission_id)
         return None if publication is None else publication.admission
+
+    def get_new_to_market_domestic_selling_admission(self, admission_id):
+        try:
+            reader = SQLiteNewToMarketDomesticSellingAdmissionRepository(
+                connection=self._connection
+            )
+            publication = reader.get_admission(admission_id)
+            return None if publication is None else publication.admission
+        except NewToMarketDomesticSellingPersistenceError as error:
+            raise SourcingAuthorityPersistenceError(
+                "new-to-market domestic selling source is unavailable"
+            ) from error
 
     def _initialize_schema(self) -> None:
         statements = (

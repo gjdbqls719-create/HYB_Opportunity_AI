@@ -59,6 +59,7 @@ from app.application.sourcing import (
     AdmitFounderSourcing,
     AdmitFounderSourcingCommand,
     DomesticSellingProductLineageReference,
+    NewToMarketDomesticSellingProductLineageReference,
     InvalidSourcingCommandError,
     ReviseFounderSourcingQuote,
     ReviseFounderSourcingQuoteCommand,
@@ -105,6 +106,7 @@ from app.domain.sourcing import (
     DomesticSellingProductLineage,
     LandedCostComponentKind,
     MatchVerificationStatus,
+    NewToMarketDomesticSellingProductLineage,
     SellingProductLineage,
     ShippingScope,
     ShippingTerm,
@@ -2015,6 +2017,19 @@ class SourcingDomesticSellingLineageRequest(BaseModel):
         )
 
 
+class SourcingNewToMarketDomesticSellingLineageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["new_to_market_domestic_selling_admission"]
+    new_to_market_domestic_selling_admission_id: str = Field(min_length=1)
+
+    def to_application(
+        self,
+    ) -> NewToMarketDomesticSellingProductLineageReference:
+        return NewToMarketDomesticSellingProductLineageReference(
+            self.new_to_market_domestic_selling_admission_id
+        )
+
+
 class FounderSourcingAdmissionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     command_id: str = Field(min_length=1)
@@ -2024,6 +2039,7 @@ class FounderSourcingAdmissionRequest(BaseModel):
     selling_product_lineage: (
         SourcingSellingProductLineageRequest
         | SourcingDomesticSellingLineageRequest
+        | SourcingNewToMarketDomesticSellingLineageRequest
     )
     supplier_platform: str = Field(min_length=1)
     external_supplier_reference: str | None = None
@@ -10329,7 +10345,24 @@ def _sourcing_result_payload(result) -> dict[str, object]:
     product = admission.sourcing_product_identity
     quote = admission.quote_revision
     match = admission.match_verification
-    if isinstance(lineage, DomesticSellingProductLineage):
+    if isinstance(lineage, NewToMarketDomesticSellingProductLineage):
+        target = lineage.target_identity
+        lineage_payload = {
+            "kind": "new_to_market_domestic_selling_admission",
+            "new_to_market_domestic_selling_admission_id": (
+                lineage.new_to_market_domestic_selling_admission_id
+            ),
+            "opportunity_id": lineage.opportunity_identity.opportunity_id,
+            "discovery_reference": lineage.opportunity_identity.discovery_reference,
+            "target_identity": {
+                "domestic_selling_target_id": target.domestic_selling_target_id,
+                "market": target.market,
+                "kind": target.kind.value,
+                "schema_version": target.schema_version,
+            },
+            "schema_version": lineage.schema_version,
+        }
+    elif isinstance(lineage, DomesticSellingProductLineage):
         lineage_payload = {
             "kind": "domestic_selling_admission",
             "domestic_selling_admission_id": lineage.domestic_selling_admission_id,

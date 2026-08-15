@@ -1,6 +1,7 @@
 from app.application.sourcing.models import (
     AdmitFounderSourcingCommand,
     DomesticSellingProductLineageReference,
+    NewToMarketDomesticSellingProductLineageReference,
     InvalidSourcingCommandError,
     MalformedSourcingPersistenceError,
     ReviseFounderSourcingQuoteCommand,

@@ -14,6 +14,7 @@ from app.domain.sourcing import (
     DomesticSellingProductLineage,
     FounderSourcingAdmission,
     MatchVerificationStatus,
+    NewToMarketDomesticSellingProductLineage,
     SellingProductLineage,
     SellingProductLineageValue,
     ShippingTerm,
@@ -137,10 +138,29 @@ class DomesticSellingProductLineageReference:
 
 
 @dataclass(frozen=True, slots=True)
+class NewToMarketDomesticSellingProductLineageReference:
+    """Exact ADR-0060 admission reference resolved by the Sourcing owner."""
+
+    new_to_market_domestic_selling_admission_id: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "new_to_market_domestic_selling_admission_id",
+            _required(
+                self.new_to_market_domestic_selling_admission_id,
+                "new_to_market_domestic_selling_admission_id",
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class AdmitFounderSourcingCommand:
     command_id: str
     selling_product_lineage: (
-        SellingProductLineageValue | DomesticSellingProductLineageReference
+        SellingProductLineageValue
+        | DomesticSellingProductLineageReference
+        | NewToMarketDomesticSellingProductLineageReference
     )
     supplier_platform: str
     external_supplier_reference: str | None
@@ -177,6 +197,8 @@ class AdmitFounderSourcingCommand:
                 SellingProductLineage,
                 DomesticSellingProductLineage,
                 DomesticSellingProductLineageReference,
+                NewToMarketDomesticSellingProductLineage,
+                NewToMarketDomesticSellingProductLineageReference,
             ),
         ):
             raise InvalidSourcingCommandError(

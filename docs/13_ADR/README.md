@@ -71,3 +71,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0062: New-to-Market Demand v2 Evidence Authority](ADR-0062-new-to-market-demand-v2-evidence-authority.md)
 - [ADR-0063: Competition v2 Observation and Publication Identity Authority](ADR-0063-competition-v2-observation-publication-identity-authority.md)
 - [ADR-0064: Domestic Market Validation v2 Target-Bound Source Authority](ADR-0064-domestic-market-validation-v2-target-bound-source-authority.md)
+- [ADR-0065: New-to-Market Target Downstream Sourcing and Economics Admission](ADR-0065-new-to-market-target-downstream-sourcing-economics-admission.md)

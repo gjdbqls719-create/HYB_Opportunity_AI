@@ -7,6 +7,7 @@ from typing import Callable
 from app.application.sourcing.models import (
     AdmitFounderSourcingCommand,
     DomesticSellingProductLineageReference,
+    NewToMarketDomesticSellingProductLineageReference,
     ReviseFounderSourcingQuoteCommand,
     SourcingAdmissionNotFoundError,
     SourcingAdmissionReceipt,
@@ -19,10 +20,12 @@ from app.application.sourcing.models import (
 from app.application.sourcing.ports import SourcingAuthorityRepository
 from app.domain.sourcing import (
     DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
+    NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION,
     SOURCING_AUTHORITY_SCHEMA_VERSION,
     DomesticSellingProductLineage,
     FounderSourcingAdmission,
     MatchVerificationStatus,
+    NewToMarketDomesticSellingProductLineage,
     ProductMatchVerification,
     SourcingProductIdentity,
     SupplierIdentity,
@@ -123,11 +126,7 @@ class AdmitFounderSourcing:
             admission_id, 1, lineage, supplier, product,
             quote, verification, command.operator_id, command.requested_at,
             _time(self._admission_clock, "admitted_at"),
-            (
-                DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
-                if isinstance(lineage, DomesticSellingProductLineage)
-                else SOURCING_AUTHORITY_SCHEMA_VERSION
-            ),
+            self._admission_schema_version(lineage),
         )
         receipt = SourcingAdmissionReceipt(
             command.command_id, admission_id, 1, command.fingerprint,
@@ -154,8 +153,33 @@ class AdmitFounderSourcing:
                     source.product_equivalence.evidence_reference
                 ),
             )
+        if isinstance(
+            lineage,
+            NewToMarketDomesticSellingProductLineageReference,
+        ):
+            source = self._repository.get_new_to_market_domestic_selling_admission(
+                lineage.new_to_market_domestic_selling_admission_id
+            )
+            if source is None:
+                raise SourcingAdmissionNotFoundError(
+                    "new-to-market domestic selling Opportunity admission was not found"
+                )
+            return NewToMarketDomesticSellingProductLineage(
+                opportunity_identity=source.domestic_opportunity_identity,
+                new_to_market_domestic_selling_admission_id=source.admission_id,
+                target_identity=source.target_identity,
+            )
         self._validate_domestic_lineage(lineage)
+        self._validate_new_to_market_lineage(lineage)
         return lineage
+
+    @staticmethod
+    def _admission_schema_version(lineage) -> str:
+        if isinstance(lineage, DomesticSellingProductLineage):
+            return DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
+        if isinstance(lineage, NewToMarketDomesticSellingProductLineage):
+            return NEW_TO_MARKET_DOMESTIC_SELLING_SOURCING_AUTHORITY_SCHEMA_VERSION
+        return SOURCING_AUTHORITY_SCHEMA_VERSION
 
     def _validate_domestic_lineage(self, lineage) -> None:
         if not isinstance(lineage, DomesticSellingProductLineage):
@@ -174,6 +198,21 @@ class AdmitFounderSourcing:
         ):
             raise SourcingDomesticSellingLineageError(
                 "domestic selling Opportunity lineage differs from persisted admission"
+            )
+
+    def _validate_new_to_market_lineage(self, lineage) -> None:
+        if not isinstance(lineage, NewToMarketDomesticSellingProductLineage):
+            return
+        source = self._repository.get_new_to_market_domestic_selling_admission(
+            lineage.new_to_market_domestic_selling_admission_id
+        )
+        if source is None or (
+            source.domestic_opportunity_identity != lineage.opportunity_identity
+            or source.target_identity != lineage.target_identity
+        ):
+            raise SourcingDomesticSellingLineageError(
+                "new-to-market domestic selling Opportunity lineage differs from "
+                "persisted admission"
             )
 
 

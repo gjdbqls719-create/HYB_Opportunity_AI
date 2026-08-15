@@ -1,5 +1,20 @@
 # HYB Changelog
 
+## PR C1 - ADR-0065 Target-Aware Sourcing and Economics Ingress
+
+- Add a third Founder Sourcing lineage that pins one exact ADR-0060 admission,
+  O2 Opportunity identity, and new-to-market domestic-selling target without a
+  fabricated Market identity or duplicated O1 source fields.
+- Reuse the existing independent Product Match and Founder Sourcing authority;
+  persist the target lineage in existing append-only admission/Match payloads
+  under additive admission v4 while preserving legacy v2 and ADR-0049 v3.
+- Extend the existing Sourcing API with an admission-ID-only target reference
+  and preserve receipt-first replay without ADR-0060 source rereads.
+- Admit target-bound O2 into the unchanged Verified Economics snapshot/receipt
+  authority through the existing exclusive operational-subject union. No O1
+  Economics or automatic expected sale price is introduced.
+- Accept ADR-0065 and keep additive DMV v2 Capital Readiness support deferred.
+
 ## PR B2 - Domestic Market Validation v2 Final API and Production Composition
 
 - Add the strict final DMV v2 POST over exact Competition/Demand observation
