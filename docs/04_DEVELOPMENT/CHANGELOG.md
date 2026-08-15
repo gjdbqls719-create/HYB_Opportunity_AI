@@ -1,5 +1,24 @@
 # HYB Changelog
 
+## PR C2 - ADR-0066 Capital Readiness Target-Bound Domestic Market Validation Source Admission
+
+- Preserve the historical Capital Readiness command v1 and fingerprint while
+  adding command v2 with one exact discriminated DMV v1/v2 assessment
+  reference.
+- Reuse the existing Capital Readiness authority, policy, states, reasons, and
+  source chain. DMV v1 retains exact Market-identity equality; DMV v2 requires
+  exact ADR-0060 target equality with the ADR-0065 Founder Sourcing lineage.
+- Add assessment v3/source-manifest v2 payload support with exact DMV source
+  kind, conditional server-derived DMV v2 manifest fingerprint, and Critical
+  Cost normalization ID. Do not persist a target identity.
+- Reuse the existing append-only SQLite tables and columns with source-free
+  command-v2/assessment-v3 replay and normal exact-source validation.
+- Extend the production API additively with a strict nested DMV source request
+  while preserving the historical flat v1 request/response behavior.
+- Keep Capital Gate, Founder Capital Approval, execution authorities, DMV v1,
+  and historical Capital Readiness rows unchanged. Add no Market-identity
+  compatibility, latest selection, backfill, or parallel authority.
+
 ## PR C1 - ADR-0065 Target-Aware Sourcing and Economics Ingress
 
 - Add a third Founder Sourcing lineage that pins one exact ADR-0060 admission,

@@ -294,6 +294,7 @@ from app.application.capital_readiness import (
     CapitalReadinessPolicyError,
     CapitalReadinessProductionEntry,
     CapitalReadinessProductionRequest,
+    CapitalReadinessProductionRequestV2,
     CapitalReadinessReplayConflictError,
     CapitalReadinessSourceConflictError,
     CapitalReadinessSourceNotFoundError,
@@ -441,6 +442,8 @@ from app.domain.capital import (
     OtherActualSaleCostItem,
     OtherActualSaleCosts,
     UpfrontCostScopeStatus,
+    DomesticMarketValidationSourceKind,
+    DomesticMarketValidationSourceReference,
 )
 from app.application.economics_production import (
     AcquisitionNormalizationProductionEntry,
@@ -2819,6 +2822,28 @@ class CapitalReadinessAssessmentRequest(BaseModel):
     requested_at: datetime
 
 
+class CapitalReadinessDomesticMarketValidationSourceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "domestic_market_validation_v1",
+        "domestic_market_validation_v2",
+    ]
+    assessment_id: str = Field(min_length=1)
+
+
+class CapitalReadinessAssessmentRequestV2(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    conservative_economics_result_id: str = Field(min_length=1)
+    domestic_market_validation_source: (
+        CapitalReadinessDomesticMarketValidationSourceRequest
+    )
+    critical_cost_assessment_id: str = Field(min_length=1)
+    requested_at: datetime
+
+
 class CapitalReadinessSourceManifestResponse(BaseModel):
     opportunity_id: str
     discovery_reference: str
@@ -2855,6 +2880,21 @@ class CapitalReadinessAssessmentResponse(BaseModel):
     assessment_schema_version: str
     receipt_schema_version: str
     replayed: bool
+
+
+class CapitalReadinessSourceManifestResponseV2(
+    CapitalReadinessSourceManifestResponse
+):
+    domestic_market_validation_source_kind: Literal[
+        "domestic_market_validation_v1",
+        "domestic_market_validation_v2",
+    ]
+    domestic_market_validation_source_manifest_fingerprint: str | None
+    critical_cost_normalization_id: str
+
+
+class CapitalReadinessAssessmentResponseV2(CapitalReadinessAssessmentResponse):
+    source_manifest: CapitalReadinessSourceManifestResponseV2
 
 
 class IntendedOrderQuantityRequest(BaseModel):
@@ -7218,18 +7258,38 @@ def evaluate_critical_cost_completeness(
 
 @app.post(
     "/api/v1/opportunities/{opportunity_id}/capital-readiness-assessments",
-    response_model=CapitalReadinessAssessmentResponse,
+    response_model=(
+        CapitalReadinessAssessmentResponseV2
+        | CapitalReadinessAssessmentResponse
+    ),
     status_code=status.HTTP_201_CREATED,
 )
 def evaluate_capital_readiness(
     opportunity_id: str,
-    request: CapitalReadinessAssessmentRequest,
+    request: CapitalReadinessAssessmentRequestV2 | CapitalReadinessAssessmentRequest,
     response: Response,
     entry: CapitalReadinessProductionEntry = Depends(get_capital_readiness_entry),
-) -> CapitalReadinessAssessmentResponse:
+) -> CapitalReadinessAssessmentResponseV2 | CapitalReadinessAssessmentResponse:
     try:
-        result = entry.execute(
-            CapitalReadinessProductionRequest(
+        if isinstance(request, CapitalReadinessAssessmentRequestV2):
+            source = request.domestic_market_validation_source
+            production_request = CapitalReadinessProductionRequestV2(
+                command_id=request.command_id,
+                opportunity_id=opportunity_id,
+                conservative_economics_result_id=(
+                    request.conservative_economics_result_id
+                ),
+                domestic_market_validation_source=(
+                    DomesticMarketValidationSourceReference(
+                        DomesticMarketValidationSourceKind(source.kind),
+                        source.assessment_id,
+                    )
+                ),
+                critical_cost_assessment_id=request.critical_cost_assessment_id,
+                requested_at=request.requested_at,
+            )
+        else:
+            production_request = CapitalReadinessProductionRequest(
                 command_id=request.command_id,
                 opportunity_id=opportunity_id,
                 conservative_economics_result_id=(
@@ -7241,7 +7301,7 @@ def evaluate_capital_readiness(
                 critical_cost_assessment_id=request.critical_cost_assessment_id,
                 requested_at=request.requested_at,
             )
-        )
+        result = entry.execute(production_request)
     except CapitalReadinessSourceNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except (
@@ -7264,7 +7324,52 @@ def evaluate_capital_readiness(
     assessment, receipt = publication.assessment, publication.receipt
     manifest = assessment.source_manifest
     identity = manifest.opportunity_identity
-    return CapitalReadinessAssessmentResponse(
+    manifest_values = dict(
+        opportunity_id=identity.opportunity_id,
+        discovery_reference=identity.discovery_reference,
+        conservative_economics_result_id=(
+            manifest.conservative_economics_result_id
+        ),
+        economics_source_composition_id=(
+            manifest.economics_source_composition_id
+        ),
+        acquisition_normalization_id=manifest.acquisition_normalization_id,
+        landed_cost_composition_id=manifest.landed_cost_composition_id,
+        domestic_market_validation_assessment_id=(
+            manifest.domestic_market_validation_assessment_id
+        ),
+        critical_cost_assessment_id=manifest.critical_cost_assessment_id,
+        sourcing_binding_id=manifest.sourcing_binding_id,
+        sourcing_admission_id=manifest.sourcing_admission_id,
+        sourcing_admission_revision=manifest.sourcing_admission_revision,
+        quote_id=manifest.quote_id,
+        quote_revision=manifest.quote_revision,
+        product_match_verification_id=(
+            manifest.product_match_verification_id
+        ),
+        quote_valid_until=manifest.quote_valid_until,
+        schema_version=manifest.schema_version,
+    )
+    if manifest.domestic_market_validation_source_kind is None:
+        manifest_response = CapitalReadinessSourceManifestResponse(
+            **manifest_values
+        )
+        response_type = CapitalReadinessAssessmentResponse
+    else:
+        manifest_response = CapitalReadinessSourceManifestResponseV2(
+            **manifest_values,
+            domestic_market_validation_source_kind=(
+                manifest.domestic_market_validation_source_kind.value
+            ),
+            domestic_market_validation_source_manifest_fingerprint=(
+                manifest.domestic_market_validation_source_manifest_fingerprint
+            ),
+            critical_cost_normalization_id=(
+                manifest.critical_cost_normalization_id
+            ),
+        )
+        response_type = CapitalReadinessAssessmentResponseV2
+    return response_type(
         command_id=receipt.command_id,
         assessment_id=assessment.assessment_id,
         opportunity_id=identity.opportunity_id,
@@ -7273,32 +7378,7 @@ def evaluate_capital_readiness(
         blocking_reasons=tuple(
             reason.code.value for reason in assessment.blocking_reasons
         ),
-        source_manifest=CapitalReadinessSourceManifestResponse(
-            opportunity_id=identity.opportunity_id,
-            discovery_reference=identity.discovery_reference,
-            conservative_economics_result_id=(
-                manifest.conservative_economics_result_id
-            ),
-            economics_source_composition_id=(
-                manifest.economics_source_composition_id
-            ),
-            acquisition_normalization_id=manifest.acquisition_normalization_id,
-            landed_cost_composition_id=manifest.landed_cost_composition_id,
-            domestic_market_validation_assessment_id=(
-                manifest.domestic_market_validation_assessment_id
-            ),
-            critical_cost_assessment_id=manifest.critical_cost_assessment_id,
-            sourcing_binding_id=manifest.sourcing_binding_id,
-            sourcing_admission_id=manifest.sourcing_admission_id,
-            sourcing_admission_revision=manifest.sourcing_admission_revision,
-            quote_id=manifest.quote_id,
-            quote_revision=manifest.quote_revision,
-            product_match_verification_id=(
-                manifest.product_match_verification_id
-            ),
-            quote_valid_until=manifest.quote_valid_until,
-            schema_version=manifest.schema_version,
-        ),
+        source_manifest=manifest_response,
         critical_cost_normalization_id=result.critical_cost_normalization_id,
         policy_name=assessment.policy_name,
         policy_version=assessment.policy_version,

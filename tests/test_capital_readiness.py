@@ -290,6 +290,14 @@ def command(repository, opportunity, **changes):
     return EvaluateCapitalReadinessCommand(**values)
 
 
+def test_historical_command_v1_fingerprint_is_frozen() -> None:
+    repository, opportunity = ready_sources()
+
+    assert command(repository, opportunity).fingerprint == (
+        "1296800267a4aebaa9e1bc011f3a531e55c30e1404e174ef0f8c47463d20cdb3"
+    )
+
+
 def evaluate(repository=None, opportunity=None, *, evaluated_at=None, identity=None, committed=None):
     if repository is None:
         repository, opportunity = ready_sources()

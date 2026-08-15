@@ -15,11 +15,15 @@ from app.domain.capital import (
     CAPITAL_READINESS_POLICY_NAME,
     CAPITAL_READINESS_POLICY_VERSION,
     CAPITAL_READINESS_SCHEMA_VERSION_V2,
+    CAPITAL_READINESS_SCHEMA_VERSION_V3,
+    CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     CapitalReadinessAssessment,
     CapitalReadinessReason,
     CapitalReadinessReasonCode,
     CapitalReadinessSourceManifest,
     CapitalReadinessState,
+    DomesticMarketValidationSourceKind,
+    DomesticMarketValidationSourceReference,
 )
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.market_intelligence import (
@@ -27,6 +31,11 @@ from app.domain.market_intelligence import (
     DOMESTIC_MARKET_VALIDATION_POLICY_VERSION,
     DomesticMarketValidationAssessment,
     DomesticMarketValidationState,
+)
+from app.domain.market_intelligence.domestic_market_validation_v2 import (
+    DOMESTIC_MARKET_VALIDATION_V2_POLICY_NAME,
+    DOMESTIC_MARKET_VALIDATION_V2_POLICY_VERSION,
+    DomesticMarketValidationV2Assessment,
 )
 from app.domain.opportunity import (
     CONSERVATIVE_ECONOMICS_POLICY_NAME,
@@ -41,6 +50,7 @@ from app.domain.sourcing import (
     CriticalCostCompletenessState,
     FounderSourcingAdmission,
     MatchVerificationStatus,
+    NewToMarketDomesticSellingProductLineage,
     SourcingEconomicsBinding,
     SourcingEconomicsBindingReference,
     SourcingEconomicsSourceReference,
@@ -48,6 +58,7 @@ from app.domain.sourcing import (
 
 
 CAPITAL_READINESS_COMMAND_SCHEMA_VERSION = "capital-readiness-command-v1"
+CAPITAL_READINESS_COMMAND_SCHEMA_VERSION_V2 = "capital-readiness-command-v2"
 CAPITAL_READINESS_RECEIPT_SCHEMA_VERSION = "capital-readiness-receipt-v1"
 
 
@@ -145,6 +156,54 @@ class EvaluateCapitalReadinessCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class EvaluateCapitalReadinessCommandV2:
+    command_id: str
+    opportunity_id: str
+    conservative_economics_result_id: str
+    domestic_market_validation_source: DomesticMarketValidationSourceReference
+    critical_cost_assessment_id: str
+    requested_at: datetime
+    policy_name: str = CAPITAL_READINESS_POLICY_NAME
+    policy_version: str = CAPITAL_READINESS_POLICY_VERSION
+    schema_version: str = CAPITAL_READINESS_COMMAND_SCHEMA_VERSION_V2
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "conservative_economics_result_id",
+            "critical_cost_assessment_id",
+            "policy_name",
+            "policy_version",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        if not isinstance(
+            self.domestic_market_validation_source,
+            DomesticMarketValidationSourceReference,
+        ):
+            raise TypeError(
+                "domestic_market_validation_source must be "
+                "DomesticMarketValidationSourceReference"
+            )
+        object.__setattr__(
+            self,
+            "requested_at",
+            _aware(self.requested_at, "requested_at"),
+        )
+        if (
+            self.policy_name != CAPITAL_READINESS_POLICY_NAME
+            or self.policy_version != CAPITAL_READINESS_POLICY_VERSION
+        ):
+            raise CapitalReadinessPolicyError("unsupported Capital Readiness policy")
+        if self.schema_version != CAPITAL_READINESS_COMMAND_SCHEMA_VERSION_V2:
+            raise ValueError("unsupported Capital Readiness command schema")
+
+    @property
+    def fingerprint(self) -> str:
+        return _fingerprint(self)
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalReadinessReceipt:
     command_id: str
     assessment_id: str
@@ -188,6 +247,7 @@ class CapitalReadinessRepository(Protocol):
     def get_acquisition_normalization(self, normalization_id: str) -> AcquisitionCostNormalization | None: ...
     def get_critical_cost_assessment(self, assessment_id: str) -> CriticalCostCompleteness | None: ...
     def get_domestic_market_validation(self, assessment_id: str) -> DomesticMarketValidationAssessment | None: ...
+    def get_domestic_market_validation_v2(self, assessment_id: str) -> DomesticMarketValidationV2Assessment | None: ...
     def get_sourcing_binding(self, reference: SourcingEconomicsBindingReference) -> SourcingEconomicsBinding | None: ...
     def get_sourcing_admission(self, reference: SourcingEconomicsSourceReference) -> FounderSourcingAdmission | None: ...
     def save_assessment(self, command, assessment, receipt) -> CapitalReadinessPublication: ...
@@ -211,12 +271,27 @@ class EvaluateCapitalReadiness:
         self._evaluated = evaluated_clock
         self._committed = committed_clock
 
-    def execute(self, command: EvaluateCapitalReadinessCommand) -> CapitalReadinessPublication:
-        if not isinstance(command, EvaluateCapitalReadinessCommand):
-            raise TypeError("command must be EvaluateCapitalReadinessCommand")
+    def execute(
+        self,
+        command: EvaluateCapitalReadinessCommand | EvaluateCapitalReadinessCommandV2,
+    ) -> CapitalReadinessPublication:
+        if not isinstance(
+            command,
+            (EvaluateCapitalReadinessCommand, EvaluateCapitalReadinessCommandV2),
+        ):
+            raise TypeError("command must be a Capital Readiness command")
         replay = self._repository.validate_replay(command.command_id, command.fingerprint)
         if replay is not None:
             return replace(replay, replayed=True)
+
+        command_v2 = isinstance(command, EvaluateCapitalReadinessCommandV2)
+        if command_v2:
+            market_reference = command.domestic_market_validation_source
+        else:
+            market_reference = DomesticMarketValidationSourceReference(
+                DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1,
+                command.domestic_market_validation_assessment_id,
+            )
 
         conservative = self._required(
             self._repository.get_conservative_economics_result(
@@ -242,12 +317,22 @@ class EvaluateCapitalReadiness:
             ),
             "exact Critical Cost assessment",
         )
-        market = self._required(
-            self._repository.get_domestic_market_validation(
-                command.domestic_market_validation_assessment_id
-            ),
-            "exact Domestic Market Validation assessment",
-        )
+        if market_reference.kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
+        ):
+            market = self._required(
+                self._repository.get_domestic_market_validation(
+                    market_reference.assessment_id
+                ),
+                "exact Domestic Market Validation v1 assessment",
+            )
+        else:
+            market = self._required(
+                self._repository.get_domestic_market_validation_v2(
+                    market_reference.assessment_id
+                ),
+                "exact Domestic Market Validation v2 assessment",
+            )
         binding = self._required(
             self._repository.get_sourcing_binding(critical.binding_reference),
             "exact Sourcing Economics Binding",
@@ -256,6 +341,11 @@ class EvaluateCapitalReadiness:
             self._repository.get_sourcing_admission(critical.source_reference),
             "exact Sourcing Admission revision",
         )
+
+        if command_v2 and critical.acquisition_normalization_id is None:
+            raise CapitalReadinessSourceConflictError(
+                "Critical Cost does not pin an Acquisition Cost Normalization"
+            )
 
         evaluated_at = _aware(self._evaluated(), "evaluated_at")
         reasons: set[CapitalReadinessReasonCode] = set()
@@ -266,7 +356,21 @@ class EvaluateCapitalReadiness:
         if critical.state is not CriticalCostCompletenessState.COMPLETE:
             reasons.add(CapitalReadinessReasonCode.CRITICAL_COST_INCOMPLETE)
 
-        opportunity = command.opportunity_identity
+        opportunity = (
+            conservative.opportunity_identity
+            if command_v2
+            else command.opportunity_identity
+        )
+        if market_reference.kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
+        ):
+            market_opportunity_id = market.source_manifest.opportunity_id
+            market_discovery_reference = market.source_manifest.discovery_reference
+        else:
+            market_opportunity_id = market.source_manifest.target_binding.opportunity_id
+            market_discovery_reference = (
+                market.source_manifest.target_binding.discovery_reference
+            )
         if any(value != opportunity for value in (
             conservative.opportunity_identity,
             source.opportunity_identity,
@@ -275,12 +379,13 @@ class EvaluateCapitalReadiness:
             binding.opportunity_identity,
             admission.selling_product_lineage.opportunity_identity,
         )) or (
-            market.source_manifest.opportunity_id != opportunity.opportunity_id
-            or market.source_manifest.discovery_reference != opportunity.discovery_reference
+            market_opportunity_id != opportunity.opportunity_id
+            or market_discovery_reference != opportunity.discovery_reference
+            or (command_v2 and command.opportunity_id != opportunity.opportunity_id)
         ):
             reasons.add(CapitalReadinessReasonCode.SOURCE_OPPORTUNITY_MISMATCH)
 
-        if (
+        source_chain_mismatch = (
             conservative.source_composition_id != source.composition_id
             or source.acquisition_normalization_id != normalization.normalization_id
             or critical.acquisition_normalization_id != normalization.normalization_id
@@ -296,9 +401,24 @@ class EvaluateCapitalReadiness:
             != critical.verified_economics_snapshot_at
             or source.verified_economics_schema_version
             != critical.verified_economics_schema_version
-            or admission.selling_product_lineage.market_observation_identity
-            != market.source_manifest.market_identity
+        )
+        lineage = admission.selling_product_lineage
+        if market_reference.kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
         ):
+            subject_mismatch = (
+                getattr(lineage, "market_observation_identity", None)
+                != market.source_manifest.market_identity
+            )
+        else:
+            subject_mismatch = not isinstance(
+                lineage,
+                NewToMarketDomesticSellingProductLineage,
+            ) or (
+                lineage.target_identity
+                != market.source_manifest.target_binding.target_identity
+            )
+        if source_chain_mismatch or subject_mismatch:
             reasons.add(CapitalReadinessReasonCode.SOURCING_LINEAGE_MISMATCH)
 
         if admission.match_verification.status is not MatchVerificationStatus.VERIFIED_MATCH:
@@ -308,10 +428,15 @@ class EvaluateCapitalReadiness:
             reasons.add(CapitalReadinessReasonCode.QUOTE_VALIDITY_MISSING)
         elif valid_until <= evaluated_at:
             reasons.add(CapitalReadinessReasonCode.QUOTE_EXPIRED)
-        if not self._supported_policies(conservative, critical, market):
+        if not self._supported_policies(
+            conservative,
+            critical,
+            market,
+            market_reference.kind,
+        ):
             reasons.add(CapitalReadinessReasonCode.SOURCE_POLICY_UNSUPPORTED)
 
-        manifest = CapitalReadinessSourceManifest(
+        manifest_values = dict(
             opportunity_identity=opportunity,
             conservative_economics_result_id=conservative.result_id,
             economics_source_composition_id=source.composition_id,
@@ -327,6 +452,23 @@ class EvaluateCapitalReadiness:
             product_match_verification_id=admission.match_verification.verification_id,
             quote_valid_until=valid_until,
         )
+        if command_v2:
+            manifest_values.update(
+                schema_version=(
+                    CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+                ),
+                domestic_market_validation_source_kind=market_reference.kind,
+                domestic_market_validation_source_manifest_fingerprint=(
+                    market.source_manifest_fingerprint
+                    if market_reference.kind
+                    is DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V2
+                    else None
+                ),
+                critical_cost_normalization_id=(
+                    critical.acquisition_normalization_id
+                ),
+            )
+        manifest = CapitalReadinessSourceManifest(**manifest_values)
         ordered = tuple(
             CapitalReadinessReason(code)
             for code in sorted(reasons, key=lambda value: value.order)
@@ -344,7 +486,11 @@ class EvaluateCapitalReadiness:
             policy_version=command.policy_version,
             requested_at=command.requested_at,
             evaluated_at=evaluated_at,
-            schema_version=CAPITAL_READINESS_SCHEMA_VERSION_V2,
+            schema_version=(
+                CAPITAL_READINESS_SCHEMA_VERSION_V3
+                if command_v2
+                else CAPITAL_READINESS_SCHEMA_VERSION_V2
+            ),
         )
         receipt = CapitalReadinessReceipt(
             command.command_id,
@@ -361,16 +507,27 @@ class EvaluateCapitalReadiness:
         return value
 
     @staticmethod
-    def _supported_policies(conservative, critical, market) -> bool:
-        return (
+    def _supported_policies(conservative, critical, market, market_kind) -> bool:
+        common = (
             conservative.policy_name == CONSERVATIVE_ECONOMICS_POLICY_NAME
             and conservative.policy_version == CONSERVATIVE_ECONOMICS_POLICY_VERSION
             and critical.policy_name
             == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.name
             and critical.policy_version
             == DOMESTIC_COMMERCE_CRITICAL_COST_POLICY_V2.version
-            and market.policy_name == DOMESTIC_MARKET_VALIDATION_POLICY_NAME
-            and market.policy_version == DOMESTIC_MARKET_VALIDATION_POLICY_VERSION
+        )
+        if not common:
+            return False
+        if market_kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
+        ):
+            return (
+                market.policy_name == DOMESTIC_MARKET_VALIDATION_POLICY_NAME
+                and market.policy_version == DOMESTIC_MARKET_VALIDATION_POLICY_VERSION
+            )
+        return (
+            market.policy_name == DOMESTIC_MARKET_VALIDATION_V2_POLICY_NAME
+            and market.policy_version == DOMESTIC_MARKET_VALIDATION_V2_POLICY_VERSION
         )
 
 
@@ -396,6 +553,38 @@ class CapitalReadinessProductionRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class CapitalReadinessProductionRequestV2:
+    command_id: str
+    opportunity_id: str
+    conservative_economics_result_id: str
+    domestic_market_validation_source: DomesticMarketValidationSourceReference
+    critical_cost_assessment_id: str
+    requested_at: datetime
+
+    def __post_init__(self) -> None:
+        for name in (
+            "command_id",
+            "opportunity_id",
+            "conservative_economics_result_id",
+            "critical_cost_assessment_id",
+        ):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        if not isinstance(
+            self.domestic_market_validation_source,
+            DomesticMarketValidationSourceReference,
+        ):
+            raise TypeError(
+                "domestic_market_validation_source must be "
+                "DomesticMarketValidationSourceReference"
+            )
+        object.__setattr__(
+            self,
+            "requested_at",
+            _aware(self.requested_at, "requested_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CapitalReadinessProductionResult:
     publication: CapitalReadinessPublication
     critical_cost_normalization_id: str | None
@@ -413,10 +602,35 @@ class CapitalReadinessProductionEntry:
         self._owner = owner
 
     def execute(
-        self, request: CapitalReadinessProductionRequest
+        self,
+        request: CapitalReadinessProductionRequest | CapitalReadinessProductionRequestV2,
     ) -> CapitalReadinessProductionResult:
-        if not isinstance(request, CapitalReadinessProductionRequest):
-            raise TypeError("request must be CapitalReadinessProductionRequest")
+        if not isinstance(
+            request,
+            (CapitalReadinessProductionRequest, CapitalReadinessProductionRequestV2),
+        ):
+            raise TypeError("request must be a Capital Readiness production request")
+        if isinstance(request, CapitalReadinessProductionRequestV2):
+            publication = self._owner.execute(
+                EvaluateCapitalReadinessCommandV2(
+                    command_id=request.command_id,
+                    opportunity_id=request.opportunity_id,
+                    conservative_economics_result_id=(
+                        request.conservative_economics_result_id
+                    ),
+                    domestic_market_validation_source=(
+                        request.domestic_market_validation_source
+                    ),
+                    critical_cost_assessment_id=request.critical_cost_assessment_id,
+                    requested_at=request.requested_at,
+                )
+            )
+            return CapitalReadinessProductionResult(
+                publication=publication,
+                critical_cost_normalization_id=(
+                    publication.assessment.source_manifest.critical_cost_normalization_id
+                ),
+            )
         conservative = self._repository.get_conservative_economics_result(
             request.conservative_economics_result_id
         )

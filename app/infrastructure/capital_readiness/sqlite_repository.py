@@ -14,20 +14,29 @@ from app.application.capital_readiness import (
     CapitalReadinessReceipt,
     CapitalReadinessReplayConflictError,
     EvaluateCapitalReadinessCommand,
+    EvaluateCapitalReadinessCommandV2,
 )
 from app.domain.capital import (
+    CAPITAL_READINESS_SCHEMA_VERSION_V3,
     CAPITAL_READINESS_SCHEMA_VERSION_V2,
     CAPITAL_READINESS_SCHEMA_VERSION,
     CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION,
+    CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2,
     CapitalReadinessAssessment,
     CapitalReadinessReason,
     CapitalReadinessReasonCode,
     CapitalReadinessSourceManifest,
     CapitalReadinessState,
+    DomesticMarketValidationSourceKind,
 )
 from app.domain.decision_engine import OpportunityIdentity
 from app.infrastructure.conservative_economics import SQLiteConservativeEconomicsRepository
 from app.infrastructure.domestic_market_validation import SQLiteDomesticMarketValidationRepository
+from app.infrastructure.domestic_market_validation_v2 import (
+    DomesticMarketValidationV2CorruptionError,
+    DomesticMarketValidationV2PersistenceError,
+    SQLiteDomesticMarketValidationV2Repository,
+)
 from app.infrastructure.economics_source_composition import SQLiteEconomicsSourceCompositionRepository
 from app.infrastructure.sourcing import SQLiteCriticalCostCompletenessRepository
 
@@ -92,10 +101,15 @@ _MANIFEST_KEYS = {
     "quote_revision", "product_match_verification_id", "quote_valid_until",
     "schema_version",
 }
+_MANIFEST_V2_KEYS = _MANIFEST_KEYS | {
+    "domestic_market_validation_source_kind",
+    "domestic_market_validation_source_manifest_fingerprint",
+    "critical_cost_normalization_id",
+}
 
 
 def _manifest(value: CapitalReadinessSourceManifest) -> dict[str, object]:
-    return {
+    result = {
         "opportunity_identity": {
             "opportunity_id": value.opportunity_identity.opportunity_id,
             "discovery_reference": value.opportunity_identity.discovery_reference,
@@ -117,11 +131,28 @@ def _manifest(value: CapitalReadinessSourceManifest) -> dict[str, object]:
         ),
         "schema_version": value.schema_version,
     }
+    if value.schema_version == CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2:
+        result.update(
+            domestic_market_validation_source_kind=(
+                value.domestic_market_validation_source_kind.value
+            ),
+            domestic_market_validation_source_manifest_fingerprint=(
+                value.domestic_market_validation_source_manifest_fingerprint
+            ),
+            critical_cost_normalization_id=value.critical_cost_normalization_id,
+        )
+    return result
 
 
 def _load_manifest(value: object) -> CapitalReadinessSourceManifest:
-    data = _exact(value, _MANIFEST_KEYS, "Capital Readiness source manifest")
-    if data["schema_version"] != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION:
+    if not isinstance(value, dict):
+        raise ValueError("Capital Readiness source manifest must be an object")
+    schema_version = value.get("schema_version")
+    if schema_version == CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION:
+        data = _exact(value, _MANIFEST_KEYS, "Capital Readiness source manifest")
+    elif schema_version == CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2:
+        data = _exact(value, _MANIFEST_V2_KEYS, "Capital Readiness source manifest")
+    else:
         raise UnsupportedCapitalReadinessVersionError("unsupported source manifest version")
     opportunity = _exact(
         data["opportunity_identity"],
@@ -152,6 +183,13 @@ def _load_manifest(value: object) -> CapitalReadinessSourceManifest:
             else _datetime(data["quote_valid_until"], "quote_valid_until")
         ),
         schema_version=data["schema_version"],
+        domestic_market_validation_source_kind=(
+            data.get("domestic_market_validation_source_kind")
+        ),
+        domestic_market_validation_source_manifest_fingerprint=(
+            data.get("domestic_market_validation_source_manifest_fingerprint")
+        ),
+        critical_cost_normalization_id=data.get("critical_cost_normalization_id"),
     )
 
 
@@ -249,6 +287,19 @@ class SQLiteCapitalReadinessRepository:
     def get_domestic_market_validation(self, assessment_id):
         return self._market.get_assessment(assessment_id)
 
+    def get_domestic_market_validation_v2(self, assessment_id):
+        try:
+            return SQLiteDomesticMarketValidationV2Repository(
+                connection=self._connection
+            ).get_assessment(assessment_id)
+        except (
+            DomesticMarketValidationV2PersistenceError,
+            DomesticMarketValidationV2CorruptionError,
+        ) as error:
+            raise CapitalReadinessPersistenceError(
+                "Domestic Market Validation v2 source is unavailable"
+            ) from error
+
     def get_sourcing_binding(self, reference):
         return self._critical.get_binding(reference)
 
@@ -263,11 +314,17 @@ class SQLiteCapitalReadinessRepository:
         except sqlite3.Error as error:
             raise CapitalReadinessHistoryError("Capital Readiness history query failed") from error
 
-    def _load_assessment(self, row) -> CapitalReadinessAssessment:
+    def _load_assessment(
+        self,
+        row,
+        *,
+        validate_sources: bool = True,
+    ) -> CapitalReadinessAssessment:
         try:
             if row["schema_version"] not in {
                 CAPITAL_READINESS_SCHEMA_VERSION,
                 CAPITAL_READINESS_SCHEMA_VERSION_V2,
+                CAPITAL_READINESS_SCHEMA_VERSION_V3,
             }:
                 raise UnsupportedCapitalReadinessVersionError("unsupported assessment version")
             encoded = row["payload_json"]
@@ -277,6 +334,7 @@ class SQLiteCapitalReadinessRepository:
             if data["schema_version"] not in {
                 CAPITAL_READINESS_SCHEMA_VERSION,
                 CAPITAL_READINESS_SCHEMA_VERSION_V2,
+                CAPITAL_READINESS_SCHEMA_VERSION_V3,
             }:
                 raise UnsupportedCapitalReadinessVersionError("unsupported payload version")
             reasons = data["blocking_reasons"]
@@ -311,7 +369,8 @@ class SQLiteCapitalReadinessRepository:
                 or assessment.schema_version != row["schema_version"]
             ):
                 raise ValueError("assessment columns differ from payload")
-            self._validate_exact_sources(assessment)
+            if validate_sources:
+                self._validate_exact_sources(assessment)
             return assessment
         except UnsupportedCapitalReadinessVersionError:
             raise
@@ -336,9 +395,20 @@ class SQLiteCapitalReadinessRepository:
         critical = self.get_critical_cost_assessment(
             manifest.critical_cost_assessment_id
         )
-        market = self.get_domestic_market_validation(
-            manifest.domestic_market_validation_assessment_id
+        market_kind = (
+            manifest.domestic_market_validation_source_kind
+            or DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
         )
+        if market_kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
+        ):
+            market = self.get_domestic_market_validation(
+                manifest.domestic_market_validation_assessment_id
+            )
+        else:
+            market = self.get_domestic_market_validation_v2(
+                manifest.domestic_market_validation_assessment_id
+            )
         if any(
             value is None
             for value in (conservative, source, normalization, critical, market)
@@ -348,22 +418,45 @@ class SQLiteCapitalReadinessRepository:
         admission = self.get_sourcing_admission(critical.source_reference)
         if binding is None or admission is None:
             raise ValueError("Capital Readiness exact Sourcing source is missing")
+        if market_kind is (
+            DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1
+        ):
+            market_opportunity_id = market.source_manifest.opportunity_id
+            market_discovery_reference = market.source_manifest.discovery_reference
+            market_fingerprint_mismatch = False
+        else:
+            market_opportunity_id = market.source_manifest.target_binding.opportunity_id
+            market_discovery_reference = (
+                market.source_manifest.target_binding.discovery_reference
+            )
+            market_fingerprint_mismatch = (
+                market.source_manifest_fingerprint
+                != manifest.domestic_market_validation_source_manifest_fingerprint
+            )
         if (
             conservative.opportunity_identity != manifest.opportunity_identity
             or conservative.source_composition_id != source.composition_id
             or source.acquisition_normalization_id != normalization.normalization_id
             or (
-                assessment.schema_version == CAPITAL_READINESS_SCHEMA_VERSION_V2
+                assessment.schema_version in {
+                    CAPITAL_READINESS_SCHEMA_VERSION_V2,
+                    CAPITAL_READINESS_SCHEMA_VERSION_V3,
+                }
                 and critical.acquisition_normalization_id
                 != normalization.normalization_id
+            )
+            or (
+                assessment.schema_version == CAPITAL_READINESS_SCHEMA_VERSION_V3
+                and critical.acquisition_normalization_id
+                != manifest.critical_cost_normalization_id
             )
             or normalization.composition_id != manifest.landed_cost_composition_id
             or critical.composition_id != manifest.landed_cost_composition_id
             or critical.opportunity_identity != manifest.opportunity_identity
-            or market.source_manifest.opportunity_id
-            != manifest.opportunity_identity.opportunity_id
-            or market.source_manifest.discovery_reference
+            or market_opportunity_id != manifest.opportunity_identity.opportunity_id
+            or market_discovery_reference
             != manifest.opportunity_identity.discovery_reference
+            or market_fingerprint_mismatch
             or binding.binding_id != manifest.sourcing_binding_id
             or admission.admission_id != manifest.sourcing_admission_id
             or admission.revision != manifest.sourcing_admission_revision
@@ -387,7 +480,12 @@ class SQLiteCapitalReadinessRepository:
         except sqlite3.Error as error:
             raise CapitalReadinessReceiptError("Capital Readiness receipt query failed") from error
 
-    def _load_receipt(self, row) -> CapitalReadinessReceipt:
+    def _load_receipt(
+        self,
+        row,
+        *,
+        validate_assessment: bool = True,
+    ) -> CapitalReadinessReceipt:
         try:
             if row["schema_version"] != CAPITAL_READINESS_RECEIPT_SCHEMA_VERSION:
                 raise UnsupportedCapitalReadinessVersionError("unsupported receipt version")
@@ -395,7 +493,10 @@ class SQLiteCapitalReadinessRepository:
                 row["command_id"], row["assessment_id"], row["command_fingerprint"],
                 _datetime(row["committed_at"], "committed_at"), row["schema_version"],
             )
-            if self.get_assessment(receipt.assessment_id) is None:
+            if (
+                validate_assessment
+                and self.get_assessment(receipt.assessment_id) is None
+            ):
                 raise ValueError("receipt references missing assessment")
             return receipt
         except UnsupportedCapitalReadinessVersionError:
@@ -412,6 +513,27 @@ class SQLiteCapitalReadinessRepository:
         return None if row is None else self._load_receipt(row)
 
     def validate_replay(self, command_id: str, fingerprint: str):
+        row = self._receipt_row(command_id)
+        if row is not None:
+            history_row = self._history_row(row["assessment_id"])
+            if (
+                history_row is not None
+                and history_row["schema_version"]
+                == CAPITAL_READINESS_SCHEMA_VERSION_V3
+            ):
+                receipt = self._load_receipt(
+                    row,
+                    validate_assessment=False,
+                )
+                if receipt.command_fingerprint != fingerprint:
+                    raise CapitalReadinessReplayConflictError(
+                        "Capital Readiness command payload conflicts"
+                    )
+                assessment = self._load_assessment(
+                    history_row,
+                    validate_sources=False,
+                )
+                return CapitalReadinessPublication(assessment, receipt, True)
         receipt = self.get_receipt(command_id)
         if receipt is None:
             return None
@@ -428,27 +550,50 @@ class SQLiteCapitalReadinessRepository:
 
     @staticmethod
     def _validate_write(command, assessment, receipt) -> None:
-        if not isinstance(command, EvaluateCapitalReadinessCommand):
-            raise TypeError("command must be EvaluateCapitalReadinessCommand")
+        if not isinstance(
+            command,
+            (EvaluateCapitalReadinessCommand, EvaluateCapitalReadinessCommandV2),
+        ):
+            raise TypeError("command must be a Capital Readiness command")
         if not isinstance(assessment, CapitalReadinessAssessment):
             raise TypeError("assessment must be CapitalReadinessAssessment")
         if not isinstance(receipt, CapitalReadinessReceipt):
             raise TypeError("receipt must be CapitalReadinessReceipt")
         manifest = assessment.source_manifest
-        if (
+        common_mismatch = (
             receipt.command_id != command.command_id
             or receipt.assessment_id != assessment.assessment_id
             or receipt.command_fingerprint != command.fingerprint
-            or manifest.opportunity_identity != command.opportunity_identity
             or manifest.conservative_economics_result_id
             != command.conservative_economics_result_id
-            or manifest.domestic_market_validation_assessment_id
-            != command.domestic_market_validation_assessment_id
             or manifest.critical_cost_assessment_id != command.critical_cost_assessment_id
             or assessment.policy_name != command.policy_name
             or assessment.policy_version != command.policy_version
             or assessment.requested_at != command.requested_at
-        ):
+        )
+        if isinstance(command, EvaluateCapitalReadinessCommand):
+            command_mismatch = (
+                manifest.opportunity_identity != command.opportunity_identity
+                or manifest.domestic_market_validation_assessment_id
+                != command.domestic_market_validation_assessment_id
+            )
+        else:
+            command_mismatch = (
+                (
+                    manifest.opportunity_identity.opportunity_id
+                    != command.opportunity_id
+                    and CapitalReadinessReasonCode.SOURCE_OPPORTUNITY_MISMATCH
+                    not in assessment.reason_codes
+                )
+                or manifest.domestic_market_validation_assessment_id
+                != command.domestic_market_validation_source.assessment_id
+                or manifest.domestic_market_validation_source_kind
+                is not command.domestic_market_validation_source.kind
+                or manifest.schema_version
+                != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+                or assessment.schema_version != CAPITAL_READINESS_SCHEMA_VERSION_V3
+            )
+        if common_mismatch or command_mismatch:
             raise CapitalReadinessReplayConflictError(
                 "command, assessment, and receipt do not match"
             )
@@ -468,6 +613,8 @@ class SQLiteCapitalReadinessRepository:
                 self._commit()
                 return replay
             self._validate_write(command, assessment, receipt)
+            if assessment.schema_version == CAPITAL_READINESS_SCHEMA_VERSION_V3:
+                self._validate_exact_sources(assessment)
             encoded = _payload(assessment)
             manifest = assessment.source_manifest
             try:

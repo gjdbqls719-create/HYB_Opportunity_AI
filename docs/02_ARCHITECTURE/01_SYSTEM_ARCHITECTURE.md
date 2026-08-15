@@ -512,8 +512,9 @@ Capital readiness. Dedicated append-only SQLite assessment and receipt tables
 provide replay-first identity/time issuance, atomic commit, restart
 reconstruction, source-lineage integrity checks, rollback and concurrent-command
 convergence without latest-source selection or policy re-evaluation. Production
-API exposure is added by CR-1B5D2G without changing that policy. UI, operator
-authentication and Capital Readiness consumption remain separate future boundaries.
+API exposure is added by CR-1B5D2G without changing that policy. UI and operator
+authentication remain separate boundaries; ADR-0045 and ADR-0066 own Capital
+Readiness consumption.
 
 CR-1B7D3 implements ADR-0060 as a separate additive new-to-market admission
 authority. It reconstructs the exact ADR-0059 v2 O1, capture, ordered Product
@@ -530,9 +531,10 @@ historical Market binding or ADR-0060 target binding, plus versioned
 Competition/Demand observations and snapshots for the target subject. Actual KR
 marketplace/query/category/listing provenance remains on each evidence item and
 never becomes the target identity. Historical Market-observation rows and
-analyzer policy remain unchanged. DMV v2, target-aware Founder Sourcing, and
-Verified Economics ingress are now implemented additively. Capital Readiness
-consumption, UI, and later-listing support remain blocked.
+analyzer policy remain unchanged. DMV v2, target-aware Founder Sourcing,
+Verified Economics ingress, and target-bound Capital Readiness consumption are
+now implemented additively. UI and later-listing support remain separate
+boundaries.
 
 CR-1B7D4C makes canonical-reference migration detection-driven so an already
 initialized current-schema SQLite database is byte-stable across repository
@@ -587,6 +589,25 @@ and ordered-blocker semantics. Both boundaries are replay-first and commit
 independently; no transaction spans the routes, no latest source is selected,
 and no Capital Gate, quantity, capital, approval, or execution authority is
 introduced.
+
+PR C2 implements ADR-0066 without creating a parallel Capital Readiness
+authority. Historical command v1 and its fingerprint remain unchanged. The
+additive command v2 names one exact discriminated DMV v1 or DMV v2 assessment;
+the server resolves the exact source and, for DMV v2, captures its immutable
+source-manifest fingerprint. DMV v1 continues to require exact Market identity
+equality. DMV v2 instead requires exact equality between its ADR-0060 target
+and the target preserved by the ADR-0065 Founder Sourcing lineage, together
+with the same Opportunity/discovery, Economics, normalization, Product Match,
+Quote, and Critical Cost invariants.
+
+Fresh command-v2 results use assessment v3 and source-manifest v2 inside the
+existing append-only Capital Readiness tables. The manifest adds only the DMV
+source kind, conditional DMV v2 source-manifest fingerprint, and exact Critical
+Cost normalization ID; it does not copy the target identity. Normal reads
+validate exact sources, while command-v2/assessment-v3 replay reconstructs only
+persisted Readiness history and receipt. Capital Readiness policy, states,
+reasons, Capital Gate, Founder approval, and execution semantics remain
+unchanged.
 
 CR-1B5B0A implements the first two ADR-0046 Founder-owned Capital facts without
 opening Capital Gate. `IntendedOrderQuantity` binds one explicit positive unit

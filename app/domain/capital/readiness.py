@@ -11,7 +11,9 @@ from app.domain.decision_engine import OpportunityIdentity
 
 CAPITAL_READINESS_SCHEMA_VERSION = "capital-readiness-v1"
 CAPITAL_READINESS_SCHEMA_VERSION_V2 = "capital-readiness-v2"
+CAPITAL_READINESS_SCHEMA_VERSION_V3 = "capital-readiness-v3"
 CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION = "capital-readiness-source-manifest-v1"
+CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2 = "capital-readiness-source-manifest-v2"
 CAPITAL_READINESS_POLICY_NAME = "domestic-commerce-capital-readiness"
 CAPITAL_READINESS_POLICY_VERSION = "1.0.0"
 
@@ -37,6 +39,11 @@ class CapitalReadinessReasonCode(StrEnum):
         return tuple(CapitalReadinessReasonCode).index(self)
 
 
+class DomesticMarketValidationSourceKind(StrEnum):
+    DOMESTIC_MARKET_VALIDATION_V1 = "domestic_market_validation_v1"
+    DOMESTIC_MARKET_VALIDATION_V2 = "domestic_market_validation_v2"
+
+
 def _text(value: str, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be non-empty text")
@@ -57,6 +64,29 @@ def _aware(value: datetime, name: str) -> datetime:
     return value
 
 
+def _sha256(value: str | None, name: str) -> str:
+    fingerprint = _text(value, name).lower() if value is not None else ""
+    if len(fingerprint) != 64 or any(
+        character not in "0123456789abcdef" for character in fingerprint
+    ):
+        raise ValueError(f"{name} must be SHA-256 text")
+    return fingerprint
+
+
+@dataclass(frozen=True, slots=True)
+class DomesticMarketValidationSourceReference:
+    kind: DomesticMarketValidationSourceKind
+    assessment_id: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "kind", DomesticMarketValidationSourceKind(self.kind))
+        object.__setattr__(
+            self,
+            "assessment_id",
+            _text(self.assessment_id, "assessment_id"),
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class CapitalReadinessSourceManifest:
     opportunity_identity: OpportunityIdentity
@@ -74,6 +104,9 @@ class CapitalReadinessSourceManifest:
     product_match_verification_id: str
     quote_valid_until: datetime | None
     schema_version: str = CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION
+    domestic_market_validation_source_kind: DomesticMarketValidationSourceKind | None = None
+    domestic_market_validation_source_manifest_fingerprint: str | None = None
+    critical_cost_normalization_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.opportunity_identity, OpportunityIdentity):
@@ -101,8 +134,45 @@ class CapitalReadinessSourceManifest:
                 "quote_valid_until",
                 _aware(self.quote_valid_until, "quote_valid_until"),
             )
-        if self.schema_version != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION:
+        if self.schema_version == CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION:
+            if any(
+                value is not None
+                for value in (
+                    self.domestic_market_validation_source_kind,
+                    self.domestic_market_validation_source_manifest_fingerprint,
+                    self.critical_cost_normalization_id,
+                )
+            ):
+                raise ValueError(
+                    "Capital Readiness source manifest v1 cannot carry v2 fields"
+                )
+            return
+        if self.schema_version != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2:
             raise ValueError("unsupported Capital Readiness source manifest schema")
+        kind = DomesticMarketValidationSourceKind(
+            self.domestic_market_validation_source_kind
+        )
+        object.__setattr__(self, "domestic_market_validation_source_kind", kind)
+        object.__setattr__(
+            self,
+            "critical_cost_normalization_id",
+            _text(
+                self.critical_cost_normalization_id,
+                "critical_cost_normalization_id",
+            ),
+        )
+        if kind is DomesticMarketValidationSourceKind.DOMESTIC_MARKET_VALIDATION_V1:
+            if self.domestic_market_validation_source_manifest_fingerprint is not None:
+                raise ValueError("DMV v1 source cannot carry a DMV v2 manifest fingerprint")
+        else:
+            object.__setattr__(
+                self,
+                "domestic_market_validation_source_manifest_fingerprint",
+                _sha256(
+                    self.domestic_market_validation_source_manifest_fingerprint,
+                    "domestic_market_validation_source_manifest_fingerprint",
+                ),
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,12 +227,32 @@ class CapitalReadinessAssessment:
         if self.schema_version not in {
             CAPITAL_READINESS_SCHEMA_VERSION,
             CAPITAL_READINESS_SCHEMA_VERSION_V2,
+            CAPITAL_READINESS_SCHEMA_VERSION_V3,
         }:
             raise ValueError("unsupported Capital Readiness schema")
+        if (
+            self.schema_version == CAPITAL_READINESS_SCHEMA_VERSION_V3
+            and self.source_manifest.schema_version
+            != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION_V2
+        ) or (
+            self.schema_version
+            in {CAPITAL_READINESS_SCHEMA_VERSION, CAPITAL_READINESS_SCHEMA_VERSION_V2}
+            and self.source_manifest.schema_version
+            != CAPITAL_READINESS_SOURCE_MANIFEST_SCHEMA_VERSION
+        ):
+            raise ValueError(
+                "Capital Readiness assessment and source manifest versions differ"
+            )
 
     @property
     def reason_codes(self) -> tuple[CapitalReadinessReasonCode, ...]:
         return tuple(reason.code for reason in self.blocking_reasons)
 
 
-__all__ = [name for name in globals() if name.startswith("Capital") or name.startswith("CAPITAL")]
+__all__ = [
+    name
+    for name in globals()
+    if name.startswith("Capital")
+    or name.startswith("CAPITAL")
+    or name.startswith("DomesticMarketValidationSource")
+]

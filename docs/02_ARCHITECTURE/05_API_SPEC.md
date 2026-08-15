@@ -76,9 +76,9 @@ evidence never becomes the target identity. Historical request shapes remain
 unchanged.
 
 Target-bound O2 now has additive Competition, Demand, DMV v2, Founder Sourcing,
-and Verified Economics ingress without synthesizing an
-`OpportunityMarketIdentityBinding`. Capital Readiness still cannot consume DMV
-v2, and no real-money permission is granted.
+Verified Economics, and Capital Readiness ingress without synthesizing an
+`OpportunityMarketIdentityBinding`. Capital Readiness does not itself grant
+real-money permission.
 
 ## Domestic Selling Opportunity Admission API
 
@@ -558,21 +558,47 @@ Sourcing/Quote/Verified Economics lineage, ordered reasons, normalization,
 allocation and FX IDs, policy/schema/times, and replay state. `COMPLETE` and
 `INCOMPLETE` are both successful authoritative results.
 
-The Capital Readiness route accepts exact persisted Conservative Economics,
-Domestic Market Validation, and Critical Cost assessment IDs. Its production
-entry requires all three terminal sources to have the route Opportunity, then
-delegates reconstruction of the complete Economics/Normalization/Sourcing
-manifest, Quote validity, and deterministic state to `EvaluateCapitalReadiness`.
-It never recalculates any terminal source or selects latest data. The response
-includes both the Economics-manifest normalization and the Critical Cost
-normalization so an exact mismatch remains visible as the existing
-`SOURCING_LINEAGE_MISMATCH` blocker. `READY_FOR_CAPITAL_REVIEW` and `BLOCKED`
-are both successful results; negative but calculable Economics is not rejected.
+The Capital Readiness route preserves its historical request with the flat
+exact DMV v1 assessment ID. ADR-0066 adds a strict command-v2 request that
+replaces that flat field with:
+
+```json
+{
+  "domestic_market_validation_source": {
+    "kind": "domestic_market_validation_v2",
+    "assessment_id": "exact-assessment-id"
+  }
+}
+```
+
+The complete request also names the exact persisted Conservative Economics and
+Critical Cost assessment IDs, command ID, and request time. The caller cannot
+submit target identity, Market identity, discovery reference, DMV source
+fingerprint, or compatibility fields. Mixed flat/discriminated shapes and
+unknown kinds are invalid.
+
+For DMV v1, the owner preserves the existing exact Market-identity equality.
+For DMV v2, it resolves the named assessment, derives its immutable
+source-manifest fingerprint, and requires its exact ADR-0060 target to equal the
+target preserved by the exact ADR-0065 Founder Sourcing lineage. Both paths
+reconstruct the complete Economics/Normalization/Sourcing manifest and apply
+the existing Opportunity/discovery, Product Match, Quote validity, policy, and
+Critical Cost rules. No latest data is selected or terminal source
+recalculated.
+
+Command-v2 responses expose source kind, exact DMV assessment ID, the
+conditional server-derived DMV v2 source-manifest fingerprint, and the exact
+Critical Cost normalization ID. They expose no target identity. Fresh results
+use Capital Readiness assessment v3/source-manifest v2; policy, states, and
+reasons remain unchanged. `READY_FOR_CAPITAL_REVIEW` and `BLOCKED` are both
+successful results; negative but calculable Economics is not rejected.
 
 Fresh commits return 201 and exact replay returns 200 without reevaluation or
 new identities/times/rows. Missing exact sources return 404, changed commands or
 route/source lineage conflicts return 409, invalid requests return 422, and
-bounded persistence failures return 503 without SQLite details. Each route owns
+bounded persistence failures return 503 without SQLite details. Command-v2/
+assessment-v3 replay reads only persisted Capital Readiness history and receipt,
+without rereading any exact upstream source. Each route owns
 one SQLite connection and closes it on every outcome. Historical Critical Cost
 v1 and Capital Readiness v1 replay remain unchanged. These routes do not expose
 Capital Gate, quantity, capital facts, Founder approval, or execution.
