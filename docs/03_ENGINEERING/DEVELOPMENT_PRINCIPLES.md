@@ -2,7 +2,7 @@
 
 > Version: 1.0
 > Status: Active
-> Last Updated: YYYY-MM-DD
+> Last Updated: 2026-08-18
 
 ---
 
@@ -53,6 +53,41 @@ and short-term business value.
 Development speed may improve through better processes,
 but never by sacrificing correctness, stability,
 or maintainability.
+
+## 3.1 Revenue-First Implementation Posture
+
+HYB의 near-term 기본 우선순위는 다음과 같다.
+
+> REAL BUSINESS VALIDATION > NEW ARCHITECTURE
+
+새 구현은 일반적으로 다음 중 하나를 실제로 달성한다는 근거가 있어야 한다.
+
+- real-world Commerce blocker 제거
+- 반복되는 운영 friction과 오류 감소
+- Discovery accuracy 개선
+- launch 준비 속도 또는 품질 개선
+- sourcing/economics 정확도 개선
+- 의미 있는 capital 보호
+- measurable outcome learning 활성화
+
+가능성만 있는 미래 architecture의 완성도를 높이는 작업은 위 목표에 직접 기여하지
+않으면 미룬다. 반대로 구현이 실제로 필요할 때 correctness, stability,
+maintainability, tests와 documentation 기준을 낮추지 않는다.
+
+Commerce workflow automation은 먼저 수동 workflow가 유용한 commercial outcome을
+만드는지 증명한 뒤 진행한다.
+
+```text
+manual real-world workflow
+→ observe repeated friction
+→ measure time / cost / error
+→ identify high-ROI automation
+→ automate
+→ verify against real outcomes
+```
+
+Automation은 검증된 business value를 확대하는 수단이며 실제 판매와 학습을 피하기
+위한 대체물이 아니다.
 
 ---
 

@@ -2,39 +2,45 @@
 
 ## Current Strategic Priority
 
-HYB의 현재 최우선 목표는 **Capital-Ready Commerce MVP**, 즉 Founder가 실제 자본을 투입하기 전에 추천, 소싱, 비용, 위험, 승인 근거를 신뢰할 수 있는 **Real-Money Ready** 상태를 만드는 것이다.
+HYB의 현재 최우선 목표는 **실제로 팔리고 이익을 남길 상품을 반복해서 발견하고,
+작은 real-world validation을 통해 그 능력을 증명하는 것**이다. 시스템과 architecture는
+그 결과를 만들고 안전하게 반복하기 위한 수단이다.
 
-현재 단계는 단순 ROI 계산기나 Decision Engine 기능 추가가 아니다. 기존의 authoritative evidence chain을 재사용하여 다음 두 필수 Track을 함께 완성한다.
+현재 운영 우선순위:
 
-### Track A — Discovery Intelligence
+```text
+FIND
+→ FAST SCREEN
+→ CHEAP REAL-WORLD VALIDATION
+→ SELL / DROP
+→ DEEP VALIDATION FOR SURVIVORS
+→ SCALE
+→ OUTCOME
+→ LEARN
+```
 
-Candidate Universe
+Near-term work는 다음에 직접 기여할 때 우선한다.
 
-→ Cheap Screening
+- Discovery accuracy와 Top Opportunity hit rate 개선
+- low-cost validation의 속도와 launch quality 개선
+- actual sales, returns, costs와 realized profit 수집
+- predicted-vs-actual economics 비교
+- 반복되는 운영 friction 제거
+- 의미 있는 capital을 보호하는 existing authority 연결
 
-→ Domestic Market Validation
+Capital-Ready foundation은 폐기하지 않는다. Competition/Demand → DMV → target-aware
+Sourcing → Verified Economics → Conservative Economics → Critical Cost → Capital
+Readiness → Capital Gate → Founder Approval → Execution chain은 meaningful scaling
+capital의 authoritative deep path로 계속 유효하다. 새 운영 전략은 약한 초기 후보마다
+그 전체 분석 비용을 먼저 지불하지 않도록 screening과 bounded validation을 앞세운다.
 
-→ Explainable / Risk-aware Ranking
+Validation Capital과 Scaling Capital은 현재 운영상 구분일 뿐 새 Domain authority나
+정책 값이 아니다. material capital deployment는 기존 Capital Readiness/Capital Gate
+경계를 우회하지 않는다.
 
-→ Top Opportunities
-
-### Track B — Capital Safety
-
-Sourcing Validation
-
-→ Complete Critical Cost Scope
-
-→ Unknown Safety
-
-→ Conservative Economics
-
-→ Capital Readiness
-
-→ Capital Gate
-
-→ Capital-bound Founder Approval
-
-어느 한 Track만으로는 Capital Ready가 아니다.
+현재 Genuine vehicle seat-back organizer run과 이미 persisted된 authority는 이 우선순위
+변경으로 재해석하지 않는다. 해당 run은 기존 문서의 external blocker와 exact evidence
+규칙을 유지한 채 계속한다.
 
 ---
 
@@ -294,9 +300,10 @@ small initial release
 
 ---
 
-## Deferred Until After Capital Readiness
+## Deferred Until Repeated Commerce Validation
 
-다음 작업은 Capital-Ready 전 우선순위가 아니다.
+다음 작업은 반복 가능한 Discovery, launch와 actual Commerce outcome evidence가
+확보되기 전 우선순위가 아니다.
 
 - autonomous purchasing
 - full commerce automation
@@ -333,13 +340,14 @@ Commerce에서 반복 가능한 수익성과 progressive automation을 증명한
 
 ## Implementation Sequence
 
-1. CR-0 최소 architecture decisions
-2. CR-1A Discovery Intelligence와 CR-1B Capital Safety의 작은 병렬 PR
-3. CR-2 Founder Capital Journey
-4. CR-3 Shadow Validation decision 및 필요한 구현
-5. CR-4 Actual Outcome Readiness
-6. Real-Money Ready Gate 검증
-7. CR-5 Staged Real-Money Validation
-8. 실제 evidence에 따른 recommendation 개선과 progressive Commerce automation
+현재 실행 순서는 기존 CR authority를 보존하면서 real business validation을 앞세운다.
+
+1. 현재 Genuine run의 external evidence blocker를 사실대로 해소하고 exact lineage를 계속한다.
+2. 실제로 팔릴 후보를 찾는 Discovery와 Fast Screen을 outcome 기준으로 검증한다.
+3. 수동 launch-quality workflow로 bounded, low-cost real-world validation을 수행한다.
+4. weak candidate는 빠르게 Drop하고 실제 원인과 비용을 보존한다.
+5. survivor는 exact sourcing/economics와 기존 deep capital path로 scaling 적합성을 검증한다.
+6. actual sales, returns, costs와 realized profit을 predicted facts와 비교한다.
+7. 반복 friction과 measurable value가 증명된 부분부터 progressive automation한다.
 
 세부 evidence gate와 연구 맥락은 [HYB Evidence-Based Roadmap — Draft](HYB_EVIDENCE_BASED_ROADMAP_DRAFT.md) 및 [Founder Discussion Record](../RESEARCH/FOUNDER_DISCUSSION_RECORD_2026-08-07.md)를 참고한다. 본 문서가 현재 공식 실행 우선순위를 정의한다.

@@ -1,5 +1,22 @@
 # HYB Changelog
 
+## Documentation Sync - Revenue-First Commerce Validation Strategy
+
+- Clarify repeatable real Commerce profit as the near-term priority and align
+  the operating loop around Find, Fast Screen, bounded validation, Sell/Drop,
+  deep validation for survivors, Scale, Outcome, and Learning.
+- Preserve the implemented DMV-to-Capital Gate deep path for meaningful scaling
+  capital while documenting Validation Capital and Scaling Capital only as an
+  operational distinction, not new authorities or policy values.
+- Record domestic low-volume wholesale as a possible validation source, 1688 as
+  the preferred scale-sourcing direction when suitable, and launch quality as a
+  necessary condition for interpretable market validation.
+- Make manual-first, outcome-verified automation the default development posture
+  and document bounded AI Partner support for launch preparation without
+  claiming autonomous marketplace execution.
+- Change existing documentation only; do not alter Genuine evidence, historical
+  ADR meaning, code, tests, schemas, or production state.
+
 ## Documentation Sync - Post-ADR-0066 Genuine Run Workflow
 
 - Refresh the active Genuine-run ledger and route order for the implemented

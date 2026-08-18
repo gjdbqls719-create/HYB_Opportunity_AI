@@ -9,6 +9,117 @@
 > 필터 단계 수치와 KPI는 검증 가설이며, 실제 adapter 또는 production integration 완료를 뜻하지 않는다.
 > 미결 질문은 [Founder Discussion Record](../RESEARCH/FOUNDER_DISCUSSION_RECORD_2026-08-07.md#15-open-questions)를 따른다.
 
+## 현재 운영 우선순위 — Revenue-First Commerce Validation (2026-08-18)
+
+HYB의 현재 최우선 사업 목표는 architecture의 완성도가 아니라 Founder에게
+실제적이고 반복 가능한 Commerce 수익을 만드는 것이다. 지금 가장 중요한 질문은
+“HYB가 얼마나 많이 구현되었는가?”가 아니라 다음이다.
+
+> HYB가 실제로 팔리고 이익을 남길 상품을 반복해서 발견할 수 있는가?
+
+현재 운영 순서는 다음과 같이 명확히 한다.
+
+```text
+FIND
+→ FAST SCREEN
+→ CHEAP REAL-WORLD VALIDATION
+→ SELL / DROP
+→ DEEP VALIDATION FOR SURVIVORS
+→ SCALE
+→ OUTCOME
+→ LEARN
+```
+
+이 순서는 새로운 Domain authority가 아니라 사업 운영 모델이다. 기존의 Deep
+Validation, DMV, target-aware Sourcing, Verified/Conservative Economics, Critical
+Cost, Capital Readiness, Capital Gate, Founder Approval, Execution authority는
+폐기하거나 약화하지 않는다. 의미 있는 scaling capital은 계속 그 exact evidence
+chain을 따라야 한다.
+
+### FIND → VALIDATE → SELL
+
+- **FIND**: 실제 판매 가능성이 있는 상품을 넓게 발견하고 우선순위를 정한다.
+- **VALIDATE**: evidence, sourcing, economics와 capital이 더 깊은 투자를 정당화하는지
+  확인한다.
+- **SELL**: 상품이 공정한 real-world test를 받을 수 있을 정도의 launch quality로
+  판매를 실행한다.
+
+Discovery의 가장 중요한 미해결 능력은 Top-ranked Opportunity가 실제 판매 결과로
+이어지는지다. 향후 판단 방향에는 top-ranked Opportunity hit rate, micro-validation
+success rate, first-sale rate, winner rate, time-to-first-sale, validation cost per
+winner, realized contribution profit, predicted-vs-actual economics가 포함된다. 이는
+전략적 측정 방향이며 이 문서가 schema, threshold 또는 자동 수집을 정의하지 않는다.
+
+### Fast Screen, Validation Capital, Scaling Capital
+
+모든 Opportunity에 처음부터 비용이 큰 Deep Validation을 적용하지 않는다. 손실을
+매우 작고 명시적으로 제한할 수 있다면 싸고 빠른 screening과 소규모 real-world
+validation으로 약한 후보를 먼저 제거하고, 살아남은 후보만 의미 있는 capital 투입
+전에 깊게 검증한다.
+
+- **Validation Capital**은 상품이 실제 수요를 얻는지 학습하기 위한 작고 제한된
+  지출이라는 전략적 개념이다.
+- **Scaling Capital**은 더 강한 market, sourcing, economics evidence 뒤에 투입하는
+  더 큰 자본이라는 전략적 개념이다.
+
+이 구분은 새 authority, 별도 Capital Gate, 정책 값 또는 승인 면제를 만들지 않는다.
+정확한 범위와 운영 안전장치는 실제 launch 경험 뒤에 다듬는다.
+
+### Domestic Validation Source와 Scale Source
+
+도매꾹/도매매 같은 국내 도매처는 1688보다 단가가 높더라도 소량을 빠르게 확보해
+초기 재고 위험과 해외 MOQ commitment를 줄이는 validation source가 될 수 있다.
+다만 validation launch 전에는 commercially plausible한 1688 scaling source가
+존재한다는 evidence를 우선 확인한다.
+
+```text
+Domestic low-volume validation
+→ actual market response
+→ weak: DROP
+→ strong: exact 1688 Product Match + Quote + deep economics
+→ scale when justified
+```
+
+국내 도매가 항상 우선인 것은 아니다. 1688은 적합한 source가 있을 때 Founder가
+선호하는 scalable China sourcing 방향이지만 Domain invariant는 아니다. Alibaba,
+Made-in-China와 다른 source는 discovery reference, supplier cross-check 또는 대안이
+될 수 있다. Opportunity equality나 외형 유사성만으로 1688 Product Match를 추론하지
+않는다.
+
+### Commerce Execution과 Launch Quality
+
+real-world validation은 launch가 합리적인 품질 바닥을 넘을 때만 해석할 가치가 있다.
+현재 운영 준비 범위에는 대표 이미지, 보조 이미지, 상품명과 keyword/SEO, 상세페이지,
+가격 positioning, 초기 traffic/advertising 가설, 초기 고객 경험과 policy-compliant
+review 방향, fulfillment readiness가 포함된다.
+
+선정된 상품의 value proposition, title/keyword, images, detail-page content, price
+hypothesis, product-trial/review brief, advertising hypothesis와 launch KPI capture를
+빠르게 반복 준비하는 방향을 학습한다. 이는 persisted Launch Pack contract가 아니며,
+먼저 수동 workflow로 실행하고 반복되는 가치와 friction이 증명된 뒤 자동화한다.
+review 획득 방식과 자동화는 미결이며 platform policy를 존중한다.
+
+### Outcome Learning
+
+```text
+HYB prediction
+→ real launch
+→ actual customer behavior
+→ sales / conversion / returns / costs / realized profit
+→ predicted-vs-actual comparison
+→ Discovery and Evaluation improvement
+```
+
+상품이 작게 실패했다고 프로젝트 실패인 것은 아니다. 약한 Opportunity를 싸게
+거절하고 실패 원인을 보존하는 능력도 Commerce engine의 성과다. 장기 우위는 winner
+발견, cheap rejection, economics accuracy와 profitable scaling이 실제 결과를 통해
+개선되는지로 판단한다.
+
+Founder가 보유한 과거 Coupang 판매 자료와 수동 sourcing/economics spreadsheet는
+향후 Historical Commerce Backtesting 후보 자료다. product seeding/review-related
+orders, organic demand, COGS, advertising와 settlement 범위가 아직 분리되지 않았으므로
+현재 Genuine evidence와 섞거나 이미 정제된 outcome authority로 취급하지 않는다.
+
 ## 1. 현재 MVP에 대한 재평가
 
 현재 Founder Home은 사용자가 keyword를 입력하면 Discovery가 실행된다.
