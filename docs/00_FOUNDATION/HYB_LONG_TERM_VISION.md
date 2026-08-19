@@ -76,17 +76,40 @@ Founder가 원하는 진행 방식:
 
 Founder가 현재 상상하는 Commerce의 극한 이상향:
 
-자동 시장 탐색
-→ 올바른 상품/Opportunity 발견
-→ 소싱/투자 판단
-→ 자동 판매 실행
-→ 가격/재고/광고/주문 등 자동 운영
-→ 실제 결과 수집
-→ 예측과 실제 결과 비교
-→ 엔진 보정
-→ 다시 시장 탐색
+```text
+SCAN
+→ FIND
+→ SOURCE
+→ VALIDATE
+→ LAUNCH
+→ SELL
+→ OPERATE
+→ OBSERVE OUTCOMES
+→ LEARN
+→ REPEAT
+```
 
 이 사이클이 가능한 한 자율적으로 지속되는 것이 장기 최종 상태다.
+
+장기 형태는 **AI-native Commerce Operating System**이다. Automation은 모든 판단을
+traditional deterministic application logic으로 encoding한다는 뜻이 아니다. HYB가
+durable context와 permitted tools를 제공하고 AI Intelligence Layer가 적합한 flexible
+reasoning을 수행하며, HYB가 authority/safety boundary를 검증하고 evidence와 outcome을
+보존하는 workflow도 automated Commerce의 일부다.
+
+HYB의 지속 가능한 가치는 generic AI reasoning 자체를 복제하는 데 있지 않다. 다음의
+결합이 AI model이 발전해도 남는 Commerce advantage가 된다.
+
+- accumulated actual Commerce outcome history와 longitudinal market observation
+- exact identity/source lineage와 structured sourcing/economics evidence
+- repeatable workflows와 integrations/tools
+- deterministic financial calculation, replay와 auditability
+- capital/risk boundary와 measured predicted-versus-actual performance
+- 많은 Opportunity에 걸친 반복 실행과 learning
+
+가능한 범위에서 AI model/provider는 교체할 수 있어야 한다. Architecture는 현재 AI의
+reasoning, vision, planning, tool-use와 multimodal limitation이 영구적이라고 가정하지
+않는다.
 
 단, 자동화는 처음부터 주어지는 권한이 아니다.
 
@@ -99,6 +122,23 @@ Founder가 현재 상상하는 Commerce의 극한 이상향:
 → 자율 Commerce
 
 순으로 진행한다.
+
+### Progressive Autonomy
+
+1. Founder와 AI Partner가 많은 단계를 수동으로 수행하고 HYB는 기존 evidence,
+   authority와 economics foundation을 제공한다.
+2. HYB가 반복 collection, monitoring, normalization과 history를 자동화한다.
+3. AI가 HYB context와 tools를 사용해 Discovery, Sourcing과 Launch reasoning을 더 많이
+   담당하고 Founder는 high-value decision을 검토한다.
+4. 정책과 outcome이 증명된 bounded low-risk validation action만 점진적으로 자동화할
+   수 있다.
+5. higher-value scaling/execution autonomy는 충분한 evidence와 capital/risk control이
+   존재할 때만 검토한다.
+
+어느 단계도 이 문서만으로 완료되거나 승인되지 않는다. 현재 자동 구매, 자동 capital
+deployment, Capital Gate 우회 또는 Founder Approval 약화는 허용되지 않는다. 장기적으로
+사람의 역할은 매 단계 전달자가 아니라 portfolio, strategy, exceptional risk와 선택한
+capital limit에 대한 oversight로 이동할 수 있다.
 
 ## 6. Capital Safety
 

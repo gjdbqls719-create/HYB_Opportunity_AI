@@ -37,6 +37,55 @@ AI는 반복 작업과 비효율적인 개발 과정을 지속적으로 발견�
 목표는 AI의 방식이 아니라
 HYB 프로젝트에 가장 적합한 방식을 함께 만들어 가는 것이다.
 
+## HYB + AI Intelligence Layer
+
+HYB는 capable AI의 flexible reasoning을 brittle한 hard-coded heuristic으로 다시
+만드는 시스템을 지향하지 않는다. HYB, AI Intelligence Layer와 Founder는 서로
+대체하는 것이 아니라 상호 보완한다.
+
+- **HYB**는 commerce-specific structured data, durable evidence/history, identity와
+  lineage, deterministic calculation, replay/auditability, workflow state,
+  integrations/tools, outcome history, execution capability와 capital/risk boundary를
+  소유한다.
+- **AI Intelligence Layer**는 opportunity interpretation, comparison, pattern과
+  product-form recognition, Winner/cluster analysis, sourcing candidate reasoning,
+  listing/creative reasoning, strategy, exception handling과 post-outcome interpretation
+  같은 flexible reasoning을 담당할 수 있다.
+- **Founder**는 충분한 reliability와 safe autonomy가 증명되지 않은 boundary의 최종
+  human authority다.
+
+이 책임 배분은 영구히 고정된 Domain 규칙이 아니다. AI capability, 실제 Commerce
+outcome, reliability와 automation evidence가 쌓이면 경계는 재평가할 수 있다. 다만 AI
+reasoning은 Competition/Demand, DMV, Sourcing/Product Match, Economics, Capital
+Readiness, Capital Gate와 Founder Approval 같은 현재 deterministic authority를
+silently override하지 않는다.
+
+현재 Founder는 marketplace/browser와 supplier system에서 정보를 수집하고 AI Partner와
+HYB 사이의 결과를 전달하는 manual bridge 역할을 자주 수행한다. 이는 올바른 evidence,
+failure mode와 decision order를 발견하기 위한 의도적인 workflow-discovery 단계다.
+장기적으로 검증된 반복 단계는 programmatic collection, integrations/tools, structured AI
+invocation과 workflow orchestration으로 이동해야 한다. 대화형 interface는 oversight,
+explanation, exception과 strategy에 유용할 수 있지만 유일한 실행 경로로 남을 필요는
+없다.
+
+미래 HYB workflow는 특정 vendor나 model에 고정하지 않고 개념적으로 다음을 포함할 수
+있다.
+
+```text
+HYB prepares structured Commerce context
+→ AI model reasons and returns structured output
+→ HYB validates permitted boundaries
+→ HYB invokes approved tools
+→ HYB persists evidence and outcome
+→ next reasoning / execution step
+```
+
+AI가 사용할 수 있는 future tool capability에는 market search, product/outcome history,
+Winner/cluster inspection, sourcing evidence, economics evaluation, listing assets,
+marketplace operation과 outcome retrieval이 포함될 수 있다. 실제 capability,
+permission, auditability와 capital safety는 HYB가 통제한다. 이러한 AI invocation,
+tools와 orchestration이 현재 production에 구현되었다는 뜻은 아니다.
+
 ## Commerce Launch Assistance
 
 Revenue-first Commerce validation에서 AI Partner는 현재 또는 향후 수동 운영을

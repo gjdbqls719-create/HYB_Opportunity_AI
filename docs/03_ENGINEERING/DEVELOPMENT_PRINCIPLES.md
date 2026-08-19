@@ -89,6 +89,34 @@ manual real-world workflow
 Automation은 검증된 business value를 확대하는 수단이며 실제 판매와 학습을 피하기
 위한 대체물이 아니다.
 
+## 3.2 HYB Capability Decision Heuristic
+
+새 HYB capability를 구현하기 전에 다음을 묻는다.
+
+1. 충분한 context를 제공하면 capable AI가 이미 이 flexible reasoning을 잘 수행할 수
+   있는가?
+2. 문제의 핵심이 사람이 감당하기 어려운 scale 또는 repetition인가?
+3. durable longitudinal data/history가 필요한가?
+4. deterministic calculation, replay, audit 또는 exact provenance가 필요한가?
+5. tool/integration이나 external execution system 접근이 필요한가?
+6. automation이 time, cost, error 또는 operational friction을 실질적으로 줄이는가?
+7. meaningful capital을 보호하거나 중요한 safety/business boundary를 강제하는가?
+
+주로 flexible reasoning이고 AI가 충분히 수행할 수 있다면 brittle한 hard-coded logic을
+중복하기보다 AI Intelligence Layer 활용을 우선 검토한다. durable data, scale, tools,
+deterministic authority, execution, measurement와 safety를 제공한다면 더 강한 HYB 구현
+후보다.
+
+이는 rigid Domain rule이 아니라 implementation decision heuristic이다. 실제 Commerce
+outcome으로 direct AI, deterministic HYB logic, HYB data/tools + AI reasoning과 human
+judgment의 상대 가치를 비교해야 한다. 단순한 AI-assisted operation보다 measurable
+value를 더하지 못하는 HYB feature는 필요성을 다시 검토한다.
+
+Architecture는 오늘의 AI limitation을 영구적인 전제로 hard-code하지 않는다. AI
+reasoning, vision, planning, tool use와 multimodal capability가 개선되어도 HYB의
+commerce evidence, history, tools, outcome measurement와 safety boundary가 계속 가치
+있도록 하고, practical한 범위에서 provider/model dependency를 replaceable하게 둔다.
+
 ---
 
 # 4. Development Workflow

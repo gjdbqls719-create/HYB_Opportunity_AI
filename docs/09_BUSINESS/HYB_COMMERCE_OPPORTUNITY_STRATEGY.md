@@ -115,6 +115,39 @@ HYB prediction
 발견, cheap rejection, economics accuracy와 profitable scaling이 실제 결과를 통해
 개선되는지로 판단한다.
 
+AI reasoning 자체도 actual Commerce outcome에 대해 측정해야 한다. 프로젝트는 HYB가
+capable AI를 직접 사용하는 것보다 자동으로 우월하다고 가정하지 않는다. 동일하거나
+비교 가능한 launch에서 다음 접근의 실제 기여를 검토할 수 있어야 한다.
+
+- direct AI reasoning
+- deterministic HYB-derived signal/logic
+- HYB data/tools + AI reasoning
+- Founder judgment
+
+비교 근거는 actual sales, conversion, advertising cost, returns, contribution profit와
+inventory behavior 같은 결과다. 목적은 한 접근을 미리 정당화하는 것이 아니라 어떤
+책임 배분이 Founder success를 실제로 개선하는지 경험적으로 학습하는 것이다.
+
+현재 수동 Revenue Discovery에서 나타나는 다음 흐름은 그런 학습을 위한 operating
+workflow 예시다.
+
+```text
+Market signal
+→ actual marketplace Winner
+→ Winner cluster
+→ entry opportunity
+→ Product Fingerprint
+→ sourceability
+→ reverse sourcing
+→ exact configuration verification
+→ economics
+→ micro-validation
+```
+
+이 흐름은 frozen architecture나 새 authority가 아니다. Founder와 AI가 수동으로
+수행하면서 필요한 evidence, failure mode, flexible reasoning 단계와 future deterministic
+automation 후보를 발견하고, actual outcome으로 유효성을 검증한다.
+
 Founder가 보유한 과거 Coupang 판매 자료와 수동 sourcing/economics spreadsheet는
 향후 Historical Commerce Backtesting 후보 자료다. product seeding/review-related
 orders, organic demand, COGS, advertising와 settlement 범위가 아직 분리되지 않았으므로

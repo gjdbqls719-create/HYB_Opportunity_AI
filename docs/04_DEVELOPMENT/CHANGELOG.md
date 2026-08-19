@@ -1,5 +1,23 @@
 # HYB Changelog
 
+## Documentation Sync - AI-Native Commerce Operating Model
+
+- Clarify complementary responsibilities: HYB owns durable Commerce data,
+  evidence, authority, tools, execution and safety boundaries; the AI
+  Intelligence Layer may perform suitable flexible reasoning; the Founder
+  remains the final authority where autonomy is unproven.
+- Define the long-term direction as an AI-native Commerce Operating System with
+  structured programmatic reasoning and tool use as replaceable future
+  capabilities, without claiming that integrations or autonomy exist today.
+- Add an implementation decision heuristic that distinguishes AI-suitable
+  reasoning from durable HYB capabilities and requires measurable business
+  value rather than complexity for its own sake.
+- Describe progressive autonomy and empirical direct-AI versus HYB+AI outcome
+  testing while preserving Revenue-First execution, manual-first learning,
+  Capital Gate, Founder Approval and the current Genuine state.
+- Change existing documentation only; add no provider contract, tool schema,
+  Domain authority, implementation, autonomous execution or capital permission.
+
 ## Documentation Sync - Revenue-First Commerce Validation Strategy
 
 - Clarify repeatable real Commerce profit as the near-term priority and align
