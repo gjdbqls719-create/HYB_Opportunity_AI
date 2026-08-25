@@ -35,6 +35,14 @@ return 422; the server does not infer dates from a label. Both query facts and
 the selected period variant are returned, persisted, and included in command
 and evidence authority fingerprints.
 
+`geography` records declared provider scope; a non-empty value is structural
+input and is not server proof that a count is Korea-only. The official NAVER
+clarification for total search volume is `해외검색수 포함`. NAVER/ItemScout total
+search volume may include overseas searches and must not be submitted or
+described as Korea-only domestic-demand evidence. Under the current genuine-run
+contract it cannot complete the explicit KR Market Intent core without a
+separately authoritative Korea-only field or a future reviewed contract change.
+
 ## New-to-Market KR Selling Target Admission Direction
 
 CR-1B7D3 implements the separate ADR-0060 route:
@@ -199,6 +207,11 @@ strings and all timestamps are timezone-aware. Historical or unsupported
 representatives return `candidate_handoff: null`; the read never synthesizes,
 backfills, or mutates handoff facts.
 
+The persisted `DiscoveryExecutionResult` contains the exact ordered finalized
+Group IDs but not the transient ranked `OpportunityResult`/`DiscoveryResult`,
+score, economics, or recommendation. These GETs are durable completion and
+lineage reads, not persisted-ranking reads.
+
 The Candidate POST request remains explicit. A client selects a Finalized Group
 and copies the complete Market identity and discovery reference verbatim from
 that exact Group's `candidate_handoff`. Candidate issuance rejects a changed
@@ -238,6 +251,13 @@ Marketplace / Storage
 Route에 분석 로직을 넣지 않는다.
 
 ## Decision Composition Finalization
+
+The existing Decision Dashboard and API expose `invest`, `review`, `reject`, and
+`insufficient_evidence` as legacy screening outcomes. In particular, `invest`
+means only that the legacy screening policy conditions were satisfied. It is
+not Capital Gate `PASS`, Founder Capital Approval, a Real-Money Execution Intent,
+or spending authority. Consumers must not use this field to authorize purchase
+or capital deployment.
 
 `POST /api/v1/opportunities/{opportunity_id}/decision-compositions` explicitly finalizes one immutable production Decision Composition and returns HTTP 201. The optional request fields are `external_signal_ids`, timezone-aware `generated_at`, and `requested_by`; `requested_by` is an audit hint and is not persisted by the current snapshot contract. Omitted or null signal IDs select all latest HUMAN_VERIFIED series, while an empty list selects none.
 
@@ -416,9 +436,9 @@ or demand level. Manual evidence requires immutable artifact/reference and
 SHA-256 facts; future collectors target the same provider envelope. V1 and v2
 must use separate observation/assessment/policy schemas, persistence/current
 projections, fingerprints, receipts, and replay namespaces. No provider
-integration or Decision Composition v2 currently exists. DMV v2 has only the
-read-only source-manifest preview and explicit final validation POST described
-below.
+integration or Decision Composition v2 currently exists. DMV v2 is implemented
+through the read-only source-manifest preview and explicit final validation POST
+described below.
 
 ### Domestic Market Validation v2 source-manifest preview
 

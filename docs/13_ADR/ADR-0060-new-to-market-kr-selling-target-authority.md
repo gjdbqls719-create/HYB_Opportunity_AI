@@ -19,6 +19,13 @@ PR C2/ADR-0066 adds target-bound DMV v2 consumption to the existing Capital
 Readiness authority. UI and later-listing attachment support remain separate,
 unimplemented boundaries.
 
+The official NAVER advertising customer-center clarification for the current
+Market Intent evidence is now `해외검색수 포함`. NAVER total search volume may
+include overseas searches and is not Korea-only demand evidence. This does not
+clear the genuine-run STOP: Demand v2 remains not admitted until a truthfully
+Korea-only provider count is obtained or a separate reviewed contract change
+admits the actual mixed geography.
+
 ## Context
 
 ADR-0049 admits an existing exact KR commercial product. Its version 1 command
@@ -377,8 +384,9 @@ O1 c2d4479a7f32437b9b0aefa614ae85c1
 -> Demand v2 NOT ADMITTED
 ```
 
-The first operational blocker is the pending official NAVER geography
-clarification required to qualify Demand v2 evidence. Genuine DMV v2, Capital
+The official NAVER geography clarification has been received, but its
+`해외검색수 포함` scope disqualifies the current total as Korea-only Market Intent
+evidence under the existing Demand v2 contract. Genuine DMV v2, Capital
 Readiness, and Capital Gate have not been executed. The ADR-0060 admission ID
 and exact Competition observation/fingerprint must be recovered from archived
 production responses rather than guessed or recreated.

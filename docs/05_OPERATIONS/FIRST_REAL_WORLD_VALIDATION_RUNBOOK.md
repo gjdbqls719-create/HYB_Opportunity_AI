@@ -22,10 +22,19 @@ Repository implementation does not authorize a genuine run. Keep the HYB
 server stopped and do not call the production API or open the genuine SQLite
 database during documentation verification.
 
-The first Genuine-run blocker is external evidence qualification: the official
-NAVER geography clarification required for Demand v2 has not arrived. Do not
-infer that answer. Consequently Genuine Demand v2 is not admitted, and Genuine
-DMV v2, Capital Readiness, and Capital Gate have not been executed.
+The official NAVER advertising customer-center clarification has now arrived:
+`해외검색수 포함` (overseas searches included). Consequently NAVER/ItemScout
+total search volume may include searches made outside South Korea and is not
+Korea-only domestic-demand evidence. Do not label its `geography` as KR-only or
+use it as the current Demand v2 Market Intent core.
+
+This clarification does **not** clear the Genuine-run STOP. The current evidence
+contract requires one provider field that is truthfully an explicit KR
+query/search count. Continue only after either an authoritative Korea-only field
+with complete provenance is obtained or a separate reviewed business/domain
+contract change admits mixed-geography evidence. Genuine Demand v2 is therefore
+not admitted, and Genuine DMV v2, Capital Readiness, and Capital Gate have not
+been executed.
 
 ### Current Genuine authority ledger
 
@@ -38,7 +47,8 @@ DMV v2, Capital Readiness, and Capital Gate have not been executed.
 | Competition v2 cohort | `5237034f-371f-4517-8648-51d4e42dd062` |
 | Competition v2 observation ID | **RECOVER FROM ARCHIVED PRODUCTION RESPONSE** |
 | Competition v2 authority fingerprint | **RECOVER FROM ARCHIVED PRODUCTION RESPONSE** |
-| Demand v2 | **NOT ADMITTED — pending official NAVER geography clarification** |
+| NAVER geography clarification | **RECEIVED — `해외검색수 포함`; total search volume is not Korea-only evidence** |
+| Demand v2 | **NOT ADMITTED — current NAVER/ItemScout total does not satisfy the explicit KR count contract** |
 | DMV v2 / Capital Readiness / Capital Gate | **NOT EXECUTED** |
 
 Do not recreate an authority merely because an exact ID was not copied into
@@ -51,6 +61,21 @@ Archive the Founder-entered query separately from the exact provider-returned
 query, if present. For the period, submit either both exact boundaries or the
 exact provider-native label; never invent boundaries from a label, and never
 submit both forms. Preserve all text verbatim in the evidence archive.
+
+### NAVER clarification evidence handling
+
+Before using or rejecting the provider field in a genuine evidence package,
+archive the exact official customer-center response under `01_market/` as a
+stable screenshot, PDF, or exported response. Record the exact question, exact
+answer `해외검색수 포함`, source channel/title, capture time, stable local
+reference, and SHA-256 in the run manifest. This PR does not have the binary
+source artifact and therefore does not invent its filename, timestamp, or hash.
+
+If the total-search-volume field is recorded in a Demand v2 draft, preserve its
+actual mixed/overseas-inclusive geography semantics and classify it as
+unsupported for the current KR-only Market Intent core. Do not change the value,
+claim a domestic subset, or submit `geography: KR` merely to pass structural
+validation.
 
 ## 1. Purpose and milestone
 
@@ -107,8 +132,11 @@ optional, separate, versioned marketplace enrichment.
 The Genuine Competition v2 step has since been verified and persisted with
 cohort `5237034f-371f-4517-8648-51d4e42dd062`. ADR-0062 and CR-1B7D4G/4H
 implemented Demand v2 evidence admission, and ADR-0064 through ADR-0066
-implemented the downstream target-bound path. The active STOP is now the
-pending official NAVER geography clarification, not missing software.
+implemented the downstream target-bound path. The NAVER clarification has now
+arrived and states `해외검색수 포함`; the active STOP is that the current total is
+not Korea-only evidence and therefore does not satisfy the existing explicit KR
+Market Intent contract. The blocker is evidence qualification, not missing
+software.
 
 ## 2. Non-goals and external prerequisites
 
@@ -242,9 +270,11 @@ JSON floating-point number for a Decimal field.
 
 Every row means: archive the response, copy the exact returned ID(s), inspect
 the business state, then continue. Human inputs are genuine facts/evidence.
-For the current run, first qualify the official NAVER geography response when
-it arrives, then resume at step 9. Steps 1–8 are retained as exact historical
-lineage and recovery context; do not recreate them.
+For the current run, the NAVER geography response is qualified and disqualifies
+the current total as Korea-only core evidence. Do not resume step 9 until an
+authoritative Korea-only provider field is obtained or an approved contract
+change explicitly permits the actual mixed geography. Steps 1–8 are retained as
+exact historical lineage and recovery context; do not recreate them.
 
 | # | Method and route | Human input and prior IDs | Returned manifest key | Continue only when / next consumer |
 |---|---|---|---|---|
@@ -257,7 +287,7 @@ lineage and recovery context; do not recreate them.
 | 7a | `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions` | O1, exact existing KR listing/canonical identity, genuine equivalence evidence, source snapshot, operator/time | `admission_id`, `domestic_opportunity_identity.opportunity_id` as O2 | ADR-0049 existing-product path only; not applicable to the current ADR-0060 target and must not be used as compatibility |
 | 7b | `POST /api/v1/opportunities/{source_opportunity_id}/new-to-market-domestic-selling-admissions` | exact ADR-0059 v2 O1/source Snapshot, Founder reason, bounded KR query/category search and evidence, operator/time | `admission_id`, opaque `target_identity`, target-bound `domestic_opportunity_identity.opportunity_id` as O2 | mutually exclusive with 7a; current authority exists—recover its exact admission ID from the archived response before Sourcing |
 | 8 | `POST /api/v2/opportunities/{o2}/competition-observations` | Founder-reviewed bounded Competition v2 cohort and pinned artifacts/hashes | `observation_id`, `cohort.cohort_id` and exact committed response | current Genuine step is already verified/persisted; recover exact response pins before Demand |
-| 9 | `POST /api/v2/opportunities/{o2}/demand-observations` (**current Genuine run: STOP pending official NAVER geography clarification**) | ADR-0062 exact Market Intent, exact bounded Comparable Market Response/reference, per-card review outcomes, artifacts/hashes; preserve original/provider-returned queries and exactly one period authority | `observation.observation_id`, `assessment.assessment_id` | archive response; do not use Demand v1; continue only after a factual admitted response |
+| 9 | `POST /api/v2/opportunities/{o2}/demand-observations` (**current Genuine run: STOP — NAVER total includes overseas searches and is not Korea-only evidence**) | ADR-0062 exact Market Intent, exact bounded Comparable Market Response/reference, per-card review outcomes, artifacts/hashes; preserve original/provider-returned queries and exactly one period authority | `observation.observation_id`, `assessment.assessment_id` | archive response; do not use Demand v1; continue only after a factual admitted response |
 | 10a | `GET /api/v2/opportunities/{o2}/domestic-market-validations/source-manifest` | exact `competition_observation_id` and `demand_observation_id` query parameters | exact manifest and `source_manifest_fingerprint` | preview only; Founder reviews every exact source pin; no verification or assessment is created |
 | 10b | `POST /api/v2/opportunities/{o2}/domestic-market-validations` | exact Competition/Demand observation IDs, operator/current-use confirmation, reviewed fingerprint, factual times | `assessment_id`, exact source manifest/fingerprint | continue only on `validated_for_capital`; do not use DMV v1 compatibility |
 | 11 | `POST /api/v1/sourcing/admissions` | `kind=new_to_market_domestic_selling_admission` plus exact ADR-0060 admission ID; Supplier/Product/option/SKU, independent verified Product Match, Quote, shipping scope, evidence | `admission_id`, `revision`, `supplier.supplier_id`, `sourcing_product.sourcing_product_id`, `match_verification.verification_id`, `quote.quote_id/revision` | exact target-aware lineage, Product Match, and valid Quote |
@@ -327,6 +357,10 @@ its own exact contract; it is never a compatibility path for a target-bound O2.
   observed time, reference, artifact, and hash. Do not normalize either query
   or derive dates from a label. An undocumented number, result count, rank, or
   index is unsupported.
+- NAVER/ItemScout total search volume may include overseas searches according to
+  the official clarification `해외검색수 포함`. It is not Korea-only demand
+  evidence. Preserve the clarification artifact and its hash, and do not use the
+  total as the explicit KR Market Intent core under the current contract.
 - For Demand v2 Comparable Market Response, preserve raw review-count
   outcomes for every included organic card in the exact bounded cohort. The
   existing Competition cohort may be referenced, but new artifacts are required

@@ -42,7 +42,7 @@
 </head>
 <body data-initial-opportunity-id="{{ opportunity_id | e }}">
 <main>
-  <header><h1>Decision Dashboard</h1><p>Inspect the persisted production decision and explicitly finalize its composition when required.</p></header>
+  <header><h1>Decision Dashboard</h1><p>Inspect the persisted production decision and explicitly finalize its composition when required.</p><p><strong>Authority boundary:</strong> This dashboard shows legacy screening outcomes. “INVEST” is not Capital Gate PASS, Founder Approval, or spending authority.</p></header>
 
   <section aria-labelledby="lookup-title">
     <h2 id="lookup-title">Opportunity</h2>
@@ -71,7 +71,7 @@
   </section>
 
   <section id="dashboard" hidden aria-labelledby="dashboard-title">
-    <h2 id="dashboard-title">Decision Result</h2>
+    <h2 id="dashboard-title">Legacy Screening Decision Result</h2>
     <div class="grid">
       <article id="summary-card" class="card"><h3>Summary</h3><dl></dl></article>
       <article id="action-card" class="card"><h3>Action</h3><dl></dl></article>

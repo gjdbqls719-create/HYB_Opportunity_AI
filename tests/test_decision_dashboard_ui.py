@@ -28,6 +28,8 @@ def test_page_contains_required_dashboard_sections_and_metadata_fields() -> None
         "Generated at", "Schema version", "Policy version", "Read model version",
     ):
         assert value in html
+    assert "legacy screening outcomes" in html
+    assert "not Capital Gate PASS, Founder Approval, or spending authority" in html
 
 
 def test_finalization_form_has_only_approved_controls_and_accessible_labels() -> None:
@@ -68,6 +70,7 @@ def test_all_outcomes_and_truthful_evidence_states_remain_visible() -> None:
     ):
         assert field in source
     assert "Decision composition not finalized" in source
+    assert "Legacy Screening Decision Result" in source
 
 
 def test_error_states_and_api_ordering_are_preserved() -> None:

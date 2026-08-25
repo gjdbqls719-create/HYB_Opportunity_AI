@@ -1,275 +1,108 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-07-31
-**Status Basis:** Sprint 11 PR5 Release Candidate 검증 및 완료
-
-## Current Stage
-
-HYB Opportunity AI는 기존 CLI와 Business Logic을 유지하면서
-**FastAPI 기반 JSON API를 새로운 외부 진입점으로 추가**했습니다.
-
-현재 핵심 흐름은 다음과 같습니다.
-
-```text
-Marketplace Data
-→ Product Normalization
-→ Opportunity Discovery
-→ Opportunity Intelligence
-→ Explainable Decision
-→ AI Partner
-→ Dashboard / CLI
-→ WatchList
-→ Marketplace Listing Lookup
-→ Change Detection
-```
-
-Sprint 8에서는 WatchList가 등록된 상품을 Marketplace에서 정확히 다시 조회하고,
-변경 감지 흐름으로 전달하기 위한 Application과 Infrastructure 경계를 구축했습니다.
-해당 Sprint에서 남은 통합 항목은 아래 WatchList Monitoring 이력에 별도로 기록합니다.
-
----
+**Last Updated:** 2026-08-25
+**Status Basis:** Repository Deep Audit v2 and Post Deep Audit v2 PR1
 
 ## Current Snapshot
 
-- Current Sprint: **Sprint 11 Completed**
-- Current Position: **PR5 Release Candidate 검증 완료**
-- Current Focus: **Sprint 12 Planning**
-- Last Confirmed Full Regression Test: **1160 passed**
-- Regression Verified At: **2026-07-31**
-- Architecture Baseline: **Sprint 4.4 Architecture Freeze 유지**
+- Current work: current-state documentation and runbook contract correction
+- Last confirmed full regression: **3806 passed, 1 warning**
+  (Post Deep Audit v2 PR1, 2026-08-25)
+- Architecture approach: preserve existing Domain/Application/Infrastructure
+  boundaries and additive authority contracts
+- This PR adds no new business feature and changes no decision formula or policy
 
-### Recently Completed
+## Production Discovery
 
-- Sprint 11 PR5 Release Candidate and Sprint Completion
-- Production Composition 기반 WatchList Monitor 연속 E2E 검증
-- 실제 `--watch-monitor` CLI와 Observation 저장 연결 검증
-- Architecture Audit 및 Sprint 11 Completion Report 완료
-- Sprint 11 PR4-B Price Observation Idempotency
-- 동일 observation identity 재시도 시 기존 record ID 반환
-- 동일 identity의 다른 데이터는 명시적 conflict로 거부
-- Observation 성공 후 WatchItem 저장 실패 시 재시도로 복구
-- Sprint 11 PR4-A WatchList Price Observation Recording
-- WatchList Monitor의 성공한 현재 가격 관측을 기존 Price History에 기록
-- Change Detection 후 기록하고 WatchItem을 갱신하는 compare-before-record 순서
-- 변경 여부와 관계없이 성공한 관측은 append-only 방식으로 기록
-- Sprint 11 PR3 WatchList Monitor CLI Entry Point
-- 기존 argparse flag 스타일의 `--watch-monitor` 실행 경로와 집계 출력
-- Sprint 11 PR2 WatchList Monitor Composition Root
-- 실제 WatchList SQLite Repository, Marketplace Lookup Adapter,
-  Price History Change Detector 조립
-- Sprint 11 PR1 Marketplace Reader Integration
-- eBay/Amazon concrete reader와 Adapter registry 연결
-- Sprint 11 PR0 Context Pack Automation
-- Quick/Full Context 생성·정리 및 ZIP 제외 규칙 검증
-- Sprint 10 final audit report
-- Sprint 10 PR2D Dashboard UX Polish
-- 초기 안내와 검색 결과 요약을 포함한 명확한 UI 상태 구분
-- 반응형 중앙 layout과 loading, summary, error 접근성 역할
-- Sprint 10 PR2C Opportunity Dashboard MVP
-- 기존 `dashboard_cards` JSON을 사용하는 semantic opportunity cards
-- Score, ROI, expected selling price, net profit 표시와 검색 상태 UI
-- Sprint 10 PR2B API-First Opportunity Search
-- 기존 `POST /api/v1/opportunities/search`를 호출하는 vanilla JavaScript 검색
-- Opportunity title, marketplace, final score의 단순 목록 렌더링
-- Sprint 10 PR2A Initial Web Landing Page
-- `GET /` Jinja2 HTML rendering
-- JavaScript와 CSS framework가 없는 최소 검색 폼
-- Sprint 10 PR1 FastAPI JSON MVP
-- `GET /health`, `GET /version`
-- `POST /api/v1/opportunities/search`
-- 기존 Orchestrator와 Dashboard Presentation Builder 재사용
-- Engine 객체를 노출하지 않는 JSON 응답
-- Sprint 9 PR3 기본 CLI Price History Repository 통합
-- 동일 Repository를 Orchestrator와 Opportunity Intelligence Adapter에 공유
-- Price History 기반 Trend Assessment 및 Final Recommendation 활성화
-- `--no-save` 실행의 기존 비저장 동작 유지
-- Sprint 9 PR2 기존 CLI Opportunity Intelligence 추가 출력
-- 기존 OpportunityResult → DiscoveryResult 변환 재사용
-- 신규 Score, Decision, Confidence, Risk CLI 표시
-- 기존 CLI, Orchestrator, Dashboard, Recommendation 호환 유지
-- Sprint 7 Documentation Quality Audit
-- Sprint 7 Marketplace Adapter Integration
-- Sprint 7 Marketplace Contract Tests
-- Sprint 7 Presentation Refactoring
-- Sprint 7 Opportunity List ViewModel 및 CLI
-- Sprint 8 WatchList Domain
-- Sprint 8 SQLite WatchList Repository
-- Sprint 8 Monitor Foundation
-- Sprint 8 PR3-B1 Marketplace Listing Lookup Dispatcher
-- Sprint 8 PR3-B2 Marketplace Item Lookup APIs
-
-### Sprint 9 PR2 Limitation Resolution
-
-- Sprint 9 PR2에서는 기본 CLI가 Price History Repository를 신규
-  Opportunity Intelligence Adapter에 주입하지 않았다.
-- Sprint 9 PR3에서 일반 저장 실행 시 동일 Repository를 Orchestrator와
-  Adapter에 공유해 Trend Assessment와 신규 Final Recommendation을
-  활성화했다.
-- `--no-save`에서는 Repository를 생성하거나 전달하지 않으므로 기존
-  비저장 의미를 유지하며 Trend와 신규 Final Recommendation은 비활성이다.
-- 기존 `ai_recommendation`은 제거하거나 대체하지 않는다.
-
-### Sprint 10 Web Limitations
-
-- FastAPI TestClient는 현재 설치된 `httpx 0.28.1` fallback을 사용하며
-  `httpx2` 전환 deprecation warning이 1건 발생한다.
-- PR2D의 HTML dashboard는 핵심 지표 카드와 기본 UX 상태만 제공하며 상세 분석,
-  외부 UI library, 인증, CORS, 배포 구성은 포함하지 않는다.
-
----
-
-## Current Core Systems
-
-### Opportunity Intelligence
-
-- Product normalization
-- Canonical product identity
-- Product matching
-- Price intelligence
-- Price trend analysis
-- Inventory analysis
-- Seller analysis
-- Market intelligence
-- Market adjustment
-- Opportunity scoring
-- ROI intelligence
-
-### Explainable Decision
-
-- Recommendation
-- Decision report
-- AI Partner explanation
-- Dashboard decision timeline
-- Opportunity list presentation
-
-### WatchList Monitoring
-
-Completed:
-
-- WatchList domain model
-- WatchList application ports
-- SQLite repository and mapper
-- Monitor request/result models
-- WatchList monitor use case foundation
-- Marketplace listing lookup dispatcher
-- eBay item lookup API
-- Amazon deterministic item lookup contract
-- eBay/Amazon concrete Marketplace readers
-- Marketplace reader registry
-- WatchList Monitor Composition Root
-- 기존 Price History 기반 Change Detector 연결
-- `--watch-monitor` CLI 실행 진입점
-
-남은 후속 항목:
-
-- Worker/Scheduler 실행 진입점
-- 현재 관측 Price Snapshot의 가격 이력 저장
-- WatchList Dashboard 및 alert/notification 연결
-
----
-
-## Sprint 8 WatchList Architecture Direction
-
-다음 구조는 Sprint 8에서 확립한 WatchList 방향이며,
-Sprint 9 PR2의 현재 CLI Opportunity Intelligence 통합과 구분되는 과거 설계 기준입니다.
+The authoritative FastAPI composition in `app.web` currently executes:
 
 ```text
-WatchListMonitorUseCase
-        ↓
-ListingLookupPort
-        ↓
-MarketplaceListingLookupAdapter
-        ↓
-Marketplace Reader
-        ↓
-eBay / Amazon get_product_by_id()
-        ↓
-Product
-        ↓
-Change Detection
+DiscoveryCommand + receipt
+  -> live collection
+  -> CollectedProductObservation persistence
+  -> FinalizedProductGroup persistence at the grouping checkpoint
+  -> transient economics / ranking / recommendation
+  -> DiscoveryExecutionResult persistence
 ```
 
-Search와 exact item lookup은 서로 다른 책임으로 유지합니다.
-검색 결과 첫 항목을 감시 대상 상품으로 추정하지 않으며,
-Marketplace의 정확한 item ID를 사용해 조회합니다.
+The command, observation, finalized Group, and execution-result boundaries use
+the configured file-backed SQLite database. A successful zero-result is an
+explicit persisted completion, not an inference from missing Group rows.
 
----
+The persisted `DiscoveryExecutionResult` contains ordered finalized Group IDs,
+completion time, schema, and fingerprint. It does **not** preserve the complete
+ranked `OpportunityResult` or transient `DiscoveryResult` payload. The POST
+response and result/group GET APIs therefore expose authoritative completion and
+lineage, not a durable ranking snapshot.
 
-## Current Limitations
+Candidate issuance is a separate, explicit durable API after Discovery
+completion and Founder selection. Discovery does not automatically issue a
+Candidate or create an Opportunity.
 
-### Marketplace
+Completed exact replay is restart-safe and does not call the live runtime.
+Incomplete execution is different: committed checkpoints can survive a later
+failure, but there is no durable phase, attempt, failure, retry, or resume state
+machine. Repeating an incomplete command reruns the current entry; that is not a
+persisted resumable-workflow guarantee.
 
-- Amazon Production API 미연결
-- eBay Live 환경 검증 미완료
-- Walmart, Coupang, AliExpress, Temu 미연결
+## Competition, Demand, and DMV v2
 
-### Business Intelligence
+- Competition v2 is implemented at Domain, Application, SQLite, API v2, and
+  OpenAPI boundaries. The current genuine Competition publication is persisted.
+- Demand v2 is implemented at Domain, Application, SQLite, API v2, and OpenAPI
+  boundaries. No provider network integration is implied.
+- DMV v2 source-manifest preview and final validation POST are implemented and
+  persisted. Target-aware Founder Sourcing, Verified Economics ingress, and
+  DMV v2 consumption by Capital Readiness are also implemented.
+- The target-bound software path reaches Capital Gate, but the current genuine
+  run has not admitted Demand v2 or executed DMV v2/Capital Readiness/Capital
+  Gate for that lineage.
 
-- Landed cost
-- Tax / duty
-- Return risk
-- Sales velocity
-- Competition and demand signals
-- 운영 데이터 기반 수익성 검증
+## Genuine-Run Geography Status
 
-### Operations
+The official NAVER advertising customer-center clarification received for the
+current evidence is: `해외검색수 포함` (overseas searches included).
 
-- Authentication
-- Deployment
-- Monitoring
-- Alerting / notification
+Therefore NAVER/ItemScout total search volume may include searches made outside
+South Korea and is not Korea-only domestic-demand evidence. It must not be
+submitted or described as an explicit KR-only query/search count.
 
----
+This clarification does not clear the current STOP. Demand v2's accepted
+evidence contract requires a truthfully scoped provider query/search count for
+Korean market intent. The genuine run must remain stopped until either:
 
-## Remaining Backlog from Sprint 8
+1. an authoritative provider field with Korea-only scope and complete provenance
+   is obtained; or
+2. a separately reviewed business/domain contract change explicitly admits and
+   qualifies mixed-geography evidence.
 
-1. Sprint 8 PR3-B3 Marketplace Reader Integration
-2. WatchList Monitor end-to-end 연결
-3. Marketplace lookup 결과와 Change Detection 연결
+No such contract change is part of this PR.
 
-위 항목은 Sprint 9 PR2의 현재 완료 상태가 아니라,
-Sprint 8 WatchList 작업에서 이월된 후속 과제입니다.
+## Decision and Spending Authority
 
----
+The existing Decision Dashboard outcome `INVEST` is a legacy screening decision
+under the Decision Engine policy. It is not Capital Gate `PASS`, Founder Capital
+Approval, a Real-Money Execution Intent, or permission to spend. Real-money
+execution remains gated by the separate capital and Founder-authority chain.
 
-## Definition of Done
+## Current Known Gaps
 
-모든 주요 PR은 다음 순서를 따릅니다.
+- durable Discovery attempt/failure/resume state;
+- persistence of the full ranked Discovery result;
+- automated provider collection for Competition/Demand v2;
+- evidence-qualified Korea-only Market Intent for the current genuine run;
+- Decision Composition v2 or any change that reconciles legacy screening
+  outcomes with capital authorities.
 
-1. Architecture / design review
-2. Small PR-sized implementation
-3. Feature-specific tests
-4. Full regression test
-5. Documentation update
-6. Git commit and push
-7. Changed-files ZIP
-8. Quick Context and Full Context ZIP
-9. Next-step guidance
+These are follow-up scopes. They are not implemented by Post Deep Audit v2 PR1.
 
----
+## PR1 Verification
 
-## Long-term Goal
+- Changed-document UTF-8 and relative-link validation: passed
+- Focused runbook/OpenAPI and Decision Dashboard tests: **12 passed, 1 warning**
+- Discovery/Competition/Demand/DMV/Capital impact tests:
+  **284 passed, 1 warning**
+- Full regression: **3806 passed, 1 warning**
 
-HYB Opportunity AI는 온라인 판매자가
-“이 상품에 내 돈을 투자해도 되는가?”를 데이터와 설명 가능한 근거로 판단하도록 돕는
-AI Opportunity Intelligence Platform을 목표로 합니다.
-
-장기적으로는 Opportunity Discovery, Investment Decision,
-Continuous Monitoring, Automatic Opportunity Detection을 하나의 안정적인 흐름으로 연결합니다.
-
-Current Sprint
-Sprint 13
-
-Completed
-- AI Knowledge Builder
-- AI Query Engine
-- AI Developer CLI
-- Production Safety Gate
-- Verified Economics Contract
-
-Regression
-1203 Passed
-1 Known Warning
-
-Next
-PR14 Founder Validation Foundation
+The warning is the known FastAPI/Starlette TestClient `httpx` deprecation
+warning; it is not suppressed by this PR.

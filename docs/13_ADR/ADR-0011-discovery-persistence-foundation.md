@@ -2,7 +2,19 @@
 
 ## Status
 
-Accepted as an Application boundary; infrastructure is pending
+Accepted as an Application boundary
+
+## Implementation Status
+
+The infrastructure deferral below records this ADR's original scope. Subsequent
+ADR-0012 through ADR-0014 implement append-only SQLite command/receipt,
+observation/Group, and execution-result repositories. ADR-0029 and later
+production completion PRs wire those repositories through the authoritative
+`app.web` Discovery composition.
+
+The current persisted execution result stores ordered finalized Group IDs, not
+the full transient ranked opportunity payload. Incomplete executions still have
+no durable phase/attempt/failure/resume contract.
 
 ## Context
 

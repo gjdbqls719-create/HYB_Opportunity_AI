@@ -1,5 +1,29 @@
 # HYB Changelog
 
+## Post Deep Audit v2 PR1 - Current-State Contract Correction
+
+- Align current-state Discovery documentation with the authoritative production
+  composition: SQLite-backed command, observation, finalized Group, and
+  execution-result persistence plus runtime-free completed replay.
+- Record that the durable execution result preserves ordered finalized Group
+  IDs rather than full ranked results, Candidate issuance remains explicit, and
+  incomplete executions are not durable resumable workflows.
+- Correct Competition/Demand/DMV v2 implementation status without rewriting
+  historical ADR decision bodies.
+- Validate every `/api/v1` and `/api/v2` route used by the real-world runbook
+  against OpenAPI.
+- Label Decision Dashboard `INVEST` as a legacy screening outcome, not Capital
+  Gate PASS, Founder Approval, or spending authority.
+- Record the official NAVER clarification `해외검색수 포함`: total search volume
+  may include overseas searches and is not Korea-only demand evidence. Preserve
+  the genuine-run STOP pending Korea-only evidence or a separately approved
+  contract change.
+- Add no feature, business-policy change, architecture, migration, automatic
+  workflow chaining, or genuine production write.
+- Verification: strict UTF-8/relative-link check passed; focused tests
+  `12 passed, 1 warning`; impact tests `284 passed, 1 warning`; full regression
+  `3806 passed, 1 warning`.
+
 ## Documentation Sync - AI-Native Commerce Operating Model
 
 - Clarify complementary responsibilities: HYB owns durable Commerce data,

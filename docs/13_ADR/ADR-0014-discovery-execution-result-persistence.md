@@ -4,6 +4,15 @@
 
 Accepted
 
+## Implementation Status
+
+Implemented and production-wired. Successful production Discovery commits one
+result after transient analysis, and completed exact replay reconstructs the
+persisted observations and Groups without calling the live runtime. The result
+preserves ordered finalized Group IDs but not full ranked
+`OpportunityResult`/`DiscoveryResult` values. The deferred-production sentence
+below is the historical scope statement of ADR-0014.
+
 ## Context
 
 Commands, collected observations, and finalized groups are durable after

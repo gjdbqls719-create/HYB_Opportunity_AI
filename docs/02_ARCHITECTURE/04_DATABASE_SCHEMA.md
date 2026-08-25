@@ -67,6 +67,20 @@ generated assessment snapshot, operator, and fixed receipt schema. Receipt, obse
 history/current, and assessment history/current commit atomically.
 # Discovery Correlation Persistence Status
 
+## Current Implementation Status
+
+The paragraphs below preserve the incremental PR34-B history. In the current
+production composition, `discovery_command_history`/receipts,
+`discovery_collected_observation_history`, finalized Group history/members, and
+`discovery_execution_result_history` are all implemented and wired through
+`app.web` to the configured SQLite database. Completed replay reads this durable
+lineage without live collection. The execution-result row stores ordered
+finalized Group IDs, not the complete transient ranked opportunity payload.
+
+Candidate issuance also has its separate durable history/context/receipt tables
+and explicit API. It is not automatically written by Discovery completion.
+There is no Discovery attempt/phase/failure/resume table or state machine.
+
 PR34-B.0 adds no database objects. `DiscoveryCommand`, collector observation,
 finalized ProductGroup, command result, and Candidate issuance replay-key
 contracts are currently in-memory immutable Domain language only. A follow-up
@@ -136,6 +150,9 @@ blocked and no current projection is created. Result reads validate command
 identity, Group lineage, zero-result consistency, schema version, and
 fingerprint without opening write transactions. Candidate issuance and
 production discovery wiring remain absent.
+
+That final sentence is the historical PR34-B.4 scope statement. Subsequent
+production wiring is summarized in `Current Implementation Status` above.
 
 ## Opportunity Candidate Issuance
 

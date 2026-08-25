@@ -82,8 +82,9 @@ def test_runbook_uses_only_current_production_routes_and_v2_purchase_contract():
         / "FIRST_REAL_WORLD_VALIDATION_RUNBOOK.md"
     ).read_text(encoding="utf-8")
     openapi_paths = app.openapi()["paths"]
-    documented_routes = re.findall(r"`(POST|GET) (/api/v1/[^`]+)`", runbook)
+    documented_routes = re.findall(r"`(POST|GET) (/api/v[12]/[^`]+)`", runbook)
     assert documented_routes
+    assert {path.split("/")[2] for _, path in documented_routes} == {"v1", "v2"}
     for method, documented_path in documented_routes:
         path = documented_path.replace("{o2}", "{opportunity_id}")
         assert path in openapi_paths

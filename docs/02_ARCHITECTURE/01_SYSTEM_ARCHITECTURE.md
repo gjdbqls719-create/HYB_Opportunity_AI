@@ -13,10 +13,13 @@ ADR-0060 target
   -> Capital Gate
 ```
 
-The path is implemented through Capital Gate. The current Genuine run remains
-stopped before Demand v2 because the official NAVER geography clarification is
-pending; Genuine Demand v2, DMV v2, Capital Readiness, and Capital Gate have not
-been executed.
+The path is implemented through Capital Gate. The official NAVER advertising
+customer-center clarification is now available: `해외검색수 포함`. NAVER total
+search volume may therefore include overseas searches and is not Korea-only
+demand evidence. The current Genuine run remains stopped before Demand v2
+because this clarified total does not satisfy the existing explicit KR
+query/search-count evidence contract. Genuine Demand v2, DMV v2, Capital
+Readiness, and Capital Gate have not been executed for this lineage.
 
 DMV `VALIDATED_FOR_CAPITAL` admits exact market-evidence trust only. It is not a
 BUY/INVEST decision and does not authorize spending. Capital Readiness verifies
@@ -77,6 +80,13 @@ for Market Intent, and raw per-listing review counts from one immutable bounded
 comparable-organic-listing cohort for Comparable Market Response. Different
 provider counts remain separate; ranks, indices, rating, estimated sales,
 sponsored context, and post-listing target traction are optional.
+
+The `geography` field must describe the provider field truthfully. NAVER/
+ItemScout total search volume must not be labeled `KR` or interpreted as
+Korea-only when the provider confirms that overseas searches are included.
+The current structural model preserves a non-empty geography string but does
+not itself prove geographic exclusivity; operational evidence qualification
+remains mandatory.
 
 Demand v2 derives review coverage, sorted review counts, median review count,
 engaged-listing count/share, family availability, and separate family
@@ -139,23 +149,26 @@ must never be inferred from Product text, item ID, query, or category.
 A discovery execution is correlated by an immutable command, collector-owned
 observation envelopes, opaque finalized-group references, ordered group
 membership fingerprints, and one ordered command result. Opaque IDs are separate
-from content fingerprints. A committed replay must eventually load these facts
-instead of calling a live marketplace again; this PR defines only the contracts,
-not persistence or production wiring.
+from content fingerprints. A completed committed replay loads these facts
+instead of calling a live marketplace again.
 
 The Discovery Application layer defines separate command, finalized-group, and
-execution-result repository boundaries. SQLite implements only the command
-boundary: one immutable command and its receipt commit atomically with
-`BEGIN IMMEDIATE`, and durable replay returns that exact pair after restart.
-Command persistence does not execute discovery or issue Candidate identity.
-Collected observations and finalized groups are also stored as immutable,
-execution-bound SQLite facts. Observation identity is independent from source
-listing identity, so a listing may be observed repeatedly. Group membership is
-an ordered normalized relation and one observation may participate in multiple
-groups. An immutable Discovery execution result now records successful
-completion, including ordered finalized Group IDs or an explicit successful
-zero-result. Result persistence is command/execution-bound and does not generate
-completion time, execute discovery, or issue Candidates.
+execution-result repository boundaries. The authoritative `app.web` composition
+wires all four durable stages to the configured SQLite database: command plus
+receipt, collected observations, finalized Groups, and the execution result.
+Observations persist at the collection checkpoint and Groups at the grouping
+checkpoint before later transient analysis. Observation identity is independent
+from source listing identity, so a listing may be observed repeatedly. Group
+membership is an ordered normalized relation and one observation may participate
+in multiple groups. The immutable execution result records successful completion,
+including ordered finalized Group IDs or an explicit successful zero-result.
+It does not store the full ranked `OpportunityResult`/`DiscoveryResult`, scores,
+economics, or recommendations.
+
+Completed replay reconstructs the persisted execution without the live runtime.
+Incomplete execution has no durable phase/attempt/failure/resume state: earlier
+checkpoints may exist, but a replay reruns the current entry rather than resuming
+from a persisted workflow cursor.
 
 Candidate issuance is a read-only Application boundary over the persisted
 command, completed result, finalized Group, and representative observation. The

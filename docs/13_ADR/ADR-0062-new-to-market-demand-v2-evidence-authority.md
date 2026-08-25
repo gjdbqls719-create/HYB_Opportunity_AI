@@ -27,9 +27,19 @@ persisted, fingerprinted, replayed, reconstructed, and returned as immutable
 evidence. Existing exact-period payloads retain their prior serialized shape
 and meaning; genuine Demand remains not admitted.
 
-Demand v1 remains implemented and unchanged. Provider integration, Decision
-Composition v2, Domestic Market Validation v2, and genuine Demand admission are
-not implemented.
+Demand v1 remains implemented and unchanged. ADR-0064 and its implementation
+PRs subsequently implement Domestic Market Validation v2 source preview,
+persistence, replay, and final validation POST. Provider integration, Decision
+Composition v2, and genuine Demand admission remain unimplemented or unexecuted
+as applicable.
+
+The official NAVER advertising customer-center clarification for the current
+candidate evidence is `해외검색수 포함`. NAVER/ItemScout total search volume may
+include overseas searches and is not Korea-only demand evidence. It therefore
+cannot be labeled as the explicit KR query/search count required by this ADR's
+current genuine-collection contract. The clarification does not clear the STOP;
+an authoritative Korea-only field or a separately approved contract change is
+still required.
 
 This ADR architecture-resolves FR-015, the missing authoritative pre-listing
 Demand semantics for a genuine new-to-market target. It does not admit genuine

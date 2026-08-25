@@ -2,9 +2,23 @@
 
 ## Status
 
-- Sprint: 4.2.0
-- State: Implemented
-- Baseline: 517 tests passed
+- Introduced: Sprint 4.2.0
+- Legacy use case: Implemented and retained
+- Authoritative production entry: Implemented separately through
+  `PersistedDiscoveryExecutionEntry`
+
+## Current Production Boundary
+
+`DiscoverOpportunitiesUseCase` remains the legacy transient use case described
+below. The authoritative FastAPI composition does not replace it; it separately
+composes `PersistedDiscoveryExecutionEntry` with SQLite command, observation,
+finalized-Group, and execution-result repositories.
+
+That production entry persists collection and grouping checkpoints before
+committing one `DiscoveryExecutionResult`. The runtime's economics, ranking,
+and recommendation output remains transient. The persisted result retains the
+ordered finalized Group IDs, not the complete ranked result payload. Candidate
+issuance is a later explicit API and is not automatically chained to completion.
 
 ## Purpose
 
@@ -101,6 +115,10 @@ Sprint 4.2 does not:
 - implement notifications.
 
 ## Next Step
+
+This section records the next step at Sprint 4.2.0. It is historical: later
+increments added both CLI integration and the separate authoritative persisted
+production entry described above.
 
 Create a composition root or presentation entry point that wires:
 

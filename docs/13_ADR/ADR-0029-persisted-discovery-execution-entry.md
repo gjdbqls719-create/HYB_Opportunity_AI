@@ -4,6 +4,19 @@
 
 Accepted (PR36-D.1)
 
+## Implementation Status
+
+The original decision below describes PR36-D.1's command-first slice. Later
+production-completion PRs extend the same Application entry with collection and
+grouping checkpoints, SQLite observation/Group persistence, and final
+`DiscoveryExecutionResult` persistence. `app.web` now composes all of those
+repositories for the authoritative production route.
+
+Completed replay is runtime-free. Incomplete execution can retain earlier
+checkpoint facts but has no persisted attempt, phase, failure, or resume state;
+re-execution is not a durable resumable-workflow guarantee. Candidate issuance
+remains a separate explicit durable API.
+
 ## Context
 
 The existing production discovery runtime can calculate transient

@@ -16,10 +16,12 @@ Coupang signal facts from an immutable bounded card manifest, supports both
 historical Market and ADR-0060 target subjects, and preserves receipt-first
 replay, aliases, corruption detection, and current-schema read stability.
 
-Competition v1, Demand, Decision Composition, and Domestic Market Validation v1
-remain unchanged. Automated Coupang collection, UI entry, DMV v2, and genuine
-Competition/Demand admission remain unimplemented or unexecuted as applicable.
-The genuine run remains stopped before Competition and Demand.
+Competition v1, Decision Composition, and Domestic Market Validation v1 remain
+unchanged. Automated Coupang collection and UI entry remain unimplemented.
+Demand v2 and DMV v2 were implemented by later ADRs/PRs. The genuine Competition
+v2 publication is now persisted for cohort
+`5237034f-371f-4517-8648-51d4e42dd062`; the run remains stopped before genuine
+Demand v2 admission.
 
 ## Context
 

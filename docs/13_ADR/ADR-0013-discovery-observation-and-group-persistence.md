@@ -4,6 +4,15 @@
 
 Accepted
 
+## Implementation Status
+
+Implemented and production-wired through the authoritative `app.web` Discovery
+entry. Observations persist at the collection checkpoint and finalized Groups
+persist at the grouping checkpoint, before downstream transient analysis. The
+`Deferred Work` section below preserves this ADR's original PR scope and is
+superseded for execution-result persistence and production wiring by later
+implementation.
+
 ## Context
 
 ADR-0012 makes Discovery command identity durable. Candidate issuance still

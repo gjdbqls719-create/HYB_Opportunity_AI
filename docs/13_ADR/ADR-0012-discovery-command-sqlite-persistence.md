@@ -4,6 +4,12 @@
 
 Accepted
 
+## Implementation Status
+
+Implemented and production-wired. The `Deferred Work` section below is the
+historical scope boundary of ADR-0012; subsequent ADRs/PRs implement and compose
+observation, finalized-Group, execution-result, and Candidate persistence.
+
 ## Context
 
 ADR-0011 defines durable Discovery command replay at the Application boundary

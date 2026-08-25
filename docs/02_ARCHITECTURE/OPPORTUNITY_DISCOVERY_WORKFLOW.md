@@ -117,33 +117,47 @@ DiscoveryCommand
     -> committed DiscoveryCommand
     -> ProductionDiscoveryRuntime
          -> CollectionFact*
+         -> collection checkpoint
+              -> CollectedProductObservation assembly/persistence
          -> GroupingCorrelation*
+         -> grouping checkpoint
+              -> FinalizedProductGroup assembly/persistence
+         -> transient economics/ranking/recommendation
          -> DiscoveryResult*
-    -> runtime/command execution ID correlation validation
-    -> ObservationIdentityProvider
-    -> CollectedProductObservation assembly
-    -> DiscoveryObservationRepository
-    -> PersistedDiscoveryExecutionResult Application response
+    -> runtime/command execution-ID correlation validation
+    -> DiscoveryExecutionResult assembly/persistence
+    -> authoritative completion response
 ```
 
 The runtime receives the committed command returned by
-`PersistDiscoveryCommand`, including on command replay. The runtime keeps
+`PersistDiscoveryCommand`. On a completed exact replay, the Application loads
+the persisted result, observations, and ordered Groups and does not call the
+runtime. An incomplete command replay runs the runtime again. The runtime keeps
 collection facts and grouping correlations in execution-local buffers and
 returns immutable tuples with the transient Discovery results. The Application
 entry rejects a runtime execution ID that differs from the committed command.
 
-For each returned `CollectionFact`, the Application requests one opaque
-observation ID, copies the collected Product and collector facts into a
-`CollectedProductObservation`, and saves that observation through the existing
-repository. The current production entry therefore establishes these facts:
+At the collection checkpoint, the Application requests one opaque observation
+ID for each `CollectionFact`, copies the collected Product and collector facts
+into a `CollectedProductObservation`, and persists each observation. At the
+grouping checkpoint, it maps execution-local correlation positions to those
+observations, requests authoritative Group IDs and times, and persists each
+`FinalizedProductGroup` before downstream analysis. After the runtime succeeds,
+it persists one `DiscoveryExecutionResult`. The production entry therefore
+establishes these durable facts:
 
 - a persisted `DiscoveryCommand` and receipt;
-- persisted `CollectedProductObservation` values; and
-- runtime-returned `GroupingCorrelation` values for the execution.
+- persisted `CollectedProductObservation` values;
+- persisted `FinalizedProductGroup` values; and
+- one persisted successful `DiscoveryExecutionResult`, including an explicit
+  zero-result.
 
-The Application response also returns `DiscoveryResult` values, collection
-facts, observations, and grouping correlations. That response is not the
-durable command-level completion record described below.
+The internal Application response also carries transient `DiscoveryResult`
+values and runtime facts on a fresh execution. The public production POST
+returns only authoritative completion and finalized-Group facts. The durable
+`DiscoveryExecutionResult` preserves ordered finalized Group IDs; it does not
+preserve the ranked `OpportunityResult`/`DiscoveryResult` payload, economics,
+score, or recommendation.
 
 The Infrastructure runtime adapter maps all execution-affecting command values:
 query, collection limit, matching threshold, pricing multiplier, cost and fee
@@ -168,32 +182,19 @@ Group. It does not authorize the Application to regroup Products or reinterpret
 Engine matching. It carries facts from the Engine computation without carrying
 new grouping meaning.
 
-### Existing Contracts Not Yet Production-Wired
+### Current Production Limits
 
-The Domain and Repository contracts already define `FinalizedProductGroup` and
-`DiscoveryExecutionResult`, including durable replay and conflict behavior.
-The current production entry does not yet assemble or persist either value.
-
-The following production responsibilities remain unwired:
-
-- finalizing each `FinalizedProductGroup` immediately after grouping;
-- supplying an authoritative finalized Group ID;
-- supplying the authoritative grouping policy version;
-- supplying the timezone-aware `finalized_at` value;
-- persisting finalized Groups through `DiscoveryGroupRepository`;
-- checkpointing Groups before downstream group analysis can fail;
-- assembling a successful or authoritative zero-result
-  `DiscoveryExecutionResult`;
-- persisting that result through `DiscoveryResultRepository`; and
-- composing the production Candidate entry after Discovery completion.
-
-The Engine emits grouping correlations immediately after grouping, before Price
-Intelligence and later group analysis. The current runtime stores them in a
-local buffer and exposes them to the Application only after the complete Engine
-call succeeds. Consequently, a downstream analysis failure prevents the
-Application from receiving those correlations. The current production wiring
-therefore does not yet satisfy the ADR-0010 timing requirement that an already
-finalized Group survive downstream analysis failure.
+- The persisted completion result is a lineage/order record, not a durable
+  ranked opportunity result.
+- Candidate issuance is not automatically composed after Discovery. A caller
+  must read the finalized Groups, select one, and invoke the separate durable
+  Candidate API.
+- Checkpoint persistence does not create a durable workflow-attempt model.
+  There is no persisted phase, attempt number, failure record, retry policy, or
+  resume cursor for an incomplete execution.
+- A later analysis failure can leave a committed command, observations, and
+  Groups without a committed execution result. Those facts are durable history,
+  but rerunning the command is not phase-aware resume.
 
 ### Authoritative Discovery Completion
 
@@ -241,8 +242,9 @@ mean success.
 Candidate issuance is the next workflow, not part of Discovery completion. It
 may begin only after a completed `DiscoveryExecutionResult` exists and the
 selected finalized Group plus representative observation lineage can be
-validated from the repositories. A successful zero-result cannot issue a
-Candidate.
+validated from the repositories. It begins only through the explicit durable
+Candidate API after caller/Founder selection. A successful zero-result cannot
+issue a Candidate.
 
 `DiscoveryResult` remains a transient ranking and presentation result. It is
 not the authoritative source for Candidate issuance or Decision composition.
@@ -253,12 +255,16 @@ owners, and a finalized Decision Composition.
 ### Failure and Replay Summary
 
 - Command persistence failure prevents runtime execution.
-- Runtime failure preserves the already committed command.
+- Runtime failure preserves the already committed command and any observation
+  or Group checkpoints completed before the failure.
 - Each observation save uses the existing individual repository transaction;
   the current entry does not wrap all observations in one transaction.
 - An exact observation ID and payload replay returns the committed fact; reuse
   of that ID with changed content conflicts.
-- Finalized Group and execution-result production recovery are not yet wired.
+- A completed exact replay reconstructs persisted lineage without live runtime,
+  identity-provider, or clock calls.
+- An incomplete replay has no durable phase/attempt/resume contract and reruns
+  the current runtime entry.
 - An execution that has not committed its `DiscoveryExecutionResult` is not a
   successfully completed Discovery.
 
