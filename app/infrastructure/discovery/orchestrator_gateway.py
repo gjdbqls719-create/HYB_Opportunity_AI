@@ -28,6 +28,11 @@ def opportunity_result_to_discovery_result(
         recommendation_summary=(
             recommendation.summary if recommendation is not None else None
         ),
+        finalized_group_id=getattr(
+            opportunity,
+            "finalized_group_id",
+            None,
+        ),
         metadata={
             "analysis": dict(opportunity.analysis),
             "confidence_score": (

@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-26
-**Status Basis:** ADR-0067 Persisted Discovery Screening Authority
+**Status Basis:** ADR-0067 PR2 Explicit Finalized-Group Correlation
 
 ## Purpose
 
@@ -14,12 +14,12 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3806 passed, 1 warning**
-  (Post Deep Audit v2 PR1, 2026-08-25)
+- Last confirmed full regression: **3820 passed, 1 warning**
+  (ADR-0067 PR2, 2026-08-26)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
-- Persisted Discovery Screening F2: ADR-0067 accepted; production
-  implementation remains pending
+- Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
+  finalized-Group correlation implemented, PR3 through PR7 pending
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -51,11 +51,11 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - `DiscoveryExecutionResult` v1 persists ordered finalized Group IDs, not the
   full ranked `OpportunityResult`/`DiscoveryResult` payload. ADR-0067 now
   defines separate evaluation/ranking history and a publication-ID-only v2
-  completion reference, but PR2 through PR7 remain unimplemented.
-- The current transient sorted result has no safe explicit correlation key to
-  its exact finalized Group. ADR-0067 requires the PR2 correlation contract
-  before screening persistence; title, URL, item inference, and positional
-  assumptions are forbidden.
+  completion reference, but PR3 through PR7 remain unimplemented.
+- Fresh production results now preserve the exact `finalized_group_id` assigned
+  before analysis through sorting and runtime mapping. The value remains
+  transient until later screening persistence work; title, URL, item inference,
+  and post-sort positional assumptions remain forbidden.
 - Completed Discovery replay is durable and runtime-free, but incomplete
   executions have no persisted phase/attempt/failure/resume workflow contract.
 - NAVER total search volume may include overseas searches. It is not Korea-only

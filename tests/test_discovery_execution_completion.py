@@ -150,7 +150,9 @@ def test_success_commits_result_after_runtime_and_preserves_repository_return() 
     assert assembled.finalized_group_ids == ("group-1", "group-2")
     assert assembled.completed_at == COMPLETED_AT
     assert response.execution_result is repository.returned
-    assert response.discovery_results == ()
+    assert tuple(
+        result.finalized_group_id for result in response.discovery_results
+    ) == ("group-1", "group-2")
     assert tuple(group.finalized_group_id for group in response.finalized_groups) == (
         "group-1",
         "group-2",

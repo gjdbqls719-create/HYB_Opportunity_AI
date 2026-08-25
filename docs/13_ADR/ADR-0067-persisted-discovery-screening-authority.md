@@ -6,9 +6,18 @@ Accepted
 
 ## Implementation Status
 
-Decision only. This ADR adds no Python production code, database schema, API,
-or template. The implementation is split across the follow-up PR sequence
-defined below.
+PR2 implements the explicit finalized-Group correlation prerequisite. The
+Application grouping checkpoint returns its ordered, already-issued
+`finalized_group_id` values to the Engine before analysis. Each
+`OpportunityResult` preserves its assigned ID through the existing stable sort,
+the runtime maps it into `DiscoveryResult`, and both runtime and Application
+boundaries reject missing, duplicate, unknown, lost, or count-mismatched
+correlations. The ordered checkpoint tuple remains the explicit grouping
+ordinal source; no post-sort positional inference is used.
+
+This PR2 status does not implement screening evaluation/publication
+persistence, change ranking keys or stable-tie behavior, or change any
+Candidate, O1/O2, Capital, API, schema, or replay authority. PR3 is next.
 
 ## Context
 

@@ -122,9 +122,13 @@ DiscoveryCommand
          -> GroupingCorrelation*
          -> grouping checkpoint
               -> FinalizedProductGroup assembly/persistence
+              -> ordered finalized_group_id tuple returned to Engine
          -> transient economics/ranking/recommendation
+              -> OpportunityResult.finalized_group_id survives sorting
          -> DiscoveryResult*
+              -> exact finalized_group_id mapping
     -> runtime/command execution-ID correlation validation
+    -> result/finalized-Group bijection validation
     -> DiscoveryExecutionResult assembly/persistence
     -> authoritative completion response
 ```
@@ -142,9 +146,13 @@ ID for each `CollectionFact`, copies the collected Product and collector facts
 into a `CollectedProductObservation`, and persists each observation. At the
 grouping checkpoint, it maps execution-local correlation positions to those
 observations, requests authoritative Group IDs and times, and persists each
-`FinalizedProductGroup` before downstream analysis. After the runtime succeeds,
-it persists one `DiscoveryExecutionResult`. The production entry therefore
-establishes these durable facts:
+`FinalizedProductGroup` before downstream analysis. It returns the ordered
+finalized Group IDs through the runtime callback, and the Engine binds each ID
+to the corresponding `ProductGroup` before analysis. The ID remains attached to
+the result while the existing three-key stable sort reorders results. After the
+runtime and Application independently validate the exact result/Group
+bijection, the Application persists one `DiscoveryExecutionResult`. The
+production entry therefore establishes these durable facts:
 
 - a persisted `DiscoveryCommand` and receipt;
 - persisted `CollectedProductObservation` values;
@@ -182,10 +190,29 @@ Group. It does not authorize the Application to regroup Products or reinterpret
 Engine matching. It carries facts from the Engine computation without carrying
 new grouping meaning.
 
+The separate screening correlation key is the existing
+`finalized_group_id`. It is issued and persisted by the Application at the
+grouping checkpoint, then returned in the same explicit grouping order before
+analysis. The Engine copies that exact value into `OpportunityResult`; the
+runtime copies it into `DiscoveryResult`. The value is not reconstructed from a
+title, URL, marketplace item ID, sorted position, or grouping position after
+the fact.
+
+For this boundary, `finalized_group_id` is execution-local technical lineage:
+it proves which finalized Group started one Engine analysis. It is not
+Candidate, Opportunity, O1/O2, marketplace listing, or Capital identity. The
+authoritative production path rejects missing, duplicate, unknown, count-
+mismatched, and lost correlations. A zero-Group/zero-result execution remains
+valid. Legacy transient Engine and gateway callers may omit the additive field,
+but the production runtime may not silently accept it for a non-empty result.
+
 ### Current Production Limits
 
 - The persisted completion result is a lineage/order record, not a durable
   ranked opportunity result.
+- Exact result-to-finalized-Group correlation is now present in fresh transient
+  production results, but it is not yet a persisted screening evaluation or
+  ranking publication.
 - Candidate issuance is not automatically composed after Discovery. A caller
   must read the finalized Groups, select one, and invoke the separate durable
   Candidate API.

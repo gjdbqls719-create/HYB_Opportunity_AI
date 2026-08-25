@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from types import SimpleNamespace
 
 import pytest
 
@@ -107,7 +106,7 @@ class RecordingRuntime:
         self.events = events
         self.fail = fail
         self.calls: list[DiscoveryCommand] = []
-        self.results = (discovery_result(),)
+        self.results = ()
         self.collection_facts = ()
         self.grouping_correlations = ()
         self.discovery_execution_id = "execution-1"
@@ -352,18 +351,13 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
     search_error_handler = object()
     opportunity_history_repository = object()
     ai_memory_history = [object()]
-    opportunity = SimpleNamespace(
-        product=SimpleNamespace(),
-        final_opportunity_score=77.0,
-        matched_product_count=4,
-        ai_recommendation=None,
-        analysis={},
-        confidence=None,
-    )
-
     def finder(**kwargs):
         calls.append(kwargs)
-        return [opportunity]
+        kwargs["collection_phase_complete_callback"]()
+        kwargs["grouping_phase_complete_callback"](
+            PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
+        return []
 
     runtime = OrchestratorProductionDiscoveryRuntime(
         finder=finder,
@@ -376,7 +370,7 @@ def test_orchestrator_runtime_forwards_all_execution_affecting_parameters() -> N
 
     runtime_result = runtime.execute(value)
 
-    assert len(runtime_result.discovery_results) == 1
+    assert runtime_result.discovery_results == ()
     assert runtime_result.discovery_execution_id == "execution-1"
     collection_fact_sink = calls[0].pop("collection_fact_sink")
     grouping_correlation_sink = calls[0].pop("grouping_correlation_sink")

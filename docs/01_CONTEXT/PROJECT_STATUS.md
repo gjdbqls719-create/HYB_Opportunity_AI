@@ -1,23 +1,25 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-26
-**Status Basis:** ADR-0067 Persisted Discovery Screening Authority
+**Status Basis:** ADR-0067 PR2 Explicit Finalized-Group Correlation
 
 ## Current Snapshot
 
-- Current work: Persisted Discovery Screening F2 architecture decision;
-  implementation is pending
-- Last confirmed full regression: **3806 passed, 1 warning**
-  (Post Deep Audit v2 PR1, 2026-08-25)
+- Current work: Persisted Discovery Screening F2 PR2 correlation prerequisite
+  implemented; PR3 policy/reason contracts are next
+- Last confirmed full regression: **3820 passed, 1 warning**
+  (ADR-0067 PR2, 2026-08-26)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
-- This PR adds no new business feature and changes no production decision
-  formula or policy
+- This PR adds no new business authority and changes no production ranking
+  formula or stable-tie behavior
 
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking
 publication, and `DiscoveryExecutionResult v2` referencing only the publication
-ID. It does not implement that design in the current code, schema, API, or UI.
+ID. PR2 now provides its explicit result-to-finalized-Group correlation
+prerequisite; evaluation/publication persistence, schema, API, and UI remain
+deferred.
 
 ## Production Discovery
 
@@ -28,7 +30,9 @@ DiscoveryCommand + receipt
   -> live collection
   -> CollectedProductObservation persistence
   -> FinalizedProductGroup persistence at the grouping checkpoint
+  -> ordered finalized Group IDs returned to the engine before analysis
   -> transient economics / ranking / recommendation
+  -> sorted DiscoveryResult values retaining exact finalized Group IDs
   -> DiscoveryExecutionResult persistence
 ```
 
@@ -97,15 +101,25 @@ execution remains gated by the separate capital and Founder-authority chain.
 - durable Discovery attempt/failure/resume state;
 - implementation of persisted Discovery screening evaluations and ranking
   publications;
-- explicit correlation from each transient sorted screening result to its exact
-  finalized Group (the required ADR-0067 PR2 prerequisite);
+- versioned screening/ranking policy descriptors and structured reason contract
+  (ADR-0067 PR3);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
   outcomes with capital authorities.
 
-These are follow-up scopes. ADR-0067 decides the persisted screening boundary
-but does not implement it. F1 durable attempt/recovery remains a separate track.
+These are follow-up scopes. PR2 implements correlation only; it does not
+persist screening. F1 durable attempt/recovery remains a separate track.
+
+## ADR-0067 PR2 Verification
+
+- Correlation plus adjacent Discovery runtime/grouping/collection tests:
+  **109 passed**
+- Completion replay, result persistence, Discovery API, and Candidate issuance
+  impact tests: **119 passed, 1 warning**
+- Documentation knowledge/developer tests: **28 passed**
+- Changed Markdown strict UTF-8 and relative-link validation: passed (5 files)
+- Full regression: **3820 passed, 1 warning**
 
 ## ADR-0067 Verification
 

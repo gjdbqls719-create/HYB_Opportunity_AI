@@ -20,6 +20,7 @@ class DiscoveryResult:
     recommendation_summary: str | None = None
     rank: int | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    finalized_group_id: str | None = None
 
     def __post_init__(self) -> None:
         score = float(self.opportunity_score)
@@ -35,6 +36,13 @@ class DiscoveryResult:
 
         if self.rank is not None and self.rank < 1:
             raise ValueError("rank는 1 이상이어야 합니다.")
+
+        if self.finalized_group_id is not None:
+            if (
+                not isinstance(self.finalized_group_id, str)
+                or not self.finalized_group_id.strip()
+            ):
+                raise ValueError("finalized_group_id는 비어 있지 않은 문자열이어야 합니다.")
 
         object.__setattr__(self, "opportunity_score", score)
         object.__setattr__(

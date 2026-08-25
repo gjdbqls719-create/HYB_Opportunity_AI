@@ -85,8 +85,38 @@ class GroupingCorrelation:
 
 GroupingCheckpointHandler = Callable[
     [tuple[GroupingCorrelation, ...], GroupingPolicyDescriptor],
-    None,
+    tuple[str, ...],
 ]
+
+
+def _validate_result_group_correlation(
+    discovery_results: tuple[DiscoveryResult, ...],
+    finalized_groups: tuple[FinalizedProductGroup, ...],
+) -> None:
+    expected_ids = tuple(group.finalized_group_id for group in finalized_groups)
+    result_ids = tuple(result.finalized_group_id for result in discovery_results)
+    if len(result_ids) != len(expected_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result correlation count differs from finalized group count"
+        )
+    if any(group_id is None for group_id in result_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result is missing finalized group correlation"
+        )
+    if len(set(result_ids)) != len(result_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result contains duplicate finalized group correlation"
+        )
+    unknown_ids = set(result_ids) - set(expected_ids)
+    if unknown_ids:
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result contains unknown finalized group correlation"
+        )
+    lost_ids = set(expected_ids) - set(result_ids)
+    if lost_ids:
+        raise DiscoveryRuntimeCorrelationError(
+            "finalized group result correlation was lost after analysis or sorting"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -412,7 +442,7 @@ class PersistedDiscoveryExecutionEntry:
         def receive_grouping_checkpoint(
             grouping_correlations: tuple[GroupingCorrelation, ...],
             grouping_policy_descriptor: GroupingPolicyDescriptor,
-        ) -> None:
+        ) -> tuple[str, ...]:
             nonlocal checkpointed_grouping_correlations, finalized_groups
             checkpointed_grouping_correlations = grouping_correlations
             assembled_groups = assemble_finalized_product_groups(
@@ -429,6 +459,7 @@ class PersistedDiscoveryExecutionEntry:
                 self._group_repository.save_group(group)
                 for group in assembled_groups
             )
+            return tuple(group.finalized_group_id for group in finalized_groups)
 
         runtime_result = self._runtime.execute(
             command_result.command,
@@ -446,6 +477,10 @@ class PersistedDiscoveryExecutionEntry:
             raise DiscoveryRuntimeCorrelationError(
                 "runtime execution identity conflicts with committed command"
             )
+        _validate_result_group_correlation(
+            runtime_result.discovery_results,
+            finalized_groups,
+        )
 
         execution_result = DiscoveryExecutionResult(
             command_id=command_result.command.command_id,

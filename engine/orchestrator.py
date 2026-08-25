@@ -162,6 +162,11 @@ class OpportunityResult:
 
     market_adjustment: MarketAdjustmentResult | None = None
 
+    # Production Discovery binds this value at the grouping checkpoint before
+    # analysis. Legacy transient callers may continue to leave it unresolved.
+    finalized_group_id: str | None = None
+
+
 class OpportunityHistoryLoader(Protocol):
     """
     AI Memory용 과거 기회 기록을 제공하는 저장소 규약.
@@ -178,7 +183,10 @@ class OpportunityHistoryLoader(Protocol):
 SearchErrorHandler = Callable[[str, Exception], None]
 GroupingCorrelationSink = Callable[[tuple[int, ...], int], None]
 PhaseCompleteCallback = Callable[[], None]
-GroupingPhaseCompleteCallback = Callable[[GroupingPolicyDescriptor], None]
+GroupingPhaseCompleteCallback = Callable[
+    [GroupingPolicyDescriptor],
+    tuple[str, ...] | None,
+]
 
 PRODUCTION_GROUPING_POLICY_DESCRIPTOR = GroupingPolicyDescriptor(
     policy_name="product-similarity-greedy-first-match",
@@ -419,6 +427,44 @@ def _load_price_trend(
     return analyze_price_trend(records)
 
 
+def _validated_finalized_group_ids(
+    value: tuple[str, ...],
+    *,
+    group_count: int,
+) -> tuple[str, ...]:
+    if not isinstance(value, tuple):
+        raise TypeError("finalized group correlation must be a tuple")
+    if len(value) != group_count:
+        raise ValueError(
+            "finalized group correlation count must match ProductGroup count"
+        )
+    if any(
+        not isinstance(group_id, str) or not group_id.strip()
+        for group_id in value
+    ):
+        raise ValueError("finalized group correlation IDs must be non-empty text")
+    if len(set(value)) != len(value):
+        raise ValueError("finalized group correlation IDs must be unique")
+    return value
+
+
+def _sort_opportunity_results(results: list[OpportunityResult]) -> None:
+    """Preserve the production ranking order without using correlation."""
+
+    results.sort(
+        key=lambda result: (
+            (
+                result.ai_recommendation.score
+                if result.ai_recommendation is not None
+                else 0
+            ),
+            result.final_opportunity_score,
+            result.analysis["net_profit"],
+        ),
+        reverse=True,
+    )
+
+
 def find_best_opportunities(
     query: str,
     *,
@@ -540,8 +586,16 @@ def find_best_opportunities(
         grouping_correlation_sink=grouping_correlation_sink,
     )
 
+    finalized_group_ids: tuple[str | None, ...] = (None,) * len(product_groups)
     if grouping_phase_complete_callback is not None:
-        grouping_phase_complete_callback(PRODUCTION_GROUPING_POLICY_DESCRIPTOR)
+        resolved_group_ids = grouping_phase_complete_callback(
+            PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
+        if resolved_group_ids is not None:
+            finalized_group_ids = _validated_finalized_group_ids(
+                resolved_group_ids,
+                group_count=len(product_groups),
+            )
 
     price_change_detector = _build_price_change_detector(
         repository=price_history_repository,
@@ -549,7 +603,11 @@ def find_best_opportunities(
 
     results: list[OpportunityResult] = []
 
-    for group in product_groups:
+    for group, finalized_group_id in zip(
+        product_groups,
+        finalized_group_ids,
+        strict=True,
+    ):
         representative = group.representative
 
         price_info = analyze_product_prices(
@@ -988,20 +1046,10 @@ def find_best_opportunities(
                 market_adjustment=(
                     market_adjustment
                 ),
+
+                finalized_group_id=finalized_group_id,
             )
         )
-    results.sort(
-        key=lambda result: (
-            (
-                result.ai_recommendation.score
-                if result.ai_recommendation
-                is not None
-                else 0
-            ),
-            result.final_opportunity_score,
-            result.analysis["net_profit"],
-        ),
-        reverse=True,
-    )
+    _sort_opportunity_results(results)
 
     return results

@@ -9,6 +9,7 @@ from app.domain.discovery import DiscoveryResult
 from app.domain.discovery_identity import DiscoveryCommand
 from app.application.discovery.production_execution import (
     CollectionCheckpointHandler,
+    DiscoveryRuntimeCorrelationError,
     GroupingCorrelation,
     GroupingCheckpointHandler,
     ProductionDiscoveryRuntimeResult,
@@ -22,6 +23,48 @@ from engine.orchestrator import OpportunityResult, find_best_opportunities
 
 
 OpportunityFinder = Callable[..., list[OpportunityResult]]
+
+
+def _validate_runtime_group_correlation(
+    *,
+    opportunities: list[OpportunityResult],
+    grouping_correlations: tuple[GroupingCorrelation, ...],
+    finalized_group_ids: tuple[str, ...] | None,
+) -> None:
+    if finalized_group_ids is None:
+        if opportunities or grouping_correlations:
+            raise DiscoveryRuntimeCorrelationError(
+                "runtime is missing finalized group checkpoint correlation"
+            )
+        return
+    if len(finalized_group_ids) != len(grouping_correlations):
+        raise DiscoveryRuntimeCorrelationError(
+            "finalized group correlation count differs from grouped engine input count"
+        )
+    if len(opportunities) != len(finalized_group_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result correlation count differs from finalized group count"
+        )
+    result_ids = tuple(
+        getattr(opportunity, "finalized_group_id", None)
+        for opportunity in opportunities
+    )
+    if any(group_id is None for group_id in result_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result is missing finalized group correlation"
+        )
+    if len(set(result_ids)) != len(result_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result contains duplicate finalized group correlation"
+        )
+    if set(result_ids) - set(finalized_group_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "runtime result contains unknown finalized group correlation"
+        )
+    if set(finalized_group_ids) - set(result_ids):
+        raise DiscoveryRuntimeCorrelationError(
+            "finalized group result correlation was lost after analysis or sorting"
+        )
 
 
 class OrchestratorProductionDiscoveryRuntime:
@@ -57,6 +100,7 @@ class OrchestratorProductionDiscoveryRuntime:
         parameters = command.parameters
         collection_facts: list[CollectionFact] = []
         grouping_correlations: list[GroupingCorrelation] = []
+        finalized_group_ids: tuple[str, ...] | None = None
 
         def collect_grouping_correlation(
             ordered_member_collection_positions: tuple[int, ...],
@@ -75,12 +119,30 @@ class OrchestratorProductionDiscoveryRuntime:
 
         def complete_grouping_phase(
             grouping_policy_descriptor: GroupingPolicyDescriptor,
-        ) -> None:
+        ) -> tuple[str, ...] | None:
+            nonlocal finalized_group_ids
             if grouping_checkpoint_handler is not None:
-                grouping_checkpoint_handler(
+                finalized_group_ids = grouping_checkpoint_handler(
                     tuple(grouping_correlations),
                     grouping_policy_descriptor,
                 )
+                if not isinstance(finalized_group_ids, tuple):
+                    raise DiscoveryRuntimeCorrelationError(
+                        "grouping checkpoint must return finalized group IDs"
+                    )
+                if any(
+                    not isinstance(group_id, str) or not group_id.strip()
+                    for group_id in finalized_group_ids
+                ):
+                    raise DiscoveryRuntimeCorrelationError(
+                        "finalized group correlation IDs must be non-empty text"
+                    )
+                if len(set(finalized_group_ids)) != len(finalized_group_ids):
+                    raise DiscoveryRuntimeCorrelationError(
+                        "finalized group correlation IDs must be unique"
+                    )
+                return finalized_group_ids
+            return None
 
         opportunities = self._finder(
             query=parameters.query,
@@ -121,6 +183,12 @@ class OrchestratorProductionDiscoveryRuntime:
             grouping_correlation_sink=collect_grouping_correlation,
             collection_phase_complete_callback=complete_collection_phase,
             grouping_phase_complete_callback=complete_grouping_phase,
+        )
+
+        _validate_runtime_group_correlation(
+            opportunities=opportunities,
+            grouping_correlations=tuple(grouping_correlations),
+            finalized_group_ids=finalized_group_ids,
         )
 
         return ProductionDiscoveryRuntimeResult(

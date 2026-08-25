@@ -1,5 +1,26 @@
 # HYB Changelog
 
+## ADR-0067 PR2 - Explicit Finalized-Group Screening Correlation
+
+- Return the ordered, already-issued finalized Group IDs from the Application
+  grouping checkpoint to the Engine before analysis.
+- Preserve each exact `finalized_group_id` on `OpportunityResult` through the
+  existing stable production sort and map it into transient `DiscoveryResult`.
+- Fail closed at production runtime and Application boundaries for missing,
+  duplicate, unknown, lost, or count-mismatched correlations while preserving
+  valid zero-Group/zero-result executions.
+- Keep the field optional for legacy transient callers, but require it on every
+  non-empty authoritative production result.
+- Preserve the current recommendation score, final opportunity score, and net
+  profit descending ordering and its existing stable-tie behavior.
+- Add no schema, screening persistence, Candidate/O1/O2, Capital, API, UI,
+  replay, recovery, or ranking-policy change. PR3 policy descriptors and
+  structured reasons remain next.
+- Verification: correlation and adjacent Discovery tests `109 passed`;
+  replay/persistence/API/Candidate impact tests `119 passed, 1 warning`;
+  documentation tests `28 passed`; changed Markdown strict UTF-8/relative-link
+  validation passed; full regression `3820 passed, 1 warning`.
+
 ## ADR-0067 - Persisted Discovery Screening Authority
 
 - Keep persisted screening inside the existing Discovery boundary and separate

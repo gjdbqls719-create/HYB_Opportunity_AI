@@ -145,11 +145,22 @@ def test_production_runtime_returns_execution_results_and_ordered_facts() -> Non
                     source_reference=f"{product.url}#{suffix}",
                 )
             )
+        kwargs["collection_phase_complete_callback"]()
+        kwargs["grouping_correlation_sink"]((0, 1), 0)
+        finalized_group_ids = kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
+        opportunity.finalized_group_id = finalized_group_ids[0]
         return [opportunity]
 
     runtime = OrchestratorProductionDiscoveryRuntime(finder=finder)
 
-    result = runtime.execute(_command())
+    result = runtime.execute(
+        _command(),
+        grouping_checkpoint_handler=lambda correlations, descriptor: (
+            "group-1",
+        ),
+    )
 
     assert isinstance(result, ProductionDiscoveryRuntimeResult)
     assert result.discovery_execution_id == "execution-1"

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +25,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingPersister,
     RecordingRuntime,
     command,
+    discovery_result,
     finalization_dependencies,
 )
 
@@ -140,12 +142,33 @@ def test_production_runtime_wraps_engine_positions_in_immutable_correlations() -
 
     def finder(**kwargs):
         kwargs["collection_fact_sink"](fact(collected_product))
+        kwargs["collection_phase_complete_callback"]()
         kwargs["grouping_correlation_sink"]((0,), 0)
-        return []
+        finalized_group_ids = kwargs["grouping_phase_complete_callback"](
+            orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
+        )
+        return [
+            SimpleNamespace(
+                product=collected_product,
+                final_opportunity_score=77.0,
+                matched_product_count=1,
+                ai_recommendation=None,
+                analysis={},
+                confidence=None,
+                finalized_group_id=finalized_group_ids[0],
+            )
+        ]
 
-    result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(command())
+    result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
+        command(),
+        grouping_checkpoint_handler=lambda values, descriptor: (
+            "finalized-group-1",
+        ),
+    )
 
-    assert result.discovery_results == ()
+    assert tuple(
+        value.finalized_group_id for value in result.discovery_results
+    ) == ("finalized-group-1",)
     assert result.collection_facts == (fact(collected_product),)
     assert result.grouping_correlations == (GroupingCorrelation((0,), 0),)
 
@@ -160,6 +183,12 @@ def test_runtime_and_application_return_the_same_grouping_correlations() -> None
     runtime.collection_facts = tuple(fact(value) for value in products)
     correlations = (GroupingCorrelation((0, 1), 1),)
     runtime.grouping_correlations = correlations
+    runtime.results = (
+        replace(
+            discovery_result(),
+            finalized_group_id="finalized-group-1",
+        ),
+    )
 
     result = PersistedDiscoveryExecutionEntry(
         persist_command=RecordingPersister(events),
@@ -185,6 +214,12 @@ def test_replay_keeps_committed_command_and_grouping_correlation_semantics() -> 
     runtime = RecordingRuntime(events)
     runtime.grouping_correlations = (GroupingCorrelation((0,), 0),)
     runtime.collection_facts = (fact(product("first", "Camera", 100)),)
+    runtime.results = (
+        replace(
+            discovery_result(),
+            finalized_group_id="finalized-group-1",
+        ),
+    )
 
     class ReplayPersister(RecordingPersister):
         def execute(self, value):

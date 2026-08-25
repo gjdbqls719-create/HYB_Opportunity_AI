@@ -4,10 +4,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timezone
 from threading import Barrier
+from types import SimpleNamespace
 
 import pytest
 
 from app.application.discovery import (
+    DiscoveryRuntimeCorrelationError,
     GroupingCorrelation,
     PersistedDiscoveryExecutionEntry,
     ProductionDiscoveryRuntimeResult,
@@ -23,6 +25,7 @@ from tests.test_persisted_discovery_execution_entry import (
     RecordingObservationIdentityProvider,
     RecordingPersister,
     command,
+    discovery_result,
     finalization_dependencies,
 )
 
@@ -46,6 +49,18 @@ def product(item_id: str, *, price: float = 10.0) -> Product:
 def fact(item_id: str) -> CollectionFact:
     value = product(item_id)
     return CollectionFact(value, OBSERVED_AT, DESCRIPTOR, value.url)
+
+
+def engine_opportunity(value: Product, finalized_group_id: str):
+    return SimpleNamespace(
+        product=value,
+        final_opportunity_score=77.0,
+        matched_product_count=1,
+        ai_recommendation=None,
+        analysis={},
+        confidence=None,
+        finalized_group_id=finalized_group_id,
+    )
 
 
 def test_engine_calls_phase_checkpoints_at_exact_lifecycle_boundaries(
@@ -225,19 +240,28 @@ def test_runtime_bridges_immutable_ordered_phase_facts() -> None:
                 correlation.ordered_member_collection_positions,
                 correlation.representative_collection_position,
             )
-        kwargs["grouping_phase_complete_callback"](
+        finalized_group_ids = kwargs["grouping_phase_complete_callback"](
             orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
         )
-        return []
+        return [
+            engine_opportunity(value.product, finalized_group_id)
+            for value, finalized_group_id in zip(
+                facts,
+                finalized_group_ids,
+                strict=True,
+            )
+        ]
+
+    def record_grouping(values, descriptor):
+        events.append(("grouping", values))
+        return ("group-one", "group-two")
 
     result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
         command(),
         collection_checkpoint_handler=lambda values: events.append(
             ("collection", values)
         ),
-        grouping_checkpoint_handler=lambda values, descriptor: events.append(
-            ("grouping", values)
-        ),
+        grouping_checkpoint_handler=record_grouping,
     )
 
     assert events == [
@@ -263,7 +287,9 @@ def test_runtime_calls_handlers_with_empty_tuples() -> None:
     OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
         command(),
         collection_checkpoint_handler=received.append,
-        grouping_checkpoint_handler=lambda values, descriptor: received.append(values),
+        grouping_checkpoint_handler=lambda values, descriptor: (
+            received.append(values) or ()
+        ),
     )
 
     assert received == [(), ()]
@@ -278,7 +304,6 @@ def test_runtime_checkpoint_handlers_isolate_consecutive_executions() -> None:
         calls += 1
         kwargs["collection_fact_sink"](fact(f"item-{calls}"))
         kwargs["collection_phase_complete_callback"]()
-        kwargs["grouping_correlation_sink"]((0,), 0)
         kwargs["grouping_phase_complete_callback"](
             orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
         )
@@ -293,7 +318,7 @@ def test_runtime_checkpoint_handlers_isolate_consecutive_executions() -> None:
     assert received[0] is not received[1]
 
 
-def test_runtime_omitted_handlers_preserve_existing_result_contract() -> None:
+def test_runtime_rejects_nonempty_grouping_when_checkpoint_handler_is_omitted() -> None:
     def finder(**kwargs):
         kwargs["collection_fact_sink"](fact("one"))
         kwargs["collection_phase_complete_callback"]()
@@ -303,14 +328,11 @@ def test_runtime_omitted_handlers_preserve_existing_result_contract() -> None:
         )
         return []
 
-    result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(command())
-
-    assert result == ProductionDiscoveryRuntimeResult(
-        discovery_execution_id="execution-1",
-        discovery_results=(),
-        collection_facts=(fact("one"),),
-        grouping_correlations=(GroupingCorrelation((0,), 0),),
-    )
+    with pytest.raises(
+        DiscoveryRuntimeCorrelationError,
+        match="missing finalized group checkpoint correlation",
+    ):
+        OrchestratorProductionDiscoveryRuntime(finder=finder).execute(command())
 
 
 class CheckpointRuntime:
@@ -338,7 +360,7 @@ class CheckpointRuntime:
         self.events.append("collection-checkpoint")
         collection_checkpoint_handler(self.collection_facts)
         self.events.append("grouping")
-        grouping_checkpoint_handler(
+        finalized_group_ids = grouping_checkpoint_handler(
             self.grouping_correlations,
             orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR,
         )
@@ -348,7 +370,13 @@ class CheckpointRuntime:
         self.events.append("analysis")
         return ProductionDiscoveryRuntimeResult(
             value.discovery_execution_id,
-            (),
+            tuple(
+                replace(
+                    discovery_result(),
+                    finalized_group_id=finalized_group_id,
+                )
+                for finalized_group_id in finalized_group_ids
+            ),
             self.collection_facts,
             self.grouping_correlations,
         )
@@ -486,7 +514,6 @@ def test_runtime_checkpoint_buffers_are_isolated_across_concurrent_executions() 
         value = fact(kwargs["query"])
         kwargs["collection_fact_sink"](value)
         kwargs["collection_phase_complete_callback"]()
-        kwargs["grouping_correlation_sink"]((0,), 0)
         kwargs["grouping_phase_complete_callback"](
             orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
         )

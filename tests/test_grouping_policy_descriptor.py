@@ -10,7 +10,7 @@ from app.infrastructure.discovery.production_runtime import (
 )
 from engine import orchestrator
 from engine.grouping_policy import GroupingPolicyDescriptor
-from tests.test_discovery_phase_checkpoints import fact, product
+from tests.test_discovery_phase_checkpoints import engine_opportunity, fact, product
 from tests.test_persisted_discovery_execution_entry import command
 
 
@@ -173,16 +173,18 @@ def test_runtime_bridges_correlations_with_exact_engine_descriptor() -> None:
         kwargs["collection_fact_sink"](fact("one"))
         kwargs["collection_phase_complete_callback"]()
         kwargs["grouping_correlation_sink"]((0,), 0)
-        kwargs["grouping_phase_complete_callback"](
+        finalized_group_ids = kwargs["grouping_phase_complete_callback"](
             orchestrator.PRODUCTION_GROUPING_POLICY_DESCRIPTOR
         )
-        return []
+        return [engine_opportunity(product("one"), finalized_group_ids[0])]
+
+    def record_grouping(correlations, descriptor):
+        received.append((correlations, descriptor))
+        return ("group-1",)
 
     result = OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
         command(),
-        grouping_checkpoint_handler=lambda correlations, descriptor: received.append(
-            (correlations, descriptor)
-        ),
+        grouping_checkpoint_handler=record_grouping,
     )
 
     assert received == [
@@ -207,8 +209,8 @@ def test_runtime_bridges_authoritative_descriptor_with_empty_correlations() -> N
 
     OrchestratorProductionDiscoveryRuntime(finder=finder).execute(
         command(),
-        grouping_checkpoint_handler=lambda correlations, descriptor: received.append(
-            (correlations, descriptor)
+        grouping_checkpoint_handler=lambda correlations, descriptor: (
+            received.append((correlations, descriptor)) or ()
         ),
     )
 
