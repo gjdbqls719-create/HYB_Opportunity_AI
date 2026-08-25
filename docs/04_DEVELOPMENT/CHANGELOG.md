@@ -1,5 +1,32 @@
 # HYB Changelog
 
+## ADR-0067 - Persisted Discovery Screening Authority
+
+- Keep persisted screening inside the existing Discovery boundary and separate
+  immutable per-Group evaluation snapshots from immutable ranking
+  publications.
+- Define `DiscoveryExecutionResult v2` as a publication-ID reference rather
+  than a container for the full screening payload.
+- Freeze production Ranking Policy v1 as effective recommendation score,
+  final opportunity score, and per-unit net profit descending, followed by an
+  explicit grouping ordinal ascending tie-break. Keep the separate
+  `app/domain/discovery/ranking.py` policy out of this authority.
+- Require an explicit result-to-finalized-Group correlation contract before
+  persistence; forbid title, URL, item-ID inference, and sorted/grouping
+  position assumptions.
+- Define screening provenance, review-priority naming, append-only integrity,
+  runtime-free v2 replay, legacy `SCREENING_NOT_RECORDED_LEGACY`, and one
+  SQLite transaction for evaluation/publication/result-v2 completion.
+- Preserve explicit Founder selection and all Candidate, O1, O2, Capital,
+  real-money, F1 Recovery, and future Shadow Validation authority boundaries.
+- Record the PR2 through PR7 implementation sequence. This change is decision
+  and documentation only; it adds no Python production code, database schema,
+  API, or template.
+- Verification: changed Markdown strict UTF-8/relative-link checks passed;
+  ADR contract checks passed; documentation knowledge/developer tests
+  `24 passed`; full regression was not rerun under the document-only PR rule,
+  so the last confirmed baseline remains `3806 passed, 1 warning`.
+
 ## Post Deep Audit v2 PR1 - Current-State Contract Correction
 
 - Align current-state Discovery documentation with the authoritative production

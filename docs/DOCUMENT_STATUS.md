@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
-**Last Updated:** 2026-08-25
-**Status Basis:** Repository Deep Audit v2 and Post Deep Audit v2 PR1
+**Last Updated:** 2026-08-26
+**Status Basis:** ADR-0067 Persisted Discovery Screening Authority
 
 ## Purpose
 
@@ -18,6 +18,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   (Post Deep Audit v2 PR1, 2026-08-25)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
+- Persisted Discovery Screening F2: ADR-0067 accepted; production
+  implementation remains pending
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -46,9 +48,14 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 
 ## Current Documentation Debt
 
-- `DiscoveryExecutionResult` persists ordered finalized Group IDs, not the full
-  ranked `OpportunityResult`/`DiscoveryResult` payload. Any durable ranking
-  contract requires a separate future decision and implementation PR.
+- `DiscoveryExecutionResult` v1 persists ordered finalized Group IDs, not the
+  full ranked `OpportunityResult`/`DiscoveryResult` payload. ADR-0067 now
+  defines separate evaluation/ranking history and a publication-ID-only v2
+  completion reference, but PR2 through PR7 remain unimplemented.
+- The current transient sorted result has no safe explicit correlation key to
+  its exact finalized Group. ADR-0067 requires the PR2 correlation contract
+  before screening persistence; title, URL, item inference, and positional
+  assumptions are forbidden.
 - Completed Discovery replay is durable and runtime-free, but incomplete
   executions have no persisted phase/attempt/failure/resume workflow contract.
 - NAVER total search volume may include overseas searches. It is not Korea-only

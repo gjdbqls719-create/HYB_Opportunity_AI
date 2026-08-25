@@ -1,16 +1,23 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-08-25
-**Status Basis:** Repository Deep Audit v2 and Post Deep Audit v2 PR1
+**Last Updated:** 2026-08-26
+**Status Basis:** ADR-0067 Persisted Discovery Screening Authority
 
 ## Current Snapshot
 
-- Current work: current-state documentation and runbook contract correction
+- Current work: Persisted Discovery Screening F2 architecture decision;
+  implementation is pending
 - Last confirmed full regression: **3806 passed, 1 warning**
   (Post Deep Audit v2 PR1, 2026-08-25)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
-- This PR adds no new business feature and changes no decision formula or policy
+- This PR adds no new business feature and changes no production decision
+  formula or policy
+
+ADR-0067 accepts an existing-Discovery-owned persisted screening design:
+immutable per-Group evaluation snapshots, a separate immutable ranking
+publication, and `DiscoveryExecutionResult v2` referencing only the publication
+ID. It does not implement that design in the current code, schema, API, or UI.
 
 ## Production Discovery
 
@@ -88,13 +95,25 @@ execution remains gated by the separate capital and Founder-authority chain.
 ## Current Known Gaps
 
 - durable Discovery attempt/failure/resume state;
-- persistence of the full ranked Discovery result;
+- implementation of persisted Discovery screening evaluations and ranking
+  publications;
+- explicit correlation from each transient sorted screening result to its exact
+  finalized Group (the required ADR-0067 PR2 prerequisite);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
   outcomes with capital authorities.
 
-These are follow-up scopes. They are not implemented by Post Deep Audit v2 PR1.
+These are follow-up scopes. ADR-0067 decides the persisted screening boundary
+but does not implement it. F1 durable attempt/recovery remains a separate track.
+
+## ADR-0067 Verification
+
+- Changed Markdown strict UTF-8 and relative-link validation: passed (6 files)
+- ADR required-section/rejected-alternative contract check: passed (28 checks)
+- Documentation knowledge/developer tests: **24 passed**
+- Full regression: not rerun under the Documentation Policy's document-only PR
+  rule; the last confirmed baseline remains **3806 passed, 1 warning**
 
 ## PR1 Verification
 

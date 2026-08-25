@@ -96,6 +96,22 @@ Real-Money validation 전에 recommendation-first discovery를 완성한다.
 
 초기 Candidate Universe는 CSV, Excel 또는 manual structured ingestion으로 시작할 수 있다. ItemScout API는 필수 선행조건이 아니다. ItemScout, Coupang, Naver 연동은 실제 source 확보와 authority가 검증될 때 source별 PR로 진행한다.
 
+#### Persisted Discovery Screening F2
+
+[ADR-0067](../13_ADR/ADR-0067-persisted-discovery-screening-authority.md)은
+screening authority를 기존 Discovery에 두고 evaluation과 ranking publication을
+분리한다. 구현은 다음 작은 PR 순서를 따른다.
+
+1. PR2: explicit finalized-Group correlation contract
+2. PR3: versioned screening/ranking policy descriptors와 structured reasons
+3. PR4: immutable evaluation/ranking/provenance Domain contracts
+4. PR5: SQLite composite completion persistence와 atomicity/replay/corruption/concurrency
+5. PR6: production completion integration과 runtime-free v2 replay
+6. PR7: Founder screening read API와 Top-N UI
+
+PR7 후 Shadow Validation MVP 시작 readiness를 다시 평가한다. F1 durable
+attempt/recovery는 별도 track이며 F2와 하나의 대형 PR로 합치지 않는다.
+
 ### CR-1B — Capital Safety
 
 Discovery Track과 병렬로 실제 손실 방지 경계를 완성한다.

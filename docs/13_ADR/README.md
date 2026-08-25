@@ -73,3 +73,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0064: Domestic Market Validation v2 Target-Bound Source Authority](ADR-0064-domestic-market-validation-v2-target-bound-source-authority.md)
 - [ADR-0065: New-to-Market Target Downstream Sourcing and Economics Admission](ADR-0065-new-to-market-target-downstream-sourcing-economics-admission.md)
 - [ADR-0066: Capital Readiness Target-Bound Domestic Market Validation Source Admission](ADR-0066-capital-readiness-target-bound-domestic-market-validation-source-admission.md)
+- [ADR-0067: Persisted Discovery Screening Authority](ADR-0067-persisted-discovery-screening-authority.md)
