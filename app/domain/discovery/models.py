@@ -5,6 +5,10 @@ from math import isfinite
 from types import MappingProxyType
 from typing import Any, Mapping
 
+from app.domain.discovery.screening import (
+    ScreeningPolicyDescriptors,
+    ScreeningRecommendationSemantics,
+)
 from app.models import Product
 
 
@@ -21,6 +25,8 @@ class DiscoveryResult:
     rank: int | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
     finalized_group_id: str | None = None
+    screening_policy_descriptors: ScreeningPolicyDescriptors | None = None
+    screening_recommendation: ScreeningRecommendationSemantics | None = None
 
     def __post_init__(self) -> None:
         score = float(self.opportunity_score)
@@ -43,6 +49,26 @@ class DiscoveryResult:
                 or not self.finalized_group_id.strip()
             ):
                 raise ValueError("finalized_group_id는 비어 있지 않은 문자열이어야 합니다.")
+        if (
+            self.screening_policy_descriptors is not None
+            and not isinstance(
+                self.screening_policy_descriptors,
+                ScreeningPolicyDescriptors,
+            )
+        ):
+            raise TypeError(
+                "screening_policy_descriptors must be ScreeningPolicyDescriptors"
+            )
+        if (
+            self.screening_recommendation is not None
+            and not isinstance(
+                self.screening_recommendation,
+                ScreeningRecommendationSemantics,
+            )
+        ):
+            raise TypeError(
+                "screening_recommendation must be ScreeningRecommendationSemantics"
+            )
 
         object.__setattr__(self, "opportunity_score", score)
         object.__setattr__(

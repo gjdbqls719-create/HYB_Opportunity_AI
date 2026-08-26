@@ -33,6 +33,16 @@ def opportunity_result_to_discovery_result(
             "finalized_group_id",
             None,
         ),
+        screening_policy_descriptors=getattr(
+            opportunity,
+            "screening_policy_descriptors",
+            None,
+        ),
+        screening_recommendation=getattr(
+            opportunity,
+            "screening_recommendation",
+            None,
+        ),
         metadata={
             "analysis": dict(opportunity.analysis),
             "confidence_score": (

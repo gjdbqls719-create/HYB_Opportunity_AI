@@ -6,18 +6,27 @@ Accepted
 
 ## Implementation Status
 
-PR2 implements the explicit finalized-Group correlation prerequisite. The
-Application grouping checkpoint returns its ordered, already-issued
-`finalized_group_id` values to the Engine before analysis. Each
-`OpportunityResult` preserves its assigned ID through the existing stable sort,
-the runtime maps it into `DiscoveryResult`, and both runtime and Application
-boundaries reject missing, duplicate, unknown, lost, or count-mismatched
-correlations. The ordered checkpoint tuple remains the explicit grouping
-ordinal source; no post-sort positional inference is used.
+PR2 completed the explicit finalized-Group correlation prerequisite. PR3 now
+adds immutable v1 descriptors for the current score, recommendation,
+production-safety, and ranking policies; structured v1 reason codes paired with
+the existing human text; and an explicit raw/effective recommendation contract.
+Authoritative production `OpportunityResult` and transient `DiscoveryResult`
+values expose the exact descriptor manifest and recommendation semantics.
+Legacy transient constructors retain additive optional defaults.
 
-This PR2 status does not implement screening evaluation/publication
-persistence, change ranking keys or stable-tie behavior, or change any
-Candidate, O1/O2, Capital, API, schema, or replay authority. PR3 is next.
+PR3 changes no score, recommendation, Safety Gate, or sorting behavior. Ranking
+v1 is the actual three descending numeric keys plus stable input order for
+complete ties; neither `finalized_group_id`, grouping ordinal, nor descriptor
+identity is a ranking key. The descriptors identify material semantics with
+explicit semantic versions and stable algorithm IDs, not a local Git
+working-tree hash. Fixed command/profile inputs such as estimated monthly sales,
+competitor count, and risk level are declared policy-assumption inputs rather
+than observations.
+
+This status does not implement screening evaluation/publication persistence,
+provenance envelopes, schema, replay v2, Candidate, O1/O2, Capital, API, or UI
+authority. PR4 immutable evaluation/ranking/provenance Domain contracts are
+next.
 
 ## Context
 
@@ -142,19 +151,19 @@ result. Persisted screening must not turn an actually unknown or unsupported
 score into zero; such an evaluation is explicitly unranked unless a future
 versioned policy defines another non-fabricating rule.
 
-Python's current stable sort implicitly preserves pre-sort Product Group order
-when all three values tie. Ranking Policy v1 makes that behavior explicit and
-deterministic:
+Python's current stable sort preserves pre-sort Product Group order when all
+three values tie. Ranking Policy v1 versions that current behavior explicitly:
 
 1. effective recommendation score descending;
 2. final opportunity score descending;
-3. per-unit net profit descending;
-4. explicit grouping ordinal ascending as the final tie-break.
+3. per-unit net profit descending; and
+4. complete equal-key ties retain stable input order.
 
-Making the fourth key explicit preserves current successful exact-tie behavior
-while removing reliance on incidental stable-sort input order. PR2 must first
-bind that ordinal and each analyzed result to the exact finalized Group, and
-PR3 must version the complete descriptor and numeric/availability semantics.
+Grouping ordinal is not a v1 production sorting key. A future policy v2 may
+replace stable input order with an explicit grouping-ordinal tie-break, but that
+would be a separately reviewed policy behavior change rather than an invisible
+reinterpretation of v1. PR2 binds each analyzed result to its exact finalized
+Group; the correlation identity and policy descriptors never become sort keys.
 
 `app/domain/discovery/ranking.py::RankingEngine` is a different legacy/domain
 policy: it orders normalized `DiscoveryResult` values by opportunity score,

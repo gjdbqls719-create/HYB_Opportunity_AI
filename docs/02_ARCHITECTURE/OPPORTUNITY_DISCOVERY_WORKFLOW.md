@@ -124,6 +124,8 @@ DiscoveryCommand
               -> FinalizedProductGroup assembly/persistence
               -> ordered finalized_group_id tuple returned to Engine
          -> transient economics/ranking/recommendation
+              -> versioned score/recommendation/Safety/ranking descriptors
+              -> raw/effective recommendation and structured reasons
               -> OpportunityResult.finalized_group_id survives sorting
          -> DiscoveryResult*
               -> exact finalized_group_id mapping
@@ -172,6 +174,47 @@ query, collection limit, matching threshold, pricing multiplier, cost and fee
 inputs, fee-known evidence flags, profitability thresholds, sales and competition
 inputs, risk level, and target currency. Policy and source references remain
 durable audit metadata and are not Engine arguments.
+
+### Screening Semantic Contracts
+
+The authoritative production Engine result now carries one immutable
+`ScreeningPolicyDescriptors` manifest containing exact v1 score,
+recommendation, production-safety, and ranking descriptors. Each descriptor has
+a semantic policy version and stable algorithm ID. A material algorithm or
+ordered-rule change requires a new descriptor version; local Git working-tree
+hashes are not durable policy identities. Build/revision evidence may be added
+as separate execution provenance in PR4 without changing these policy meanings.
+
+Ranking v1 describes the existing production sort only:
+
+1. effective recommendation object score descending;
+2. final opportunity score descending;
+3. per-unit net profit descending; and
+4. stable input order for complete equal-key ties.
+
+`finalized_group_id`, grouping ordinal, and descriptors are not sort keys. The
+different `app/domain/discovery/ranking.py::RankingEngine` remains outside this
+production screening authority.
+
+`ScreeningRecommendationSemantics` copies the raw grade/action/summary before
+Safety and the effective values after Safety, while preserving the one numeric
+recommendation score. `safety_intervention_occurred` is true only when Safety
+changes the recommendation value; an unsafe existing non-BUY may gain safety
+reasons without being counted as a recommendation intervention. BUY-family
+downgrades retain the current WATCH behavior and unchanged score.
+
+Structured reasons use the `discovery.screening.reason.v1` namespace. Codes are
+created directly at the scoring/recommendation/Safety rule branch, never parsed
+from display text. The original Korean or existing human message is retained,
+order follows production rule order, identical duplicate codes collapse to the
+first occurrence, and conflicting reuse of one code fails. Legacy arbitrary
+text receives no inferred code.
+
+The score descriptor identifies fixed command/profile inputs used in current
+screening, including estimated monthly sales, competitor count, risk level,
+profitability thresholds, and the fallback selling-price multiplier, as policy
+assumption inputs. This does not implement PR4 provenance envelopes or label
+any NAVER/ItemScout mixed-geography total as Korea-only demand evidence.
 
 ### Grouping Correlation Contract
 

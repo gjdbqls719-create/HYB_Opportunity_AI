@@ -1,5 +1,35 @@
 # HYB Changelog
 
+## ADR-0067 PR3 - Versioned Screening Policy and Structured Reason Contracts
+
+- Add immutable v1 descriptors for the actual production screening score,
+  recommendation, post-score Safety Gate, and three-key stable ranking policy.
+- Identify material behavior through semantic policy versions and stable
+  algorithm IDs without coupling durable history to a local Git hash.
+- Expose one exact policy manifest and raw/effective recommendation semantics on
+  authoritative `OpportunityResult` and transient `DiscoveryResult` values;
+  preserve additive optional defaults for legacy transient callers.
+- Create structured `discovery.screening.reason.v1` codes directly in current
+  explainable-score, market-adjustment, recommendation, and Safety branches
+  while preserving existing human text and deterministic order. Do not infer
+  codes from arbitrary legacy text or alter the Economics analysis payload.
+- Preserve recommendation scores across the existing BUY-family-to-WATCH Safety
+  downgrade and distinguish Safety findings from an actual recommendation
+  intervention.
+- Record estimated monthly sales, competitor count, risk level, profitability
+  thresholds, and fallback price multiplier as policy-fed assumptions, not
+  observations. Add no NAVER demand evidence.
+- Keep ranking unchanged: effective recommendation score, final opportunity
+  score, and per-unit net profit descending, with stable input order on exact
+  ties. Grouping ordinal, correlation IDs, and descriptors are not sort keys.
+- Add no screening persistence, provenance envelope, schema, replay v2,
+  Candidate/O1/O2, Capital, API, UI, Shadow, Scenario, or F1 Recovery change.
+- Verification: new contract tests `11 passed`; focused current-behavior and
+  adjacent tests `73 passed`; impact tests `185 passed, 1 warning`;
+  documentation tests `24 passed`; changed Markdown strict UTF-8 validation
+  passed for 5 files with no relative links; full regression
+  `3831 passed, 1 warning`.
+
 ## ADR-0067 PR2 - Explicit Finalized-Group Screening Correlation
 
 - Return the ordered, already-issued finalized Group IDs from the Application
@@ -29,8 +59,8 @@
 - Define `DiscoveryExecutionResult v2` as a publication-ID reference rather
   than a container for the full screening payload.
 - Freeze production Ranking Policy v1 as effective recommendation score,
-  final opportunity score, and per-unit net profit descending, followed by an
-  explicit grouping ordinal ascending tie-break. Keep the separate
+  final opportunity score, and per-unit net profit descending, retaining stable
+  input order for complete ties. Keep the separate
   `app/domain/discovery/ranking.py` policy out of this authority.
 - Require an explicit result-to-finalized-Group correlation contract before
   persistence; forbid title, URL, item-ID inference, and sorted/grouping

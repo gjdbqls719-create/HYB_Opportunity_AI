@@ -2,14 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.domain.discovery.screening import (
+    PRODUCTION_SAFETY_POLICY_V1,
+    ScreeningReasonCategory,
+    ScreeningReasonPolarity,
+    ScreeningRecommendationSemantics,
+    ScreeningRecommendationValue,
+    StructuredScreeningReason,
+    structured_screening_reason,
+)
 from engine.confidence import ConfidenceResult
 from engine.explainable_score import (
     build_explainable_score,
 )
 from engine.price_trend import PriceTrend
-from engine.market_adjustment import (
-    MarketAdjustmentResult,
-)
 from engine.market_adjustment import (
     MarketAdjustmentResult,
 )
@@ -38,6 +44,10 @@ class RecommendationResult:
     safety_reasons: tuple[str, ...] = ()
     original_grade: str = ""
     effective_grade: str = ""
+    structured_reasons: tuple[StructuredScreeningReason, ...] = ()
+    structured_warnings: tuple[StructuredScreeningReason, ...] = ()
+    structured_safety_reasons: tuple[StructuredScreeningReason, ...] = ()
+    safety_intervention_occurred: bool = False
 
 
 def generate_recommendation(
@@ -79,6 +89,8 @@ def generate_recommendation(
     warnings = list(
         explainable_score.warnings
     )
+    structured_reasons = list(explainable_score.structured_reasons)
+    structured_warnings = list(explainable_score.structured_warnings)
 
     stars = _score_to_stars(
         normalized_score
@@ -100,8 +112,16 @@ def generate_recommendation(
     )
 
     if not reasons:
-        reasons.append(
-            "현재 조건에서 뚜렷한 긍정 요소가 없습니다."
+        message = "현재 조건에서 뚜렷한 긍정 요소가 없습니다."
+        reasons.append(message)
+        structured_reasons.append(
+            structured_screening_reason(
+                "recommendation.no_supporting_factors",
+                category=ScreeningReasonCategory.RECOMMENDATION,
+                polarity=ScreeningReasonPolarity.BLOCKING,
+                source_component="engine.recommendation",
+                message=message,
+            )
         )
 
     summary = _build_summary(
@@ -121,6 +141,47 @@ def generate_recommendation(
         reasons=tuple(reasons),
         warnings=tuple(warnings),
         summary=summary,
+        structured_reasons=tuple(structured_reasons),
+        structured_warnings=tuple(structured_warnings),
+    )
+
+
+def build_screening_recommendation_semantics(
+    raw_recommendation: RecommendationResult,
+    effective_recommendation: RecommendationResult,
+) -> ScreeningRecommendationSemantics:
+    """Copy raw/effective Engine values into the Discovery semantic contract."""
+
+    if not isinstance(raw_recommendation, RecommendationResult):
+        raise TypeError("raw_recommendation must be RecommendationResult")
+    if not isinstance(effective_recommendation, RecommendationResult):
+        raise TypeError("effective_recommendation must be RecommendationResult")
+    if raw_recommendation.score != effective_recommendation.score:
+        raise ValueError("production Safety Gate must preserve recommendation score")
+
+    return ScreeningRecommendationSemantics(
+        raw_recommendation=ScreeningRecommendationValue(
+            grade=raw_recommendation.grade,
+            action=raw_recommendation.action,
+            summary=raw_recommendation.summary,
+        ),
+        effective_recommendation=ScreeningRecommendationValue(
+            grade=effective_recommendation.grade,
+            action=effective_recommendation.action,
+            summary=effective_recommendation.summary,
+        ),
+        recommendation_score=effective_recommendation.score,
+        safety_intervention_occurred=(
+            effective_recommendation.safety_intervention_occurred
+        ),
+        safety_status=effective_recommendation.safety_status,
+        structured_reasons=(
+            raw_recommendation.structured_reasons
+            + raw_recommendation.structured_warnings
+            + effective_recommendation.structured_safety_reasons
+        ),
+        safety_reasons=effective_recommendation.structured_safety_reasons,
+        safety_policy=PRODUCTION_SAFETY_POLICY_V1,
     )
 
 

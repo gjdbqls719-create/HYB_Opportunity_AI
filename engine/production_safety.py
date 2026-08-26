@@ -4,6 +4,12 @@ from dataclasses import replace
 from math import isfinite
 from typing import Mapping
 
+from app.domain.discovery.screening import (
+    ScreeningReasonCategory,
+    ScreeningReasonPolarity,
+    StructuredScreeningReason,
+    structured_screening_reason,
+)
 from app.models import Product, ProductDataSource
 from app.domain.opportunity import (
     EconomicsCalculation,
@@ -115,6 +121,8 @@ def apply_production_safety_gate(
             safety_reasons=(),
             original_grade=original_grade,
             effective_grade=recommendation.grade,
+            structured_safety_reasons=(),
+            safety_intervention_occurred=False,
         )
 
     reasons = tuple(
@@ -126,7 +134,11 @@ def apply_production_safety_gate(
         for field_name in assessment.failed_checks
         if field_name == "profitability_filter"
     )
+    structured_reasons = _structured_safety_reasons(assessment)
     warnings = recommendation.warnings + reasons
+    structured_warnings = (
+        recommendation.structured_warnings + structured_reasons
+    )
 
     if recommendation.grade not in {"BUY", "STRONG_BUY"}:
         return replace(
@@ -136,6 +148,9 @@ def apply_production_safety_gate(
             safety_reasons=reasons,
             original_grade=original_grade,
             effective_grade=recommendation.grade,
+            structured_warnings=structured_warnings,
+            structured_safety_reasons=structured_reasons,
+            safety_intervention_occurred=False,
         )
 
     profitability_failed = (
@@ -161,7 +176,37 @@ def apply_production_safety_gate(
         safety_reasons=reasons,
         original_grade=original_grade,
         effective_grade="WATCH",
+        structured_warnings=structured_warnings,
+        structured_safety_reasons=structured_reasons,
+        safety_intervention_occurred=True,
     )
+
+
+def _structured_safety_reasons(
+    assessment: ProductionSafetyAssessment,
+) -> tuple[StructuredScreeningReason, ...]:
+    missing = tuple(
+        structured_screening_reason(
+            f"production_safety.missing.{field_name}",
+            category=ScreeningReasonCategory.PRODUCTION_SAFETY,
+            polarity=ScreeningReasonPolarity.BLOCKING,
+            source_component="engine.production_safety",
+            message=f"필수 운영 데이터 누락: {field_name}",
+        )
+        for field_name in assessment.missing_fields
+    )
+    failed = tuple(
+        structured_screening_reason(
+            "production_safety.profitability_filter_failed",
+            category=ScreeningReasonCategory.PRODUCTION_SAFETY,
+            polarity=ScreeningReasonPolarity.BLOCKING,
+            source_component="engine.production_safety",
+            message="수익성 기준 실패: profitability_filter",
+        )
+        for field_name in assessment.failed_checks
+        if field_name == "profitability_filter"
+    )
+    return missing + failed
 
 
 def _is_positive_number(value: object) -> bool:

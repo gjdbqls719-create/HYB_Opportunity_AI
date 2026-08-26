@@ -17,6 +17,11 @@ from app.infrastructure.change import (
     PriceHistorySnapshotProvider,
 )
 from app.models import Product
+from app.domain.discovery.screening import (
+    PRODUCTION_SCREENING_POLICY_DESCRIPTORS_V1,
+    ScreeningPolicyDescriptors,
+    ScreeningRecommendationSemantics,
+)
 from app.domain.opportunity import EconomicsCalculation
 from engine.ai_partner import (
     AIPartnerReport,
@@ -54,6 +59,7 @@ from engine.production_safety import (
 from engine.product_matching import compare_products
 from engine.recommendation import (
     RecommendationResult,
+    build_screening_recommendation_semantics,
     generate_recommendation,
 )
 from engine.trend_scoring import (
@@ -165,6 +171,11 @@ class OpportunityResult:
     # Production Discovery binds this value at the grouping checkpoint before
     # analysis. Legacy transient callers may continue to leave it unresolved.
     finalized_group_id: str | None = None
+
+    # Authoritative production screening always supplies exact v1 semantics.
+    # Legacy transient constructors remain compatible through optional defaults.
+    screening_policy_descriptors: ScreeningPolicyDescriptors | None = None
+    screening_recommendation: ScreeningRecommendationSemantics | None = None
 
 
 class OpportunityHistoryLoader(Protocol):
@@ -808,7 +819,7 @@ def find_best_opportunities(
             2,
         )
 
-        ai_recommendation = generate_recommendation(
+        raw_ai_recommendation = generate_recommendation(
             final_opportunity_score=(
                 final_opportunity_score
             ),
@@ -834,8 +845,12 @@ def find_best_opportunities(
             economics=economics,
         )
         ai_recommendation = apply_production_safety_gate(
-            ai_recommendation,
+            raw_ai_recommendation,
             safety_assessment,
+        )
+        screening_recommendation = build_screening_recommendation_semantics(
+            raw_ai_recommendation,
+            ai_recommendation,
         )
 
         decision_report = build_decision_report(
@@ -1048,6 +1063,10 @@ def find_best_opportunities(
                 ),
 
                 finalized_group_id=finalized_group_id,
+                screening_policy_descriptors=(
+                    PRODUCTION_SCREENING_POLICY_DESCRIPTORS_V1
+                ),
+                screening_recommendation=screening_recommendation,
             )
         )
     _sort_opportunity_results(results)

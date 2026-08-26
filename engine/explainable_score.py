@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.domain.discovery.screening import (
+    ScreeningReasonCategory,
+    ScreeningReasonPolarity,
+    StructuredScreeningReason,
+    structured_screening_reason,
+)
 from engine.confidence import ConfidenceResult
 from engine.price_trend import PriceTrend
 from engine.market_adjustment import (
@@ -22,6 +28,8 @@ class ScoreContribution:
 
     reasons: tuple[str, ...]
     warnings: tuple[str, ...]
+    structured_reasons: tuple[StructuredScreeningReason, ...] = ()
+    structured_warnings: tuple[StructuredScreeningReason, ...] = ()
 
 
 @dataclass(slots=True, frozen=True)
@@ -37,6 +45,8 @@ class ExplainableScoreResult:
     contributions: tuple[ScoreContribution, ...]
     reasons: tuple[str, ...]
     warnings: tuple[str, ...]
+    structured_reasons: tuple[StructuredScreeningReason, ...] = ()
+    structured_warnings: tuple[StructuredScreeningReason, ...] = ()
 
 
 def build_explainable_score(
@@ -132,6 +142,16 @@ def build_explainable_score(
         for contribution in contributions
         for warning in contribution.warnings
     )
+    structured_reasons = tuple(
+        reason
+        for contribution in contributions
+        for reason in contribution.structured_reasons
+    )
+    structured_warnings = tuple(
+        reason
+        for contribution in contributions
+        for reason in contribution.structured_warnings
+    )
 
     return ExplainableScoreResult(
         base_score=float(base_score),
@@ -140,6 +160,8 @@ def build_explainable_score(
         contributions=contributions,
         reasons=reasons,
         warnings=warnings,
+        structured_reasons=structured_reasons,
+        structured_warnings=structured_warnings,
     )
 
 
@@ -160,6 +182,14 @@ def _build_profit_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "profit.net_profit_non_positive",
+                    ScreeningReasonCategory.PROFITABILITY,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     if roi >= 50:
@@ -174,6 +204,14 @@ def _build_profit_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "profit.roi_at_least_50",
+                    ScreeningReasonCategory.PROFITABILITY,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if roi >= 30:
@@ -188,6 +226,14 @@ def _build_profit_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "profit.roi_at_least_30",
+                    ScreeningReasonCategory.PROFITABILITY,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if roi >= 15:
@@ -202,6 +248,14 @@ def _build_profit_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "profit.roi_at_least_15",
+                    ScreeningReasonCategory.PROFITABILITY,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if roi > 0:
@@ -216,6 +270,14 @@ def _build_profit_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "profit.roi_low_positive",
+                    ScreeningReasonCategory.PROFITABILITY,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     message = "ROI가 0% 이하입니다."
@@ -227,6 +289,14 @@ def _build_profit_contribution(
         description=message,
         reasons=(),
         warnings=(message,),
+        structured_warnings=(
+            _reason(
+                "profit.roi_non_positive",
+                ScreeningReasonCategory.PROFITABILITY,
+                ScreeningReasonPolarity.BLOCKING,
+                message,
+            ),
+        ),
     )
 
 
@@ -246,6 +316,14 @@ def _build_confidence_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "confidence.unavailable",
+                    ScreeningReasonCategory.CONFIDENCE,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     if confidence.confidence_score >= 80:
@@ -260,6 +338,14 @@ def _build_confidence_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "confidence.high",
+                    ScreeningReasonCategory.CONFIDENCE,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if confidence.confidence_score >= 60:
@@ -274,15 +360,39 @@ def _build_confidence_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "confidence.medium",
+                    ScreeningReasonCategory.CONFIDENCE,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     warnings = [
         "가격 표본이 부족해 분석 신뢰도가 낮습니다."
     ]
+    structured_warnings = [
+        _reason(
+            "confidence.low",
+            ScreeningReasonCategory.CONFIDENCE,
+            ScreeningReasonPolarity.BLOCKING,
+            warnings[0],
+        )
+    ]
 
     if confidence.used_fallback_price:
         warnings.append(
             "권장 판매가에 fallback 가격을 사용했습니다."
+        )
+        structured_warnings.append(
+            _reason(
+                "confidence.fallback_price_used",
+                ScreeningReasonCategory.CONFIDENCE,
+                ScreeningReasonPolarity.BLOCKING,
+                warnings[-1],
+            )
         )
 
     return ScoreContribution(
@@ -292,6 +402,7 @@ def _build_confidence_contribution(
         description=" ".join(warnings),
         reasons=(),
         warnings=tuple(warnings),
+        structured_warnings=tuple(structured_warnings),
     )
 
 
@@ -311,6 +422,14 @@ def _build_trend_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "trend.unavailable",
+                    ScreeningReasonCategory.PRICE_TREND,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     if not price_trend.has_sufficient_history:
@@ -325,6 +444,14 @@ def _build_trend_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "trend.insufficient_history",
+                    ScreeningReasonCategory.PRICE_TREND,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     price_is_unchanged = (
@@ -344,16 +471,34 @@ def _build_trend_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "trend.stable",
+                    ScreeningReasonCategory.PRICE_TREND,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     adjustment = 0.0
 
     reasons: list[str] = []
     warnings: list[str] = []
+    structured_reasons: list[StructuredScreeningReason] = []
+    structured_warnings: list[StructuredScreeningReason] = []
 
     if price_trend.price_position == "기간 최저가":
         reasons.append(
             "현재 가격이 저장 기간의 최저가입니다."
+        )
+        structured_reasons.append(
+            _reason(
+                "trend.period_low",
+                ScreeningReasonCategory.PRICE_TREND,
+                ScreeningReasonPolarity.SUPPORTING,
+                reasons[-1],
+            )
         )
         adjustment += 8.0
 
@@ -361,11 +506,27 @@ def _build_trend_contribution(
         reasons.append(
             "현재 가격이 기간 평균보다 저렴합니다."
         )
+        structured_reasons.append(
+            _reason(
+                "trend.below_average",
+                ScreeningReasonCategory.PRICE_TREND,
+                ScreeningReasonPolarity.SUPPORTING,
+                reasons[-1],
+            )
+        )
         adjustment += 5.0
 
     elif price_trend.price_position == "기간 최고가":
         warnings.append(
             "현재 가격이 저장 기간의 최고가입니다."
+        )
+        structured_warnings.append(
+            _reason(
+                "trend.period_high",
+                ScreeningReasonCategory.PRICE_TREND,
+                ScreeningReasonPolarity.BLOCKING,
+                warnings[-1],
+            )
         )
         adjustment -= 8.0
 
@@ -373,11 +534,27 @@ def _build_trend_contribution(
         reasons.append(
             "가격이 하락 추세입니다."
         )
+        structured_reasons.append(
+            _reason(
+                "trend.decreasing",
+                ScreeningReasonCategory.PRICE_TREND,
+                ScreeningReasonPolarity.SUPPORTING,
+                reasons[-1],
+            )
+        )
         adjustment += 3.0
 
     elif price_trend.trend_direction == "상승":
         warnings.append(
             "가격이 상승 추세입니다."
+        )
+        structured_warnings.append(
+            _reason(
+                "trend.increasing",
+                ScreeningReasonCategory.PRICE_TREND,
+                ScreeningReasonPolarity.BLOCKING,
+                warnings[-1],
+            )
         )
         adjustment -= 5.0
 
@@ -398,6 +575,8 @@ def _build_trend_contribution(
         description=description,
         reasons=tuple(reasons),
         warnings=tuple(warnings),
+        structured_reasons=tuple(structured_reasons),
+        structured_warnings=tuple(structured_warnings),
     )
 
 
@@ -417,6 +596,14 @@ def _build_competition_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "competition.very_low",
+                    ScreeningReasonCategory.COMPETITION,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if competitor_count <= 15:
@@ -431,6 +618,14 @@ def _build_competition_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "competition.low",
+                    ScreeningReasonCategory.COMPETITION,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if competitor_count <= 40:
@@ -457,6 +652,14 @@ def _build_competition_contribution(
             description=message,
             reasons=(),
             warnings=(message,),
+            structured_warnings=(
+                _reason(
+                    "competition.high",
+                    ScreeningReasonCategory.COMPETITION,
+                    ScreeningReasonPolarity.BLOCKING,
+                    message,
+                ),
+            ),
         )
 
     message = (
@@ -470,6 +673,14 @@ def _build_competition_contribution(
         description=message,
         reasons=(),
         warnings=(message,),
+        structured_warnings=(
+            _reason(
+                "competition.very_high",
+                ScreeningReasonCategory.COMPETITION,
+                ScreeningReasonPolarity.BLOCKING,
+                message,
+            ),
+        ),
     )
 
 
@@ -489,6 +700,14 @@ def _build_risk_contribution(
             description=message,
             reasons=(message,),
             warnings=(),
+            structured_reasons=(
+                _reason(
+                    "risk.low",
+                    ScreeningReasonCategory.RISK,
+                    ScreeningReasonPolarity.SUPPORTING,
+                    message,
+                ),
+            ),
         )
 
     if risk_level == "medium":
@@ -514,6 +733,14 @@ def _build_risk_contribution(
         description=message,
         reasons=(),
         warnings=(message,),
+        structured_warnings=(
+            _reason(
+                "risk.high",
+                ScreeningReasonCategory.RISK,
+                ScreeningReasonPolarity.BLOCKING,
+                message,
+            ),
+        ),
     )
 def _build_market_adjustment_contribution(
     *,
@@ -550,4 +777,20 @@ def _build_market_adjustment_contribution(
             market_adjustment.reasons
         ),
         warnings=(),
+        structured_reasons=market_adjustment.structured_reasons,
+    )
+
+
+def _reason(
+    suffix: str,
+    category: ScreeningReasonCategory,
+    polarity: ScreeningReasonPolarity,
+    message: str,
+) -> StructuredScreeningReason:
+    return structured_screening_reason(
+        f"score.{suffix}",
+        category=category,
+        polarity=polarity,
+        source_component="engine.explainable_score",
+        message=message,
     )

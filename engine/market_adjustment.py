@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.domain.discovery.screening import (
+    ScreeningReasonCategory,
+    ScreeningReasonPolarity,
+    StructuredScreeningReason,
+    structured_screening_reason,
+)
 from engine.market_intelligence import (
     MarketIntelligenceResult,
 )
@@ -28,6 +34,7 @@ class MarketAdjustmentResult:
     reasons: tuple[str, ...]
 
     explanations: tuple[str, ...] = ()
+    structured_reasons: tuple[StructuredScreeningReason, ...] = ()
 
 
 def calculate_market_adjustment(
@@ -52,6 +59,13 @@ def calculate_market_adjustment(
                 "시장 분석 데이터가 부족하여 "
                 "Opportunity Score를 조정하지 않았습니다.",
             ),
+            structured_reasons=(
+                _reason(
+                    "unavailable",
+                    ScreeningReasonPolarity.BLOCKING,
+                    "시장 분석 데이터가 없어 점수 보정을 적용하지 않았습니다.",
+                ),
+            ),
         )
 
     adjustment = 0.0
@@ -59,6 +73,7 @@ def calculate_market_adjustment(
     insights: list[str] = []
     reasons: list[str] = []
     explanations: list[str] = []
+    structured_reasons: list[StructuredScreeningReason] = []
 
     if intelligence.market_health == "양호":
         adjustment += 3.0
@@ -69,6 +84,13 @@ def calculate_market_adjustment(
 
         reasons.append(
             "시장 건강도 보정 +3점"
+        )
+        structured_reasons.append(
+            _reason(
+                "market_health.favorable",
+                ScreeningReasonPolarity.SUPPORTING,
+                "시장 건강도 보정 +3점",
+            )
         )
 
         explanations.append(
@@ -81,6 +103,13 @@ def calculate_market_adjustment(
 
         reasons.append(
             "시장 위험 상태 보정 -5점"
+        )
+        structured_reasons.append(
+            _reason(
+                "market_health.caution",
+                ScreeningReasonPolarity.BLOCKING,
+                "시장 위험 상태 보정 -5점",
+            )
         )
 
         explanations.append(
@@ -99,6 +128,13 @@ def calculate_market_adjustment(
             reasons.append(
                 "구매 가능한 재고 보정 +5점"
             )
+            structured_reasons.append(
+                _reason(
+                    "inventory.available",
+                    ScreeningReasonPolarity.SUPPORTING,
+                    "구매 가능한 재고 보정 +5점",
+                )
+            )
 
             explanations.append(
                 "현재 구매 가능한 재고가 있어 "
@@ -110,6 +146,13 @@ def calculate_market_adjustment(
 
             reasons.append(
                 "구매 불가능 재고 보정 -15점"
+            )
+            structured_reasons.append(
+                _reason(
+                    "inventory.unavailable",
+                    ScreeningReasonPolarity.BLOCKING,
+                    "구매 불가능 재고 보정 -15점",
+                )
             )
 
             explanations.append(
@@ -128,6 +171,13 @@ def calculate_market_adjustment(
             reasons.append(
                 "낮은 판매자 경쟁 보정 +5점"
             )
+            structured_reasons.append(
+                _reason(
+                    "seller_competition.low",
+                    ScreeningReasonPolarity.SUPPORTING,
+                    "낮은 판매자 경쟁 보정 +5점",
+                )
+            )
 
             explanations.append(
                 "경쟁 판매자가 적어 "
@@ -139,6 +189,13 @@ def calculate_market_adjustment(
 
             reasons.append(
                 "높은 판매자 경쟁 보정 -5점"
+            )
+            structured_reasons.append(
+                _reason(
+                    "seller_competition.high",
+                    ScreeningReasonPolarity.BLOCKING,
+                    "높은 판매자 경쟁 보정 -5점",
+                )
             )
 
             explanations.append(
@@ -154,4 +211,19 @@ def calculate_market_adjustment(
         insights=tuple(insights),
         reasons=tuple(reasons),
         explanations=tuple(explanations),
+        structured_reasons=tuple(structured_reasons),
+    )
+
+
+def _reason(
+    suffix: str,
+    polarity: ScreeningReasonPolarity,
+    message: str,
+) -> StructuredScreeningReason:
+    return structured_screening_reason(
+        f"score.market_adjustment.{suffix}",
+        category=ScreeningReasonCategory.MARKET_ADJUSTMENT,
+        polarity=polarity,
+        source_component="engine.market_adjustment",
+        message=message,
     )

@@ -1,14 +1,14 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-26
-**Status Basis:** ADR-0067 PR2 Explicit Finalized-Group Correlation
+**Status Basis:** ADR-0067 PR3 Screening Policy and Reason Contracts
 
 ## Current Snapshot
 
-- Current work: Persisted Discovery Screening F2 PR2 correlation prerequisite
-  implemented; PR3 policy/reason contracts are next
-- Last confirmed full regression: **3820 passed, 1 warning**
-  (ADR-0067 PR2, 2026-08-26)
+- Current work: Persisted Discovery Screening F2 PR2 correlation and PR3
+  policy/reason semantic contracts implemented; PR4 Domain contracts are next
+- Last confirmed full regression: **3831 passed, 1 warning**
+  (ADR-0067 PR3, 2026-08-26)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
 - This PR adds no new business authority and changes no production ranking
@@ -17,9 +17,11 @@
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking
 publication, and `DiscoveryExecutionResult v2` referencing only the publication
-ID. PR2 now provides its explicit result-to-finalized-Group correlation
-prerequisite; evaluation/publication persistence, schema, API, and UI remain
-deferred.
+ID. PR2 provides its explicit result-to-finalized-Group correlation
+prerequisite. PR3 versions the current score, recommendation, production-safety,
+and three-key stable ranking semantics and exposes structured reasons plus
+raw/effective recommendation values. Evaluation/publication/provenance Domain
+snapshots, persistence, schema, replay v2, API, and UI remain deferred.
 
 ## Production Discovery
 
@@ -101,15 +103,26 @@ execution remains gated by the separate capital and Founder-authority chain.
 - durable Discovery attempt/failure/resume state;
 - implementation of persisted Discovery screening evaluations and ranking
   publications;
-- versioned screening/ranking policy descriptors and structured reason contract
-  (ADR-0067 PR3);
+- immutable screening evaluation/ranking/provenance Domain contracts
+  (ADR-0067 PR4);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
   outcomes with capital authorities.
 
-These are follow-up scopes. PR2 implements correlation only; it does not
+These are follow-up scopes. PR2 correlation and PR3 semantic contracts do not
 persist screening. F1 durable attempt/recovery remains a separate track.
+
+## ADR-0067 PR3 Verification
+
+- New policy/reason semantic contract tests: **11 passed**
+- Focused scoring, recommendation, Safety, ranking, correlation, and
+  orchestrator tests: **73 passed**
+- Discovery/presentation/history/web compatibility impact tests:
+  **185 passed, 1 warning**
+- Documentation knowledge/developer tests: **24 passed**
+- Changed Markdown strict UTF-8 validation: passed (5 files; no relative links)
+- Full regression: **3831 passed, 1 warning**
 
 ## ADR-0067 PR2 Verification
 
