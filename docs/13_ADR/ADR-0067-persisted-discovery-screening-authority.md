@@ -10,12 +10,32 @@ PR2 completed the explicit finalized-Group correlation prerequisite. PR3 added
 immutable v1 descriptors for the current score, recommendation,
 production-safety, and ranking policies; structured v1 reason codes paired with
 the existing human text; and an explicit raw/effective recommendation contract.
-PR4 now adds the existing-Discovery-owned immutable
+PR4 added the existing-Discovery-owned immutable
 `DiscoveryScreeningEvaluationSnapshot` and
 `DiscoveryScreeningRankingPublication` contracts, typed ranked/not-ranked
 entries, Discovery-only provenance and exact-used-input manifests, canonical
 serialization, SHA-256 integrity fingerprints, and the explicit legacy
 `SCREENING_NOT_RECORDED_LEGACY` state.
+
+PR5 now adds the SQLite persistence foundation. The Discovery-specific
+`SQLiteDiscoveryScreeningCompletionRepository` owns one connection and one
+`BEGIN IMMEDIATE` transaction for all evaluation rows, exactly one ranking
+publication, one successful execution-result row, and one immutable completion
+binding. The binding is the narrow additive PR5 representation of the ADR's
+publication-ID-only result relation; it records the exact result schema and
+fingerprint plus the publication ID and fingerprint without embedding screening
+payload in `DiscoveryExecutionResult` or changing the live v1 result contract.
+An unbound v1 result therefore remains explicitly
+`SCREENING_NOT_RECORDED_LEGACY`; it cannot be upgraded by attaching screening
+after its original result transaction.
+
+The evaluation, publication, and binding tables are append-only and store
+canonical authoritative payloads plus fingerprints. Reads reconstruct PR4
+types, revalidate command, execution, finalized-Group membership, evaluation,
+publication, result, and binding lineage, and fail closed on corruption.
+Exact retries converge through the persisted binding; changed payloads
+conflict. Fault-injection, restart, legacy coexistence, and same-database
+concurrency coverage verify that no partial new screening completion remains.
 
 PR3 changes no score, recommendation, Safety Gate, or sorting behavior. Ranking
 v1 is the actual three descending numeric keys plus stable input order for
@@ -34,10 +54,11 @@ ID, and exact evaluation fingerprint. The evaluation reuses the existing
 `FinalizedProductGroup.membership_fingerprint`; it does not create a competing
 Group identity definition.
 
-This status does not implement screening evaluation/publication persistence,
-`DiscoveryExecutionResult v2`, completion integration, replay v2, Candidate,
-O1/O2, Capital, API, or UI authority. PR5 SQLite composite screening completion
-persistence is next.
+PR5 does not wire this repository into production Discovery, change the live
+completion/replay flow, or implement `DiscoveryExecutionResult v2` Domain
+construction, production replay v2, Candidate, O1/O2, Capital, API, or UI
+authority. PR6 production completion integration and runtime-free v2 screening
+replay are next.
 
 ## Context
 

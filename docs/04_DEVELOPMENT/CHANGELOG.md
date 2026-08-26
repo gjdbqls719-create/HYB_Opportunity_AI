@@ -1,5 +1,39 @@
 # HYB Changelog
 
+## ADR-0067 PR5 - Atomic Discovery Screening SQLite Persistence
+
+- Add a Discovery-specific composite persistence boundary that owns one SQLite
+  connection and one `BEGIN IMMEDIATE` transaction for all screening
+  evaluations, exactly one ranking publication, the successful execution result,
+  and one immutable completion binding.
+- Store PR4 canonical evaluation/publication JSON directly with authoritative
+  fingerprints and identity/query-critical columns. Reconstruct exact Decimal,
+  timezone-aware datetime, enum, tuple/order, policy, structured reason,
+  provenance, input-manifest, raw/effective recommendation, ranked, and
+  not-ranked semantics without floats, repr, pickle, or recalculation.
+- Add append-only evaluation, ranking-publication, and completion-binding
+  history with foreign keys and uniqueness for command/execution, finalized
+  Group, publication, and result lineage. Reject UPDATE and DELETE.
+- Use a separate immutable completion binding as the additive PR5 result-v2
+  foundation. It references only the exact result schema/fingerprint and
+  ranking publication ID/fingerprint; screening payload is not embedded in the
+  live v1 result contract.
+- Preserve unbound v1 results as `SCREENING_NOT_RECORDED_LEGACY`; add no
+  backfill, inferred ranking, or non-atomic upgrade path.
+- Add exact retry/conflict, restart, corruption, duplicate-identity,
+  same-database concurrency, zero-result, and deterministic fault-injection
+  coverage. Any failure before commit leaves no partial new completion bundle
+  and permits a clean retry while preserving unrelated prior records.
+- Do not wire production Discovery or `app.web`; change no ranking behavior,
+  Candidate/O1/O2, Capital, API/UI, F1, Shadow, or Scenario authority. PR6
+  production completion integration and runtime-free v2 screening replay are
+  next.
+- Verification: new PR5 persistence tests `31 passed`; PR2/PR3/PR4 and
+  Discovery persistence/completion/replay focused tests `150 passed`; broader
+  Discovery and Candidate issuance/promotion impact tests `377 passed, 1
+  warning`; documentation knowledge/developer tests `24 passed`; full
+  regression `3898 passed, 1 warning`.
+
 ## ADR-0067 PR4 - Immutable Discovery Screening Domain Contracts
 
 - Add immutable, existing-Discovery-owned per-Group screening evaluation and

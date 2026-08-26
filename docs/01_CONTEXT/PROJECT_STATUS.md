@@ -1,15 +1,17 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR4 Screening Domain Contracts
+**Status Basis:** ADR-0067 PR5 SQLite Persistence Foundation
 
 ## Current Snapshot
 
 - Current work: Persisted Discovery Screening F2 PR2 correlation, PR3
-  policy/reason semantics, and PR4 immutable evaluation/ranking/provenance
-  Domain contracts implemented; PR5 SQLite composite completion is next
-- Last confirmed full regression: **3867 passed, 1 warning**
-  (ADR-0067 PR4, 2026-08-27)
+  policy/reason semantics, PR4 immutable evaluation/ranking/provenance Domain
+  contracts, and PR5 atomic SQLite completion persistence implemented; PR6
+  production completion integration and runtime-free v2 screening replay are
+  next
+- Last confirmed full regression: **3898 passed, 1 warning**
+  (ADR-0067 PR5, 2026-08-27)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
 - This PR adds no new business authority and changes no production ranking
@@ -24,8 +26,12 @@ and three-key stable ranking semantics and exposes structured reasons plus
 raw/effective recommendation values. PR4 now defines immutable per-Group
 evaluation snapshots, separate execution-level ranking publications, explicit
 not-ranked entries, Discovery-only provenance and exact-used-input manifests,
-canonical serialization, and integrity fingerprints. Production construction,
-persistence, completion schema v2, replay v2, API, and UI remain deferred.
+canonical serialization, and integrity fingerprints. PR5 adds append-only
+evaluation/publication histories and a separate immutable completion binding,
+committed with the existing result row through one SQLite transaction. Existing
+unbound v1 results remain legacy and are not backfilled. Production
+construction/wiring, result-v2 construction, replay v2, API, and UI remain
+deferred.
 
 ## Production Discovery
 
@@ -105,8 +111,8 @@ execution remains gated by the separate capital and Founder-authority chain.
 ## Current Known Gaps
 
 - durable Discovery attempt/failure/resume state;
-- construction and SQLite composite persistence of Discovery screening
-  evaluations and ranking publications (ADR-0067 PR5);
+- production construction and write integration of the PR5 Discovery screening
+  completion bundle plus runtime-free v2 screening replay (ADR-0067 PR6);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
@@ -114,6 +120,30 @@ execution remains gated by the separate capital and Founder-authority chain.
 
 These are follow-up scopes. PR2 correlation and PR3 semantic contracts do not
 persist screening. F1 durable attempt/recovery remains a separate track.
+
+## ADR-0067 PR5 Status
+
+- A Discovery-specific composite repository owns one connection and transaction
+  for evaluations, ranking publication, execution result, and completion
+  binding.
+- PR4 canonical payloads and fingerprints are stored without float conversion;
+  reads reconstruct and revalidate policy, reason, provenance, Decimal,
+  datetime, ordering, Group, and publication lineage.
+- Exact retry, rollback/fault injection, corruption, restart, legacy
+  coexistence, and same-database concurrency are covered at the persistence
+  boundary.
+- Production Discovery and `app.web` are intentionally not wired to this
+  repository. PR6 remains required before production screening is durable.
+
+## ADR-0067 PR5 Verification
+
+- New SQLite completion persistence tests: **31 passed**
+- PR2/PR3/PR4 plus Discovery persistence/completion/replay focused run:
+  **150 passed**
+- Broader Discovery and Candidate issuance/promotion impact run:
+  **377 passed, 1 warning**
+- Documentation knowledge/developer tests: **24 passed**
+- Full regression: **3898 passed, 1 warning**
 
 ## ADR-0067 PR4 Verification
 

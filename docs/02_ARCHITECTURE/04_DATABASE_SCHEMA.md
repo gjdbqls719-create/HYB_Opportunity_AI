@@ -154,6 +154,34 @@ production discovery wiring remain absent.
 That final sentence is the historical PR34-B.4 scope statement. Subsequent
 production wiring is summarized in `Current Implementation Status` above.
 
+## ADR-0067 PR5 Discovery Screening Completion Foundation
+
+PR5 adds three append-only Discovery tables without changing existing result
+rows or production composition:
+
+- `discovery_screening_evaluation_history` stores one canonical PR4 evaluation
+  payload and integrity fingerprint per execution/finalized-Group identity;
+- `discovery_screening_ranking_publication_history` stores exactly one canonical
+  ranked/not-ranked publication and fingerprint per command/execution; and
+- `discovery_screening_completion_binding_history` binds the exact execution
+  result schema/fingerprint to the publication ID/fingerprint and explicit
+  `RECORDED` state.
+
+The composite repository adds unique parent indexes needed for exact composite
+foreign keys, enables SQLite foreign keys, and commits evaluations,
+publication, `discovery_execution_result_history`, and binding through one
+connection and one `BEGIN IMMEDIATE` transaction. UPDATE and DELETE are blocked
+on all three new histories. Identity/query-critical lineage stays in columns;
+the authoritative screening semantics remain in the PR4 canonical JSON rather
+than being duplicated into convenience columns.
+
+Reads reserialize reconstructed values to require canonical payloads and
+revalidate Domain fingerprints, command/execution identity, finalized-Group
+membership fingerprints, publication evaluation references, result binding,
+and zero-result semantics. There is no current projection, ranking backfill, or
+synthetic screening for an existing unbound v1 result. PR6 owns production
+construction, composition, and runtime-free screening replay.
+
 ## Opportunity Candidate Issuance
 
 `opportunity_candidate_history` stores exactly one immutable Candidate per

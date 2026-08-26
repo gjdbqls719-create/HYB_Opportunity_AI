@@ -235,6 +235,22 @@ SHA-256 fingerprints are defined for future PR5 persistence. This Domain-only
 foundation changes no Engine ranking algorithm, production completion schema,
 replay, API, or UI.
 
+PR5 adds the non-wired SQLite persistence foundation under the existing
+Discovery boundary. A narrow composite repository owns one SQLite connection
+and one `BEGIN IMMEDIATE` transaction that inserts all PR4 evaluation payloads,
+the one ranking publication, the existing successful execution-result row, and
+an immutable completion binding. It uses the PR4 canonical JSON directly and
+reconstructs the typed contracts with fingerprint and cross-table lineage
+validation. The binding contains only result/publication identities, schema,
+and fingerprints; no screening payload is embedded in the execution result.
+
+Existing unbound v1 result rows remain
+`SCREENING_NOT_RECORDED_LEGACY` and receive no inferred or backfilled ranking.
+Exact persisted retries return the original bundle, conflicting retries fail
+closed, and transaction failure rolls back every new completion row. The live
+`PersistedDiscoveryExecutionEntry`, `app.web` composition, and completed replay
+remain unchanged until PR6.
+
 ### Grouping Correlation Contract
 
 `GroupingCorrelation` carries exactly:
@@ -273,8 +289,9 @@ but the production runtime may not silently accept it for a non-empty result.
 - The persisted completion result is a lineage/order record, not a durable
   ranked opportunity result.
 - Exact result-to-finalized-Group correlation is present in fresh transient
-  production results, and immutable screening evaluation/ranking/provenance
-  contracts now exist. Production does not yet construct or persist them.
+  production results. Immutable screening evaluation/ranking/provenance
+  contracts and their atomic SQLite persistence foundation now exist, but
+  production does not yet construct or write a screening completion bundle.
 - Candidate issuance is not automatically composed after Discovery. A caller
   must read the finalized Groups, select one, and invoke the separate durable
   Candidate API.

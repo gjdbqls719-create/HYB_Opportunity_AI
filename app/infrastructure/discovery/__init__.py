@@ -10,6 +10,9 @@ from app.infrastructure.discovery.sqlite_observation_group_repository import (
 from app.infrastructure.discovery.sqlite_result_repository import (
     SQLiteDiscoveryResultRepository,
 )
+from app.infrastructure.discovery.sqlite_screening_completion_repository import (
+    SQLiteDiscoveryScreeningCompletionRepository,
+)
 from app.infrastructure.discovery.sqlite_candidate_repository import (
     SQLiteCandidateIssuanceRepository,
 )
@@ -37,5 +40,6 @@ __all__ = [
     "SQLiteDiscoveryGroupRepository",
     "SQLiteDiscoveryObservationRepository",
     "SQLiteDiscoveryResultRepository",
+    "SQLiteDiscoveryScreeningCompletionRepository",
     "SQLiteCandidateIssuanceRepository",
 ]
