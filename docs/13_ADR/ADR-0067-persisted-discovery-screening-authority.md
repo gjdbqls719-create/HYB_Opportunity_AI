@@ -6,13 +6,16 @@ Accepted
 
 ## Implementation Status
 
-PR2 completed the explicit finalized-Group correlation prerequisite. PR3 now
-adds immutable v1 descriptors for the current score, recommendation,
+PR2 completed the explicit finalized-Group correlation prerequisite. PR3 added
+immutable v1 descriptors for the current score, recommendation,
 production-safety, and ranking policies; structured v1 reason codes paired with
 the existing human text; and an explicit raw/effective recommendation contract.
-Authoritative production `OpportunityResult` and transient `DiscoveryResult`
-values expose the exact descriptor manifest and recommendation semantics.
-Legacy transient constructors retain additive optional defaults.
+PR4 now adds the existing-Discovery-owned immutable
+`DiscoveryScreeningEvaluationSnapshot` and
+`DiscoveryScreeningRankingPublication` contracts, typed ranked/not-ranked
+entries, Discovery-only provenance and exact-used-input manifests, canonical
+serialization, SHA-256 integrity fingerprints, and the explicit legacy
+`SCREENING_NOT_RECORDED_LEGACY` state.
 
 PR3 changes no score, recommendation, Safety Gate, or sorting behavior. Ranking
 v1 is the actual three descending numeric keys plus stable input order for
@@ -23,10 +26,18 @@ working-tree hash. Fixed command/profile inputs such as estimated monthly sales,
 competitor count, and risk level are declared policy-assumption inputs rather
 than observations.
 
+The evaluation composes the PR3 policy, raw/effective recommendation, Safety,
+and structured-reason types rather than duplicating them, and never carries
+rank. The publication separately freezes ordered rank and explicit not-ranked
+semantics. It references each evaluation by ID, finalized Group ID, execution
+ID, and exact evaluation fingerprint. The evaluation reuses the existing
+`FinalizedProductGroup.membership_fingerprint`; it does not create a competing
+Group identity definition.
+
 This status does not implement screening evaluation/publication persistence,
-provenance envelopes, schema, replay v2, Candidate, O1/O2, Capital, API, or UI
-authority. PR4 immutable evaluation/ranking/provenance Domain contracts are
-next.
+`DiscoveryExecutionResult v2`, completion integration, replay v2, Candidate,
+O1/O2, Capital, API, or UI authority. PR5 SQLite composite screening completion
+persistence is next.
 
 ## Context
 

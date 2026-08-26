@@ -1,5 +1,36 @@
 # HYB Changelog
 
+## ADR-0067 PR4 - Immutable Discovery Screening Domain Contracts
+
+- Add immutable, existing-Discovery-owned per-Group screening evaluation and
+  execution-level ranking publication contracts without adding a bounded
+  Domain or production integration.
+- Reuse PR3 policy, raw/effective recommendation, Safety intervention, and
+  structured-reason contracts; expose the one PR3 recommendation score as the
+  screening score and keep rank exclusively in the publication.
+- Add Discovery-only `OBSERVED`, `CALCULATED`, `ESTIMATED`,
+  `POLICY_ASSUMPTION`, `UNKNOWN`, and `UNSUPPORTED` provenance semantics with
+  source, dependency, truth-scope, method/policy, unit, currency, and time
+  validation. Known zero remains distinct from missing evidence.
+- Add canonical exact-used input manifests. Current fixed sales, competition,
+  and risk inputs remain policy assumptions; missing shipping can remain
+  `UNKNOWN` while a separate calculation-fallback zero is labeled explicitly
+  as a policy assumption.
+- Reuse `FinalizedProductGroup.membership_fingerprint` to bind exact ordered
+  Group composition instead of introducing a competing fingerprint.
+- Add typed ranked and not-ranked entries, contiguous/unique/same-execution
+  publication invariants, zero-result semantics, deterministic Decimal and UTC
+  datetime serialization, and content-verified SHA-256 fingerprints.
+- Define `SCREENING_NOT_RECORDED_LEGACY` for future completion reads. Add no
+  SQLite table/repository, `DiscoveryExecutionResult v2`, production write,
+  replay, ranking algorithm, API/UI, Candidate, Capital, Shadow, Scenario, or
+  F1 Recovery change. PR5 composite SQLite completion persistence is next.
+- Verification: new Domain contract tests `36 passed`; PR2/PR3 and adjacent
+  Discovery tests `51 passed`; broader Discovery/orchestrator/recommendation/
+  Safety/score impact tests `334 passed, 1 warning`; combined focused,
+  adjacent, and documentation tests `111 passed`; full regression
+  `3867 passed, 1 warning`.
+
 ## ADR-0067 PR3 - Versioned Screening Policy and Structured Reason Contracts
 
 - Add immutable v1 descriptors for the actual production screening score,

@@ -213,8 +213,27 @@ text receives no inferred code.
 The score descriptor identifies fixed command/profile inputs used in current
 screening, including estimated monthly sales, competitor count, risk level,
 profitability thresholds, and the fallback selling-price multiplier, as policy
-assumption inputs. This does not implement PR4 provenance envelopes or label
-any NAVER/ItemScout mixed-geography total as Korea-only demand evidence.
+assumption inputs. This does not label any NAVER/ItemScout mixed-geography
+total as Korea-only demand evidence.
+
+PR4 adds immutable Domain foundation in
+`app.domain.discovery.screening_evidence` without wiring a production write.
+One `DiscoveryScreeningEvaluationSnapshot` binds the exact command, execution,
+finalized Group, existing Group-membership fingerprint, PR3 recommendation and
+policy semantics, calculated screening values, expected-economics evidence,
+and exact-used input manifest. `UNKNOWN` and `UNSUPPORTED` values cannot carry a
+fabricated value; calculated values retain dependency references. Current fixed
+sales, competitor, and risk inputs remain policy assumptions. A missing
+shipping input can therefore remain `UNKNOWN` even when the current calculation
+path also records an explicit policy-assumption zero fallback.
+
+Rank remains absent from evaluation. One separate
+`DiscoveryScreeningRankingPublication` contains contiguous ranked entries and
+explicit typed not-ranked entries, with each entry fixing its evaluation and
+evaluation fingerprint. Canonical Decimal/datetime/enum projections and
+SHA-256 fingerprints are defined for future PR5 persistence. This Domain-only
+foundation changes no Engine ranking algorithm, production completion schema,
+replay, API, or UI.
 
 ### Grouping Correlation Contract
 
@@ -253,9 +272,9 @@ but the production runtime may not silently accept it for a non-empty result.
 
 - The persisted completion result is a lineage/order record, not a durable
   ranked opportunity result.
-- Exact result-to-finalized-Group correlation is now present in fresh transient
-  production results, but it is not yet a persisted screening evaluation or
-  ranking publication.
+- Exact result-to-finalized-Group correlation is present in fresh transient
+  production results, and immutable screening evaluation/ranking/provenance
+  contracts now exist. Production does not yet construct or persist them.
 - Candidate issuance is not automatically composed after Discovery. A caller
   must read the finalized Groups, select one, and invoke the separate durable
   Candidate API.

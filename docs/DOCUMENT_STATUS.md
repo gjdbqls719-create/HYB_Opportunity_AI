@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
-**Last Updated:** 2026-08-26
-**Status Basis:** ADR-0067 PR3 Screening Policy and Reason Contracts
+**Last Updated:** 2026-08-27
+**Status Basis:** ADR-0067 PR4 Screening Domain Contracts
 
 ## Purpose
 
@@ -14,13 +14,14 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3831 passed, 1 warning**
-  (ADR-0067 PR3, 2026-08-26)
+- Last confirmed full regression: **3867 passed, 1 warning**
+  (ADR-0067 PR4, 2026-08-27)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
-  finalized-Group correlation and PR3 policy/reason semantics implemented;
-  PR4 through PR7 pending
+  finalized-Group correlation, PR3 policy/reason semantics, and PR4 immutable
+  evaluation/ranking/provenance Domain contracts implemented; PR5 through PR7
+  pending
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -52,7 +53,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - `DiscoveryExecutionResult` v1 persists ordered finalized Group IDs, not the
   full ranked `OpportunityResult`/`DiscoveryResult` payload. ADR-0067 now
   defines separate evaluation/ranking history and a publication-ID-only v2
-  completion reference, but PR4 through PR7 remain unimplemented.
+  completion reference. PR4 Domain contracts now exist, but PR5 persistence,
+  result v2 completion, replay, API, and UI remain unimplemented.
 - Fresh production results now preserve the exact `finalized_group_id` assigned
   before analysis through sorting and runtime mapping. The value remains
   transient until later screening persistence work; title, URL, item inference,
@@ -62,6 +64,10 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   v1 reasons and explicit raw/effective recommendation semantics. These remain
   transient contracts; no screening snapshot or ranking publication is yet
   persisted.
+- Immutable PR4 evaluation and ranking publication contracts now compose those
+  PR3 values with Discovery-only provenance, exact-used input manifests,
+  canonical serialization, Group-membership and integrity fingerprints, and
+  explicit not-ranked semantics. Production does not yet construct them.
 - Completed Discovery replay is durable and runtime-free, but incomplete
   executions have no persisted phase/attempt/failure/resume workflow contract.
 - NAVER total search volume may include overseas searches. It is not Korea-only
