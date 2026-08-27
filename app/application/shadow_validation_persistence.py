@@ -20,6 +20,9 @@ PERSIST_SHADOW_REGISTRATION_COMMAND_SCHEMA_VERSION = (
     "persist-shadow-registration-command-v1"
 )
 SHADOW_REGISTRATION_RECEIPT_SCHEMA_VERSION = "shadow-registration-receipt-v1"
+SHADOW_REGISTRATION_REQUEST_RECEIPT_SCHEMA_VERSION = (
+    "shadow-registration-request-receipt-v1"
+)
 
 
 class ShadowRegistrationPersistenceError(RuntimeError):
@@ -99,6 +102,7 @@ class PersistShadowRegistrationCommand:
     registration: ShadowValidationRegistration
     baseline: ShadowBaselineSnapshot
     committed_at: datetime
+    request_fingerprint: str | None = None
     schema_version: str = PERSIST_SHADOW_REGISTRATION_COMMAND_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -108,6 +112,12 @@ class PersistShadowRegistrationCommand:
         if not isinstance(self.baseline, ShadowBaselineSnapshot):
             raise TypeError("baseline must be ShadowBaselineSnapshot")
         object.__setattr__(self, "committed_at", _aware(self.committed_at, "committed_at"))
+        if self.request_fingerprint is not None:
+            object.__setattr__(
+                self,
+                "request_fingerprint",
+                _fingerprint(self.request_fingerprint, "request_fingerprint"),
+            )
         if self.committed_at < self.baseline.baseline_created_at:
             raise ValueError("committed_at cannot precede baseline creation")
         reference = self.baseline.registration
@@ -181,6 +191,46 @@ class ShadowRegistrationReceipt:
 
 
 @dataclass(frozen=True, slots=True)
+class ShadowRegistrationRequestReceipt:
+    """Replay key for the caller-owned request before server facts are created."""
+
+    command_id: str
+    request_fingerprint: str
+    shadow_validation_id: str
+    baseline_snapshot_id: str
+    committed_at: datetime
+    schema_version: str = SHADOW_REGISTRATION_REQUEST_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        for name in ("command_id", "shadow_validation_id", "baseline_snapshot_id"):
+            object.__setattr__(self, name, _text(getattr(self, name), name))
+        object.__setattr__(
+            self,
+            "request_fingerprint",
+            _fingerprint(self.request_fingerprint, "request_fingerprint"),
+        )
+        object.__setattr__(
+            self, "committed_at", _aware(self.committed_at, "committed_at")
+        )
+        if self.schema_version != SHADOW_REGISTRATION_REQUEST_RECEIPT_SCHEMA_VERSION:
+            raise ValueError("unsupported Shadow registration request receipt schema")
+
+    @classmethod
+    def from_command(
+        cls, command: PersistShadowRegistrationCommand
+    ) -> "ShadowRegistrationRequestReceipt":
+        if command.request_fingerprint is None:
+            raise ValueError("request_fingerprint is required")
+        return cls(
+            command_id=command.command_id,
+            request_fingerprint=command.request_fingerprint,
+            shadow_validation_id=command.registration.shadow_validation_id,
+            baseline_snapshot_id=command.baseline.baseline_snapshot_id,
+            committed_at=command.committed_at,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ShadowRegistrationPersistenceResult:
     registration: ShadowValidationRegistration
     baseline: ShadowBaselineSnapshot
@@ -210,6 +260,10 @@ class ShadowRegistrationPersistenceResult:
 
 
 class ShadowRegistrationBaselineRepository(Protocol):
+    def validate_request_replay(
+        self, command_id: str, request_fingerprint: str
+    ) -> ShadowRegistrationPersistenceResult | None: ...
+
     def save(
         self, command: PersistShadowRegistrationCommand
     ) -> ShadowRegistrationPersistenceResult: ...
@@ -235,5 +289,5 @@ __all__ = [
     or name.startswith("MalformedShadow")
     or name.startswith("UnsupportedShadow")
     or name.startswith("PERSIST_SHADOW")
-    or name.startswith("SHADOW_REGISTRATION_RECEIPT")
+    or name.startswith("SHADOW_REGISTRATION_")
 ]

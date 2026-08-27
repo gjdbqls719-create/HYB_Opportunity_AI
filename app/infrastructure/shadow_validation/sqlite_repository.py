@@ -9,12 +9,14 @@ import sqlite3
 
 from app.application.shadow_validation_persistence import (
     SHADOW_REGISTRATION_RECEIPT_SCHEMA_VERSION,
+    SHADOW_REGISTRATION_REQUEST_RECEIPT_SCHEMA_VERSION,
     MalformedShadowRegistrationPersistenceError,
     PersistShadowRegistrationCommand,
     ShadowRegistrationCommitError,
     ShadowRegistrationHistoryError,
     ShadowRegistrationPersistenceResult,
     ShadowRegistrationReceipt,
+    ShadowRegistrationRequestReceipt,
     ShadowRegistrationReceiptError,
     ShadowRegistrationReplayConflictError,
     UnsupportedShadowRegistrationPersistenceVersionError,
@@ -36,6 +38,7 @@ from app.infrastructure.shadow_validation.serialization import (
 REGISTRATION_HISTORY_TABLE = "shadow_validation_registration_history"
 BASELINE_HISTORY_TABLE = "shadow_baseline_snapshot_history"
 RECEIPT_TABLE = "shadow_registration_receipts"
+REQUEST_RECEIPT_TABLE = "shadow_registration_request_receipts"
 
 
 def _payload_fingerprint(payload: str) -> str:
@@ -134,10 +137,31 @@ class SQLiteShadowRegistrationBaselineRepository:
                         )
                 )"""
             )
+            self._connection.execute(
+                f"""CREATE TABLE IF NOT EXISTS {REQUEST_RECEIPT_TABLE}(
+                    command_id TEXT PRIMARY KEY,
+                    request_fingerprint TEXT NOT NULL,
+                    shadow_validation_id TEXT NOT NULL,
+                    baseline_snapshot_id TEXT NOT NULL,
+                    committed_at TEXT NOT NULL,
+                    schema_version TEXT NOT NULL,
+                    inserted_at TEXT NOT NULL,
+                    FOREIGN KEY(command_id) REFERENCES {RECEIPT_TABLE}(command_id),
+                    FOREIGN KEY(shadow_validation_id, baseline_snapshot_id)
+                        REFERENCES {REGISTRATION_HISTORY_TABLE}(
+                            shadow_validation_id, baseline_snapshot_id
+                        ),
+                    FOREIGN KEY(baseline_snapshot_id, shadow_validation_id)
+                        REFERENCES {BASELINE_HISTORY_TABLE}(
+                            baseline_snapshot_id, shadow_validation_id
+                        )
+                )"""
+            )
             for table in (
                 REGISTRATION_HISTORY_TABLE,
                 BASELINE_HISTORY_TABLE,
                 RECEIPT_TABLE,
+                REQUEST_RECEIPT_TABLE,
             ):
                 for operation in ("UPDATE", "DELETE"):
                     self._connection.execute(
@@ -180,6 +204,17 @@ class SQLiteShadowRegistrationBaselineRepository:
             ).fetchone()
         except sqlite3.Error as error:
             raise ShadowRegistrationReceiptError("Shadow receipt query failed") from error
+
+    def _request_receipt_row(self, command_id: str):
+        try:
+            return self._connection.execute(
+                f"SELECT * FROM {REQUEST_RECEIPT_TABLE} WHERE command_id=?",
+                (command_id,),
+            ).fetchone()
+        except sqlite3.Error as error:
+            raise ShadowRegistrationReceiptError(
+                "Shadow registration request receipt query failed"
+            ) from error
 
     def _receipt_rows_for_registration(self, shadow_validation_id: str):
         try:
@@ -338,6 +373,36 @@ class SQLiteShadowRegistrationBaselineRepository:
                 "persisted Shadow receipt is malformed"
             ) from error
 
+    @staticmethod
+    def _load_request_receipt(
+        row: sqlite3.Row,
+    ) -> ShadowRegistrationRequestReceipt:
+        try:
+            if (
+                row["schema_version"]
+                != SHADOW_REGISTRATION_REQUEST_RECEIPT_SCHEMA_VERSION
+            ):
+                raise UnsupportedShadowRegistrationPersistenceVersionError(
+                    "unsupported persisted Shadow request receipt version"
+                )
+            value = ShadowRegistrationRequestReceipt(
+                command_id=row["command_id"],
+                request_fingerprint=row["request_fingerprint"],
+                shadow_validation_id=row["shadow_validation_id"],
+                baseline_snapshot_id=row["baseline_snapshot_id"],
+                committed_at=_datetime(row["committed_at"], "committed_at"),
+                schema_version=row["schema_version"],
+            )
+            if value.committed_at != _datetime(row["inserted_at"], "inserted_at"):
+                raise ValueError("Shadow request receipt insertion time differs")
+            return value
+        except UnsupportedShadowRegistrationPersistenceVersionError:
+            raise
+        except Exception as error:
+            raise MalformedShadowRegistrationPersistenceError(
+                "persisted Shadow request receipt is malformed"
+            ) from error
+
     def _load_exact_bundle(
         self,
         registration_row: sqlite3.Row,
@@ -448,6 +513,55 @@ class SQLiteShadowRegistrationBaselineRepository:
             )
         return bundle
 
+    def validate_request_replay(
+        self, command_id: str, request_fingerprint: str
+    ) -> ShadowRegistrationPersistenceResult | None:
+        row = self._request_receipt_row(command_id)
+        if row is None:
+            return None
+        request_receipt = self._load_request_receipt(row)
+        if request_receipt.request_fingerprint != request_fingerprint:
+            raise ShadowRegistrationReplayConflictError(
+                "Shadow registration request payload conflicts"
+            )
+        receipt_row = self._receipt_row(command_id)
+        if receipt_row is None:
+            raise MalformedShadowRegistrationPersistenceError(
+                "persisted Shadow request receipt is orphaned"
+            )
+        receipt = self._load_receipt(receipt_row)
+        if any(
+            (
+                request_receipt.shadow_validation_id
+                != receipt.shadow_validation_id,
+                request_receipt.baseline_snapshot_id
+                != receipt.baseline_snapshot_id,
+                request_receipt.committed_at != receipt.committed_at,
+            )
+        ):
+            raise MalformedShadowRegistrationPersistenceError(
+                "persisted Shadow request receipt differs from receipt"
+            )
+        registration = self.get_registration(receipt.shadow_validation_id)
+        baseline = self.get_baseline(receipt.baseline_snapshot_id)
+        if registration is None or baseline is None:
+            raise MalformedShadowRegistrationPersistenceError(
+                "persisted Shadow request receipt is orphaned"
+            )
+        if any(
+            (
+                receipt.registration_fingerprint
+                != registration.integrity_fingerprint,
+                receipt.baseline_fingerprint != baseline.integrity_fingerprint,
+            )
+        ):
+            raise MalformedShadowRegistrationPersistenceError(
+                "persisted Shadow request receipt differs from bundle"
+            )
+        return ShadowRegistrationPersistenceResult(
+            registration, baseline, receipt, replayed=True
+        )
+
     @staticmethod
     def _validate_command(command: PersistShadowRegistrationCommand) -> None:
         if not isinstance(command, PersistShadowRegistrationCommand):
@@ -546,6 +660,31 @@ class SQLiteShadowRegistrationBaselineRepository:
         except sqlite3.Error as error:
             raise ShadowRegistrationReceiptError("Shadow receipt insert failed") from error
 
+    def _insert_request_receipt(
+        self, receipt: ShadowRegistrationRequestReceipt
+    ) -> None:
+        try:
+            self._connection.execute(
+                f"INSERT INTO {REQUEST_RECEIPT_TABLE} VALUES(?,?,?,?,?,?,?)",
+                (
+                    receipt.command_id,
+                    receipt.request_fingerprint,
+                    receipt.shadow_validation_id,
+                    receipt.baseline_snapshot_id,
+                    receipt.committed_at.isoformat(),
+                    receipt.schema_version,
+                    receipt.committed_at.isoformat(),
+                ),
+            )
+        except sqlite3.IntegrityError as error:
+            raise ShadowRegistrationReplayConflictError(
+                "Shadow registration request receipt identity already exists"
+            ) from error
+        except sqlite3.Error as error:
+            raise ShadowRegistrationReceiptError(
+                "Shadow registration request receipt insert failed"
+            ) from error
+
     def _existing_for_command(
         self, command: PersistShadowRegistrationCommand
     ) -> tuple[ShadowValidationRegistration, ShadowBaselineSnapshot] | None:
@@ -600,6 +739,13 @@ class SQLiteShadowRegistrationBaselineRepository:
     ) -> ShadowRegistrationPersistenceResult:
         try:
             self._connection.execute("BEGIN IMMEDIATE")
+            if command.request_fingerprint is not None:
+                request_replay = self.validate_request_replay(
+                    command.command_id, command.request_fingerprint
+                )
+                if request_replay is not None:
+                    self._connection.commit()
+                    return request_replay
             replay = self.validate_replay(command.command_id, command.fingerprint)
             if replay is not None:
                 self._connection.commit()
@@ -621,6 +767,12 @@ class SQLiteShadowRegistrationBaselineRepository:
             self._fault_point("before_receipt")
             self._insert_receipt(receipt)
             self._fault_point("after_receipt")
+            if command.request_fingerprint is not None:
+                self._fault_point("before_request_receipt")
+                self._insert_request_receipt(
+                    ShadowRegistrationRequestReceipt.from_command(command)
+                )
+                self._fault_point("after_request_receipt")
             self._fault_point("before_commit")
             try:
                 self._commit()
@@ -654,5 +806,6 @@ __all__ = [
     "BASELINE_HISTORY_TABLE",
     "RECEIPT_TABLE",
     "REGISTRATION_HISTORY_TABLE",
+    "REQUEST_RECEIPT_TABLE",
     "SQLiteShadowRegistrationBaselineRepository",
 ]

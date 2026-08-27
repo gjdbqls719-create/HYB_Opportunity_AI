@@ -1,3 +1,4 @@
+from .identity_suppliers import *
 from .serialization import *
 from .sqlite_repository import *
 

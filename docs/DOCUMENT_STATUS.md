@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR3 SQLite Persistence and Exact Replay
+**Status Basis:** ADR-0068 Shadow PR4 Authoritative Manual Registration
 
 ## Purpose
 
@@ -14,8 +14,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3974 passed, 1 warning**
-  (Shadow PR3, 2026-08-28)
+- Last confirmed full regression: **3982 passed, 1 warning**
+  (Shadow PR4, 2026-08-28)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
@@ -25,11 +25,15 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   Founder screening read API/review-priority UI implemented; F2 closed
 - Shadow Opportunity Validation: ADR-0068 architecture, Shadow PR2 immutable
   Opportunity-owned registration/baseline Domain contracts, and Shadow PR3
-  append-only atomic SQLite persistence/exact replay complete. Exact O2,
+  append-only atomic SQLite persistence/exact replay complete. Shadow PR4 adds
+  the manual exact-O2 + persisted-Screening Application owner, request-first
+  atomic replay receipt, production POST composition, and persistence-only exact
+  GET. Exact O2,
   persisted screening, source-manifest, cutoff/completeness/eligibility,
   evidence-class, canonical reconstruction, fingerprint, corruption, restart,
-  fault rollback, and concurrency semantics are covered. Manual Application/API
-  registration remains Shadow PR4 and is not implemented.
+  fault rollback, and replay semantics are covered. Manual baseline collection
+  is ready; checkpoint publication, scheduling, evaluation, Portfolio, and
+  automatic calibration remain unimplemented.
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -85,11 +89,12 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   not-ranked semantics, expose safe review-priority terminology and provenance,
   and leave Candidate/O1/O2/Capital authority separate. Legacy completions are
   never ranked from `finalized_group_ids` order.
-- Shadow is an approved future Application capability over Opportunity-owned
+- Shadow is an implemented manual Application capability over Opportunity-owned
   thesis/evaluation semantics, not a new bounded domain or WatchList authority.
   PR2 provides immutable exact ADR-0060 O2 and persisted ADR-0067 screening
-  registration/baseline contracts. No persistence, production registration,
-  checkpoint, API/UI, evaluator, scheduler, or calibration statistics exist.
+  registration/baseline contracts; PR3 persists them; PR4 now provides manual
+  production POST and exact GET. No checkpoint, registration UI, evaluator,
+  scheduler, Portfolio, or calibration statistics exist.
 - Shadow market-thesis evidence cannot populate Actual Outcome, Variance,
   actual/virtual revenue, or profit. Future Shadow and Real Outcome statistics
   require separate evidence classes and denominators.

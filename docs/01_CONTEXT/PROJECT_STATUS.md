@@ -1,20 +1,19 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR3 SQLite Persistence and Exact Replay
+**Status Basis:** ADR-0068 Shadow PR4 Authoritative Manual Registration
 
 ## Current Snapshot
 
-- Current work: Shadow PR3 append-only atomic SQLite registration/baseline
-  persistence and exact replay complete; manual production registration remains
-  unimplemented
-- Last confirmed full regression: **3974 passed, 1 warning**
-  (Shadow PR3, 2026-08-28)
+- Current work: Shadow PR4 authoritative exact-O2 + persisted-screening manual
+  registration Application, POST, persistence-only exact GET, and request-first
+  replay complete
+- Last confirmed full regression: **3982 passed, 1 warning**
+  (Shadow PR4, 2026-08-28)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
-- Shadow PR3 adds persistence only: no manual registration use case, API, UI,
-  checkpoint, scheduler, evaluator, Portfolio, calibration statistics, or
-  ranking-policy change
+- Shadow PR4 adds no UI, checkpoint, scheduler, evaluator, Portfolio,
+  calibration statistics, automatic registration, or ranking-policy change
 
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking
@@ -40,9 +39,14 @@ lineage, baseline source-manifest, time/completeness/eligibility,
 evidence-class, canonical serialization, and fingerprint contracts. Shadow PR3
 now commits Registration + Baseline + receipt atomically in append-only SQLite,
 strictly reconstructs exact history, and fails closed on conflicts/corruption.
-Shadow remains market-thesis evidence only and cannot create or stand in for
-Real Commerce, Actual Outcome, revenue, or profit. Manual production
-registration remains deferred to Shadow PR4.
+Shadow PR4 now resolves the exact persisted Screening -> finalized Group ->
+Candidate -> O1 -> exact O2 chain, admits only the selected historical Screening
+manifest plus explicit O2 subject identity, derives a source-availability
+cutoff, and persists an eligible baseline through PR3. Request-level receipts
+make retry source/ID/clock-free, and exact GET is persistence-only. Shadow
+remains market-thesis evidence only and cannot create or stand in for Real
+Commerce, Actual Outcome, revenue, profit, investment, buying, or Capital
+authority.
 
 ## Production Discovery
 
@@ -160,7 +164,7 @@ track; PR6 completion atomicity does not make incomplete execution resumable.
 
 ## Shadow MVP Readiness Review
 
-`SHADOW_PR3 = COMPLETE`. The immutable contracts require exact ADR-0060 O2,
+`SHADOW_PR4 = COMPLETE`. The immutable contracts require exact ADR-0060 O2,
 Candidate/O1/finalized-Group lineage, and exact persisted ADR-0067 evaluation,
 publication, used-input, timestamps, and fingerprints. Baseline sources are
 explicitly selected, cutoff-safe, availability-aware, and structurally separate
@@ -168,11 +172,22 @@ from Actual Outcome and Real Commerce. PR3 preserves that exact bundle in one
 append-only `BEGIN IMMEDIATE` transaction with strict reads, exact receipt
 replay, rollback, restart, and same-database concurrency behavior.
 
-Shadow production is **NOT COMPLETE**. No manual Application/API registration,
-checkpoint, evaluator, Portfolio UI, scheduler, or calibration statistics exist
-yet. Real/Shadow evidence remains strictly separate. The next cut is Shadow PR4
-manual exact-O2 + persisted-screening registration; WatchList, F1 Recovery, and
-Scenario remain separate.
+Manual baseline collection is **READY**. HYB can now durably start Shadow
+elapsed-time baselines for eligible exact-O2 Opportunities through an explicit
+Founder POST and verify them by exact ID without live reconstruction. No
+checkpoint, evaluator, Portfolio UI, scheduler, automatic calibration, or
+automatic registration exists yet. Real/Shadow evidence remains strictly
+separate. The next cut is Shadow PR5 manual checkpoint publication;
+WatchList, F1 Recovery, and Scenario remain separate.
+
+## Shadow PR4 Verification
+
+- New authoritative registration Application/API tests: **8 passed, 1 warning**
+- Focused Shadow + persisted Screening + Candidate/O1/O2 impact: **269 passed,
+  1 warning**
+- API/OpenAPI + DMV impact: **99 passed, 1 warning**
+- Full regression: **3982 passed, 1 warning**
+- No ADR deviation; Shadow PR5 readiness: **YES** after PR4 merge.
 
 ## Shadow PR3 Verification
 

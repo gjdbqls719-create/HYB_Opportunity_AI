@@ -102,6 +102,26 @@ from app.application.new_to_market_domestic_selling import (
     NewToMarketDomesticSellingSourceNotFoundError,
     NewToMarketDomesticSellingVerificationError,
 )
+from app.application.shadow_validation_registration import (
+    DEFAULT_SHADOW_CADENCE_POLICY_NAME,
+    DEFAULT_SHADOW_CADENCE_POLICY_VERSION,
+    SHADOW_VALIDATION_AUTHORITY_SCOPE,
+    SHADOW_VALIDATION_EXCLUDED_AUTHORITIES,
+    RegisterShadowValidation,
+    RegisterShadowValidationCommand,
+    ShadowValidationClockError,
+    ShadowValidationHindsightError,
+    ShadowValidationIdentityGenerationError,
+    ShadowValidationLegacyScreeningError,
+    ShadowValidationLineageError,
+    ShadowValidationSourceNotFoundError,
+)
+from app.application.shadow_validation_persistence import (
+    MalformedShadowRegistrationPersistenceError,
+    ShadowRegistrationPersistenceError,
+    ShadowRegistrationReplayConflictError,
+    UnsupportedShadowRegistrationPersistenceVersionError,
+)
 from app.domain.decision_engine import OpportunityIdentity
 from app.domain.opportunity import (
     BoundedKRSearchConclusion,
@@ -149,6 +169,11 @@ from app.infrastructure.new_to_market_domestic_selling import (
     ProductionNewToMarketDomesticSellingAdmissionIdentityGenerator,
     ProductionNewToMarketDomesticSellingTargetIdentityGenerator,
     SQLiteNewToMarketDomesticSellingAdmissionRepository,
+)
+from app.infrastructure.shadow_validation import (
+    ProductionShadowBaselineSnapshotIdentityGenerator,
+    ProductionShadowValidationIdentityGenerator,
+    SQLiteShadowRegistrationBaselineRepository,
 )
 from app.application.opportunity_lifecycle import (
     LifecycleNotFoundError,
@@ -2122,6 +2147,66 @@ class NewToMarketDomesticSellingOpportunityAdmissionResponse(BaseModel):
     committed_at: datetime
     admission_schema_version: str
     receipt_schema_version: str
+    replayed: bool
+
+
+class ShadowValidationRegistrationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_id: str = Field(min_length=1)
+    o2_admission_id: str = Field(min_length=1)
+    domestic_selling_target_id: str = Field(min_length=1)
+    screening_ranking_publication_id: str = Field(min_length=1)
+    screening_evaluation_id: str = Field(min_length=1)
+    operator_id: str = Field(min_length=1)
+    registration_reason: str = Field(min_length=1)
+    requested_at: datetime
+    cadence_policy_name: str = Field(
+        default=DEFAULT_SHADOW_CADENCE_POLICY_NAME, min_length=1
+    )
+    cadence_policy_version: str = Field(
+        default=DEFAULT_SHADOW_CADENCE_POLICY_VERSION, min_length=1
+    )
+
+    def to_application(self) -> RegisterShadowValidationCommand:
+        return RegisterShadowValidationCommand(**self.model_dump())
+
+
+class ShadowValidationDetailResponse(BaseModel):
+    shadow_validation_id: str
+    baseline_snapshot_id: str
+    authority_kind: str
+    authority_scope: str
+    excluded_authorities: tuple[str, ...]
+    authority_statement: str
+    evidence_class: str
+    o2_opportunity_id: str
+    domestic_selling_target_id: str
+    o2_admission_id: str
+    o1_opportunity_id: str
+    candidate_id: str
+    screening_evaluation_id: str
+    screening_ranking_publication_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    screening_evaluated_at: datetime
+    ranking_created_at: datetime
+    knowledge_cutoff_at: datetime
+    registered_at: datetime
+    baseline_created_at: datetime
+    committed_at: datetime
+    operator_id: str
+    registration_reason: str
+    cadence_policy_name: str
+    cadence_policy_version: str
+    calibration_eligibility: str
+    calibration_reason_codes: tuple[str, ...]
+    registration_fingerprint: str
+    baseline_fingerprint: str
+    source_manifest_fingerprint: str
+
+
+class ShadowValidationRegistrationResponse(ShadowValidationDetailResponse):
     replayed: bool
 
 
@@ -4558,6 +4643,61 @@ def get_new_to_market_domestic_selling_entry():
         raise HTTPException(
             status_code=503,
             detail="new-to-market domestic selling persistence unavailable",
+        ) from error
+    finally:
+        resources.close()
+
+
+def get_shadow_validation_registration_entry():
+    resources = ExitStack()
+    try:
+        connection = sqlite3.connect(
+            DEFAULT_DATABASE_PATH, timeout=30, check_same_thread=False
+        )
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys=ON")
+        resources.callback(connection.close)
+        candidate_repository = SQLiteCandidateIssuanceRepository(
+            connection=connection
+        )
+        promotion_repository = SQLiteCandidatePromotionRepository(
+            connection=connection
+        )
+        o2_repository = SQLiteNewToMarketDomesticSellingAdmissionRepository(
+            connection=connection
+        )
+        screening_repository = SQLiteDiscoveryScreeningCompletionRepository(
+            connection=connection
+        )
+        shadow_repository = SQLiteShadowRegistrationBaselineRepository(
+            connection=connection
+        )
+        yield RegisterShadowValidation(
+            o2_repository=o2_repository,
+            candidate_repository=candidate_repository,
+            promotion_repository=promotion_repository,
+            screening_repository=screening_repository,
+            shadow_repository=shadow_repository,
+            shadow_validation_id_generator=(
+                ProductionShadowValidationIdentityGenerator()
+            ),
+            baseline_snapshot_id_generator=(
+                ProductionShadowBaselineSnapshotIdentityGenerator()
+            ),
+            registered_clock=lambda: datetime.now(timezone.utc),
+            committed_clock=lambda: datetime.now(timezone.utc),
+        )
+    except (
+        sqlite3.Error,
+        CandidatePersistenceError,
+        CandidatePromotionPersistenceError,
+        DiscoveryScreeningPersistenceError,
+        NewToMarketDomesticSellingPersistenceError,
+        ShadowRegistrationPersistenceError,
+    ) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Shadow registration authority persistence unavailable",
         ) from error
     finally:
         resources.close()
@@ -10876,6 +11016,136 @@ def admit_new_to_market_domestic_selling_opportunity(
         raise HTTPException(
             status_code=503,
             detail="new-to-market domestic selling Opportunity unavailable",
+        ) from error
+
+
+def _shadow_validation_payload(result) -> dict[str, object]:
+    registration = result.registration
+    baseline = result.baseline
+    subject = registration.subject
+    screening = registration.screening_lineage
+    return {
+        "shadow_validation_id": registration.shadow_validation_id,
+        "baseline_snapshot_id": baseline.baseline_snapshot_id,
+        "authority_kind": registration.authority_kind.value,
+        "authority_scope": SHADOW_VALIDATION_AUTHORITY_SCOPE.value,
+        "excluded_authorities": tuple(
+            value.value for value in SHADOW_VALIDATION_EXCLUDED_AUTHORITIES
+        ),
+        "authority_statement": (
+            "This Opportunity has entered elapsed-time market-thesis validation."
+        ),
+        "evidence_class": registration.evidence_class.value,
+        "o2_opportunity_id": subject.o2_opportunity_identity.opportunity_id,
+        "domestic_selling_target_id": (
+            subject.target_identity.domestic_selling_target_id
+        ),
+        "o2_admission_id": subject.o2_admission_id,
+        "o1_opportunity_id": subject.o1_opportunity_identity.opportunity_id,
+        "candidate_id": subject.candidate_id,
+        "screening_evaluation_id": screening.screening_evaluation_id,
+        "screening_ranking_publication_id": (
+            screening.screening_ranking_publication_id
+        ),
+        "discovery_execution_id": screening.discovery_execution_id,
+        "finalized_group_id": screening.finalized_group_id,
+        "screening_evaluated_at": screening.evaluated_at,
+        "ranking_created_at": screening.ranking_created_at,
+        "knowledge_cutoff_at": registration.knowledge_cutoff_at,
+        "registered_at": registration.registered_at,
+        "baseline_created_at": baseline.baseline_created_at,
+        "committed_at": result.receipt.committed_at,
+        "operator_id": registration.operator_id,
+        "registration_reason": registration.registration_reason,
+        "cadence_policy_name": registration.cadence_policy.policy_name,
+        "cadence_policy_version": registration.cadence_policy.policy_version,
+        "calibration_eligibility": baseline.calibration_eligibility.value,
+        "calibration_reason_codes": tuple(
+            value.value for value in baseline.calibration_reason_codes
+        ),
+        "registration_fingerprint": registration.integrity_fingerprint,
+        "baseline_fingerprint": baseline.integrity_fingerprint,
+        "source_manifest_fingerprint": (
+            baseline.source_manifest.integrity_fingerprint
+        ),
+        "replayed": result.replayed,
+    }
+
+
+@app.post(
+    "/api/v1/shadow-validations",
+    status_code=201,
+    response_model=ShadowValidationRegistrationResponse,
+)
+def register_shadow_validation(
+    request: ShadowValidationRegistrationRequest,
+    response: Response,
+    entry: RegisterShadowValidation = Depends(
+        get_shadow_validation_registration_entry
+    ),
+):
+    try:
+        result = entry.execute(request.to_application())
+        response.status_code = 200 if result.replayed else 201
+        return ShadowValidationRegistrationResponse.model_validate(
+            _shadow_validation_payload(result)
+        )
+    except ShadowValidationSourceNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        ShadowRegistrationReplayConflictError,
+        ShadowValidationLegacyScreeningError,
+        ShadowValidationLineageError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (ShadowValidationHindsightError, TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        ShadowValidationClockError,
+        ShadowValidationIdentityGenerationError,
+        ShadowRegistrationPersistenceError,
+        CandidatePersistenceError,
+        CandidatePromotionPersistenceError,
+        DiscoveryScreeningPersistenceError,
+        NewToMarketDomesticSellingPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503, detail="Shadow registration authority unavailable"
+        ) from error
+
+
+@app.get(
+    "/api/v1/shadow-validations/{shadow_validation_id}",
+    response_model=ShadowValidationDetailResponse,
+)
+def get_shadow_validation(
+    shadow_validation_id: str,
+    entry: RegisterShadowValidation = Depends(
+        get_shadow_validation_registration_entry
+    ),
+):
+    try:
+        result = entry.get(shadow_validation_id)
+        if result is None:
+            raise HTTPException(
+                status_code=404, detail="Shadow validation was not found"
+            )
+        return ShadowValidationDetailResponse.model_validate(
+            _shadow_validation_payload(result)
+        )
+    except HTTPException:
+        raise
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (
+        MalformedShadowRegistrationPersistenceError,
+        UnsupportedShadowRegistrationPersistenceVersionError,
+        ShadowRegistrationPersistenceError,
+        sqlite3.Error,
+    ) as error:
+        raise HTTPException(
+            status_code=503, detail="Shadow registration authority unavailable"
         ) from error
 
 

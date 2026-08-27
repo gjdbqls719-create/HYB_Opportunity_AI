@@ -23,6 +23,18 @@ command retry returns the original bundle without live-source reconstruction;
 conflicting command or authoritative IDs fail closed. UPDATE and DELETE are
 rejected for all three tables.
 
+Shadow PR4 now provides the first authoritative manual Application/API entry.
+`POST /api/v1/shadow-validations` accepts only Founder intent plus exact O2
+admission/target and persisted screening evaluation/publication references. The
+Application resolves the exact Screening -> finalized Group -> Candidate -> O1
+-> O2 chain, rejects legacy/cross-lineage/future evidence, derives the latest
+selected-source availability cutoff, constructs the PR2 Registration/Baseline,
+and commits both through PR3. A fourth append-only request receipt preserves the
+caller request fingerprint in the same transaction so exact retry is checked
+before source reads, identities, or clocks. `GET
+/api/v1/shadow-validations/{shadow_validation_id}` reconstructs only persisted
+Shadow facts and does not query live sources.
+
 ADR-0067 / Deep Audit F2 is **CLOSED**. Completed persisted screening now
 provides exact finalized-Group correlation, immutable evaluation and ranking
 publication identities, policy and source manifests, structured reasons,
@@ -31,11 +43,11 @@ replay, and exact Founder reads. That authority makes a trustworthy Shadow
 baseline possible without reconstructing historical screening from the live
 engine.
 
-Shadow PR3 adds no manual Application registration workflow, API/UI, checkpoint,
-scheduler, evaluator, Portfolio, or calibration statistics. Therefore no Shadow
-registration entry point is wired into production yet. The next implementation
-cut is Shadow PR4: manual Application/API registration against exact O2 and
-persisted screening authorities.
+HYB can now durably start Shadow elapsed-time baselines for eligible exact-O2
+Opportunities. Shadow PR4 adds no checkpoint, re-observation, scheduler,
+evaluator, Portfolio, automatic registration/calibration, or UI. Those remain
+later cuts; the next architecture cut is Shadow PR5 manual checkpoint
+publication contracts/persistence.
 
 ## Context
 

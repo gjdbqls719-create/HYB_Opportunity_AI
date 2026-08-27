@@ -12,7 +12,8 @@ Product 모델 중복 문제는 통합 대상으로 관리한다.
 
 ## ADR-0068 Shadow Registration/Baseline Persistence
 
-Shadow PR3 adds three Opportunity-owned, append-only SQLite authorities:
+Shadow PR3 adds three Opportunity-owned, append-only SQLite authorities, and
+Shadow PR4 adds one request-level replay authority:
 
 - `shadow_validation_registration_history` stores one canonical PR2
   `ShadowValidationRegistration` per `shadow_validation_id`, with unique
@@ -29,15 +30,21 @@ Shadow PR3 adds three Opportunity-owned, append-only SQLite authorities:
   schema version. Multiple command IDs may identify the same exact immutable
   bundle, but a changed payload for an existing command or authoritative ID is
   a conflict.
+- `shadow_registration_request_receipts` stores the canonical Founder request
+  fingerprint, command ID, generated Registration/Baseline IDs, and exact commit
+  time. It is inserted after the PR3 receipt but before the same commit, so
+  request replay can return the original bundle before O2/Screening reads,
+  identity generation, or clocks.
 
 The Registration row has a unique composite
 `(shadow_validation_id, baseline_snapshot_id)` authority key. Baseline and
-receipt rows use composite foreign keys to that exact pair; receipts also bind
-the inverse Baseline pair. All three tables reject UPDATE and DELETE with
-triggers. One repository-owned connection executes replay/conflict validation,
-Registration insert, Baseline insert, receipt insert, and commit inside one
-`BEGIN IMMEDIATE` transaction, so any insert, injected fault, or commit failure
-rolls back the complete boundary.
+receipt and request-receipt rows use foreign keys to that exact pair; receipts
+also bind the inverse Baseline pair, and request receipts bind the exact PR3
+receipt command. All four tables reject UPDATE and DELETE with triggers. One
+repository-owned connection executes replay/conflict validation, Registration
+insert, Baseline insert, both receipt inserts, and commit inside one `BEGIN
+IMMEDIATE` transaction, so any insert, injected fault, or commit failure rolls
+back the complete boundary.
 
 Reads are exact-ID only and strictly reconstruct the PR2 contracts from stored
 canonical payloads. They fail closed on malformed JSON/datetime/enums, schema or
@@ -45,9 +52,9 @@ payload fingerprint changes, query-column drift, O2/screening mismatch,
 Registration/Baseline mismatch, corrupt receipts, and orphans. Replay does not
 read current O2, screening, policy, marketplace, identity generation, or clock.
 No cross-domain upstream foreign key is added because those authorities are not
-guaranteed to share every repository database; their exact IDs and fingerprints
-remain immutable in the payload for PR4 resolution. There is no mutable current
-Shadow table, checkpoint/scheduler state, or Actual Outcome/commerce field.
+guaranteed to share every repository database; PR4 resolves their exact IDs and
+fingerprints before persistence. There is no mutable current Shadow table,
+checkpoint/scheduler state, or Actual Outcome/commerce field.
 
 ## Decision Composition Finalization
 

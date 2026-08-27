@@ -1,5 +1,35 @@
 # HYB Changelog
 
+## ADR-0068 Shadow PR4 - Authoritative Manual Registration Application/API
+
+- Add `RegisterShadowValidation` with a strict reference-only Founder command;
+  O2/Shadow identities, authority facts, lineage, fingerprints, timestamps,
+  cutoff, completeness, and eligibility remain server-derived.
+- Resolve and prove exact persisted Screening evaluation/publication/finalized
+  Group -> Candidate issuance -> Candidate/O1 v2 binding/admission -> ADR-0060
+  O2 target/admission lineage. Reject missing, legacy, cross-lineage, corrupt,
+  and future-source inputs without live screening or approximate matching.
+- Freeze only the exact O2 subject authority plus persisted Screening
+  evaluation, ranking publication, and canonical used-input manifest. Derive
+  `knowledge_cutoff_at` from their latest actual availability time and preserve
+  later O2 times as subject lineage rather than historical Screening evidence.
+- Extend PR3 additively with an append-only request receipt committed in the
+  same transaction. Same-command/same-request retry returns the original bundle
+  before source reads, ID generation, or clocks; changed requests conflict.
+- Add `POST /api/v1/shadow-validations` and persistence-only exact
+  `GET /api/v1/shadow-validations/{shadow_validation_id}`. Responses type the
+  authority as elapsed-time market-thesis validation and explicitly exclude
+  investment, buying, Capital, launch, revenue, profit, and Actual Outcome.
+- Wire all exact readers and the PR3 writer over one production SQLite
+  connection. Add no Candidate/O1/O2 creation, checkpoint, WatchItem, scheduler,
+  evaluator, Portfolio, automatic registration/calibration, Scenario, or F1
+  behavior.
+- Verification: new Application/API `8 passed, 1 warning`; focused Shadow,
+  persisted Screening, Candidate/O1/O2 impact `269 passed, 1 warning`;
+  API/OpenAPI and DMV impact `99 passed, 1 warning`; documentation/final focused
+  run `32 passed, 1 warning`; full regression `3982 passed, 1 warning`. Shadow
+  PR5 readiness is **YES** after PR4 merge.
+
 ## ADR-0068 Shadow PR3 - Append-Only Registration/Baseline Persistence
 
 - Add the narrow `PersistShadowRegistrationCommand`, immutable receipt/result,

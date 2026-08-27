@@ -54,6 +54,43 @@ been executed.
 Do not recreate an authority merely because an exact ID was not copied into
 this document. Recover it from the archived request/response artifacts first.
 
+### Manual Shadow baseline registration (available, not executed here)
+
+Shadow PR4 can durably start elapsed-time market-thesis validation for an
+eligible exact O2 without spending Capital. This does not clear the active
+Demand/DMV/Capital Genuine-run STOP and does not authorize purchase or launch.
+Do not register the current ledger merely because the route exists; perform the
+operation only under a separate explicit Founder instruction.
+
+For the first operational Shadow candidate:
+
+1. Recover the exact ADR-0060 `admission_id` and
+   `domestic_selling_target_id` from the archived O2 admission response. Never
+   substitute the O2 ID, title, query, category, or a comparable listing.
+2. Recover the O2 source `discovery_execution_id` and `finalized_group_id`, then
+   call
+   `GET /api/v1/discovery/executions/{discovery_execution_id}/screening-ranking`.
+   Require `screening_status: RECORDED`, locate that exact Group, and copy its
+   persisted `screening_ranking_publication_id` and `screening_evaluation_id`.
+3. Archive those source responses before registration. Confirm no later
+   checkpoint/outcome evidence has already been observed for the proposed
+   Shadow comparison; known hindsight must not be treated as eligible.
+4. Send one `POST /api/v1/shadow-validations` with a durable client-generated
+   `command_id`, the four exact authority references, Founder `operator_id`, a
+   factual `registration_reason`, aware `requested_at`, and the reviewed cadence
+   policy name/version. Reuse the complete identical request and command ID on
+   transport uncertainty.
+5. Require `201` for first commit or `200` for exact replay. Archive the response
+   and verify it with `GET /api/v1/shadow-validations/{shadow_validation_id}`.
+   Confirm
+   `SHADOW_MARKET_THESIS`, `ELIGIBLE`, exact O2/Group/Screening IDs, and matching
+   Registration/Baseline/source-manifest fingerprints.
+
+This procedure creates only the historical baseline. Do not create Day
+7/14/30 rows, infer a next checkpoint, write a WatchItem, or report sales,
+revenue, profit, Capital readiness, or Actual Outcome. Manual checkpoint
+publication begins only after Shadow PR5.
+
 Demand v2 requires independently preserved provider query-count authority, a
 bounded comparable cohort, one explicit review outcome per included organic
 listing, artifact hashes/references, and operational target eligibility.

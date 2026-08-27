@@ -215,6 +215,12 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
+def shadow_authority_fingerprint(value: object) -> str:
+    """Fingerprint one exact immutable authority with Shadow's canonical rules."""
+
+    return _sha256(value)
+
+
 def _integrity(value: object, supplied: str, name: str) -> str:
     expected = _sha256(value)
     if supplied and _fingerprint(supplied, name) != expected:

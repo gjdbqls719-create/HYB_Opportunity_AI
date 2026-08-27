@@ -88,6 +88,40 @@ Verified Economics, and Capital Readiness ingress without synthesizing an
 `OpportunityMarketIdentityBinding`. Capital Readiness does not itself grant
 real-money permission.
 
+## Shadow Validation Manual Registration
+
+`POST /api/v1/shadow-validations` starts one immutable elapsed-time
+market-thesis baseline. The strict request contains only `command_id`, exact
+ADR-0060 O2 admission and target IDs, exact persisted ADR-0067 ranking
+publication and evaluation IDs, Founder operator/reason, requested time, and a
+versioned cadence policy reference. Shadow and Baseline IDs, authoritative
+times, Screening facts, Candidate/O1/O2 lineage, fingerprints, cutoff,
+completeness, and eligibility are server-owned; extra fields are forbidden.
+
+The Application resolves persisted Screening -> finalized Group -> Candidate
+issuance -> Candidate/O1 v2 binding/admission -> O2 target/admission. It rejects
+legacy screening, cross-publication/execution/Group lineage, source corruption,
+and any selected Screening source time after evaluation. It does not rerun the
+engine or use title/category/query/comparable matching. The cutoff is the latest
+actual availability time among the selected Screening authorities and the
+exact O2 subject authority, never request/current time. Later O2 times remain an
+explicit subject source and do not become historical Screening evidence.
+
+Fresh success returns `201`; exact request replay returns `200` with the original
+IDs, times, and fingerprints before any source read, identity generation, or
+clock. Changed command payloads and lineage conflicts return `409`, missing
+authorities return `404`, invalid time/input returns `422`, and bounded corrupt
+or unavailable persistence returns `503`.
+
+`GET /api/v1/shadow-validations/{shadow_validation_id}` returns only the exact
+persisted Registration/Baseline summary. It does not reconstruct from current
+O2, Screening, marketplace, or policy facts, and there is no list/Portfolio
+route. Both responses type the evidence as `SHADOW_MARKET_THESIS` and authority
+scope as `ELAPSED_TIME_MARKET_THESIS_VALIDATION`, with explicit exclusions for
+investment approval, buy authorization, Capital readiness, product launch,
+revenue, profit, and Actual Outcome. No checkpoint, due date, units-sold,
+virtual revenue/profit, or Actual Outcome field exists.
+
 ## Domestic Selling Opportunity Admission API
 
 `POST /api/v1/opportunities/{source_opportunity_id}/domestic-selling-admissions`

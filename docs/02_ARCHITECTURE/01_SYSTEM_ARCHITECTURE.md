@@ -242,6 +242,27 @@ preserve the existing common Candidate/Opportunity cardinality anchor while v1
 history remains unchanged. CR-1B7C3 implements this production boundary and its
 versioned Validation Queue read union; no legacy v1 admission row is fabricated.
 
+## Shadow manual registration composition (ADR-0068 PR4)
+
+The existing Opportunity boundary owns immutable Shadow registration/baseline
+semantics. A narrow Application owner now composes exact persisted authorities:
+
+```text
+ADR-0067 Screening publication/evaluation + finalized Group
+  -> Candidate issuance
+  -> Candidate/O1 v2 binding and admission
+  -> ADR-0060 O2 target binding and admission
+  -> ShadowValidationRegistration + ShadowBaselineSnapshot
+  -> one PR3 append-only transaction
+```
+
+Production composition supplies all readers and the Shadow writer over one
+SQLite connection. A request-fingerprint receipt in the same transaction makes
+replay precede authority reads, generated IDs, and clocks. Exact GET reads only
+the persisted Shadow bundle. The capability creates no upstream Candidate/O1/O2
+fact and no checkpoint, WatchList, Capital, Purchase, Actual Outcome, scheduler,
+evaluator, Portfolio, Scenario, or F1 state.
+
 ## Candidate-scoped Snapshot chain (PR35-A)
 
 Marketplace Collection owns Candidate-scoped Product Observation snapshots;
