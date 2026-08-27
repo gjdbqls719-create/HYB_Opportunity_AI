@@ -9,6 +9,7 @@ from app.application.discovery.ports import (
     GroupFinalizationClock,
     ObservationIdentityProvider,
     OpportunityDiscoveryGateway,
+    ScreeningIdentityProvider,
 )
 from app.application.discovery.founder_policy import (
     FOUNDER_CONSERVATIVE_EBAY_US_V1,
@@ -53,6 +54,10 @@ from app.application.discovery.screening_persistence import (
     discovery_screening_completion_binding_to_canonical_data,
     serialize_discovery_screening_completion_binding,
 )
+from app.application.discovery.screening_completion import (
+    DiscoveryScreeningConstructionError,
+    build_discovery_screening_completion_bundle,
+)
 from app.application.discovery.session import (
     DiscoverySession,
     DiscoverySessionStatus,
@@ -79,6 +84,7 @@ __all__ = [
     "DiscoveryCompletionClock",
     "DISCOVERY_SCREENING_COMPLETION_BINDING_SCHEMA_VERSION",
     "DiscoveryScreeningCommitError",
+    "DiscoveryScreeningConstructionError",
     "DiscoveryScreeningCompletionBinding",
     "DiscoveryScreeningCompletionBundle",
     "DiscoveryScreeningCompletionConflictError",
@@ -102,6 +108,7 @@ __all__ = [
     "ObservationIdentityProvider",
     "OpportunityDiscoveryGateway",
     "OpportunityPublisher",
+    "ScreeningIdentityProvider",
     "MalformedDiscoveryScreeningPersistenceError",
     "ProductionDiscoveryRuntime",
     "ProductionDiscoveryRuntimeResult",
@@ -114,4 +121,5 @@ __all__ = [
     "discovery_screening_completion_binding_to_canonical_data",
     "resolve_founder_discovery_policy_profile",
     "serialize_discovery_screening_completion_binding",
+    "build_discovery_screening_completion_bundle",
 ]

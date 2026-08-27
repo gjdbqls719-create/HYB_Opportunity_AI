@@ -1,5 +1,36 @@
 # HYB Changelog
 
+## ADR-0067 PR6 - Production Screening Completion Integration
+
+- Construct one immutable PR4 screening evaluation for every authoritative
+  production result using only the explicit PR2 `finalized_group_id`
+  correlation, and fail closed on missing, duplicate, or mismatched lineage.
+- Build one ranking publication from the actual already-sorted production
+  output while preserving PR3 v1's three descending keys and stable complete-
+  tie order. Successful zero-result executions persist an empty publication.
+- Record actual used-input provenance rather than command metadata presence:
+  fixed sales/competition/risk and fallback economics remain policy
+  assumptions, missing source shipping remains unknown beside its explicit
+  zero fallback, and unavailable exact currency-rate lineage is unsupported.
+- Replace the authoritative successful-result write with the PR5 composite
+  repository so evaluations, publication, result, and immutable binding commit
+  in one SQLite transaction. Existing observation and Group checkpoints retain
+  their existing transactions.
+- Restore exact persisted screening on completed replay without runtime,
+  collectors, current policy, identity generation, clock, or recalculation.
+  Preserve unbound historical results as explicit
+  `SCREENING_NOT_RECORDED_LEGACY` without backfill.
+- Add the typed screening state/bundle only to the internal Application return
+  contract; keep the existing public Discovery POST response backward
+  compatible. Add no Founder read API/UI, Candidate, F1, Capital, Shadow,
+  Scenario, or ranking-policy change.
+- Verification: PR6 plus PR2-PR5 screening/persistence tests `100 passed`;
+  production execution/replay/API tests `75 passed, 1 warning`; Candidate
+  issuance regression `51 passed, 1 warning`; broader Discovery/Engine impact
+  run `370 passed, 3538 deselected, 1 warning`; documentation knowledge/
+  developer tests `28 passed`; changed Markdown strict UTF-8/relative-link
+  validation passed for 5 files; full regression `3908 passed, 1 warning`.
+
 ## ADR-0067 PR5 - Atomic Discovery Screening SQLite Persistence
 
 - Add a Discovery-specific composite persistence boundary that owns one SQLite

@@ -25,8 +25,21 @@ from app.application.discovery.ports import (
     FinalizedGroupIdentityProvider,
     GroupFinalizationClock,
     ObservationIdentityProvider,
+    ScreeningIdentityProvider,
+)
+from app.application.discovery.screening_completion import (
+    build_discovery_screening_completion_bundle,
+)
+from app.application.discovery.screening_persistence import (
+    DiscoveryScreeningCompletionBundle,
+    DiscoveryScreeningCompletionRepository,
 )
 from app.domain.discovery import DiscoveryResult
+from app.domain.discovery import (
+    PRODUCTION_SCREENING_POLICY_DESCRIPTORS_V1,
+    DiscoveryScreeningRecordingState,
+    ScreeningPolicyDescriptors,
+)
 from app.domain.discovery_identity import (
     CollectedProductObservation,
     DiscoveryCommand,
@@ -186,6 +199,10 @@ class PersistedDiscoveryExecutionResult:
     grouping_correlations: tuple[GroupingCorrelation, ...] = ()
     finalized_groups: tuple[FinalizedProductGroup, ...] = ()
     completion_replayed: bool = False
+    screening_recording_state: DiscoveryScreeningRecordingState = (
+        DiscoveryScreeningRecordingState.SCREENING_NOT_RECORDED_LEGACY
+    )
+    screening_completion: DiscoveryScreeningCompletionBundle | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.command_result, PersistDiscoveryCommandResult):
@@ -244,6 +261,35 @@ class PersistedDiscoveryExecutionResult:
             )
         if not isinstance(self.completion_replayed, bool):
             raise TypeError("completion_replayed must be bool")
+        if not isinstance(
+            self.screening_recording_state,
+            DiscoveryScreeningRecordingState,
+        ):
+            raise TypeError(
+                "screening_recording_state must be DiscoveryScreeningRecordingState"
+            )
+        if self.screening_completion is not None:
+            if not isinstance(
+                self.screening_completion,
+                DiscoveryScreeningCompletionBundle,
+            ):
+                raise TypeError(
+                    "screening_completion must be DiscoveryScreeningCompletionBundle"
+                )
+            if self.screening_recording_state is not (
+                DiscoveryScreeningRecordingState.RECORDED
+            ):
+                raise ValueError(
+                    "a screening completion requires RECORDED state"
+                )
+            if self.screening_completion.execution_result != self.execution_result:
+                raise ValueError(
+                    "screening completion result must match the application response"
+                )
+        elif self.screening_recording_state is (
+            DiscoveryScreeningRecordingState.RECORDED
+        ):
+            raise ValueError("RECORDED screening state requires a completion bundle")
 
 
 class PersistedDiscoveryExecutionEntry:
@@ -261,6 +307,13 @@ class PersistedDiscoveryExecutionEntry:
         group_repository: DiscoveryGroupRepository,
         discovery_completion_clock: DiscoveryCompletionClock,
         result_repository: DiscoveryResultRepository,
+        screening_completion_repository: (
+            DiscoveryScreeningCompletionRepository | None
+        ) = None,
+        screening_identity_provider: ScreeningIdentityProvider | None = None,
+        zero_result_screening_policy_manifest: ScreeningPolicyDescriptors = (
+            PRODUCTION_SCREENING_POLICY_DESCRIPTORS_V1
+        ),
         candidate_discovery_reference_provider: (
             CandidateDiscoveryReferenceProvider | None
         ) = None,
@@ -296,6 +349,28 @@ class PersistedDiscoveryExecutionEntry:
             raise TypeError(
                 "discovery_completion_clock must be DiscoveryCompletionClock"
             )
+        if (screening_completion_repository is None) != (
+            screening_identity_provider is None
+        ):
+            raise TypeError(
+                "screening completion repository and identity provider must be "
+                "configured together"
+            )
+        if (
+            screening_identity_provider is not None
+            and not isinstance(screening_identity_provider, ScreeningIdentityProvider)
+        ):
+            raise TypeError(
+                "screening_identity_provider must be ScreeningIdentityProvider"
+            )
+        if not isinstance(
+            zero_result_screening_policy_manifest,
+            ScreeningPolicyDescriptors,
+        ):
+            raise TypeError(
+                "zero_result_screening_policy_manifest must be "
+                "ScreeningPolicyDescriptors"
+            )
         self._persist_command = persist_command
         self._runtime = runtime
         self._observation_identity_provider = observation_identity_provider
@@ -310,11 +385,19 @@ class PersistedDiscoveryExecutionEntry:
         self._group_repository = group_repository
         self._discovery_completion_clock = discovery_completion_clock
         self._result_repository = result_repository
+        self._screening_completion_repository = (
+            screening_completion_repository
+        )
+        self._screening_identity_provider = screening_identity_provider
+        self._zero_result_screening_policy_manifest = (
+            zero_result_screening_policy_manifest
+        )
 
     def _completed_replay_response(
         self,
         command_result: PersistDiscoveryCommandResult,
         execution_result: DiscoveryExecutionResult,
+        screening_completion: DiscoveryScreeningCompletionBundle | None = None,
     ) -> PersistedDiscoveryExecutionResult:
         committed_command = command_result.command
         if (
@@ -353,9 +436,23 @@ class PersistedDiscoveryExecutionEntry:
                 "completed replay contains duplicate observation identity"
             )
 
-        finalized_groups = []
+        finalized_groups = (
+            list(screening_completion.finalized_groups)
+            if screening_completion is not None
+            else []
+        )
+        groups_by_id = {
+            group.finalized_group_id: group for group in finalized_groups
+        }
+        if len(groups_by_id) != len(finalized_groups):
+            raise DiscoveryCompletionReplayError(
+                "completed replay contains duplicate finalized Group identity"
+            )
+        resolved_groups = []
         for finalized_group_id in execution_result.finalized_group_ids:
-            group = self._group_repository.get_group(finalized_group_id)
+            group = groups_by_id.get(finalized_group_id)
+            if group is None and screening_completion is None:
+                group = self._group_repository.get_group(finalized_group_id)
             if group is None:
                 raise DiscoveryCompletionReplayError(
                     "completed result references a missing finalized group"
@@ -382,7 +479,7 @@ class PersistedDiscoveryExecutionEntry:
                 raise DiscoveryCompletionReplayError(
                     "finalized group references a missing observation"
                 )
-            finalized_groups.append(group)
+            resolved_groups.append(group)
 
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
@@ -391,8 +488,14 @@ class PersistedDiscoveryExecutionEntry:
             observations=observations,
             execution_result=execution_result,
             grouping_correlations=(),
-            finalized_groups=tuple(finalized_groups),
+            finalized_groups=tuple(resolved_groups),
             completion_replayed=True,
+            screening_recording_state=(
+                DiscoveryScreeningRecordingState.RECORDED
+                if screening_completion is not None
+                else DiscoveryScreeningRecordingState.SCREENING_NOT_RECORDED_LEGACY
+            ),
+            screening_completion=screening_completion,
         )
 
     def execute(
@@ -404,6 +507,19 @@ class PersistedDiscoveryExecutionEntry:
 
         command_result = self._persist_command.execute(command)
         if command_result.replayed:
+            screening_completion = None
+            if self._screening_completion_repository is not None:
+                screening_completion = (
+                    self._screening_completion_repository.get_by_command(
+                        command_result.command.command_id
+                    )
+                )
+            if screening_completion is not None:
+                return self._completed_replay_response(
+                    command_result,
+                    screening_completion.execution_result,
+                    screening_completion,
+                )
             completed_result = self._result_repository.get_by_command(
                 command_result.command.command_id
             )
@@ -482,6 +598,7 @@ class PersistedDiscoveryExecutionEntry:
             finalized_groups,
         )
 
+        completed_at = self._discovery_completion_clock()
         execution_result = DiscoveryExecutionResult(
             command_id=command_result.command.command_id,
             discovery_execution_id=(
@@ -490,11 +607,34 @@ class PersistedDiscoveryExecutionEntry:
             finalized_group_ids=tuple(
                 group.finalized_group_id for group in finalized_groups
             ),
-            completed_at=self._discovery_completion_clock(),
+            completed_at=completed_at,
         )
-        persisted_execution_result = self._result_repository.save_result(
-            execution_result
-        )
+        screening_completion = None
+        if self._screening_completion_repository is not None:
+            if self._screening_identity_provider is None:
+                raise RuntimeError("screening identity provider is not configured")
+            constructed = build_discovery_screening_completion_bundle(
+                command=command_result.command,
+                execution_result=execution_result,
+                finalized_groups=finalized_groups,
+                discovery_results=runtime_result.discovery_results,
+                observations=persisted_observations,
+                identity_provider=self._screening_identity_provider,
+                completed_at=completed_at,
+                zero_result_policy_manifest=(
+                    self._zero_result_screening_policy_manifest
+                ),
+            )
+            screening_completion = (
+                self._screening_completion_repository.save_completion_bundle(
+                    constructed
+                )
+            )
+            persisted_execution_result = screening_completion.execution_result
+        else:
+            persisted_execution_result = self._result_repository.save_result(
+                execution_result
+            )
 
         return PersistedDiscoveryExecutionResult(
             command_result=command_result,
@@ -504,6 +644,12 @@ class PersistedDiscoveryExecutionEntry:
             execution_result=persisted_execution_result,
             grouping_correlations=checkpointed_grouping_correlations,
             finalized_groups=finalized_groups,
+            screening_recording_state=(
+                DiscoveryScreeningRecordingState.RECORDED
+                if screening_completion is not None
+                else DiscoveryScreeningRecordingState.SCREENING_NOT_RECORDED_LEGACY
+            ),
+            screening_completion=screening_completion,
         )
 
 

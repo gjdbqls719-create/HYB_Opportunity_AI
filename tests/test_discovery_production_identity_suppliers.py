@@ -11,11 +11,13 @@ from app.application.discovery import (
     FinalizedGroupIdentityProvider,
     ObservationIdentityProvider,
     PersistedDiscoveryExecutionEntry,
+    ScreeningIdentityProvider,
 )
 from app.infrastructure.discovery import (
     ProductionCandidateDiscoveryReferenceProvider,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
+    ProductionScreeningIdentityProvider,
 )
 import app.infrastructure.discovery.identity_suppliers as identity_suppliers
 from tests.test_application_group_finalization import (
@@ -57,25 +59,31 @@ def test_production_suppliers_implement_the_existing_application_ports() -> None
     observation = ProductionObservationIdentityProvider()
     candidate_reference = ProductionCandidateDiscoveryReferenceProvider()
     finalized_group = ProductionFinalizedGroupIdentityProvider()
+    screening = ProductionScreeningIdentityProvider()
 
     assert isinstance(observation, ObservationIdentityProvider)
     assert isinstance(candidate_reference, CandidateDiscoveryReferenceProvider)
     assert isinstance(finalized_group, FinalizedGroupIdentityProvider)
+    assert isinstance(screening, ScreeningIdentityProvider)
     assert not hasattr(observation, "__dict__")
     assert not hasattr(candidate_reference, "__dict__")
     assert not hasattr(finalized_group, "__dict__")
+    assert not hasattr(screening, "__dict__")
 
 
 def test_production_suppliers_issue_fresh_input_free_opaque_identities() -> None:
     observation = ProductionObservationIdentityProvider()
     candidate_reference = ProductionCandidateDiscoveryReferenceProvider()
     finalized_group = ProductionFinalizedGroupIdentityProvider()
+    screening = ProductionScreeningIdentityProvider()
 
     opaque_values = (
         observation.provide_observation_id(),
         observation.provide_observation_id(),
         finalized_group.provide_finalized_group_id(),
         finalized_group.provide_finalized_group_id(),
+        screening.provide_screening_evaluation_id(),
+        screening.provide_screening_ranking_publication_id(),
     )
     candidate_references = (
         candidate_reference.provide_candidate_discovery_reference(),

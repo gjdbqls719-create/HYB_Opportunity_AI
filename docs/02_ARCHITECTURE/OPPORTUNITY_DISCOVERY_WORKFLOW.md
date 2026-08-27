@@ -131,17 +131,23 @@ DiscoveryCommand
               -> exact finalized_group_id mapping
     -> runtime/command execution-ID correlation validation
     -> result/finalized-Group bijection validation
-    -> DiscoveryExecutionResult assembly/persistence
+    -> exact-used screening evaluation assembly per finalized Group
+    -> ranking publication assembly from actual sorted results
+    -> one composite SQLite transaction
+         -> screening evaluations + ranking publication
+         -> DiscoveryExecutionResult + immutable completion binding
     -> authoritative completion response
 ```
 
 The runtime receives the committed command returned by
 `PersistDiscoveryCommand`. On a completed exact replay, the Application loads
-the persisted result, observations, and ordered Groups and does not call the
-runtime. An incomplete command replay runs the runtime again. The runtime keeps
-collection facts and grouping correlations in execution-local buffers and
-returns immutable tuples with the transient Discovery results. The Application
-entry rejects a runtime execution ID that differs from the committed command.
+the exact persisted screening completion bundle, observations, and ordered
+Groups and does not call the runtime, collectors, current policy resolver,
+identity supplier, or clock. An incomplete command replay runs the runtime
+again. The runtime keeps collection facts and grouping correlations in
+execution-local buffers and returns immutable tuples with the transient
+Discovery results. The Application entry rejects a runtime execution ID that
+differs from the committed command.
 
 At the collection checkpoint, the Application requests one opaque observation
 ID for each `CollectionFact`, copies the collected Product and collector facts
@@ -153,21 +159,28 @@ finalized Group IDs through the runtime callback, and the Engine binds each ID
 to the corresponding `ProductGroup` before analysis. The ID remains attached to
 the result while the existing three-key stable sort reorders results. After the
 runtime and Application independently validate the exact result/Group
-bijection, the Application persists one `DiscoveryExecutionResult`. The
+bijection, the Application builds PR4 screening evidence by exact
+`finalized_group_id`, preserves the already-sorted output order as publication
+rank, and passes one complete bundle to the PR5 composite repository. The
 production entry therefore establishes these durable facts:
 
 - a persisted `DiscoveryCommand` and receipt;
 - persisted `CollectedProductObservation` values;
 - persisted `FinalizedProductGroup` values; and
-- one persisted successful `DiscoveryExecutionResult`, including an explicit
-  zero-result.
+- one immutable screening evaluation per authoritative result Group;
+- one ranking publication, including an explicit empty publication for a
+  successful zero-result; and
+- one persisted successful `DiscoveryExecutionResult` plus its immutable
+  completion binding.
 
-The internal Application response also carries transient `DiscoveryResult`
-values and runtime facts on a fresh execution. The public production POST
-returns only authoritative completion and finalized-Group facts. The durable
-`DiscoveryExecutionResult` preserves ordered finalized Group IDs; it does not
-preserve the ranked `OpportunityResult`/`DiscoveryResult` payload, economics,
-score, or recommendation.
+The internal Application response carries transient `DiscoveryResult` values
+and runtime facts on a fresh execution, plus a typed screening recording state
+and exact persisted bundle. Completed replay returns no reconstructed engine
+result object; it exposes the persisted screening bundle directly. The public
+production POST remains backward compatible and returns only authoritative
+completion and finalized-Group facts. The existing `DiscoveryExecutionResult`
+continues to preserve ordered finalized Group IDs while the separate binding,
+evaluation history, and publication preserve screening authority.
 
 The Infrastructure runtime adapter maps all execution-affecting command values:
 query, collection limit, matching threshold, pricing multiplier, cost and fee
@@ -216,8 +229,8 @@ profitability thresholds, and the fallback selling-price multiplier, as policy
 assumption inputs. This does not label any NAVER/ItemScout mixed-geography
 total as Korea-only demand evidence.
 
-PR4 adds immutable Domain foundation in
-`app.domain.discovery.screening_evidence` without wiring a production write.
+PR4 adds immutable Domain contracts in
+`app.domain.discovery.screening_evidence`.
 One `DiscoveryScreeningEvaluationSnapshot` binds the exact command, execution,
 finalized Group, existing Group-membership fingerprint, PR3 recommendation and
 policy semantics, calculated screening values, expected-economics evidence,
@@ -231,12 +244,11 @@ Rank remains absent from evaluation. One separate
 `DiscoveryScreeningRankingPublication` contains contiguous ranked entries and
 explicit typed not-ranked entries, with each entry fixing its evaluation and
 evaluation fingerprint. Canonical Decimal/datetime/enum projections and
-SHA-256 fingerprints are defined for future PR5 persistence. This Domain-only
-foundation changes no Engine ranking algorithm, production completion schema,
-replay, API, or UI.
+SHA-256 fingerprints bind the persisted production evidence. These contracts
+change no Engine ranking algorithm or public API/UI.
 
-PR5 adds the non-wired SQLite persistence foundation under the existing
-Discovery boundary. A narrow composite repository owns one SQLite connection
+PR5 adds the SQLite persistence foundation under the existing Discovery
+boundary. A narrow composite repository owns one SQLite connection
 and one `BEGIN IMMEDIATE` transaction that inserts all PR4 evaluation payloads,
 the one ranking publication, the existing successful execution-result row, and
 an immutable completion binding. It uses the PR4 canonical JSON directly and
@@ -247,9 +259,12 @@ and fingerprints; no screening payload is embedded in the execution result.
 Existing unbound v1 result rows remain
 `SCREENING_NOT_RECORDED_LEGACY` and receive no inferred or backfilled ranking.
 Exact persisted retries return the original bundle, conflicting retries fail
-closed, and transaction failure rolls back every new completion row. The live
-`PersistedDiscoveryExecutionEntry`, `app.web` composition, and completed replay
-remain unchanged until PR6.
+closed, and transaction failure rolls back every new completion row. PR6 wires
+this repository into the live `PersistedDiscoveryExecutionEntry` and `app.web`
+composition. Construction uses explicit Group correlation, actual runtime
+policy/reason semantics, actual sorted output, and truthful used-input
+provenance. Completed replay loads the exact stored bundle without
+recalculation; legacy unbound results retain explicit not-recorded semantics.
 
 ### Grouping Correlation Contract
 
@@ -287,11 +302,10 @@ but the production runtime may not silently accept it for a non-empty result.
 ### Current Production Limits
 
 - The persisted completion result is a lineage/order record, not a durable
-  ranked opportunity result.
-- Exact result-to-finalized-Group correlation is present in fresh transient
-  production results. Immutable screening evaluation/ranking/provenance
-  contracts and their atomic SQLite persistence foundation now exist, but
-  production does not yet construct or write a screening completion bundle.
+  engine opportunity object. Durable screening is exposed through its separate
+  evaluation/publication/binding contracts.
+- Founder-facing screening read API and Top-N UI remain PR7 scope. The current
+  public Discovery POST does not expose the persisted screening bundle.
 - Candidate issuance is not automatically composed after Discovery. A caller
   must read the finalized Groups, select one, and invoke the separate durable
   Candidate API.
@@ -310,7 +324,9 @@ The authoritative completion chain is:
 DiscoveryCommand
     -> CollectedProductObservation*
     -> FinalizedProductGroup*
-    -> DiscoveryExecutionResult
+    -> DiscoveryScreeningEvaluationSnapshot*
+    -> DiscoveryScreeningRankingPublication
+    -> DiscoveryExecutionResult + immutable completion binding
 ```
 
 Returning transient `DiscoveryResult` values does not complete Discovery.
@@ -319,14 +335,16 @@ Discovery is complete only when all of the following are true:
 1. the command is persisted;
 2. its collected observations are persisted;
 3. its finalized Groups are persisted; and
-4. one successful `DiscoveryExecutionResult`, including an authoritative
-   zero-result when applicable, is persisted.
+4. one screening publication, including an authoritative empty publication for
+   a zero-result, is persisted; and
+5. the evaluations, publication, successful `DiscoveryExecutionResult`, and
+   immutable binding are committed atomically.
 
-The `DiscoveryExecutionResult` commit is the Discovery exit boundary. Before
-that commit, the execution must not be presented as a successfully completed
-Discovery. An empty finalized Group tuple is successful only when explicitly
-committed as the execution's zero-result; absence of Group rows alone does not
-mean success.
+The composite completion commit is the Discovery exit boundary for new
+screening-capable executions. Before that commit, the execution must not be
+presented as successfully completed. An empty finalized Group tuple is
+successful only when an empty publication and its bound result are explicitly
+committed; absence of Group rows alone does not mean success.
 
 ### Responsibility Boundaries
 
@@ -367,10 +385,17 @@ owners, and a finalized Decision Composition.
   the current entry does not wrap all observations in one transaction.
 - An exact observation ID and payload replay returns the committed fact; reuse
   of that ID with changed content conflicts.
-- A completed exact replay reconstructs persisted lineage without live runtime,
+- A screening-capable completed exact replay reconstructs the exact persisted
+  result, binding, ranking publication, evaluations, policy, reasons, and
+  provenance without live runtime, collector, current-policy,
   identity-provider, or clock calls.
+- A legacy unbound completed result remains readable with explicit
+  `SCREENING_NOT_RECORDED_LEGACY`; it is neither backfilled nor recalculated.
+- Screening construction, persistence, or corruption errors fail closed and do
+  not fall back to runtime repair.
 - An incomplete replay has no durable phase/attempt/resume contract and reruns
-  the current runtime entry.
+  the current runtime entry. Observation and Group checkpoints may remain after
+  final completion failure; PR6 does not implement F1 recovery.
 - An execution that has not committed its `DiscoveryExecutionResult` is not a
   successfully completed Discovery.
 

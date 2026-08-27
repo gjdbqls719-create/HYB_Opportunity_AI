@@ -55,6 +55,17 @@ def opportunity_result_to_discovery_result(
                 "trend_score_adjustment",
                 None,
             ),
+            "price_trend_available": getattr(
+                opportunity,
+                "price_trend",
+                None,
+            )
+            is not None,
+            "market_adjustment": (
+                getattr(opportunity, "market_adjustment").adjustment
+                if getattr(opportunity, "market_adjustment", None) is not None
+                else None
+            ),
             "success_probability": (
                 recommendation.success_probability
                 if recommendation is not None

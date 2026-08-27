@@ -37,6 +37,28 @@ Exact retries converge through the persisted binding; changed payloads
 conflict. Fault-injection, restart, legacy coexistence, and same-database
 concurrency coverage verify that no partial new screening completion remains.
 
+PR6 wires that composite boundary into the authoritative persisted production
+entry. Fresh successful executions now construct one PR4 evaluation for every
+explicitly correlated finalized Group, construct one publication from the
+actual already-sorted production results, and atomically commit the evaluations,
+publication, existing execution result, and immutable binding. Successful zero-
+result executions commit an empty authoritative publication.
+
+The construction records the actual consumed production inputs. Fixed sales,
+competition, risk, and command economics remain policy assumptions; missing
+shipping remains unknown while its numeric zero fallback is a separate policy
+assumption. Command audit references are not promoted to used evidence. When
+the current runtime exposes a converted price but not the exact exchange-rate
+fact, the converted value is retained and the conversion provenance is
+explicitly `UNSUPPORTED` rather than fabricated.
+
+Completed screening-capable replay reconstructs the exact PR5 bundle and does
+not call the runtime, collectors, current policy resolver, identity supplier,
+or clock. Existing unbound results remain explicit
+`SCREENING_NOT_RECORDED_LEGACY` completions with no backfill or inferred rank.
+The internal Application response adds the typed screening state and exact
+bundle; the existing public Discovery POST response remains unchanged.
+
 PR3 changes no score, recommendation, Safety Gate, or sorting behavior. Ranking
 v1 is the actual three descending numeric keys plus stable input order for
 complete ties; neither `finalized_group_id`, grouping ordinal, nor descriptor
@@ -54,11 +76,17 @@ ID, and exact evaluation fingerprint. The evaluation reuses the existing
 `FinalizedProductGroup.membership_fingerprint`; it does not create a competing
 Group identity definition.
 
-PR5 does not wire this repository into production Discovery, change the live
-completion/replay flow, or implement `DiscoveryExecutionResult v2` Domain
-construction, production replay v2, Candidate, O1/O2, Capital, API, or UI
-authority. PR6 production completion integration and runtime-free v2 screening
-replay are next.
+PR6 does not add the PR7 Founder screening read API or Top-N UI and changes no
+Candidate, O1/O2, Capital, Shadow, Scenario, or ranking authority. It also does
+not implement F1 durable attempt/recovery: a failure before the final composite
+commit may leave existing observation and Group checkpoints, and retry reruns
+the live runtime under the existing incomplete-execution semantics.
+
+PR6 verification completed with 100 screening contract/persistence tests, 75
+production execution/replay/API tests, 51 Candidate issuance regression tests,
+370 broader Discovery/Engine impact tests, 28 documentation knowledge/developer
+tests, strict validation of the five changed Markdown files, and the full
+regression at 3908 passed with the one existing TestClient deprecation warning.
 
 ## Context
 

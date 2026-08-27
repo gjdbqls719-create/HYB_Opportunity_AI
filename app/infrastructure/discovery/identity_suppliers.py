@@ -41,9 +41,22 @@ class ProductionFinalizedGroupIdentityProvider:
         return uuid4().hex
 
 
+class ProductionScreeningIdentityProvider:
+    """Supplies server-owned identities for evaluation and ranking history."""
+
+    __slots__ = ()
+
+    def provide_screening_evaluation_id(self) -> str:
+        return uuid4().hex
+
+    def provide_screening_ranking_publication_id(self) -> str:
+        return uuid4().hex
+
+
 __all__ = [
     "ProductionCandidateDiscoveryReferenceProvider",
     "ProductionCandidateIdentityGenerator",
     "ProductionFinalizedGroupIdentityProvider",
     "ProductionObservationIdentityProvider",
+    "ProductionScreeningIdentityProvider",
 ]

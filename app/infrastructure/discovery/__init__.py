@@ -27,6 +27,7 @@ from app.infrastructure.discovery.identity_suppliers import (
     ProductionCandidateIdentityGenerator,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
+    ProductionScreeningIdentityProvider,
 )
 
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "ProductionCandidateDiscoveryReferenceProvider",
     "ProductionFinalizedGroupIdentityProvider",
     "ProductionObservationIdentityProvider",
+    "ProductionScreeningIdentityProvider",
     "SQLiteDiscoveryCommandRepository",
     "SQLiteDiscoveryGroupRepository",
     "SQLiteDiscoveryObservationRepository",

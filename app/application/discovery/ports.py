@@ -28,6 +28,15 @@ class FinalizedGroupIdentityProvider(Protocol):
 
 
 @runtime_checkable
+class ScreeningIdentityProvider(Protocol):
+    """Supplies opaque identities for immutable screening completion facts."""
+
+    def provide_screening_evaluation_id(self) -> str: ...
+
+    def provide_screening_ranking_publication_id(self) -> str: ...
+
+
+@runtime_checkable
 class GroupFinalizationClock(Protocol):
     """Supplies the authoritative time for one finalized Group."""
 

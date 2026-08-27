@@ -1,17 +1,16 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR5 SQLite Persistence Foundation
+**Status Basis:** ADR-0067 PR6 Production Screening Integration
 
 ## Current Snapshot
 
 - Current work: Persisted Discovery Screening F2 PR2 correlation, PR3
-  policy/reason semantics, PR4 immutable evaluation/ranking/provenance Domain
-  contracts, and PR5 atomic SQLite completion persistence implemented; PR6
-  production completion integration and runtime-free v2 screening replay are
-  next
-- Last confirmed full regression: **3898 passed, 1 warning**
-  (ADR-0067 PR5, 2026-08-27)
+  policy/reason semantics, PR4 immutable evidence contracts, PR5 atomic SQLite
+  persistence, and PR6 production completion integration/runtime-free replay
+  implemented; PR7 Founder screening read API and Top-N UI are next
+- Last confirmed full regression: **3908 passed, 1 warning**
+  (ADR-0067 PR6, 2026-08-27)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
 - This PR adds no new business authority and changes no production ranking
@@ -28,10 +27,12 @@ evaluation snapshots, separate execution-level ranking publications, explicit
 not-ranked entries, Discovery-only provenance and exact-used-input manifests,
 canonical serialization, and integrity fingerprints. PR5 adds append-only
 evaluation/publication histories and a separate immutable completion binding,
-committed with the existing result row through one SQLite transaction. Existing
-unbound v1 results remain legacy and are not backfilled. Production
-construction/wiring, result-v2 construction, replay v2, API, and UI remain
-deferred.
+committed with the existing result row through one SQLite transaction. PR6 now
+constructs the exact production evidence and publication, commits the full
+completion bundle atomically, and reconstructs it on completed replay without
+live runtime or current-policy recalculation. Existing unbound v1 results
+remain legacy and are not backfilled. The Founder read API and UI remain
+deferred to PR7.
 
 ## Production Discovery
 
@@ -45,7 +46,9 @@ DiscoveryCommand + receipt
   -> ordered finalized Group IDs returned to the engine before analysis
   -> transient economics / ranking / recommendation
   -> sorted DiscoveryResult values retaining exact finalized Group IDs
-  -> DiscoveryExecutionResult persistence
+  -> exact-used per-Group screening evaluations
+  -> ranking publication from actual sorted output
+  -> atomic evaluations/publication/result/completion-binding persistence
 ```
 
 The command, observation, finalized Group, and execution-result boundaries use
@@ -53,16 +56,21 @@ the configured file-backed SQLite database. A successful zero-result is an
 explicit persisted completion, not an inference from missing Group rows.
 
 The persisted `DiscoveryExecutionResult` contains ordered finalized Group IDs,
-completion time, schema, and fingerprint. It does **not** preserve the complete
-ranked `OpportunityResult` or transient `DiscoveryResult` payload. The POST
-response and result/group GET APIs therefore expose authoritative completion and
-lineage, not a durable ranking snapshot.
+completion time, schema, and fingerprint. It does **not** pretend to preserve a
+runtime `OpportunityResult` or transient `DiscoveryResult`. Separate immutable
+screening evaluations, ranking publication, and binding preserve the historical
+screening snapshot. The existing POST and result/group GET APIs remain
+backward-compatible and do not yet expose the Founder ranking view.
 
 Candidate issuance is a separate, explicit durable API after Discovery
 completion and Founder selection. Discovery does not automatically issue a
 Candidate or create an Opportunity.
 
-Completed exact replay is restart-safe and does not call the live runtime.
+Completed screening-capable replay is restart-safe and loads the exact stored
+policy, reasons, provenance, evaluations, publication, result, and binding
+without the runtime, collectors, current policy, identity generation, or clock.
+Legacy unbound completed results remain readable with explicit
+`SCREENING_NOT_RECORDED_LEGACY` and no backfill.
 Incomplete execution is different: committed checkpoints can survive a later
 failure, but there is no durable phase, attempt, failure, retry, or resume state
 machine. Repeating an incomplete command reruns the current entry; that is not a
@@ -111,15 +119,42 @@ execution remains gated by the separate capital and Founder-authority chain.
 ## Current Known Gaps
 
 - durable Discovery attempt/failure/resume state;
-- production construction and write integration of the PR5 Discovery screening
-  completion bundle plus runtime-free v2 screening replay (ADR-0067 PR6);
+- Founder screening read API and Top-N UI (ADR-0067 PR7);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
   outcomes with capital authorities.
 
-These are follow-up scopes. PR2 correlation and PR3 semantic contracts do not
-persist screening. F1 durable attempt/recovery remains a separate track.
+These are follow-up scopes. F1 durable attempt/recovery remains a separate
+track; PR6 completion atomicity does not make incomplete execution resumable.
+
+## ADR-0067 PR6 Status
+
+- The authoritative production entry constructs PR4 evaluations by exact
+  `finalized_group_id` and constructs the publication from actual sorted output
+  without adding a tie-break key.
+- The PR5 composite repository is the only successful completion write boundary
+  for the production composition.
+- Completed screening replay restores exact historical screening without live
+  runtime or recalculation; legacy unbound results remain explicit legacy.
+- Used-input provenance preserves actual limitations, including unknown source
+  shipping plus a separate zero-fallback assumption and unsupported exact
+  currency-rate lineage where the runtime does not expose that fact.
+- PR7 API/UI, F1 recovery, Shadow Validation, and Scenario Simulation remain
+  unimplemented.
+
+## ADR-0067 PR6 Verification
+
+- PR6 plus PR2/PR3/PR4/PR5 screening contract and persistence tests:
+  **100 passed**
+- Production execution/replay and Discovery API impact tests:
+  **75 passed, 1 warning**
+- Candidate issuance regression: **51 passed, 1 warning**
+- Broader Discovery/Engine impact run: **370 passed, 3538 deselected,
+  1 warning**
+- Documentation knowledge/developer tests: **28 passed**
+- Changed Markdown strict UTF-8 and relative-link validation: passed (5 files)
+- Full regression: **3908 passed, 1 warning**
 
 ## ADR-0067 PR5 Status
 
@@ -132,8 +167,7 @@ persist screening. F1 durable attempt/recovery remains a separate track.
 - Exact retry, rollback/fault injection, corruption, restart, legacy
   coexistence, and same-database concurrency are covered at the persistence
   boundary.
-- Production Discovery and `app.web` are intentionally not wired to this
-  repository. PR6 remains required before production screening is durable.
+- PR6 subsequently wires Production Discovery and `app.web` to this repository.
 
 ## ADR-0067 PR5 Verification
 

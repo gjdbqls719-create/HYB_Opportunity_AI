@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR5 SQLite Persistence Foundation
+**Status Basis:** ADR-0067 PR6 Production Screening Integration
 
 ## Purpose
 
@@ -14,14 +14,15 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3898 passed, 1 warning**
-  (ADR-0067 PR5, 2026-08-27)
+- Last confirmed full regression: **3908 passed, 1 warning**
+  (ADR-0067 PR6, 2026-08-27)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
   finalized-Group correlation, PR3 policy/reason semantics, and PR4 immutable
-  evaluation/ranking/provenance Domain contracts plus PR5 atomic SQLite
-  persistence foundation implemented; PR6 and PR7 pending
+  evaluation/ranking/provenance Domain contracts, PR5 atomic SQLite persistence,
+  and PR6 production construction/integration/runtime-free replay implemented;
+  PR7 Founder read API/UI pending
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -53,24 +54,23 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - `DiscoveryExecutionResult` v1 persists ordered finalized Group IDs, not the
   full ranked `OpportunityResult`/`DiscoveryResult` payload. ADR-0067 now
   defines separate evaluation/ranking history and a publication-ID-only v2
-  completion reference. PR5 now provides append-only evaluation/publication
-  history and a narrow immutable result/publication binding in one composite
-  transaction, but production result-v2 construction, write integration,
-  replay v2, API, and UI remain unimplemented.
+  completion relation. PR5 provides append-only evaluation/publication history
+  and a narrow immutable result/publication binding in one composite
+  transaction. PR6 constructs and writes that bundle in production and restores
+  it exactly on completed replay; the PR7 Founder API/UI remains unimplemented.
 - Fresh production results now preserve the exact `finalized_group_id` assigned
-  before analysis through sorting and runtime mapping. The value remains
-  transient until later screening persistence work; title, URL, item inference,
-  and post-sort positional assumptions remain forbidden.
+  before analysis through sorting and runtime mapping. PR6 uses that value for
+  durable evaluation correlation; title, URL, item inference, and post-sort
+  positional assumptions remain forbidden.
 - Fresh production results also expose immutable v1 score, recommendation,
   production-safety, and three-key stable ranking descriptors plus structured
-  v1 reasons and explicit raw/effective recommendation semantics. These remain
-  transient contracts; no screening snapshot or ranking publication is yet
-  persisted.
+  v1 reasons and explicit raw/effective recommendation semantics. PR6 persists
+  these exact historical semantics without changing the ranking algorithm.
 - Immutable PR4 evaluation and ranking publication contracts compose those
   PR3 values with Discovery-only provenance, exact-used input manifests,
   canonical serialization, Group-membership and integrity fingerprints, and
-  explicit not-ranked semantics. PR5 can persist and reconstruct them exactly;
-  production does not yet construct or write them.
+  explicit not-ranked semantics. PR5 persists and reconstructs them exactly;
+  PR6 uses that boundary for authoritative production completion.
 - Completed Discovery replay is durable and runtime-free, but incomplete
   executions have no persisted phase/attempt/failure/resume workflow contract.
 - NAVER total search volume may include overseas searches. It is not Korea-only

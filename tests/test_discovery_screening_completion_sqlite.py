@@ -312,9 +312,11 @@ def test_existing_unbound_result_cannot_be_non_atomically_upgraded(tmp_path) -> 
     repository.close()
 
 
-def test_foundation_is_not_wired_into_live_web_composition() -> None:
+def test_composite_repository_is_wired_into_live_web_completion() -> None:
     import app.web
 
     source = inspect.getsource(app.web.get_authoritative_discovery_entry)
-    assert "SQLiteDiscoveryScreeningCompletionRepository" not in source
-    assert "DiscoveryScreeningCompletionBundle" not in source
+    assert "SQLiteDiscoveryScreeningCompletionRepository" in source
+    assert "ProductionScreeningIdentityProvider" in source
+    assert "screening_completion_repository=" in source
+    assert "screening_identity_provider=" in source

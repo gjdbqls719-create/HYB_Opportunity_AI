@@ -10,6 +10,8 @@ import pytest
 from app.application.discovery import (
     DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
+    DiscoveryScreeningCommitError,
+    DiscoveryScreeningConstructionError,
 )
 from app.application.discovery_persistence import (
     DiscoveryCommandCommitError,
@@ -20,10 +22,12 @@ from app.infrastructure.discovery import (
     ProductionCandidateDiscoveryReferenceProvider,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
+    ProductionScreeningIdentityProvider,
     SQLiteDiscoveryCommandRepository,
     SQLiteDiscoveryGroupRepository,
     SQLiteDiscoveryObservationRepository,
     SQLiteDiscoveryResultRepository,
+    SQLiteDiscoveryScreeningCompletionRepository,
 )
 from app.web import app, get_authoritative_discovery_entry
 import app.web as web
@@ -117,6 +121,14 @@ def test_production_composition_uses_existing_concrete_boundaries_and_closes_sco
     )
     assert isinstance(entry._group_repository, SQLiteDiscoveryGroupRepository)
     assert isinstance(entry._result_repository, SQLiteDiscoveryResultRepository)
+    assert isinstance(
+        entry._screening_completion_repository,
+        SQLiteDiscoveryScreeningCompletionRepository,
+    )
+    assert isinstance(
+        entry._screening_identity_provider,
+        ProductionScreeningIdentityProvider,
+    )
     assert isinstance(entry._runtime._currency_converter, CurrencyConverter)
     paths = {
         repository._connection.execute("PRAGMA database_list").fetchone()[2]
@@ -125,6 +137,7 @@ def test_production_composition_uses_existing_concrete_boundaries_and_closes_sco
             entry._observation_repository,
             entry._group_repository,
             entry._result_repository,
+            entry._screening_completion_repository,
         )
     }
     assert paths == {str(tmp_path / "production.db")}
@@ -136,6 +149,7 @@ def test_production_composition_uses_existing_concrete_boundaries_and_closes_sco
         entry._observation_repository,
         entry._group_repository,
         entry._result_repository,
+        entry._screening_completion_repository,
     ):
         with pytest.raises(sqlite3.ProgrammingError, match="closed"):
             repository._connection.execute("SELECT 1")
@@ -303,7 +317,9 @@ class FailingEntry:
         (DiscoveryReplayConflict("changed payload"), 409, "changed payload"),
         (DiscoveryRuntimeCorrelationError("correlation failed"), 409, "correlation failed"),
         (DiscoveryCompletionReplayError("missing lineage"), 409, "missing lineage"),
+        (DiscoveryScreeningConstructionError("invalid screening"), 409, "invalid screening"),
         (DiscoveryCommandCommitError("write failed"), 503, "write failed"),
+        (DiscoveryScreeningCommitError("screening write failed"), 503, "screening write failed"),
         (ExchangeRateNotFoundError("USD/ZZZ unsupported"), 422, "USD/ZZZ unsupported"),
         (ValueError("currency converter is required"), 422, "currency converter is required"),
         (ExchangeRateProviderError("provider down"), 502, "discovery currency conversion failed"),

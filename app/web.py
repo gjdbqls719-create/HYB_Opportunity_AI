@@ -197,6 +197,8 @@ from app.application.discovery import (
     FOUNDER_CONSERVATIVE_EBAY_US_V1,
     DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
+    DiscoveryScreeningConstructionError,
+    DiscoveryScreeningPersistenceError,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryResultReader,
     resolve_founder_discovery_policy_profile,
@@ -664,11 +666,13 @@ from app.infrastructure.discovery import (
     ProductionCandidateIdentityGenerator,
     ProductionFinalizedGroupIdentityProvider,
     ProductionObservationIdentityProvider,
+    ProductionScreeningIdentityProvider,
     SQLiteCandidateIssuanceRepository,
     SQLiteDiscoveryCommandRepository,
     SQLiteDiscoveryGroupRepository,
     SQLiteDiscoveryObservationRepository,
     SQLiteDiscoveryResultRepository,
+    SQLiteDiscoveryScreeningCompletionRepository,
 )
 from app.infrastructure.opportunity_validation import (
     ProductionCandidateOpportunityBindingIdentityGenerator,
@@ -4395,6 +4399,9 @@ def get_authoritative_discovery_entry():
         result_repository = resources.enter_context(
             SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
         )
+        screening_completion_repository = resources.enter_context(
+            SQLiteDiscoveryScreeningCompletionRepository(DEFAULT_DATABASE_PATH)
+        )
         session = requests.Session()
         resources.callback(session.close)
         currency_converter = CurrencyConverter(
@@ -4424,6 +4431,8 @@ def get_authoritative_discovery_entry():
             group_repository=group_repository,
             discovery_completion_clock=lambda: datetime.now(timezone.utc),
             result_repository=result_repository,
+            screening_completion_repository=screening_completion_repository,
+            screening_identity_provider=ProductionScreeningIdentityProvider(),
         )
     except sqlite3.Error as error:
         resources.close()
@@ -5847,13 +5856,14 @@ def execute_authoritative_discovery(
         MissingDiscoveryCommand,
         DiscoveryRuntimeCorrelationError,
         DiscoveryCompletionReplayError,
+        DiscoveryScreeningConstructionError,
     ) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ExchangeRateNotFoundError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    except DiscoveryPersistenceError as error:
+    except (DiscoveryPersistenceError, DiscoveryScreeningPersistenceError) as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except sqlite3.Error as error:
         raise HTTPException(
