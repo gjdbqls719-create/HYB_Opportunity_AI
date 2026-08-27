@@ -6,9 +6,13 @@ Accepted
 
 ## Implementation Status
 
-Architecture is **APPROVED FOR MVP FOUNDATION**. This ADR is the decision-only
-Shadow PR1. It adds no Shadow production contract, persistence, API, UI,
-scheduler, checkpoint, evaluator, or calibration behavior.
+Architecture is **APPROVED FOR MVP FOUNDATION**. Shadow PR1 completed this ADR.
+Shadow PR2 now implements immutable `ShadowValidationRegistration` and
+`ShadowBaselineSnapshot` Domain contracts inside the existing Opportunity
+boundary, including exact O2 and persisted screening lineage, explicit baseline
+source manifests, knowledge-cutoff/completeness/calibration-eligibility
+semantics, strict `SHADOW_MARKET_THESIS` evidence classification, canonical
+serialization, and content-verified SHA-256 fingerprints.
 
 ADR-0067 / Deep Audit F2 is **CLOSED**. Completed persisted screening now
 provides exact finalized-Group correlation, immutable evaluation and ranking
@@ -18,10 +22,11 @@ replay, and exact Founder reads. That authority makes a trustworthy Shadow
 baseline possible without reconstructing historical screening from the live
 engine.
 
-The next implementation cut is Shadow PR2: immutable
-`ShadowValidationRegistration` and `ShadowBaselineSnapshot` Domain contracts
-inside the existing Opportunity boundary. Until that PR is implemented and
-validated, no Shadow registration exists in production.
+Shadow PR2 adds no SQLite persistence, repository, Application registration,
+API/UI, checkpoint, scheduler, evaluator, or calibration statistics. Therefore
+no Shadow registration exists in production yet. The next implementation cut
+is Shadow PR3: append-only SQLite registration/baseline persistence and exact
+replay.
 
 ## Context
 

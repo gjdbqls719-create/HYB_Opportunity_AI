@@ -1,5 +1,25 @@
 # HYB Changelog
 
+## ADR-0068 Shadow PR2 - Immutable Registration and Baseline Contracts
+
+- Add immutable `ShadowValidationRegistration` and `ShadowBaselineSnapshot`
+  contracts inside the existing Opportunity boundary; create no Shadow bounded
+  domain, repository, persistence, Application use case, API, or UI.
+- Reuse `OpportunityIdentity`, the ADR-0060 new-to-market target identity, and
+  ADR-0067 ranked/not-ranked entry contracts while freezing exact
+  Candidate/O1/O2, finalized-Group, evaluation, publication, used-input, time,
+  schema, and fingerprint lineage.
+- Add explicit baseline source availability, truth scope, missing evidence,
+  completeness, calibration eligibility/reason, and knowledge-cutoff semantics.
+  Future evidence is rejected and mixed-geography evidence remains mixed.
+- Fix the evidence class to `SHADOW_MARKET_THESIS`; expose no units sold,
+  revenue, profit, conversion, Purchase Execution, or Actual Outcome fields.
+- Add deterministic UTC/enum/tuple/Decimal canonicalization, canonical JSON
+  serialization, and content-verified SHA-256 integrity fingerprints.
+- Verification: new Domain tests `17 passed`; focused upstream compatibility
+  `85 passed, 1 warning`; broader impact `412 passed, 1 warning`; full regression
+  `3942 passed, 1 warning`. Shadow PR3 persistence/replay readiness is **YES**.
+
 ## ADR-0068 - Shadow Opportunity Validation Authority
 
 - Approve Shadow Opportunity Validation as an Application-level capability over

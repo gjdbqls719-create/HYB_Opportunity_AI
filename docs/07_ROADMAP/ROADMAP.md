@@ -165,8 +165,8 @@ manual/on-demand로 시작하고 cadence는 versioned policy data다.
 작은 구현 순서는 다음과 같다.
 
 1. Shadow PR1: ADR + contract decision — 완료
-2. Shadow PR2: immutable registration/baseline Domain contracts
-3. Shadow PR3: append-only SQLite registration/baseline persistence + replay
+2. Shadow PR2: immutable registration/baseline Domain contracts — 완료
+3. Shadow PR3: append-only SQLite registration/baseline persistence + replay — 다음
 4. Shadow PR4: exact O2 + persisted screening 기반 manual Application/API 등록
 5. trustworthy baseline 수집 시작
 6. Shadow PR5: manual checkpoint publication contracts/persistence

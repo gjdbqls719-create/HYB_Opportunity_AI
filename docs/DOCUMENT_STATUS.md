@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
-**Last Updated:** 2026-08-27
-**Status Basis:** ADR-0068 Shadow Opportunity Validation Authority
+**Last Updated:** 2026-08-28
+**Status Basis:** ADR-0068 Shadow PR2 Immutable Domain Contracts
 
 ## Purpose
 
@@ -14,8 +14,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3925 passed, 1 warning**
-  (ADR-0067 PR7, 2026-08-27)
+- Last confirmed full regression: **3942 passed, 1 warning**
+  (Shadow PR2, 2026-08-28)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
@@ -23,10 +23,11 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   evaluation/ranking/provenance Domain contracts, PR5 atomic SQLite persistence,
   PR6 production construction/integration/runtime-free replay, and PR7 exact
   Founder screening read API/review-priority UI implemented; F2 closed
-- Shadow Opportunity Validation: ADR-0068 architecture approved for MVP
-  foundation; exact O2 + machine-screening-based registration, immutable
-  baseline, time/calibration, and Real/Shadow separation decided; production
-  contracts and implementation not started
+- Shadow Opportunity Validation: ADR-0068 architecture and Shadow PR2 immutable
+  Opportunity-owned registration/baseline Domain contracts complete; exact O2,
+  persisted screening, source-manifest, cutoff/completeness/eligibility,
+  evidence-class, canonical serialization, and fingerprint semantics implemented;
+  persistence and production registration not started
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -84,9 +85,9 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   never ranked from `finalized_group_ids` order.
 - Shadow is an approved future Application capability over Opportunity-owned
   thesis/evaluation semantics, not a new bounded domain or WatchList authority.
-  Its first MVP requires exact ADR-0060 O2 and exact persisted ADR-0067
-  screening lineage. No production registration, baseline, checkpoint,
-  persistence, API/UI, evaluator, scheduler, or calibration behavior exists.
+  PR2 provides immutable exact ADR-0060 O2 and persisted ADR-0067 screening
+  registration/baseline contracts. No persistence, production registration,
+  checkpoint, API/UI, evaluator, scheduler, or calibration statistics exist.
 - Shadow market-thesis evidence cannot populate Actual Outcome, Variance,
   actual/virtual revenue, or profit. Future Shadow and Real Outcome statistics
   require separate evidence classes and denominators.
