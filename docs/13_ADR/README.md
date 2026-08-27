@@ -74,3 +74,4 @@ Architecture Decision Record 관리 영역.
 - [ADR-0065: New-to-Market Target Downstream Sourcing and Economics Admission](ADR-0065-new-to-market-target-downstream-sourcing-economics-admission.md)
 - [ADR-0066: Capital Readiness Target-Bound Domestic Market Validation Source Admission](ADR-0066-capital-readiness-target-bound-domestic-market-validation-source-admission.md)
 - [ADR-0067: Persisted Discovery Screening Authority](ADR-0067-persisted-discovery-screening-authority.md)
+- [ADR-0068: Shadow Opportunity Validation Authority and Real/Shadow Separation](ADR-0068-shadow-opportunity-validation-authority.md)

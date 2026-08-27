@@ -1,20 +1,18 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR7 Founder Screening Read/Review Surface
+**Status Basis:** ADR-0068 Shadow Opportunity Validation Authority
 
 ## Current Snapshot
 
-- Current work: Persisted Discovery Screening F2 PR2 correlation, PR3
-  policy/reason semantics, PR4 immutable evidence contracts, PR5 atomic SQLite
-  persistence, PR6 production completion integration/runtime-free replay, and
-  PR7 Founder screening read API/review-priority UI implemented; F2 closed
+- Current work: Shadow Opportunity Validation architecture approved for MVP
+  foundation by ADR-0068; Shadow production implementation has not started
 - Last confirmed full regression: **3925 passed, 1 warning**
   (ADR-0067 PR7, 2026-08-27)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
-- This PR adds no new business authority and changes no production ranking
-  formula or stable-tie behavior
+- This docs-only PR adds no production contract, persistence, API, UI,
+  scheduler, evaluator, calibration behavior, or ranking-policy change
 
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking
@@ -33,6 +31,14 @@ completion bundle atomically, and reconstructs it on completed replay without
 live runtime or current-policy recalculation. Existing unbound v1 results
 remain legacy and are not backfilled. PR7 exposes the exact persisted
 ranking/evaluations to Founder review without changing downstream authority.
+
+ADR-0068 now accepts the Shadow Opportunity Validation architecture. The
+existing Opportunity boundary will own Shadow thesis/evaluation value semantics,
+an Application-level Shadow capability will orchestrate exact persisted
+authorities, and the first MVP will require exact O2 plus
+`MACHINE_SCREENING_BASED` ADR-0067 lineage. Shadow remains market-thesis evidence
+only and cannot create or stand in for Real Commerce, Actual Outcome, revenue,
+or profit. This decision does not implement Shadow production behavior.
 
 ## Production Discovery
 
@@ -144,19 +150,35 @@ track; PR6 completion atomicity does not make incomplete execution resumable.
 - Founder Home restores completed reviews with GETs only and uses the existing
   Candidate API for an explicit selected-Group handoff. No Candidate is issued
   by a read and no O1/O2 or Capital state is automatic.
-- ADR-0067 / Deep Audit F2 is **CLOSED**. F1 Recovery, Shadow Validation,
-  Scenario Simulation, automatic Candidate issuance, and autonomous purchase
-  remain deferred.
+- ADR-0067 / Deep Audit F2 is **CLOSED**. F1 Recovery, Shadow production
+  implementation, Scenario Simulation, automatic Candidate issuance, and
+  autonomous purchase remain deferred.
 
 ## Shadow MVP Readiness Review
 
-`SHADOW_MVP_READINESS = YES` to begin a separately approved bounded Shadow MVP
-track. F2 now supplies durable historical screening decisions, stable evaluation
-and publication IDs, structured reasons, policy/input/source manifests,
-evaluation/ranking times, and exact Discovery-to-Candidate-to-O1/O2 lineage.
-There is no remaining F2 data blocker. Shadow still requires its own explicit O2
-registration contract and strict Real-versus-Shadow state separation; this PR
-does not implement either authority.
+`SHADOW_ARCHITECTURE = APPROVED_FOR_MVP_FOUNDATION` and
+`SHADOW_PR2_READINESS = YES` under ADR-0068. F2 supplies durable historical
+screening decisions, stable evaluation/publication IDs, structured reasons,
+policy/input/source manifests, evaluation/ranking times, and exact
+Discovery-to-Candidate-to-O1/O2 lineage. Shadow PR2 will define immutable
+Opportunity-owned registration/baseline contracts for exact O2 and
+`MACHINE_SCREENING_BASED` authority only.
+
+Shadow implementation is **NOT COMPLETE**. No registration, baseline,
+checkpoint, evaluator, persistence, API, UI, scheduler, or calibration engine
+exists yet. Real/Shadow evidence remains strictly separate, WatchList is not
+Shadow authority, F1 Recovery remains an independent P1, and Scenario
+Simulation remains separate.
+
+## ADR-0068 Verification
+
+- Changed Markdown strict UTF-8 validation: passed (7 files)
+- Changed Markdown relative-link validation: passed
+- ADR required-section/decision-term contract check: passed (18 terms)
+- Documentation knowledge/developer tests: **24 passed**
+- `git diff --check`: passed
+- Full regression was not rerun under the document-only PR rule; the last
+  confirmed baseline remains **3925 passed, 1 warning**
 
 ## ADR-0067 PR7 Verification
 

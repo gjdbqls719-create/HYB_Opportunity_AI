@@ -500,17 +500,24 @@ Opportunity가 좋아도 Founder의 전체 validation capital 대비 초기 expo
 생활비와 비상자금에서 분리된 risk capital을 전제로 한 planning assumption이며,
 실제 상품, MOQ, 비용과 Capital Safety 분석에 따라 달라질 수 있다.
 
-## 16. Shadow Mode and Paper Portfolio — STRONG CANDIDATES
+## 16. Shadow Validation — APPROVED MVP FOUNDATION / Paper Portfolio — STRONG CANDIDATE
 
 Shadow Mode는 실제 자본 투입 전에 HYB가 실제처럼 Opportunity를 추천하고,
 추천 당시 facts, prediction, ranking을 immutable하게 보존한 뒤
 recommendation 유지, downgrade, reject, prediction error를 추적하는 후보 기능이다.
 
+ADR-0068은 Shadow를 exact O2와 persisted machine screening에 묶인
+market-thesis validation으로 승인했다. 기존 Opportunity boundary가 thesis와
+evaluation 의미를 소유하며 WatchList나 새 bounded domain이 소유하지 않는다.
+Shadow는 실제 판매, 매출, 이익 또는 Actual Outcome을 만들지 않는다. 생산
+구현은 아직 시작하지 않았다.
+
 Paper Portfolio는 가상 validation capital을 Opportunity별로 배분하여
 position size, reserve, concentration, capital exposure를 함께 검증하는 후보 기능이다.
 예시 자본 1,500,000 KRW는 개념 설명이며 확정 정책 값이 아니다.
 
-두 기능의 mandatory 여부, architecture, portfolio algorithm은 확정하지 않는다.
+Shadow의 mandatory gate 여부는 확정하지 않는다. Paper Portfolio의 mandatory
+여부, architecture, allocation algorithm도 확정하지 않는다.
 
 ## 17. Experience Data Direction — ACTIVE HYPOTHESIS
 

@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR7 Founder Screening Read/Review Surface
+**Status Basis:** ADR-0068 Shadow Opportunity Validation Authority
 
 ## Purpose
 
@@ -23,6 +23,10 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   evaluation/ranking/provenance Domain contracts, PR5 atomic SQLite persistence,
   PR6 production construction/integration/runtime-free replay, and PR7 exact
   Founder screening read API/review-priority UI implemented; F2 closed
+- Shadow Opportunity Validation: ADR-0068 architecture approved for MVP
+  foundation; exact O2 + machine-screening-based registration, immutable
+  baseline, time/calibration, and Real/Shadow separation decided; production
+  contracts and implementation not started
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -78,6 +82,14 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   not-ranked semantics, expose safe review-priority terminology and provenance,
   and leave Candidate/O1/O2/Capital authority separate. Legacy completions are
   never ranked from `finalized_group_ids` order.
+- Shadow is an approved future Application capability over Opportunity-owned
+  thesis/evaluation semantics, not a new bounded domain or WatchList authority.
+  Its first MVP requires exact ADR-0060 O2 and exact persisted ADR-0067
+  screening lineage. No production registration, baseline, checkpoint,
+  persistence, API/UI, evaluator, scheduler, or calibration behavior exists.
+- Shadow market-thesis evidence cannot populate Actual Outcome, Variance,
+  actual/virtual revenue, or profit. Future Shadow and Real Outcome statistics
+  require separate evidence classes and denominators.
 - NAVER total search volume may include overseas searches. It is not Korea-only
   demand evidence and cannot be labeled as such in a genuine Demand v2 artifact.
 - Older architecture/alignment and Sprint reports remain historical snapshots;

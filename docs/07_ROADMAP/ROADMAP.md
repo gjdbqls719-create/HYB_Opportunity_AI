@@ -109,8 +109,10 @@ screening authority를 기존 Discovery에 두고 evaluation과 ranking publicat
 5. PR6: production completion integration과 runtime-free v2 replay
 6. PR7: Founder screening read API와 Top-N UI
 
-PR7 후 Shadow Validation MVP 시작 readiness를 다시 평가한다. F1 durable
-attempt/recovery는 별도 track이며 F2와 하나의 대형 PR로 합치지 않는다.
+PR7과 F2 closure 후 [ADR-0068](../13_ADR/ADR-0068-shadow-opportunity-validation-authority.md)이
+Shadow Opportunity Validation architecture를 MVP foundation으로 승인했다.
+F1 durable attempt/recovery는 계속 별도 track이며 Shadow와 하나의 대형 PR로
+합치지 않는다.
 
 ### CR-1B — Capital Safety
 
@@ -148,11 +150,32 @@ Discovery Track과 병렬로 실제 손실 방지 경계를 완성한다.
 
 ### CR-3 — Shadow Validation
 
-Shadow Mode는 실제 돈을 투입하기 전 추천 품질을 검증하는 strong gate candidate다. 다만 별도 architecture decision 전에는 mandatory gate로 확정하지 않으며 CR-1보다 앞서 구현하지 않는다.
+ADR-0068은 Shadow를 새 bounded domain이나 WatchList 기능으로 만들지 않고,
+기존 Opportunity boundary가 thesis/evaluation value semantics를 소유하도록
+결정했다. Shadow는 실제 출시 없이 recommendation-at-time-T와 immutable
+baseline을 보존하고, elapsed-time future market evidence로 thesis가
+`MAINTAINED`, `WEAKENED`, `INVALIDATED`, `INCONCLUSIVE`인지 평가한다. 가상
+판매·매출·이익이나 Actual Outcome은 만들지 않는다.
 
-검토 범위는 recommendation-at-time-T, immutable prediction snapshot, later market outcome, downgrade/maintain/reject, revision history, no-real-money disposition이다.
+첫 authoritative MVP는 exact ADR-0060 O2와 exact persisted ADR-0067 screening
+evaluation/publication에 묶인 `MACHINE_SCREENING_BASED` 등록만 허용한다.
+Candidate-only 및 `FOUNDER_DECLARED` 등록은 MVP에서 제외한다. Checkpoint는
+manual/on-demand로 시작하고 cadence는 versioned policy data다.
 
-Paper Portfolio도 자동으로 mandatory로 확정하지 않는다. Capital Gate 정책 검증에 필요하다는 근거가 생기면 CR-3 또는 CR-3B에서 결정한다.
+작은 구현 순서는 다음과 같다.
+
+1. Shadow PR1: ADR + contract decision — 완료
+2. Shadow PR2: immutable registration/baseline Domain contracts
+3. Shadow PR3: append-only SQLite registration/baseline persistence + replay
+4. Shadow PR4: exact O2 + persisted screening 기반 manual Application/API 등록
+5. trustworthy baseline 수집 시작
+6. Shadow PR5: manual checkpoint publication contracts/persistence
+7. Shadow PR6: deterministic thesis evaluation
+8. Shadow PR7: Founder Shadow Portfolio/read surface
+
+Scheduler, alerts, generic workflow, automatic calibration/ML은 선행조건이
+아니다. Shadow와 Real Outcome denominator는 섞지 않는다. Paper Portfolio도
+자동으로 mandatory로 확정하지 않으며 별도 근거와 결정을 요구한다.
 
 ### CR-4 — Actual Outcome Readiness
 

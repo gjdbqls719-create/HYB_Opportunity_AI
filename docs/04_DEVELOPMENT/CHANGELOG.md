@@ -1,5 +1,33 @@
 # HYB Changelog
 
+## ADR-0068 - Shadow Opportunity Validation Authority
+
+- Approve Shadow Opportunity Validation as an Application-level capability over
+  existing Opportunity-owned thesis/evaluation semantics, not a new bounded
+  domain, WatchList feature, or generic workflow engine.
+- Require exact ADR-0060 O2 target binding and exact persisted ADR-0067
+  evaluation/publication lineage for the first authoritative
+  `MACHINE_SCREENING_BASED` MVP; defer Candidate-only and `FOUNDER_DECLARED`
+  registration.
+- Define immutable registration/baseline direction, exact source-manifest and
+  knowledge-cutoff semantics, explicit future calibration eligibility, manual
+  versioned checkpoint cadence, and semantically comparable re-observation.
+- Separate Shadow market-thesis evidence from Real Commerce, Actual Outcome,
+  sold quantity, revenue, and realized/virtual profit. Preserve separate
+  denominators and forbid automatic scoring, policy, threshold, or ML updates.
+- Keep Competition, Demand, Sourcing, Economics, Change, WatchList, F1 Recovery,
+  and Scenario Simulation within their existing ownership boundaries.
+- Record Shadow PR2-PR7 sequence and approve PR2 readiness while making clear
+  that no Shadow production contract, persistence, API, UI, scheduler,
+  checkpoint, evaluator, or calibration behavior exists yet.
+- Sync the current Commerce strategy: Shadow architecture is approved while its
+  mandatory-gate status and the separate Paper Portfolio design remain open.
+- Verification: changed Markdown strict UTF-8 validation passed for 7 files;
+  changed Markdown relative-link validation and the 18-term ADR contract check
+  passed; documentation knowledge/developer tests `24 passed`; `git diff
+  --check` passed. Full regression was not rerun under the document-only PR
+  rule, so the last confirmed baseline remains `3925 passed, 1 warning`.
+
 ## ADR-0067 PR7 - Persisted Discovery Screening Founder Read Surface
 
 - Add one read-only Application capability that reconstructs Founder review
