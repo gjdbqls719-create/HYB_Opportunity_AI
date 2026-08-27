@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR2 Immutable Domain Contracts
+**Status Basis:** ADR-0068 Shadow PR3 SQLite Persistence and Exact Replay
 
 ## Purpose
 
@@ -14,8 +14,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3942 passed, 1 warning**
-  (Shadow PR2, 2026-08-28)
+- Last confirmed full regression: **3974 passed, 1 warning**
+  (Shadow PR3, 2026-08-28)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
@@ -23,11 +23,13 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   evaluation/ranking/provenance Domain contracts, PR5 atomic SQLite persistence,
   PR6 production construction/integration/runtime-free replay, and PR7 exact
   Founder screening read API/review-priority UI implemented; F2 closed
-- Shadow Opportunity Validation: ADR-0068 architecture and Shadow PR2 immutable
-  Opportunity-owned registration/baseline Domain contracts complete; exact O2,
+- Shadow Opportunity Validation: ADR-0068 architecture, Shadow PR2 immutable
+  Opportunity-owned registration/baseline Domain contracts, and Shadow PR3
+  append-only atomic SQLite persistence/exact replay complete. Exact O2,
   persisted screening, source-manifest, cutoff/completeness/eligibility,
-  evidence-class, canonical serialization, and fingerprint semantics implemented;
-  persistence and production registration not started
+  evidence-class, canonical reconstruction, fingerprint, corruption, restart,
+  fault rollback, and concurrency semantics are covered. Manual Application/API
+  registration remains Shadow PR4 and is not implemented.
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling

@@ -1,5 +1,31 @@
 # HYB Changelog
 
+## ADR-0068 Shadow PR3 - Append-Only Registration/Baseline Persistence
+
+- Add the narrow `PersistShadowRegistrationCommand`, immutable receipt/result,
+  and repository port without adding a manual registration use case or API.
+- Add strict Shadow-specific canonical deserialization and one SQLite repository
+  owning Registration + Baseline + receipt in a single `BEGIN IMMEDIATE`
+  transaction. No ID, timestamp, current policy, or live upstream fact is
+  generated or loaded by persistence/replay.
+- Add append-only Registration, Baseline, and receipt tables with exact owned
+  composite foreign keys, authoritative-ID uniqueness, payload and Domain
+  fingerprints, schema versions, useful O2/screening identity columns, and
+  UPDATE/DELETE rejection. Preserve upstream IDs/fingerprints without fragile
+  cross-domain foreign keys.
+- Add exact retry, exact-bundle command aliasing, command/identity conflict,
+  corruption/orphan detection, restart reconstruction, six transaction fault
+  seams, commit-failure rollback, prior-history preservation, and identical,
+  conflicting, and unrelated same-database concurrency coverage.
+- Keep Shadow storage strictly `SHADOW_MARKET_THESIS`; add no Actual Outcome,
+  sales, revenue, profit, checkpoint, scheduler, evaluator, Portfolio, Scenario,
+  or F1 state.
+- Verification: focused PR2+PR3 `49 passed`; screening compatibility `113
+  passed, 1 warning`; Candidate/O1 `51 passed, 1 warning`; Candidate/O2 and O2
+  subsets `44 passed, 1 warning`, `16 passed`, and `13 passed, 1 warning`;
+  broader selected impact `1026 passed, 2948 deselected, 1 warning`; full
+  regression `3974 passed, 1 warning`. Shadow PR4 readiness is **YES**.
+
 ## ADR-0068 Shadow PR2 - Immutable Registration and Baseline Contracts
 
 - Add immutable `ShadowValidationRegistration` and `ShadowBaselineSnapshot`

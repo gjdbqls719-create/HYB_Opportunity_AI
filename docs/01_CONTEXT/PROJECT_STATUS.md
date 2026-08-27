@@ -1,19 +1,20 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR2 Immutable Domain Contracts
+**Status Basis:** ADR-0068 Shadow PR3 SQLite Persistence and Exact Replay
 
 ## Current Snapshot
 
-- Current work: Shadow PR2 immutable Opportunity-owned registration/baseline
-  Domain contracts complete; Shadow persistence and production registration
-  remain unimplemented
-- Last confirmed full regression: **3942 passed, 1 warning**
-  (Shadow PR2, 2026-08-28)
+- Current work: Shadow PR3 append-only atomic SQLite registration/baseline
+  persistence and exact replay complete; manual production registration remains
+  unimplemented
+- Last confirmed full regression: **3974 passed, 1 warning**
+  (Shadow PR3, 2026-08-28)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
-- Shadow PR2 adds Domain contracts only: no persistence, API, UI, scheduler,
-  evaluator, calibration statistics, or ranking-policy change
+- Shadow PR3 adds persistence only: no manual registration use case, API, UI,
+  checkpoint, scheduler, evaluator, Portfolio, calibration statistics, or
+  ranking-policy change
 
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking
@@ -33,12 +34,15 @@ live runtime or current-policy recalculation. Existing unbound v1 results
 remain legacy and are not backfilled. PR7 exposes the exact persisted
 ranking/evaluations to Founder review without changing downstream authority.
 
-ADR-0068 accepts the Shadow Opportunity Validation architecture. Shadow PR2 now
-implements immutable Opportunity-owned registration, exact O2/screening lineage,
-baseline source-manifest, time/completeness/eligibility, evidence-class, canonical
-serialization, and fingerprint contracts. Shadow remains market-thesis evidence
-only and cannot create or stand in for Real Commerce, Actual Outcome, revenue,
-or profit. Persistence and production registration remain deferred.
+ADR-0068 accepts the Shadow Opportunity Validation architecture. Shadow PR2
+implements immutable Opportunity-owned registration, exact O2/screening
+lineage, baseline source-manifest, time/completeness/eligibility,
+evidence-class, canonical serialization, and fingerprint contracts. Shadow PR3
+now commits Registration + Baseline + receipt atomically in append-only SQLite,
+strictly reconstructs exact history, and fails closed on conflicts/corruption.
+Shadow remains market-thesis evidence only and cannot create or stand in for
+Real Commerce, Actual Outcome, revenue, or profit. Manual production
+registration remains deferred to Shadow PR4.
 
 ## Production Discovery
 
@@ -156,17 +160,31 @@ track; PR6 completion atomicity does not make incomplete execution resumable.
 
 ## Shadow MVP Readiness Review
 
-`SHADOW_PR2 = COMPLETE`. The immutable contracts require exact ADR-0060 O2,
+`SHADOW_PR3 = COMPLETE`. The immutable contracts require exact ADR-0060 O2,
 Candidate/O1/finalized-Group lineage, and exact persisted ADR-0067 evaluation,
 publication, used-input, timestamps, and fingerprints. Baseline sources are
 explicitly selected, cutoff-safe, availability-aware, and structurally separate
-from Actual Outcome and Real Commerce.
+from Actual Outcome and Real Commerce. PR3 preserves that exact bundle in one
+append-only `BEGIN IMMEDIATE` transaction with strict reads, exact receipt
+replay, rollback, restart, and same-database concurrency behavior.
 
-Shadow production is **NOT COMPLETE**. No registration/baseline persistence,
-manual Application/API registration, checkpoint, evaluator, Portfolio UI,
-scheduler, or calibration statistics exist yet. Real/Shadow evidence remains
-strictly separate. The next cut is Shadow PR3 append-only SQLite persistence and
-replay; WatchList, F1 Recovery, and Scenario remain separate.
+Shadow production is **NOT COMPLETE**. No manual Application/API registration,
+checkpoint, evaluator, Portfolio UI, scheduler, or calibration statistics exist
+yet. Real/Shadow evidence remains strictly separate. The next cut is Shadow PR4
+manual exact-O2 + persisted-screening registration; WatchList, F1 Recovery, and
+Scenario remain separate.
+
+## Shadow PR3 Verification
+
+- Focused Shadow PR2+PR3: **49 passed**
+- Persisted screening compatibility: **113 passed, 1 warning**
+- Candidate/O1 compatibility: **51 passed, 1 warning**
+- Candidate promotion/O2 admission: **44 passed, 1 warning**
+- O2 SQLite and Domain foundation: **16 passed** and **13 passed, 1 warning**
+- Broader Opportunity/Discovery/Candidate/O2/Shadow impact: **1026 passed,
+  2948 deselected, 1 warning**
+- Full regression: **3974 passed, 1 warning**
+- No ADR deviation; Shadow PR4 readiness: **YES**
 
 ## Shadow PR2 Verification
 

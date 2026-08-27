@@ -10,6 +10,45 @@ Recommendation History
 
 Product 모델 중복 문제는 통합 대상으로 관리한다.
 
+## ADR-0068 Shadow Registration/Baseline Persistence
+
+Shadow PR3 adds three Opportunity-owned, append-only SQLite authorities:
+
+- `shadow_validation_registration_history` stores one canonical PR2
+  `ShadowValidationRegistration` per `shadow_validation_id`, with unique
+  `baseline_snapshot_id`, exact O2/screening query identities, schema version,
+  Domain integrity fingerprint, and a SHA-256 fingerprint of the canonical
+  payload.
+- `shadow_baseline_snapshot_history` stores one canonical
+  `ShadowBaselineSnapshot` per `baseline_snapshot_id`, with unique
+  `shadow_validation_id`, source-manifest fingerprint, cutoff/creation times,
+  schema version, Domain integrity fingerprint, and canonical-payload
+  fingerprint.
+- `shadow_registration_receipts` stores command fingerprint, exact
+  Registration/Baseline IDs and fingerprints, explicit commit time, and receipt
+  schema version. Multiple command IDs may identify the same exact immutable
+  bundle, but a changed payload for an existing command or authoritative ID is
+  a conflict.
+
+The Registration row has a unique composite
+`(shadow_validation_id, baseline_snapshot_id)` authority key. Baseline and
+receipt rows use composite foreign keys to that exact pair; receipts also bind
+the inverse Baseline pair. All three tables reject UPDATE and DELETE with
+triggers. One repository-owned connection executes replay/conflict validation,
+Registration insert, Baseline insert, receipt insert, and commit inside one
+`BEGIN IMMEDIATE` transaction, so any insert, injected fault, or commit failure
+rolls back the complete boundary.
+
+Reads are exact-ID only and strictly reconstruct the PR2 contracts from stored
+canonical payloads. They fail closed on malformed JSON/datetime/enums, schema or
+payload fingerprint changes, query-column drift, O2/screening mismatch,
+Registration/Baseline mismatch, corrupt receipts, and orphans. Replay does not
+read current O2, screening, policy, marketplace, identity generation, or clock.
+No cross-domain upstream foreign key is added because those authorities are not
+guaranteed to share every repository database; their exact IDs and fingerprints
+remain immutable in the payload for PR4 resolution. There is no mutable current
+Shadow table, checkpoint/scheduler state, or Actual Outcome/commerce field.
+
 ## Decision Composition Finalization
 
 Production Decision inputs are finalized after admission and authoritative market assessment. `decision_composition_history` is append-only and stores exact source IDs, five evidence metadata values, supported schema/policy versions, and a provenance fingerprint. `decision_composition_current` is an atomic latest projection; Dashboard GET reads it without writes and reconstructs every referenced source from immutable history.

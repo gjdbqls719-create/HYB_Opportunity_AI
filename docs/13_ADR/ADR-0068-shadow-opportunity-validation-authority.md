@@ -7,12 +7,21 @@ Accepted
 ## Implementation Status
 
 Architecture is **APPROVED FOR MVP FOUNDATION**. Shadow PR1 completed this ADR.
-Shadow PR2 now implements immutable `ShadowValidationRegistration` and
+Shadow PR2 implements immutable `ShadowValidationRegistration` and
 `ShadowBaselineSnapshot` Domain contracts inside the existing Opportunity
 boundary, including exact O2 and persisted screening lineage, explicit baseline
 source manifests, knowledge-cutoff/completeness/calibration-eligibility
 semantics, strict `SHADOW_MARKET_THESIS` evidence classification, canonical
 serialization, and content-verified SHA-256 fingerprints.
+
+Shadow PR3 now persists each Registration + Baseline as one append-only SQLite
+boundary. A single owned connection and `BEGIN IMMEDIATE` transaction commit
+the immutable registration history, baseline history, and replay receipt
+together. Strict canonical reconstruction validates payload, schema, identity,
+O2/screening lineage, Registration/Baseline binding, and fingerprints. Exact
+command retry returns the original bundle without live-source reconstruction;
+conflicting command or authoritative IDs fail closed. UPDATE and DELETE are
+rejected for all three tables.
 
 ADR-0067 / Deep Audit F2 is **CLOSED**. Completed persisted screening now
 provides exact finalized-Group correlation, immutable evaluation and ranking
@@ -22,11 +31,11 @@ replay, and exact Founder reads. That authority makes a trustworthy Shadow
 baseline possible without reconstructing historical screening from the live
 engine.
 
-Shadow PR2 adds no SQLite persistence, repository, Application registration,
-API/UI, checkpoint, scheduler, evaluator, or calibration statistics. Therefore
-no Shadow registration exists in production yet. The next implementation cut
-is Shadow PR3: append-only SQLite registration/baseline persistence and exact
-replay.
+Shadow PR3 adds no manual Application registration workflow, API/UI, checkpoint,
+scheduler, evaluator, Portfolio, or calibration statistics. Therefore no Shadow
+registration entry point is wired into production yet. The next implementation
+cut is Shadow PR4: manual Application/API registration against exact O2 and
+persisted screening authorities.
 
 ## Context
 
@@ -493,12 +502,20 @@ documentation, and remain independently reviewable.
   inventory, or Scenario Simulation; and
 - F1 durable Discovery recovery.
 
-## Shadow PR2 Readiness
+## Shadow PR3 Status and PR4 Readiness
 
-With this ADR's documentation validation green, Shadow PR2 readiness is
-**YES**. PR2 must remain Domain-contract-only, require exact O2 and
-`MACHINE_SCREENING_BASED` lineage, and must not pull persistence, API,
-checkpoint execution, evaluation, WatchList, or scheduling into the same cut.
+Shadow PR3 persistence/replay is **COMPLETE** with no ADR deviation. It keeps
+the exact O2 and persisted-screening identifiers/fingerprints in the canonical
+authoritative payload and uses foreign keys only for the owned
+Registration/Baseline/receipt relation; it does not add fragile cross-domain
+foreign keys or reconstruct current upstream state. Focused Shadow tests passed
+`49`; broader Opportunity/Discovery/Candidate/O2/Shadow impact passed `1026`
+with one warning; full regression passed `3974` with one warning.
+
+Shadow PR4 readiness is **YES**. PR4 remains the manual exact-O2 + persisted-
+screening Application/API registration cut. Checkpoints, evaluator, Portfolio,
+WatchList, Scenario Simulation, F1 Recovery, and all Real Commerce/Actual
+Outcome behavior remain outside that cut.
 
 ## Prior Architecture Design Alignment
 
