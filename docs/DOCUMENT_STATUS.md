@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR6 Production Screening Integration
+**Status Basis:** ADR-0067 PR7 Founder Screening Read/Review Surface
 
 ## Purpose
 
@@ -14,15 +14,15 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3908 passed, 1 warning**
-  (ADR-0067 PR6, 2026-08-27)
+- Last confirmed full regression: **3925 passed, 1 warning**
+  (ADR-0067 PR7, 2026-08-27)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
   finalized-Group correlation, PR3 policy/reason semantics, and PR4 immutable
   evaluation/ranking/provenance Domain contracts, PR5 atomic SQLite persistence,
-  and PR6 production construction/integration/runtime-free replay implemented;
-  PR7 Founder read API/UI pending
+  PR6 production construction/integration/runtime-free replay, and PR7 exact
+  Founder screening read API/review-priority UI implemented; F2 closed
 - Competition v2, Demand v2, and Domestic Market Validation (DMV) v2: implemented
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
@@ -57,7 +57,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   completion relation. PR5 provides append-only evaluation/publication history
   and a narrow immutable result/publication binding in one composite
   transaction. PR6 constructs and writes that bundle in production and restores
-  it exactly on completed replay; the PR7 Founder API/UI remains unimplemented.
+  it exactly on completed replay; PR7 exposes it through one exact Application
+  read capability, public GET, and Founder review UI without recomputation.
 - Fresh production results now preserve the exact `finalized_group_id` assigned
   before analysis through sorting and runtime mapping. PR6 uses that value for
   durable evaluation correlation; title, URL, item inference, and post-sort
@@ -73,6 +74,10 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
   PR6 uses that boundary for authoritative production completion.
 - Completed Discovery replay is durable and runtime-free, but incomplete
   executions have no persisted phase/attempt/failure/resume workflow contract.
+- Founder screening reads preserve exact publication rank and explicit
+  not-ranked semantics, expose safe review-priority terminology and provenance,
+  and leave Candidate/O1/O2/Capital authority separate. Legacy completions are
+  never ranked from `finalized_group_ids` order.
 - NAVER total search volume may include overseas searches. It is not Korea-only
   demand evidence and cannot be labeled as such in a genuine Demand v2 artifact.
 - Older architecture/alignment and Sprint reports remain historical snapshots;

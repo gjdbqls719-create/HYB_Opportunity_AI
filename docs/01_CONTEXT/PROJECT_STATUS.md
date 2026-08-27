@@ -1,16 +1,16 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-27
-**Status Basis:** ADR-0067 PR6 Production Screening Integration
+**Status Basis:** ADR-0067 PR7 Founder Screening Read/Review Surface
 
 ## Current Snapshot
 
 - Current work: Persisted Discovery Screening F2 PR2 correlation, PR3
   policy/reason semantics, PR4 immutable evidence contracts, PR5 atomic SQLite
-  persistence, and PR6 production completion integration/runtime-free replay
-  implemented; PR7 Founder screening read API and Top-N UI are next
-- Last confirmed full regression: **3908 passed, 1 warning**
-  (ADR-0067 PR6, 2026-08-27)
+  persistence, PR6 production completion integration/runtime-free replay, and
+  PR7 Founder screening read API/review-priority UI implemented; F2 closed
+- Last confirmed full regression: **3925 passed, 1 warning**
+  (ADR-0067 PR7, 2026-08-27)
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
 - This PR adds no new business authority and changes no production ranking
@@ -31,8 +31,8 @@ committed with the existing result row through one SQLite transaction. PR6 now
 constructs the exact production evidence and publication, commits the full
 completion bundle atomically, and reconstructs it on completed replay without
 live runtime or current-policy recalculation. Existing unbound v1 results
-remain legacy and are not backfilled. The Founder read API and UI remain
-deferred to PR7.
+remain legacy and are not backfilled. PR7 exposes the exact persisted
+ranking/evaluations to Founder review without changing downstream authority.
 
 ## Production Discovery
 
@@ -60,11 +60,13 @@ completion time, schema, and fingerprint. It does **not** pretend to preserve a
 runtime `OpportunityResult` or transient `DiscoveryResult`. Separate immutable
 screening evaluations, ranking publication, and binding preserve the historical
 screening snapshot. The existing POST and result/group GET APIs remain
-backward-compatible and do not yet expose the Founder ranking view.
+backward-compatible; the separate exact screening-ranking GET exposes the
+Founder view.
 
 Candidate issuance is a separate, explicit durable API after Discovery
 completion and Founder selection. Discovery does not automatically issue a
-Candidate or create an Opportunity.
+Candidate or create an Opportunity. Founder Home may explicitly select any
+eligible ranked or not-ranked Group through the existing Candidate API.
 
 Completed screening-capable replay is restart-safe and loads the exact stored
 policy, reasons, provenance, evaluations, publication, result, and binding
@@ -119,7 +121,6 @@ execution remains gated by the separate capital and Founder-authority chain.
 ## Current Known Gaps
 
 - durable Discovery attempt/failure/resume state;
-- Founder screening read API and Top-N UI (ADR-0067 PR7);
 - automated provider collection for Competition/Demand v2;
 - evidence-qualified Korea-only Market Intent for the current genuine run;
 - Decision Composition v2 or any change that reconciles legacy screening
@@ -127,6 +128,46 @@ execution remains gated by the separate capital and Founder-authority chain.
 
 These are follow-up scopes. F1 durable attempt/recovery remains a separate
 track; PR6 completion atomicity does not make incomplete execution resumable.
+
+## ADR-0067 PR7 Status
+
+- `PersistedDiscoveryScreeningReader` is the single read capability behind the
+  exact screening-ranking API and Founder review surface.
+- The read follows completion binding -> ranking publication -> evaluation
+  snapshots and preserves persisted rank/not-ranked order, policies, reasons,
+  economics, provenance, timestamps, and fingerprints without recomputation.
+- Founder terminology is High/Medium/Low Review Priority. Raw/effective
+  BUY-family values remain explicitly labelled screening-engine audit detail.
+- Legacy completions return `SCREENING_NOT_RECORDED_LEGACY`; missing execution
+  returns 404 and corrupt/unsupported screening history returns 409 without
+  live fallback.
+- Founder Home restores completed reviews with GETs only and uses the existing
+  Candidate API for an explicit selected-Group handoff. No Candidate is issued
+  by a read and no O1/O2 or Capital state is automatic.
+- ADR-0067 / Deep Audit F2 is **CLOSED**. F1 Recovery, Shadow Validation,
+  Scenario Simulation, automatic Candidate issuance, and autonomous purchase
+  remain deferred.
+
+## Shadow MVP Readiness Review
+
+`SHADOW_MVP_READINESS = YES` to begin a separately approved bounded Shadow MVP
+track. F2 now supplies durable historical screening decisions, stable evaluation
+and publication IDs, structured reasons, policy/input/source manifests,
+evaluation/ranking times, and exact Discovery-to-Candidate-to-O1/O2 lineage.
+There is no remaining F2 data blocker. Shadow still requires its own explicit O2
+registration contract and strict Real-versus-Shadow state separation; this PR
+does not implement either authority.
+
+## ADR-0067 PR7 Verification
+
+- New/changed Application, API, Founder UI, and Candidate handoff focused run:
+  **60 passed, 1 warning**
+- PR2-PR7 screening coverage: **113 passed, 1 warning**
+- Candidate, Founder Home, Discovery API/replay, OpenAPI, and web impact:
+  **135 passed, 1 warning**
+- Broader Discovery/Engine impact: **558 passed, 1 warning**
+- Documentation knowledge/developer tests: **24 passed**
+- Full regression: **3925 passed, 1 warning**
 
 ## ADR-0067 PR6 Status
 
@@ -140,8 +181,8 @@ track; PR6 completion atomicity does not make incomplete execution resumable.
 - Used-input provenance preserves actual limitations, including unknown source
   shipping plus a separate zero-fallback assumption and unsupported exact
   currency-rate lineage where the runtime does not expose that fact.
-- PR7 API/UI, F1 recovery, Shadow Validation, and Scenario Simulation remain
-  unimplemented.
+- PR7 API/UI is implemented. F1 recovery, Shadow Validation, and Scenario
+  Simulation remain unimplemented.
 
 ## ADR-0067 PR6 Verification
 

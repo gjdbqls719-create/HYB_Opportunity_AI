@@ -1,5 +1,34 @@
 # HYB Changelog
 
+## ADR-0067 PR7 - Persisted Discovery Screening Founder Read Surface
+
+- Add one read-only Application capability that reconstructs Founder review
+  entries from the exact completion binding, ranking publication, evaluation
+  snapshots, Finalized Groups, and representative observations. Preserve
+  publication rank/not-ranked order and fail closed on missing or corrupt
+  lineage without runtime, marketplace, current policy, identity, clock, or
+  persistence mutation.
+- Add `GET /api/v1/discovery/executions/{execution_id}/screening-ranking` with
+  typed policy, reason, screening-time economics, provenance, raw/effective
+  audit label, Safety, fingerprint, legacy, and screening-only authority fields.
+- Update Founder Home minimally to show High/Medium/Low Review Priority, exact
+  persisted ranks, explicit not-ranked reasons, evidence/provenance detail,
+  Safety intervention, and the legacy ranking-not-recorded state. Page reload
+  restores the persisted read path only.
+- Reuse the existing explicit Candidate POST for any selected eligible ranked
+  or not-ranked Group by copying its exact persisted handoff. Do not auto-select
+  rank one, auto-issue a Candidate, create O1/O2, or mutate Capital.
+- Close ADR-0067 / Deep Audit F2 after PR2 correlation, PR3 policy/reasons, PR4
+  evidence contracts, PR5 SQLite persistence, PR6 production replay, and PR7
+  Founder read/review completion. Keep F1 Recovery, Shadow, Scenario, automatic
+  Candidate issuance, and autonomous purchase deferred.
+- Verification: combined Application/API/Founder UI/Candidate focused suite
+  `60 passed, 1 warning`; PR2-PR7 screening coverage `113 passed, 1 warning`;
+  Candidate, Founder Home, Discovery API/replay, OpenAPI, and web impact
+  `135 passed, 1 warning`; broader Discovery/Engine impact
+  `558 passed, 1 warning`; documentation tests `24 passed`; full regression
+  `3925 passed, 1 warning`.
+
 ## ADR-0067 PR6 - Production Screening Completion Integration
 
 - Construct one immutable PR4 screening evaluation for every authoritative

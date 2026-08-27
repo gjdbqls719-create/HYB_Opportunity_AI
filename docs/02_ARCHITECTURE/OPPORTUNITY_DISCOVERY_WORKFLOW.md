@@ -266,6 +266,43 @@ policy/reason semantics, actual sorted output, and truthful used-input
 provenance. Completed replay loads the exact stored bundle without
 recalculation; legacy unbound results retain explicit not-recorded semantics.
 
+### Persisted Screening Read and Founder Review
+
+PR7 adds one `PersistedDiscoveryScreeningReader` Application query behind both
+the public screening GET and Founder Home. Its authoritative chain is:
+
+```text
+exact discovery_execution_id
+  -> completion binding
+  -> screening ranking publication
+  -> referenced evaluation snapshots
+  -> exact Finalized Groups and representative observations
+  -> Founder review-priority read model
+```
+
+The query preserves publication rank and not-ranked ordering; it does not sort,
+re-score, resolve current policy, reconstruct from `finalized_group_ids`, or
+query a marketplace. Each entry carries the exact evaluation, structured
+supporting/blocking reasons, screening-time expected economics, input/source
+provenance, and the representative persisted Candidate handoff when eligible.
+The public response fixes `authority_scope` to `DISCOVERY_SCREENING_ONLY` and
+lists Candidate, O1, Capital Gate, Founder Capital Approval, and real-money
+intent as authorities it does not grant.
+
+Founder-facing priority uses High/Medium/Low Review Priority terminology. Raw
+and effective grades remain visible only as explicitly labelled screening
+engine audit detail, including Safety downgrades. Unknown and unsupported values
+remain valueless; known zero, calculated facts, estimates, and policy
+assumptions remain distinguishable. Existing unbound completions return
+`SCREENING_NOT_RECORDED_LEGACY`, with no rank or score inferred from Group order.
+Missing execution and corrupted history remain distinct fail-closed outcomes.
+
+Founder selection is a separate explicit action. The browser copies the exact
+selected Group's persisted Candidate handoff to the existing Candidate API;
+that Application revalidates its normal command/result/Group/representative
+lineage. Rank one is not selected automatically, an eligible ranked or
+not-ranked Group may be chosen, and no O1/O2 or Capital state is created.
+
 ### Grouping Correlation Contract
 
 `GroupingCorrelation` carries exactly:
@@ -304,11 +341,11 @@ but the production runtime may not silently accept it for a non-empty result.
 - The persisted completion result is a lineage/order record, not a durable
   engine opportunity object. Durable screening is exposed through its separate
   evaluation/publication/binding contracts.
-- Founder-facing screening read API and Top-N UI remain PR7 scope. The current
-  public Discovery POST does not expose the persisted screening bundle.
+- The public Discovery POST remains backward compatible. Exact persisted
+  screening is exposed through the separate PR7 GET and Founder review UI.
 - Candidate issuance is not automatically composed after Discovery. A caller
-  must read the finalized Groups, select one, and invoke the separate durable
-  Candidate API.
+  must select an eligible persisted screening Group and invoke the separate
+  durable Candidate API.
 - Checkpoint persistence does not create a durable workflow-attempt model.
   There is no persisted phase, attempt number, failure record, retry policy, or
   resume cursor for an incomplete execution.

@@ -212,6 +212,59 @@ Group IDs but not the transient ranked `OpportunityResult`/`DiscoveryResult`,
 score, economics, or recommendation. These GETs are durable completion and
 lineage reads, not persisted-ranking reads.
 
+## Discovery Screening Ranking Read API
+
+`GET /api/v1/discovery/executions/{discovery_execution_id}/screening-ranking`
+is the exact persisted Founder review-priority read. It loads the Discovery
+completion binding, referenced ranking publication, referenced evaluation
+snapshots, exact Finalized Groups, and representative observations through one
+Application query. It never runs the Engine, Collector, marketplace, current
+policy resolver, identity generator, or clock and never writes screening facts.
+
+For a recorded completion the typed response contains `command_id`,
+`discovery_execution_id`, `screening_status: RECORDED`, publication identity and
+fingerprint, `ranking_created_at`, the exact ranking policy, ordered `ranked`
+items, ordered `not_ranked` items, `authority_scope`, and
+`does_not_authorize`. Rank is copied only from the publication. A not-ranked
+item has `rank: null`, `rank_label: Not ranked`, its persisted reason code, and
+the exact unavailable semantic roles.
+
+Each entry contains the exact evaluation identity/fingerprint/time, safe
+High/Medium/Low Review Priority label, numeric screening score, final
+opportunity score, screening-time expected economics, structured
+supporting/blocking reasons, raw/effective screening-engine audit labels,
+Safety intervention state/reasons, complete versioned policy manifest, and
+typed input/source provenance. Scalar evidence uses an explicit kind/value
+pair. Missing `UNKNOWN`/`UNSUPPORTED` values are `null`; a known numeric zero
+remains a numeric kind with value `"0"`. Calculated does not mean verified, and
+policy assumptions remain labelled as such.
+
+The v1 presentation map uses only the persisted screening score: 65-100 is
+High, 45-64 is Medium, and 0-44 is Low Review Priority. This is a review queue
+label, not a rewritten stored grade; a Safety-downgraded effective grade and
+the preserved score may therefore remain visibly distinct in audit detail.
+
+Every response fixes `authority_scope: DISCOVERY_SCREENING_ONLY` and declares
+that it does not authorize `CANDIDATE_ISSUANCE`, `O1_PROMOTION`,
+`CAPITAL_GATE_PASS`, `FOUNDER_CAPITAL_APPROVAL`, or
+`REAL_MONEY_EXECUTION_INTENT`. No BUY/spending authorization field exists.
+
+An existing unbound completed execution returns HTTP 200 with
+`screening_status: SCREENING_NOT_RECORDED_LEGACY`, null publication/policy
+fields, and empty ranked/not-ranked tuples. The API does not expose the result's
+Group order as rank. A missing completed execution returns 404. Malformed,
+unsupported, fingerprint-mismatched, missing-reference, or cross-lineage
+screening history returns 409 and never falls back to live recomputation.
+
+Founder Home consumes this same endpoint after the existing Result and Group
+reads and when restoring the last completed review after page reload. Recorded
+cards show exact review-priority order, reasons, screening-time economics,
+provenance, and Safety detail. Legacy cards show an explicit ranking-not-recorded
+notice. An explicit “Send to deeper validation” action is enabled only when the
+selected entry's representative persisted `candidate_handoff` exists; it copies
+that exact handoff to the existing Candidate POST. It does not auto-select rank
+one, issue a Candidate on GET/page load, promote O1/O2, or mutate Capital.
+
 The Candidate POST request remains explicit. A client selects a Finalized Group
 and copies the complete Market identity and discovery reference verbatim from
 that exact Group's `candidate_handoff`. Candidate issuance rejects a changed

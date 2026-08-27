@@ -96,10 +96,16 @@ def test_home_uses_authoritative_post_then_result_and_group_reads() -> None:
     groups = (
         'fetch(`/api/v1/discovery/executions/${executionId}/finalized-groups`'
     )
+    screening = (
+        'fetch(`/api/v1/discovery/executions/${executionId}/screening-ranking`'
+    )
     assert post in html
     assert result in html
     assert groups in html
-    assert html.index(post) < html.index(result) < html.index(groups)
+    assert screening in html
+    assert html.index(post) < html.index(result) < html.index(groups) < html.index(
+        screening
+    )
     assert 'fetch("/api/v1/opportunities/search"' not in html
 
 
@@ -114,6 +120,7 @@ def test_home_retains_exact_replay_envelope_and_loading_states() -> None:
     assert "Discovery running..." in html
     assert "Reading Result..." in html
     assert "Reading Groups..." in html
+    assert "Reading Screening Priority..." in html
     assert "Completed" in html
 
 

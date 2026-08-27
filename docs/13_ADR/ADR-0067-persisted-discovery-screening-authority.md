@@ -82,11 +82,45 @@ not implement F1 durable attempt/recovery: a failure before the final composite
 commit may leave existing observation and Group checkpoints, and retry reruns
 the live runtime under the existing incomplete-execution semantics.
 
+PR7 now adds the exact persisted read/review surface. One Application query
+loads the completion binding, ranking publication, evaluation snapshots,
+Finalized Groups, and representative observations by exact persisted identity.
+`GET /api/v1/discovery/executions/{execution_id}/screening-ranking` returns the
+recorded publication order, explicit not-ranked entries, policy manifest,
+structured reasons, screening-time expected economics, provenance, raw/effective
+screening-engine audit labels, and fixed `DISCOVERY_SCREENING_ONLY` authority
+metadata. It returns `SCREENING_NOT_RECORDED_LEGACY` without inferred ranks for
+an unbound historical completion and returns 404 for an absent completion or
+409 for persisted integrity failure. Reads do not call the runtime, collectors,
+current policy, identity suppliers, clocks, or any marketplace.
+
+Founder Home now presents High/Medium/Low Review Priority, exact persisted rank,
+evidence badges/details, safety intervention, and screening-only disclaimers.
+Raw `BUY`-family values remain subordinate audit detail. Page restoration uses
+only persisted GETs. The Founder may explicitly select any Candidate-eligible
+ranked or not-ranked Group; the UI copies that Group's exact persisted handoff
+into the existing Candidate API. It neither selects rank one automatically nor
+creates O1/O2 or Capital state.
+
+With PR2 correlation, PR3 policy/reasons, PR4 evidence contracts, PR5 atomic
+persistence, PR6 production completion/replay, and this PR7 Founder read/review
+surface all implemented, ADR-0067 Deep Audit F2 is **CLOSED**. F1 durable
+attempt/recovery, Shadow Validation, Scenario Simulation, automatic Candidate
+issuance, and autonomous purchase remain explicitly outside this decision's
+implementation.
+
 PR6 verification completed with 100 screening contract/persistence tests, 75
 production execution/replay/API tests, 51 Candidate issuance regression tests,
 370 broader Discovery/Engine impact tests, 28 documentation knowledge/developer
 tests, strict validation of the five changed Markdown files, and the full
 regression at 3908 passed with the one existing TestClient deprecation warning.
+
+PR7 verification completed with 60 focused Application/API/Founder UI/Candidate
+handoff tests, 113 PR2-PR7 screening tests, 135 Candidate/Founder Home/Discovery
+API and web impact tests, 558 broader Discovery/Engine impact tests, 24
+documentation tests, strict validation of the changed Markdown files, and the
+full regression at 3925 passed with the same existing TestClient deprecation
+warning.
 
 ## Context
 
@@ -449,6 +483,9 @@ have different facts, atomicity, failure semantics, and review risks.
    the successful execution boundary without recalculation.
 6. **PR7 — Founder screening read API and Top-N UI.** Expose review-priority
    terminology and explicit selection without automatic Candidate issuance.
+
+All six implementation steps are complete. Persisted Discovery Screening F2 is
+closed; this does not close or implement F1 Recovery or Shadow Validation.
 
 After PR7, reassess readiness to start the Shadow Validation MVP. Implement F1
 Recovery on its separate track.

@@ -226,6 +226,63 @@
             font-size: 0.9rem;
         }
 
+        .screening-meta, .screening-reasons, .screening-economics,
+        .screening-authority, details {
+            margin: 0.75rem 1.25rem 0;
+        }
+
+        .rank-label {
+            margin: 1rem 1.25rem 0;
+            color: var(--brand-dark);
+            font-weight: 850;
+        }
+
+        .priority-label {
+            margin: 0.25rem 1.25rem 0;
+            font-weight: 800;
+        }
+
+        .screening-authority {
+            padding: 0.75rem;
+            border-radius: 0.55rem;
+            color: var(--muted);
+            background: #f2f4f1;
+            font-size: 0.86rem;
+        }
+
+        .badge-row {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin: 0.65rem 1.25rem 0;
+        }
+
+        .evidence-badge {
+            padding: 0.2rem 0.5rem;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--muted);
+            background: #fff;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        details {
+            padding: 0.65rem 0;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        details summary { cursor: pointer; font-weight: 800; }
+        details ul { padding-left: 1.25rem; }
+
+        .selection-status {
+            margin: 0.65rem 0 0;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
         .card-actions {
             margin: auto 1.25rem 1.25rem;
             padding-top: 1rem;
@@ -323,6 +380,7 @@
     <script>
         const founderDiscoveryProfile = {{ founder_discovery_profile | tojson }};
         const pendingEnvelopeStorageKey = "hyb.founder-discovery.pending.v1";
+        const completedDiscoveryStorageKey = "hyb.founder-discovery.completed.v1";
         const searchForm = document.getElementById("search-form");
         const marketplaceSelect = document.getElementById("marketplace");
         const queryInput = document.getElementById("query");
@@ -367,6 +425,17 @@
                 sessionStorage.removeItem(pendingEnvelopeStorageKey);
             } catch (error) {
                 // The authoritative server result is already committed.
+            }
+        }
+
+        function retainCompletedDiscovery(executionId, query) {
+            try {
+                sessionStorage.setItem(
+                    completedDiscoveryStorageKey,
+                    JSON.stringify({ executionId, query }),
+                );
+            } catch (error) {
+                // Completion is authoritative even when browser restoration is unavailable.
             }
         }
 
@@ -434,6 +503,250 @@
                 throw error;
             }
             return response.json();
+        }
+
+        function displayToken(value) {
+            return String(value).toLowerCase().replaceAll("_", " ")
+                .replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+
+        function displayEvidenceValue(evidence) {
+            if (!evidence.value) return "Not available";
+            const suffix = evidence.currency || evidence.unit || "";
+            return `${evidence.value.value}${suffix ? ` ${suffix}` : ""}`;
+        }
+
+        function appendTextList(container, items, emptyMessage) {
+            const list = document.createElement("ul");
+            if (items.length === 0) {
+                const item = document.createElement("li");
+                item.textContent = emptyMessage;
+                list.append(item);
+            } else {
+                for (const value of items) {
+                    const item = document.createElement("li");
+                    item.textContent = value;
+                    list.append(item);
+                }
+            }
+            container.append(list);
+        }
+
+        async function issueSelectedCandidate(screening, item, button, statusLine) {
+            const handoff = item.finalized_group.candidate_handoff;
+            if (!handoff) return;
+            button.disabled = true;
+            statusLine.textContent = "Creating Candidate from the selected Group...";
+            try {
+                const candidate = await requireJson(
+                    await fetch("/api/v1/candidates", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            issuance_command_id: crypto.randomUUID(),
+                            discovery_command_id: screening.command_id,
+                            discovery_execution_id: screening.discovery_execution_id,
+                            finalized_group_id: item.finalized_group.finalized_group_id,
+                            discovery_reference: handoff.discovery_reference,
+                            market_observation_identity: handoff.market_observation_identity,
+                            requested_at: new Date().toISOString(),
+                        }),
+                    }),
+                    "Candidate issuance failed",
+                );
+                statusLine.textContent =
+                    `Candidate ${candidate.candidate_id} created for deeper validation. No O1/O2 or Capital action was created.`;
+                button.textContent = "Candidate created";
+            } catch (error) {
+                statusLine.textContent =
+                    "Candidate was not created. The existing issuance checks rejected or could not complete the request.";
+                button.disabled = false;
+            }
+        }
+
+        function renderScreeningRanking(screening, query) {
+            resultsContainer.replaceChildren();
+            const entries = [...screening.ranked, ...screening.not_ranked];
+            if (entries.length === 0) {
+                const emptyMessage = document.createElement("p");
+                emptyMessage.className = "state-message";
+                emptyMessage.textContent =
+                    `No opportunities found for “${query}”. The empty screening publication was recorded.`;
+                resultsContainer.append(emptyMessage);
+                return;
+            }
+
+            for (const item of entries) {
+                const group = item.finalized_group;
+                const preview = group.representative_observation;
+                const evaluation = item.evaluation;
+                const recommendation = evaluation.recommendation;
+                const card = document.createElement("article");
+                const rank = document.createElement("p");
+                const priority = document.createElement("p");
+                const title = document.createElement("h2");
+                const media = document.createElement("div");
+                const imagePlaceholder = document.createElement("span");
+                const price = document.createElement("p");
+                const marketplace = document.createElement("p");
+                const score = document.createElement("p");
+                const badges = document.createElement("p");
+                const economics = document.createElement("section");
+                const reasons = document.createElement("section");
+                const evidenceDetails = document.createElement("details");
+                const evidenceSummary = document.createElement("summary");
+                const auditDetails = document.createElement("details");
+                const auditSummary = document.createElement("summary");
+                const authority = document.createElement("p");
+                const actions = document.createElement("div");
+                const candidateButton = document.createElement("button");
+                const selectionStatus = document.createElement("p");
+
+                card.className = "opportunity-card";
+                rank.className = "rank-label";
+                rank.textContent = item.rank_label;
+                priority.className = "priority-label";
+                priority.textContent = recommendation.review_priority_label;
+                card.append(rank, priority);
+
+                if (preview.url) {
+                    const titleLink = document.createElement("a");
+                    titleLink.className = "product-title-link";
+                    titleLink.href = preview.url;
+                    titleLink.target = "_blank";
+                    titleLink.rel = "noopener noreferrer";
+                    titleLink.textContent = preview.title;
+                    title.append(titleLink);
+                } else {
+                    title.textContent = preview.title;
+                }
+                card.append(title);
+
+                media.className = "product-media";
+                imagePlaceholder.className = "image-placeholder";
+                imagePlaceholder.textContent = "Image unavailable";
+                if (preview.image_url) {
+                    const image = document.createElement("img");
+                    image.src = preview.image_url;
+                    image.alt = preview.title;
+                    image.loading = "lazy";
+                    image.addEventListener("error", () => {
+                        media.replaceChildren(imagePlaceholder);
+                    });
+                    media.append(image);
+                } else {
+                    media.append(imagePlaceholder);
+                }
+                card.append(media);
+
+                price.className = "product-price";
+                price.textContent = `${preview.price} ${preview.currency}`;
+                marketplace.className = "marketplace";
+                marketplace.textContent = `${preview.marketplace} · ${group.observation_count} observed product${group.observation_count === 1 ? "" : "s"}`;
+                score.className = "screening-meta";
+                score.textContent = `Screening score: ${recommendation.screening_score} · Final opportunity score: ${displayEvidenceValue(evaluation.final_opportunity_score)}`;
+                card.append(price, marketplace, score);
+
+                badges.className = "badge-row";
+                const evidenceItems = [
+                    evaluation.final_opportunity_score,
+                    evaluation.ranking_economics_key,
+                    ...evaluation.expected_economics,
+                    ...evaluation.input_manifest.inputs.map((input) => input.evidence),
+                ];
+                const provenanceKinds = [...new Set(
+                    evidenceItems.map((evidence) => evidence.provenance_kind),
+                )];
+                for (const kind of provenanceKinds) {
+                    const badge = document.createElement("span");
+                    badge.className = "evidence-badge";
+                    badge.textContent = displayToken(kind);
+                    badges.append(badge);
+                }
+                card.append(badges);
+
+                economics.className = "screening-economics";
+                const economicsTitle = document.createElement("strong");
+                economicsTitle.textContent = "Screening-time expected economics";
+                economics.append(economicsTitle);
+                appendTextList(
+                    economics,
+                    evaluation.expected_economics.map((evidence) =>
+                        `${displayToken(evidence.semantic_role)}: ${displayEvidenceValue(evidence)} (${displayToken(evidence.provenance_kind)})`
+                    ),
+                    "No expected economics were recorded.",
+                );
+                card.append(economics);
+
+                reasons.className = "screening-reasons";
+                const reasonsTitle = document.createElement("strong");
+                reasonsTitle.textContent = "Why HYB screened it this way";
+                reasons.append(reasonsTitle);
+                appendTextList(
+                    reasons,
+                    recommendation.reasons.map((reason) =>
+                        `${displayToken(reason.polarity)} · ${displayToken(reason.category)}: ${reason.message}`
+                    ),
+                    "No structured screening reasons were recorded.",
+                );
+                if (item.not_ranked_reason_code) {
+                    const notRanked = document.createElement("p");
+                    notRanked.textContent =
+                        `Not ranked: ${displayToken(item.not_ranked_reason_code)} (${item.unavailable_semantic_roles.map(displayToken).join(", ")})`;
+                    reasons.append(notRanked);
+                }
+                card.append(reasons);
+
+                evidenceSummary.textContent = "Evidence and provenance detail";
+                evidenceDetails.append(evidenceSummary);
+                appendTextList(
+                    evidenceDetails,
+                    evaluation.input_manifest.inputs.map((input) =>
+                        `${displayToken(input.evidence.semantic_role)}: ${displayEvidenceValue(input.evidence)} · ${displayToken(input.evidence.provenance_kind)} · ${displayToken(input.evidence.truth_scope)}${input.used ? " · used" : " · available only"}`
+                    ),
+                    "No screening inputs were recorded.",
+                );
+                card.append(evidenceDetails);
+
+                auditSummary.textContent = "Screening engine and safety audit detail";
+                auditDetails.append(auditSummary);
+                appendTextList(
+                    auditDetails,
+                    [
+                        `Raw screening engine label: ${recommendation.raw.grade}`,
+                        `Effective screening engine label: ${recommendation.effective.grade}`,
+                        `Safety intervention: ${recommendation.safety_intervention_applied ? "Applied" : "Not applied"}`,
+                        `Safety status: ${recommendation.safety_status}`,
+                        `Ranking policy: ${screening.ranking_policy.policy_name} ${screening.ranking_policy.policy_version}`,
+                        ...recommendation.safety_reasons.map((reason) => `Safety reason: ${reason.message}`),
+                    ],
+                    "No audit detail was recorded.",
+                );
+                card.append(auditDetails);
+
+                authority.className = "screening-authority";
+                authority.textContent =
+                    "Discovery screening only. Review priority is not Candidate issuance, O1 promotion, Capital approval, or permission to spend.";
+                card.append(authority);
+
+                actions.className = "card-actions";
+                candidateButton.className = "detail-button";
+                candidateButton.type = "button";
+                candidateButton.textContent = "Send to deeper validation";
+                candidateButton.disabled = !item.candidate_selection_eligible;
+                selectionStatus.className = "selection-status";
+                selectionStatus.setAttribute("role", "status");
+                selectionStatus.setAttribute("aria-live", "polite");
+                selectionStatus.textContent = item.candidate_selection_eligible
+                    ? "Explicit selection creates a Candidate only."
+                    : "This persisted representative is not Candidate-eligible.";
+                candidateButton.addEventListener("click", () =>
+                    issueSelectedCandidate(screening, item, candidateButton, selectionStatus)
+                );
+                actions.append(candidateButton, selectionStatus);
+                card.append(actions);
+                resultsContainer.append(card);
+            }
         }
 
         function renderFinalizedGroups(groups, query) {
@@ -578,12 +891,28 @@
                     throw new Error("Discovery read lineage mismatch");
                 }
 
+                setLoadingState("Reading Screening Priority...");
+                const screening = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}/screening-ranking`),
+                    "Discovery screening read failed",
+                );
+                if (screening.discovery_execution_id !== executionId) {
+                    throw new Error("Discovery screening lineage mismatch");
+                }
+
                 setLoadingState("Completed");
-                renderFinalizedGroups(groups, query);
-                summary.textContent = result.is_zero_result
-                    ? `Completed · No opportunities found for “${query}”.`
-                    : `Completed · Found ${groups.length} finalized product groups for “${query}”.`;
+                if (screening.screening_status === "RECORDED") {
+                    renderScreeningRanking(screening, query);
+                    summary.textContent = result.is_zero_result
+                        ? `Completed · No opportunities found for “${query}”.`
+                        : `Completed · Review priorities for ${groups.length} finalized product groups: ${screening.ranked.length} ranked and ${screening.not_ranked.length} explicitly not ranked.`;
+                } else {
+                    renderFinalizedGroups(groups, query);
+                    summary.textContent =
+                        "Screening ranking was not recorded for this legacy Discovery. Finalized Groups are shown without rank.";
+                }
                 summary.hidden = false;
+                retainCompletedDiscovery(executionId, query);
                 clearPendingEnvelope();
             } catch (error) {
                 if (error.status === 502) {
@@ -594,10 +923,70 @@
                         "Check the keyword and limit, then try again.";
                 } else if (error.code === "retry-storage-unavailable") {
                     errorMessage.textContent = error.message;
+                } else if (error.status === 409) {
+                    errorMessage.textContent =
+                        "Persisted Discovery screening failed integrity validation. No live fallback was used.";
                 } else {
                     errorMessage.textContent =
                         "Discovery could not be completed. Try again.";
                 }
+                errorMessage.hidden = false;
+            } finally {
+                searchButton.disabled = false;
+                loadingIndicator.hidden = true;
+            }
+        }
+
+        function readCompletedDiscovery() {
+            try {
+                const serialized = sessionStorage.getItem(completedDiscoveryStorageKey);
+                return serialized ? JSON.parse(serialized) : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async function restoreCompletedDiscovery() {
+            const completed = readCompletedDiscovery();
+            if (!completed || !completed.executionId || !completed.query) return;
+            searchButton.disabled = true;
+            errorMessage.hidden = true;
+            try {
+                setLoadingState("Reading persisted Discovery...");
+                const executionId = completed.executionId;
+                const result = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}`),
+                    "Discovery result read failed",
+                );
+                const groupRead = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}/finalized-groups`),
+                    "Finalized Group read failed",
+                );
+                const screening = await requireJson(
+                    await fetch(`/api/v1/discovery/executions/${executionId}/screening-ranking`),
+                    "Discovery screening read failed",
+                );
+                if (
+                    result.discovery_execution_id !== executionId
+                    || groupRead.discovery_execution_id !== executionId
+                    || screening.discovery_execution_id !== executionId
+                ) {
+                    throw new Error("Persisted Discovery lineage mismatch");
+                }
+                if (screening.screening_status === "RECORDED") {
+                    renderScreeningRanking(screening, completed.query);
+                    summary.textContent =
+                        `Restored persisted review priorities · ${screening.ranked.length} ranked, ${screening.not_ranked.length} not ranked.`;
+                } else {
+                    renderFinalizedGroups(groupRead.finalized_groups, completed.query);
+                    summary.textContent =
+                        "Screening ranking was not recorded for this legacy Discovery. Finalized Groups are shown without rank.";
+                }
+                summary.hidden = false;
+            } catch (error) {
+                errorMessage.textContent = error.status === 409
+                    ? "Persisted Discovery screening failed integrity validation. No live fallback was used."
+                    : "The persisted Discovery could not be restored.";
                 errorMessage.hidden = false;
             } finally {
                 searchButton.disabled = false;
@@ -616,6 +1005,8 @@
             limitSelect.value = String(pendingEnvelope.limit);
             summary.textContent = "A pending Discovery attempt is ready to retry.";
             summary.hidden = false;
+        } else {
+            restoreCompletedDiscovery();
         }
 
         searchForm.addEventListener("submit", (event) => {

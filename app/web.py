@@ -50,7 +50,15 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    model_validator,
+)
 
 from engine.orchestrator import find_best_opportunities
 from presentation.dashboard import build_dashboard_cards
@@ -198,10 +206,25 @@ from app.application.discovery import (
     DiscoveryCompletionReplayError,
     DiscoveryRuntimeCorrelationError,
     DiscoveryScreeningConstructionError,
+    DiscoveryScreeningAuthorityScope,
+    DiscoveryScreeningExcludedAuthority,
     DiscoveryScreeningPersistenceError,
+    FounderReviewPriorityLabel,
+    MalformedDiscoveryScreeningPersistenceError,
     PersistedDiscoveryExecutionEntry,
     PersistedDiscoveryResultReader,
+    PersistedDiscoveryScreeningReader,
+    UnsupportedDiscoveryScreeningVersionError,
     resolve_founder_discovery_policy_profile,
+)
+from app.domain.discovery import (
+    DiscoveryScreeningRecordingState,
+    NotRankedScreeningReasonCode,
+    ScreeningProvenanceKind,
+    ScreeningReasonCategory,
+    ScreeningReasonPolarity,
+    ScreeningSourceKind,
+    ScreeningTruthScope,
 )
 from app.application.ocr import (
     AdmitExternalOCRExecution,
@@ -1019,6 +1042,162 @@ class DiscoveryExecutionResultReadResponse(BaseModel):
 class DiscoveryFinalizedGroupsReadResponse(BaseModel):
     discovery_execution_id: str
     finalized_groups: tuple[FounderFinalizedGroupReadResponse, ...]
+
+
+class ScreeningScalarResponse(BaseModel):
+    kind: Literal["boolean", "integer", "decimal", "text"]
+    value: StrictBool | StrictStr
+
+
+class ScreeningPolicyReferenceResponse(BaseModel):
+    policy_name: str
+    policy_version: str
+    algorithm_id: str
+
+
+class ScreeningSourceReferenceResponse(BaseModel):
+    reference_id: str
+    source_kind: ScreeningSourceKind
+    source_identity: str
+    source_fingerprint: str | None
+    source_revision: str | None
+    observed_at: datetime | None
+    effective_at: datetime | None
+
+
+class ScreeningEvidenceResponse(BaseModel):
+    semantic_role: str
+    provenance_kind: ScreeningProvenanceKind
+    truth_scope: ScreeningTruthScope
+    value: ScreeningScalarResponse | None
+    unit: str | None
+    currency: str | None
+    source_references: tuple[ScreeningSourceReferenceResponse, ...]
+    dependency_references: tuple[str, ...]
+    method_reference: ScreeningPolicyReferenceResponse | None
+    schema_version: str
+
+
+class ScreeningInputReferenceResponse(BaseModel):
+    input_reference_id: str
+    dependency_role: str
+    used: bool
+    evidence: ScreeningEvidenceResponse
+
+
+class ScreeningInputManifestResponse(BaseModel):
+    inputs: tuple[ScreeningInputReferenceResponse, ...]
+    used_input_reference_ids: tuple[str, ...]
+    schema_version: str
+
+
+class ScreeningScorePolicyResponse(BaseModel):
+    policy_name: str
+    policy_version: str
+    algorithm_id: str
+    description: str
+    ordered_rule_ids: tuple[str, ...]
+    policy_assumption_inputs: tuple[str, ...]
+
+
+class ScreeningRecommendationPolicyResponse(BaseModel):
+    policy_name: str
+    policy_version: str
+    algorithm_id: str
+    description: str
+    ordered_rule_ids: tuple[str, ...]
+    reason_code_namespace: str
+
+
+class ScreeningSafetyPolicyResponse(BaseModel):
+    policy_name: str
+    policy_version: str
+    algorithm_id: str
+    description: str
+    ordered_rule_ids: tuple[str, ...]
+
+
+class ScreeningRankingPolicyResponse(BaseModel):
+    policy_name: str
+    policy_version: str
+    algorithm_id: str
+    description: str
+    ordered_sort_keys: tuple[str, ...]
+    equal_key_tie_behavior: str
+
+
+class ScreeningPolicyManifestResponse(BaseModel):
+    score: ScreeningScorePolicyResponse
+    recommendation: ScreeningRecommendationPolicyResponse
+    production_safety: ScreeningSafetyPolicyResponse
+    ranking: ScreeningRankingPolicyResponse
+
+
+class ScreeningEngineLabelResponse(BaseModel):
+    label_context: Literal["screening engine label"] = "screening engine label"
+    grade: str
+    action: str
+    summary: str
+
+
+class ScreeningReasonResponse(BaseModel):
+    reason_code: str
+    category: ScreeningReasonCategory
+    polarity: ScreeningReasonPolarity
+    source_component: str
+    message: str
+
+
+class ScreeningRecommendationResponse(BaseModel):
+    review_priority_label: FounderReviewPriorityLabel
+    screening_score: int
+    raw: ScreeningEngineLabelResponse
+    effective: ScreeningEngineLabelResponse
+    safety_intervention_applied: bool
+    safety_status: str
+    reasons: tuple[ScreeningReasonResponse, ...]
+    safety_reasons: tuple[ScreeningReasonResponse, ...]
+
+
+class ScreeningEvaluationResponse(BaseModel):
+    screening_evaluation_id: str
+    command_id: str
+    discovery_execution_id: str
+    finalized_group_id: str
+    group_membership_fingerprint: str
+    recommendation: ScreeningRecommendationResponse
+    final_opportunity_score: ScreeningEvidenceResponse
+    ranking_economics_key: ScreeningEvidenceResponse
+    expected_economics: tuple[ScreeningEvidenceResponse, ...]
+    screening_policy_manifest: ScreeningPolicyManifestResponse
+    input_manifest: ScreeningInputManifestResponse
+    evaluated_at: datetime
+    schema_version: str
+    integrity_fingerprint: str
+
+
+class FounderScreeningEntryResponse(BaseModel):
+    rank: int | None
+    rank_label: str
+    not_ranked_reason_code: NotRankedScreeningReasonCode | None
+    unavailable_semantic_roles: tuple[str, ...]
+    evaluation: ScreeningEvaluationResponse
+    finalized_group: FounderFinalizedGroupReadResponse
+    candidate_selection_eligible: bool
+
+
+class DiscoveryScreeningRankingReadResponse(BaseModel):
+    command_id: str
+    discovery_execution_id: str
+    screening_status: DiscoveryScreeningRecordingState
+    screening_ranking_publication_id: str | None
+    ranking_publication_fingerprint: str | None
+    ranking_created_at: datetime | None
+    ranking_policy: ScreeningRankingPolicyResponse | None
+    ranked: tuple[FounderScreeningEntryResponse, ...]
+    not_ranked: tuple[FounderScreeningEntryResponse, ...]
+    authority_scope: DiscoveryScreeningAuthorityScope
+    does_not_authorize: tuple[DiscoveryScreeningExcludedAuthority, ...]
 
 
 class OCRArtifactReferenceDTO(BaseModel):
@@ -4481,6 +4660,45 @@ def get_authoritative_discovery_reader():
         resources.close()
 
 
+def get_authoritative_discovery_screening_reader():
+    resources = ExitStack()
+    try:
+        group_repository = resources.enter_context(
+            SQLiteDiscoveryGroupRepository(DEFAULT_DATABASE_PATH)
+        )
+        result_repository = resources.enter_context(
+            SQLiteDiscoveryResultRepository(DEFAULT_DATABASE_PATH)
+        )
+        observation_repository = resources.enter_context(
+            SQLiteDiscoveryObservationRepository(DEFAULT_DATABASE_PATH)
+        )
+        screening_repository = resources.enter_context(
+            SQLiteDiscoveryScreeningCompletionRepository(DEFAULT_DATABASE_PATH)
+        )
+        result_reader = PersistedDiscoveryResultReader(
+            result_repository=result_repository,
+            group_repository=group_repository,
+            observation_repository=observation_repository,
+        )
+        reader = PersistedDiscoveryScreeningReader(
+            screening_repository=screening_repository,
+            result_reader=result_reader,
+        )
+    except sqlite3.Error as error:
+        resources.close()
+        raise HTTPException(
+            status_code=503,
+            detail="discovery screening persistence unavailable",
+        ) from error
+    except BaseException:
+        resources.close()
+        raise
+    try:
+        yield reader
+    finally:
+        resources.close()
+
+
 def get_external_ocr_admission_entry():
     resources = ExitStack()
     try:
@@ -5827,6 +6045,256 @@ def search_opportunities(
     }
 
 
+def _screening_scalar_response(value: object) -> ScreeningScalarResponse | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return ScreeningScalarResponse(kind="boolean", value=value)
+    if isinstance(value, int):
+        return ScreeningScalarResponse(kind="integer", value=str(value))
+    if isinstance(value, Decimal):
+        return ScreeningScalarResponse(kind="decimal", value=str(value))
+    if isinstance(value, str):
+        return ScreeningScalarResponse(kind="text", value=value)
+    raise TypeError("unsupported persisted screening scalar")
+
+
+def _screening_policy_reference_response(value) -> ScreeningPolicyReferenceResponse:
+    return ScreeningPolicyReferenceResponse(
+        policy_name=value.policy_name,
+        policy_version=value.policy_version,
+        algorithm_id=value.algorithm_id,
+    )
+
+
+def _screening_evidence_response(value) -> ScreeningEvidenceResponse:
+    return ScreeningEvidenceResponse(
+        semantic_role=value.semantic_role,
+        provenance_kind=value.provenance_kind.value,
+        truth_scope=value.truth_scope.value,
+        value=_screening_scalar_response(value.value),
+        unit=value.unit,
+        currency=value.currency,
+        source_references=tuple(
+            ScreeningSourceReferenceResponse(
+                reference_id=reference.reference_id,
+                source_kind=reference.source_kind.value,
+                source_identity=reference.source_identity,
+                source_fingerprint=reference.source_fingerprint,
+                source_revision=reference.source_revision,
+                observed_at=reference.observed_at,
+                effective_at=reference.effective_at,
+            )
+            for reference in value.source_references
+        ),
+        dependency_references=value.dependency_references,
+        method_reference=(
+            None
+            if value.method_reference is None
+            else _screening_policy_reference_response(value.method_reference)
+        ),
+        schema_version=value.schema_version,
+    )
+
+
+def _screening_ranking_policy_response(value) -> ScreeningRankingPolicyResponse:
+    return ScreeningRankingPolicyResponse(
+        policy_name=value.policy_name,
+        policy_version=value.policy_version,
+        algorithm_id=value.algorithm_id,
+        description=value.description,
+        ordered_sort_keys=value.ordered_sort_keys,
+        equal_key_tie_behavior=value.equal_key_tie_behavior,
+    )
+
+
+def _screening_policy_manifest_response(value) -> ScreeningPolicyManifestResponse:
+    return ScreeningPolicyManifestResponse(
+        score=ScreeningScorePolicyResponse(
+            policy_name=value.score.policy_name,
+            policy_version=value.score.policy_version,
+            algorithm_id=value.score.algorithm_id,
+            description=value.score.description,
+            ordered_rule_ids=value.score.ordered_rule_ids,
+            policy_assumption_inputs=value.score.policy_assumption_inputs,
+        ),
+        recommendation=ScreeningRecommendationPolicyResponse(
+            policy_name=value.recommendation.policy_name,
+            policy_version=value.recommendation.policy_version,
+            algorithm_id=value.recommendation.algorithm_id,
+            description=value.recommendation.description,
+            ordered_rule_ids=value.recommendation.ordered_rule_ids,
+            reason_code_namespace=value.recommendation.reason_code_namespace,
+        ),
+        production_safety=ScreeningSafetyPolicyResponse(
+            policy_name=value.production_safety.policy_name,
+            policy_version=value.production_safety.policy_version,
+            algorithm_id=value.production_safety.algorithm_id,
+            description=value.production_safety.description,
+            ordered_rule_ids=value.production_safety.ordered_rule_ids,
+        ),
+        ranking=_screening_ranking_policy_response(value.ranking),
+    )
+
+
+def _screening_reason_response(value) -> ScreeningReasonResponse:
+    return ScreeningReasonResponse(
+        reason_code=value.reason_code,
+        category=value.category.value,
+        polarity=value.polarity.value,
+        source_component=value.source_component,
+        message=value.message,
+    )
+
+
+def _founder_finalized_group_response(read_model) -> FounderFinalizedGroupReadResponse:
+    group = read_model.group
+    handoff = read_model.candidate_handoff
+    return FounderFinalizedGroupReadResponse(
+        finalized_group_id=group.finalized_group_id,
+        discovery_execution_id=group.discovery_execution_id,
+        observation_ids=group.observation_ids,
+        representative_observation_id=group.representative_observation_id,
+        grouping_policy_version=group.grouping_policy_version,
+        finalized_at=group.finalized_at,
+        representative_observation=RepresentativeObservationPreviewResponse(
+            title=read_model.representative_observation.title,
+            image_url=read_model.representative_observation.image_url,
+            marketplace=read_model.representative_observation.marketplace,
+            price=read_model.representative_observation.price,
+            currency=read_model.representative_observation.currency,
+            url=read_model.representative_observation.url,
+        ),
+        candidate_handoff=(
+            None
+            if handoff is None
+            else RepresentativeCandidateHandoffResponse(
+                observation_id=handoff.observation_id,
+                market_observation_identity=CandidateHandoffMarketIdentityResponse(
+                    scope=handoff.market_observation_identity.scope,
+                    market=handoff.market_observation_identity.market,
+                    marketplace=handoff.market_observation_identity.marketplace,
+                    canonical_product_id=(
+                        handoff.market_observation_identity.canonical_product_id
+                    ),
+                    marketplace_item_id=(
+                        handoff.market_observation_identity.marketplace_item_id
+                    ),
+                    normalized_query=(
+                        handoff.market_observation_identity.normalized_query
+                    ),
+                    category=handoff.market_observation_identity.category,
+                    variant_identity=(
+                        handoff.market_observation_identity.variant_identity
+                    ),
+                    condition=handoff.market_observation_identity.condition,
+                    window_started_at=(
+                        handoff.market_observation_identity.window_started_at
+                    ),
+                    window_ended_at=(
+                        handoff.market_observation_identity.window_ended_at
+                    ),
+                ),
+                discovery_reference=handoff.discovery_reference,
+                policy_name=handoff.policy_name,
+                policy_version=handoff.policy_version,
+                observed_at=handoff.observed_at,
+                collector_source_reference=handoff.collector_source_reference,
+            )
+        ),
+        observation_count=read_model.observation_count,
+    )
+
+
+def _founder_screening_entry_response(read_model) -> FounderScreeningEntryResponse:
+    evaluation = read_model.evaluation
+    recommendation = evaluation.screening_recommendation
+    group = _founder_finalized_group_response(read_model.finalized_group)
+    reasons = tuple(
+        _screening_reason_response(reason)
+        for reason in recommendation.structured_reasons
+    )
+    safety_reasons = tuple(
+        _screening_reason_response(reason)
+        for reason in recommendation.safety_reasons
+    )
+    used_inputs = set(evaluation.input_manifest.used_input_reference_ids)
+    return FounderScreeningEntryResponse(
+        rank=read_model.rank,
+        rank_label=(
+            f"Review Priority Rank #{read_model.rank}"
+            if read_model.rank is not None
+            else "Not ranked"
+        ),
+        not_ranked_reason_code=(
+            None
+            if read_model.not_ranked_reason_code is None
+            else read_model.not_ranked_reason_code.value
+        ),
+        unavailable_semantic_roles=read_model.unavailable_semantic_roles,
+        evaluation=ScreeningEvaluationResponse(
+            screening_evaluation_id=evaluation.screening_evaluation_id,
+            command_id=evaluation.command_id,
+            discovery_execution_id=evaluation.discovery_execution_id,
+            finalized_group_id=evaluation.finalized_group_id,
+            group_membership_fingerprint=evaluation.group_membership_fingerprint,
+            recommendation=ScreeningRecommendationResponse(
+                review_priority_label=read_model.review_priority_label.value,
+                screening_score=evaluation.screening_score,
+                raw=ScreeningEngineLabelResponse(
+                    grade=recommendation.raw_recommendation.grade,
+                    action=recommendation.raw_recommendation.action,
+                    summary=recommendation.raw_recommendation.summary,
+                ),
+                effective=ScreeningEngineLabelResponse(
+                    grade=recommendation.effective_recommendation.grade,
+                    action=recommendation.effective_recommendation.action,
+                    summary=recommendation.effective_recommendation.summary,
+                ),
+                safety_intervention_applied=(
+                    recommendation.safety_intervention_occurred
+                ),
+                safety_status=recommendation.safety_status,
+                reasons=reasons,
+                safety_reasons=safety_reasons,
+            ),
+            final_opportunity_score=_screening_evidence_response(
+                evaluation.final_opportunity_score
+            ),
+            ranking_economics_key=_screening_evidence_response(
+                evaluation.ranking_economics_key
+            ),
+            expected_economics=tuple(
+                _screening_evidence_response(item)
+                for item in evaluation.expected_economics
+            ),
+            screening_policy_manifest=_screening_policy_manifest_response(
+                evaluation.screening_policy_manifest
+            ),
+            input_manifest=ScreeningInputManifestResponse(
+                inputs=tuple(
+                    ScreeningInputReferenceResponse(
+                        input_reference_id=item.input_reference_id,
+                        dependency_role=item.dependency_role,
+                        used=item.input_reference_id in used_inputs,
+                        evidence=_screening_evidence_response(item.evidence),
+                    )
+                    for item in evaluation.input_manifest.inputs
+                ),
+                used_input_reference_ids=(
+                    evaluation.input_manifest.used_input_reference_ids
+                ),
+                schema_version=evaluation.input_manifest.schema_version,
+            ),
+            evaluated_at=evaluation.evaluated_at,
+            schema_version=evaluation.schema_version,
+            integrity_fingerprint=evaluation.integrity_fingerprint,
+        ),
+        finalized_group=group,
+        candidate_selection_eligible=group.candidate_handoff is not None,
+    )
+
+
 @app.post(
     "/api/v1/discovery/executions",
     response_model=AuthoritativeDiscoveryResponse,
@@ -5977,99 +6445,82 @@ def get_authoritative_discovery_groups(
             status_code=503,
             detail="discovery persistence unavailable",
         ) from error
-    finalized_groups = []
-    for read_model in groups:
-        group = read_model.group
-        finalized_groups.append(
-            FounderFinalizedGroupReadResponse(
-                finalized_group_id=group.finalized_group_id,
-                discovery_execution_id=group.discovery_execution_id,
-                observation_ids=group.observation_ids,
-                representative_observation_id=(
-                    group.representative_observation_id
-                ),
-                grouping_policy_version=group.grouping_policy_version,
-                finalized_at=group.finalized_at,
-                representative_observation=RepresentativeObservationPreviewResponse(
-                    title=read_model.representative_observation.title,
-                    image_url=read_model.representative_observation.image_url,
-                    marketplace=read_model.representative_observation.marketplace,
-                    price=read_model.representative_observation.price,
-                    currency=read_model.representative_observation.currency,
-                    url=read_model.representative_observation.url,
-                ),
-                candidate_handoff=(
-                    None
-                    if read_model.candidate_handoff is None
-                    else RepresentativeCandidateHandoffResponse(
-                        observation_id=(
-                            read_model.candidate_handoff.observation_id
-                        ),
-                        market_observation_identity=(
-                            CandidateHandoffMarketIdentityResponse(
-                                scope=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.scope
-                                ),
-                                market=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.market
-                                ),
-                                marketplace=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.marketplace
-                                ),
-                                canonical_product_id=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.canonical_product_id
-                                ),
-                                marketplace_item_id=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.marketplace_item_id
-                                ),
-                                normalized_query=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.normalized_query
-                                ),
-                                category=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.category
-                                ),
-                                variant_identity=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.variant_identity
-                                ),
-                                condition=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.condition
-                                ),
-                                window_started_at=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.window_started_at
-                                ),
-                                window_ended_at=(
-                                    read_model.candidate_handoff
-                                    .market_observation_identity.window_ended_at
-                                ),
-                            )
-                        ),
-                        discovery_reference=(
-                            read_model.candidate_handoff.discovery_reference
-                        ),
-                        policy_name=read_model.candidate_handoff.policy_name,
-                        policy_version=read_model.candidate_handoff.policy_version,
-                        observed_at=read_model.candidate_handoff.observed_at,
-                        collector_source_reference=(
-                            read_model.candidate_handoff.collector_source_reference
-                        ),
-                    )
-                ),
-                observation_count=read_model.observation_count,
-            )
-        )
     return DiscoveryFinalizedGroupsReadResponse(
         discovery_execution_id=discovery_execution_id,
-        finalized_groups=tuple(finalized_groups),
+        finalized_groups=tuple(
+            _founder_finalized_group_response(read_model)
+            for read_model in groups
+        ),
+    )
+
+
+@app.get(
+    "/api/v1/discovery/executions/{discovery_execution_id}/screening-ranking",
+    response_model=DiscoveryScreeningRankingReadResponse,
+)
+def get_discovery_screening_ranking(
+    discovery_execution_id: str,
+    reader: PersistedDiscoveryScreeningReader = Depends(
+        get_authoritative_discovery_screening_reader
+    ),
+) -> DiscoveryScreeningRankingReadResponse:
+    try:
+        read_model = reader.get_screening_ranking(discovery_execution_id)
+    except DiscoveryExecutionResultNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except (
+        DiscoveryCompletionReplayError,
+        DiscoveryExecutionIdentityConflictError,
+        DiscoveryGroupMembershipError,
+        MalformedDiscoveryExecutionResult,
+        MalformedDiscoveryGroupPersistenceError,
+        MalformedDiscoveryScreeningPersistenceError,
+        UnsupportedDiscoveryScreeningVersionError,
+    ) as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (DiscoveryPersistenceError, DiscoveryScreeningPersistenceError) as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except sqlite3.Error as error:
+        raise HTTPException(
+            status_code=503,
+            detail="discovery screening persistence unavailable",
+        ) from error
+
+    publication = read_model.ranking_publication
+    return DiscoveryScreeningRankingReadResponse(
+        command_id=read_model.command_id,
+        discovery_execution_id=read_model.discovery_execution_id,
+        screening_status=read_model.screening_status.value,
+        screening_ranking_publication_id=(
+            None
+            if publication is None
+            else publication.screening_ranking_publication_id
+        ),
+        ranking_publication_fingerprint=(
+            None if publication is None else publication.integrity_fingerprint
+        ),
+        ranking_created_at=(
+            None if publication is None else publication.ranking_created_at
+        ),
+        ranking_policy=(
+            None
+            if publication is None
+            else _screening_ranking_policy_response(publication.ranking_policy)
+        ),
+        ranked=tuple(
+            _founder_screening_entry_response(item)
+            for item in read_model.ranked
+        ),
+        not_ranked=tuple(
+            _founder_screening_entry_response(item)
+            for item in read_model.not_ranked
+        ),
+        authority_scope=read_model.authority_scope.value,
+        does_not_authorize=tuple(
+            value.value for value in read_model.does_not_authorize
+        ),
     )
 
 
