@@ -1,5 +1,20 @@
 # HYB Changelog
 
+## Baseline Regression Reliability Repair
+
+- Make `PythonFile`, `MarkdownFile`, and `ConfigFile` serialization compatible
+  with supported Python runtimes where zero-argument `super()` is unsafe in
+  slotted dataclass subclasses, without changing serialized output.
+- Correct Decision Engine immutability coverage so each frozen/slotted contract
+  is tested through a field it actually declares.
+- Keep the genuine production SQLite isolation check valid both when the
+  ignored local database exists and in a fresh clone where it is absent.
+- Verification: AI knowledge builder `5 passed`; Decision Engine Domain `20
+  passed`; target-bound Competition/Demand support with a local production DB
+  `17 passed, 1 warning`; the exact production DB isolation test in a DB-free
+  baseline snapshot `1 passed, 1 warning`; combined impact `79 passed, 1
+  warning`; full regression `3983 passed, 1 warning`.
+
 ## ADR-0068 Shadow PR4 - Authoritative Manual Registration Application/API
 
 - Add `RegisterShadowValidation` with a strict reference-only Founder command;

@@ -1,15 +1,18 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR4 Authoritative Manual Registration
+**Last Updated:** 2026-08-29
+**Status Basis:** Baseline Regression Reliability Repair
 
 ## Current Snapshot
 
 - Current work: Shadow PR4 authoritative exact-O2 + persisted-screening manual
   registration Application, POST, persistence-only exact GET, and request-first
   replay complete
-- Last confirmed full regression: **3982 passed, 1 warning**
-  (Shadow PR4, 2026-08-28)
+- Last confirmed full regression: **3983 passed, 1 warning**
+  (Baseline Regression Reliability Repair, 2026-08-29)
+- The regression gate is clean on supported Python 3.12 after repairing slotted
+  dataclass serialization compatibility and two pre-existing test-isolation
+  defects; no business or authority semantics changed.
 - Architecture approach: preserve existing Domain/Application/Infrastructure
   boundaries and additive authority contracts
 - Shadow PR4 adds no UI, checkpoint, scheduler, evaluator, Portfolio,

@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
-**Last Updated:** 2026-08-28
-**Status Basis:** ADR-0068 Shadow PR4 Authoritative Manual Registration
+**Last Updated:** 2026-08-29
+**Status Basis:** Baseline Regression Reliability Repair
 
 ## Purpose
 
@@ -14,8 +14,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Last confirmed full regression: **3982 passed, 1 warning**
-  (Shadow PR4, 2026-08-28)
+- Last confirmed full regression: **3983 passed, 1 warning**
+  (Baseline Regression Reliability Repair, 2026-08-29)
 - Production Discovery: command/receipt, observations, finalized Groups, and
   execution result are wired to SQLite through `app.web`
 - Persisted Discovery Screening F2: ADR-0067 accepted; PR2 explicit
