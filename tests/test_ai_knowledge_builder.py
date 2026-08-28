@@ -6,6 +6,7 @@ from pathlib import Path
 from tools.ai.build_ai_index import build_project_map
 from tools.ai.graph_builder import GraphBuilder
 from tools.ai.matcher import ProjectMatcher
+from tools.ai.models import ConfigFile, MarkdownFile, PythonFile
 from tools.ai.scanner import ProjectScanner
 
 
@@ -107,6 +108,41 @@ def test_project_matcher_builds_repository_relationships(
     assert ("catalog.py", "test_catalog.py") in test_mappings
     assert ("catalog.py", "catalog.md") in documentation_mappings
     assert project.knowledge_graph is graph
+
+
+def test_file_models_serialize_slotted_subclasses() -> None:
+    python_file = PythonFile(Path("app/catalog.py"), ".py", 10)
+    markdown_file = MarkdownFile(
+        Path("docs/catalog.md"),
+        ".md",
+        20,
+        title="Catalog",
+        headings=["Overview"],
+    )
+    config_file = ConfigFile(Path("pyproject.toml"), ".toml", 30)
+
+    assert python_file.to_dict() == {
+        "path": str(Path("app/catalog.py")),
+        "extension": ".py",
+        "size": 10,
+        "module": "app.catalog",
+        "imports": 0,
+        "classes": 0,
+        "functions": 0,
+        "analyzed": False,
+    }
+    assert markdown_file.to_dict() == {
+        "path": str(Path("docs/catalog.md")),
+        "extension": ".md",
+        "size": 20,
+        "title": "Catalog",
+        "headings": ["Overview"],
+    }
+    assert config_file.to_dict() == {
+        "path": str(Path("pyproject.toml")),
+        "extension": ".toml",
+        "size": 30,
+    }
 
 
 def test_graph_builder_builds_and_exports_graph(

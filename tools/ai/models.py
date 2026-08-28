@@ -119,7 +119,7 @@ class PythonFile(FileNode):
         self.analysis = analysis
 
     def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
+        data = super(PythonFile, self).to_dict()
 
         data.update(
             {
@@ -140,7 +140,7 @@ class MarkdownFile(FileNode):
     headings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
+        data = super(MarkdownFile, self).to_dict()
 
         data.update(
             {
@@ -156,7 +156,7 @@ class MarkdownFile(FileNode):
 class ConfigFile(FileNode):
 
     def to_dict(self) -> dict[str, Any]:
-        return super().to_dict()
+        return super(ConfigFile, self).to_dict()
 
 
 # ==========================================================
