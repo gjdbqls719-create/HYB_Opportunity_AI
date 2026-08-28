@@ -240,13 +240,16 @@ def test_default_app_composition_isolated_from_genuine_production_database():
     ).resolve()
 
     def state():
-        item = production.stat()
-        digest = hashlib.sha256(production.read_bytes()).hexdigest()
         sidecars = tuple(
             candidate.name
             for suffix in ("-wal", "-shm", "-journal")
             if (candidate := Path(f"{production}{suffix}")).exists()
         )
+        if not production.exists():
+            return None, None, None, sidecars
+
+        item = production.stat()
+        digest = hashlib.sha256(production.read_bytes()).hexdigest()
         return digest, item.st_size, item.st_mtime_ns, sidecars
 
     before = state()
