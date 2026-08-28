@@ -373,16 +373,20 @@ def test_contracts_are_immutable_and_have_value_equality() -> None:
     with pytest.raises(FrozenInstanceError):
         first.outcome = DecisionOutcome.INVEST
 
-    for value in (
-        DecisionConfidence(
-            Decimal("1"), DecisionEvidenceAvailability.COMPLETE, ()
+    for value, field_name, replacement in (
+        (
+            DecisionConfidence(
+                Decimal("1"), DecisionEvidenceAvailability.COMPLETE, ()
+            ),
+            "confidence",
+            Decimal("0"),
         ),
-        metadata()[0],
-        dimension_result(),
-        decision_input(),
+        (metadata()[0], "freshness", DecisionFreshness.UNKNOWN),
+        (dimension_result(), "generated_at", NOW),
+        (decision_input(), "schema_version", "v2"),
     ):
         with pytest.raises(FrozenInstanceError):
-            value.generated_at = NOW
+            setattr(value, field_name, replacement)
 
 
 def test_production_safety_rejects_mutable_collections() -> None:
