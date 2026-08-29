@@ -12,28 +12,44 @@ Product 모델 중복 문제는 통합 대상으로 관리한다.
 
 ## eBay Account Deletion Receipt Persistence
 
-`ebay_account_deletion_receipts` is the append-only PR1 compliance inbox. Its
-primary key is `notification_id`; an index on `(processing_status, received_at)`
-supports operational review. The row stores only:
+`ebay_account_deletion_receipts` is the append-only, non-identifying PR1 audit
+inbox. Its primary key is `notification_id`; an index on
+`(processing_status, received_at)` supports operational review. The row stores:
 
 - current topic/schema/deprecated metadata;
 - normalized event time and first publish time/attempt;
-- the provided `username`, `user_id`, and/or `eias_token` subject identifiers;
-- a deterministic semantic fingerprint;
+- a deterministic SHA-256 semantic fingerprint, including subject semantics as
+  a digest but not their recoverable plaintext values;
 - fixed `VERIFIED` authenticity and `PENDING_DELETION_REVIEW` processing status;
 - the server receipt time.
 
+`ebay_account_deletion_pending_subjects` is the separately purgeable PR1 work
+table. Its primary/foreign key is the exact audit `notification_id`; it stores
+only the provided `username`, `user_id`, and/or `eias_token` values required by
+the future PR2 processor. At least one identifier is required. UPDATE is
+forbidden so pending identity cannot drift; DELETE is deliberately available
+only through the repository's idempotent `purge_pending_subject` seam.
+
 The fingerprint binds stable notification semantics and intentionally excludes
 retry-varying publish time/attempt metadata. A repeat notification ID with the
-same semantics returns the original row; different semantics conflict. UPDATE
-and DELETE triggers make the table immutable. Reads reconstruct and validate
-the current envelope, fingerprint, and closed statuses and fail closed on
-corruption.
+same semantics returns the original audit; different semantics conflict. The
+first audit and pending-subject rows commit inside one `BEGIN IMMEDIATE`
+transaction, so neither can survive alone. Restart reads join and validate the
+exact pending work. If PR2 later purges the pending row, exact retry is still
+validated by the immutable digest but does not restore plaintext identity.
+UPDATE and DELETE triggers keep the audit immutable. The connection enables
+foreign keys and SQLite `secure_delete`; purge removes only the pending subject
+while preserving the non-identifying audit and its pending status.
+
+The pre-release single-table PR1 schema is migrated transactionally by moving
+its subject columns into the pending table and rebuilding the audit without
+those columns. The system was not deployed and contains no production
+notification data at this correction point.
 
 No raw notification JSON, HTTP signature, verification token, OAuth token, or
-client secret is persisted. No deletion queue, completion marker, anonymization
-claim, or mutation of Product, price history, Discovery, or Actual Sale records
-exists in PR1.
+client secret is persisted. The purge seam is not a deletion executor or
+completion marker. No deletion queue, anonymization claim, or mutation of
+Product, price history, Discovery, or Actual Sale records exists in PR1.
 
 ## ADR-0068 Shadow Registration/Baseline Persistence
 

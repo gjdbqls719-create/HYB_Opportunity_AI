@@ -12,8 +12,10 @@ from fastapi.testclient import TestClient
 import app.web as web
 import services.ebay_notification_verification as verification_module
 from app.application.ebay_account_deletion import (
+    EbayAccountDeletionAuditReceipt,
     EbayAccountDeletionAuthenticityStatus,
     EbayAccountDeletionNotification,
+    EbayAccountDeletionPendingSubject,
     EbayAccountDeletionProcessingStatus,
     EbayAccountDeletionReceipt,
     EbayAccountDeletionReceiptConflictError,
@@ -41,8 +43,10 @@ ENDPOINT_URL = (
 )
 VERIFICATION_TOKEN = "0123456789abcdef0123456789abcdef"
 SIGNATURE_HEADER = "test-signature"
-SUBJECT_USER_ID = "immutable-ebay-user-id"
+SUBJECT_USERNAME = "public-ebay-name"
+SUBJECT_USER_ID = "ebay-user-id"
 SUBJECT_EIAS_TOKEN = "legacy-eias-token"
+_LEGACY_SUBJECT_COLUMN_NAMES = {"username", "user_id", "eias_token"}
 
 
 def make_payload(
@@ -54,7 +58,7 @@ def make_payload(
     event_date: str = "2026-08-28T01:02:03.123Z",
     publish_date: str = "2026-08-28T01:02:04.456Z",
     publish_attempt_count: int = 1,
-    username: str | None = "public-ebay-name",
+    username: str | None = SUBJECT_USERNAME,
     user_id: str | None = SUBJECT_USER_ID,
     eias_token: str | None = SUBJECT_EIAS_TOKEN,
 ) -> dict[str, Any]:
@@ -294,17 +298,28 @@ def test_sqlite_receipt_is_durable_idempotent_and_restart_safe(
         database_path
     )
     restored = restarted_repository.get("notification-001")
+    pending_subject = restarted_repository.get_pending_subject(
+        "notification-001"
+    )
 
     assert first.replayed is False
     assert replay.replayed is True
     assert first_repository.count() == 1
+    assert first_repository.pending_subject_count() == 1
     assert restarted_repository.count() == 1
+    assert restarted_repository.pending_subject_count() == 1
     assert restored == first.receipt
     assert replay.receipt == first.receipt
     assert restored is not None
     assert restored.notification.publish_attempt_count == 1
     assert restored.processing_status == (
         EbayAccountDeletionProcessingStatus.PENDING_DELETION_REVIEW
+    )
+    assert pending_subject == EbayAccountDeletionPendingSubject(
+        notification_id="notification-001",
+        username=SUBJECT_USERNAME,
+        user_id=SUBJECT_USER_ID,
+        eias_token=SUBJECT_EIAS_TOKEN,
     )
 
 
@@ -320,7 +335,7 @@ def test_sqlite_receipt_rejects_conflicting_duplicate(tmp_path: Path) -> None:
     assert repository.count() == 1
 
 
-def test_sqlite_receipt_stores_only_normalized_fields_and_is_append_only(
+def test_sqlite_splits_immutable_audit_from_purgeable_pending_subject(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "receipts.db"
@@ -328,12 +343,25 @@ def test_sqlite_receipt_stores_only_normalized_fields_and_is_append_only(
     repository.record(make_receipt())
 
     with sqlite3.connect(database_path) as connection:
-        columns = {
+        receipt_columns = {
             row[1]
             for row in connection.execute(
                 "PRAGMA table_info(ebay_account_deletion_receipts)"
             ).fetchall()
         }
+        pending_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(ebay_account_deletion_pending_subjects)"
+            ).fetchall()
+        }
+        audit_row = connection.execute(
+            "SELECT * FROM ebay_account_deletion_receipts"
+        ).fetchone()
+        pending_row = connection.execute(
+            "SELECT notification_id, username, user_id, eias_token "
+            "FROM ebay_account_deletion_pending_subjects"
+        ).fetchone()
         with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             connection.execute(
                 "UPDATE ebay_account_deletion_receipts "
@@ -341,8 +369,13 @@ def test_sqlite_receipt_stores_only_normalized_fields_and_is_append_only(
             )
         with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             connection.execute("DELETE FROM ebay_account_deletion_receipts")
+        with pytest.raises(sqlite3.IntegrityError, match="purged"):
+            connection.execute(
+                "UPDATE ebay_account_deletion_pending_subjects "
+                "SET username = username"
+            )
 
-    assert columns == {
+    assert receipt_columns == {
         "notification_id",
         "topic",
         "schema_version",
@@ -350,17 +383,172 @@ def test_sqlite_receipt_stores_only_normalized_fields_and_is_append_only(
         "event_date",
         "first_publish_date",
         "first_publish_attempt_count",
-        "username",
-        "user_id",
-        "eias_token",
         "semantic_fingerprint",
         "authenticity_status",
         "processing_status",
         "received_at",
     }
-    assert "raw_payload" not in columns
-    assert "signature" not in columns
-    assert "verification_token" not in columns
+    assert pending_columns == {
+        "notification_id",
+        "username",
+        "user_id",
+        "eias_token",
+    }
+    assert audit_row is not None
+    audit_text = "|".join("" if value is None else str(value) for value in audit_row)
+    assert SUBJECT_USERNAME not in audit_text
+    assert SUBJECT_USER_ID not in audit_text
+    assert SUBJECT_EIAS_TOKEN not in audit_text
+    assert pending_row == (
+        "notification-001",
+        SUBJECT_USERNAME,
+        SUBJECT_USER_ID,
+        SUBJECT_EIAS_TOKEN,
+    )
+    assert "raw_payload" not in receipt_columns
+    assert "signature" not in receipt_columns
+    assert "verification_token" not in receipt_columns
+
+
+def test_sqlite_pending_subject_purge_preserves_non_identifying_audit(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "receipts.db"
+    repository = SQLiteEbayAccountDeletionReceiptRepository(database_path)
+    repository.record(make_receipt())
+    audit_before = repository.get_audit_receipt("notification-001")
+
+    assert repository.purge_pending_subject("notification-001") is True
+    assert repository.purge_pending_subject("notification-001") is False
+
+    assert repository.get_pending_subject("notification-001") is None
+    assert repository.get("notification-001") is None
+    assert repository.pending_subject_count() == 0
+    assert repository.count() == 1
+    assert repository.get_audit_receipt("notification-001") == audit_before
+    assert isinstance(audit_before, EbayAccountDeletionAuditReceipt)
+    assert audit_before.processing_status == (
+        EbayAccountDeletionProcessingStatus.PENDING_DELETION_REVIEW
+    )
+    database_bytes = database_path.read_bytes()
+    assert SUBJECT_USERNAME.encode() not in database_bytes
+    assert SUBJECT_USER_ID.encode() not in database_bytes
+    assert SUBJECT_EIAS_TOKEN.encode() not in database_bytes
+
+
+def test_sqlite_migrates_pre_release_subject_columns_into_pending_storage(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "receipts.db"
+    receipt = make_receipt()
+    notification = receipt.notification
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE ebay_account_deletion_receipts (
+                notification_id TEXT PRIMARY KEY,
+                topic TEXT NOT NULL,
+                schema_version TEXT NOT NULL,
+                deprecated INTEGER NOT NULL,
+                event_date TEXT NOT NULL,
+                first_publish_date TEXT NOT NULL,
+                first_publish_attempt_count INTEGER NOT NULL,
+                username TEXT,
+                user_id TEXT,
+                eias_token TEXT,
+                semantic_fingerprint TEXT NOT NULL,
+                authenticity_status TEXT NOT NULL,
+                processing_status TEXT NOT NULL,
+                received_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO ebay_account_deletion_receipts
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                notification.notification_id,
+                notification.topic,
+                notification.schema_version,
+                int(notification.deprecated),
+                notification.event_date,
+                notification.publish_date,
+                notification.publish_attempt_count,
+                notification.username,
+                notification.user_id,
+                notification.eias_token,
+                receipt.semantic_fingerprint,
+                receipt.authenticity_status.value,
+                receipt.processing_status.value,
+                receipt.received_at,
+            ),
+        )
+
+    repository = SQLiteEbayAccountDeletionReceiptRepository(database_path)
+
+    assert repository.get("notification-001") == receipt
+    assert repository.pending_subject_count() == 1
+    with sqlite3.connect(database_path) as connection:
+        receipt_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(ebay_account_deletion_receipts)"
+            )
+        }
+    assert _LEGACY_SUBJECT_COLUMN_NAMES.isdisjoint(receipt_columns)
+
+
+def test_sqlite_retry_after_subject_purge_does_not_restore_plaintext_identity(
+    tmp_path: Path,
+) -> None:
+    repository = SQLiteEbayAccountDeletionReceiptRepository(
+        tmp_path / "receipts.db"
+    )
+    repository.record(make_receipt())
+    assert repository.purge_pending_subject("notification-001") is True
+
+    replay = repository.record(
+        make_receipt(
+            publish_date="2026-08-28T01:03:04.456Z",
+            publish_attempt_count=2,
+        )
+    )
+
+    assert replay.replayed is True
+    assert repository.count() == 1
+    assert repository.pending_subject_count() == 0
+    assert repository.get_pending_subject("notification-001") is None
+
+
+def test_sqlite_first_receipt_rolls_back_both_tables_on_subject_failure(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "receipts.db"
+    repository = SQLiteEbayAccountDeletionReceiptRepository(database_path)
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "CREATE TRIGGER fail_pending_subject_insert "
+            "BEFORE INSERT ON ebay_account_deletion_pending_subjects "
+            "BEGIN SELECT RAISE(ABORT, 'injected pending failure'); END"
+        )
+
+    with pytest.raises(EbayAccountDeletionReceiptPersistenceError):
+        repository.record(make_receipt())
+
+    assert repository.count() == 0
+    assert repository.pending_subject_count() == 0
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("DROP TRIGGER fail_pending_subject_insert")
+        connection.execute("PRAGMA foreign_keys = ON")
+        with pytest.raises(sqlite3.IntegrityError, match="FOREIGN KEY"):
+            connection.execute(
+                "INSERT INTO ebay_account_deletion_pending_subjects "
+                "(notification_id, username, user_id, eias_token) "
+                "VALUES (?, ?, ?, ?)",
+                ("orphan", SUBJECT_USERNAME, None, None),
+            )
 
 
 def test_sqlite_initialization_failure_is_bounded(tmp_path: Path) -> None:

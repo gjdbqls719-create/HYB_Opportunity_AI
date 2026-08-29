@@ -1,7 +1,7 @@
 # HYB Documentation Status
 
-**Last Updated:** 2026-08-29
-**Status Basis:** eBay Marketplace Account Deletion Compliance PR1 on the Repaired Baseline
+**Last Updated:** 2026-08-30
+**Status Basis:** eBay Compliance PR1 Privacy-Purgeability Correction
 
 ## Purpose
 
@@ -14,8 +14,8 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Official documentation root: `docs/`
 - Encoding: UTF-8
 - Architecture policy: 기존 계층과 additive authority 경계 유지
-- Current full regression: **4020 passed, 1 warning**
-  (eBay Compliance PR1 on the repaired baseline, 2026-08-29)
+- Current full regression: **4024 passed, 1 warning**
+  (eBay Compliance PR1 privacy-purgeability correction, 2026-08-30)
 - Restored pre-feature baseline regression: **3983 passed, 1 warning**
   (Baseline Regression Reliability Repair, 2026-08-29)
 - Production Discovery: command/receipt, observations, finalized Groups, and
@@ -40,11 +40,12 @@ current-state index입니다. Historical Sprint/PR/ADR 기록의 당시 상태�
 - Genuine-run status: STOP before Demand v2 admission; see the runbook for the
   NAVER geography evidence ruling
 - eBay account deletion compliance: canonical GET challenge, authenticated POST
-  receipt ingress, append-only SQLite receipt history, retry/conflict handling,
-  OpenAPI, deployment configuration, and focused tests are implemented and
-  verified on the repaired baseline. Deployment, eBay endpoint validation/test
-  notification, audited deletion/anonymization, and production key activation
-  are not represented as complete.
+  receipt ingress, non-identifying append-only SQLite audit, purgeable pending
+  subject identity, atomicity, retry/conflict handling, OpenAPI, deployment
+  configuration, and focused tests are implemented. The purge seam does not
+  represent deletion completion. Deployment, eBay endpoint validation/test
+  notification, audited PR2 deletion/anonymization, and production key
+  activation are not represented as complete.
 
 ## Current-State Documents
 

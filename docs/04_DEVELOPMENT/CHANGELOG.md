@@ -1,5 +1,22 @@
 # HYB Changelog
 
+## eBay Compliance PR1 Privacy-Purgeability Correction
+
+- Split the original subject-bearing receipt schema into an immutable,
+  non-identifying audit table and a linked purgeable pending-subject table.
+- Keep `username`, `user_id`, and `eias_token` plaintext out of append-only
+  history while retaining their semantics only in the SHA-256 fingerprint.
+- Commit first audit + pending subject atomically, migrate the pre-release
+  single-table schema transactionally, preserve restart reconstruction and
+  conflict detection, and prevent exact retry from restoring purged identity.
+- Add an idempotent secure-delete purge seam that removes pending identifiers
+  without deleting/revising the audit or marking deletion complete. PR2 remains
+  responsible for audited identity matching and actual deletion/anonymization.
+- Verification: focused `41 passed, 1 warning`; impact `156 passed, 1 warning`;
+  full regression `4024 passed, 1 warning`; `git diff --check` and strict UTF-8/
+  relative-link validation passed for all 8 changed Markdown files; populated
+  eBay secret/private-key scan found none.
+
 ## eBay Marketplace Account Deletion Compliance PR1
 
 - Add the canonical GET challenge and POST notification methods at
@@ -8,9 +25,10 @@
 - Validate the current `MARKETPLACE_ACCOUNT_DELETION` version `1.0` envelope and
   verify `X-EBAY-SIGNATURE` using the authenticated eBay public-key API,
   environment-fixed URLs, bounded network failures, and a one-hour key cache.
-- Add an append-only SQLite receipt inbox with minimal normalized identifiers,
-  semantic retry idempotency, conflicting-ID rejection, exact reconstruction,
-  and explicit `VERIFIED` / `PENDING_DELETION_REVIEW` state.
+- Add durable SQLite receipt/pending-work persistence with semantic retry
+  idempotency, conflicting-ID rejection, exact reconstruction, and explicit
+  `VERIFIED` / `PENDING_DELETION_REVIEW` state. The later correction above
+  removes plaintext subject identity from immutable receipt history.
 - Return only generic acknowledgements/errors; do not persist or expose raw
   bodies, signatures, verification/OAuth tokens, or client secrets.
 - State `deletionExecuted: false`: PR1 does not mutate seller/account-bearing

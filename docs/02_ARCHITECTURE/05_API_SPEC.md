@@ -27,8 +27,8 @@ notification ID, timezone-aware event/publish times, positive publish attempt,
 and at least one of `username`, `userId`, or `eiasToken`. Extra fields and
 coercive types are rejected.
 
-After successful eBay signature verification and durable receipt commit, POST
-returns `202`:
+After successful eBay signature verification and an atomic durable commit of
+the non-identifying audit plus purgeable pending subject, POST returns `202`:
 
 ```json
 {
@@ -45,7 +45,9 @@ an existing notification ID is 409. Invalid/missing authenticity is 412;
 invalid envelopes are 422; oversized bodies are 413; verification dependency
 or storage unavailability is 503. Error bodies are generic and do not echo
 subject identifiers or configuration. PR1 acknowledges durable verified
-receipt only—it does not claim deletion or anonymization.
+receipt only—it does not expose the stored subject, provide a public purge
+endpoint, or claim deletion/anonymization. The internal purge seam preserves
+`PENDING_DELETION_REVIEW` and is reserved for a future audited PR2 workflow.
 
 ## Competition v2 observation identity
 

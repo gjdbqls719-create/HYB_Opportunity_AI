@@ -44,9 +44,10 @@ Validation Capital과 Scaling Capital은 현재 운영상 구분일 뿐 새 Doma
 
 ### eBay Marketplace Account Deletion Compliance
 
-PR1은 eBay challenge, signed notification verification, 최소 append-only receipt,
-retry/conflict, API/OpenAPI, deployment contract를 구현한다. Receipt는
-`PENDING_DELETION_REVIEW`이며 삭제 완료를 뜻하지 않는다.
+PR1은 eBay challenge, signed notification verification, plaintext subject가 없는
+append-only audit receipt, 별도 purgeable pending-subject work, retry/conflict,
+API/OpenAPI, deployment contract를 구현한다. 두 persistence row는 atomic하게
+생성되며 pending subject purge는 audit를 보존하고 삭제 완료를 뜻하지 않는다.
 
 PR2는 실제 저장 필드별 eBay subject matching, 보존 의무/예외, deletion 또는
 irreversible anonymization, 실패/retry, operator audit, completion evidence를 먼저

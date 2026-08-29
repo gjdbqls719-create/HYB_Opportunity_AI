@@ -56,7 +56,8 @@ Rollout milestones are deliberately separate:
 1. Deploy the software and configuration to an externally reachable HTTPS URL.
 2. Confirm GET challenge response against the exact registered endpoint/token.
 3. Confirm a signed eBay test notification returns 202 and creates one verified
-   `PENDING_DELETION_REVIEW` receipt; confirm retry returns `REPLAYED`.
+   non-identifying audit plus one linked purgeable subject row in the same
+   transaction; confirm retry returns `REPLAYED` without a duplicate subject.
 4. Monitor 412, 409, 413, and 503 rates without logging sensitive bodies or
    identifiers; verify OAuth/public-key egress to the selected eBay environment.
 5. Establish manual receipt review and escalation while PR1 has no deletion
@@ -66,9 +67,13 @@ Rollout milestones are deliberately separate:
    production Browse API validation remains a separate milestone.
 
 Rollback may remove the application deployment/configuration, but must preserve
-accepted append-only receipt history. Never truncate or mutate the receipt table
-to roll back code. If verification or storage is unavailable, keep returning a
-retryable 503 rather than acknowledging an unverified or uncommitted event.
+accepted append-only audit history and any still-pending subject work. Never
+truncate or mutate the audit table to roll back code. Pending-subject backups
+contain deletion-request identity and require the same restricted handling and
+future PR2 purge policy as the live database. The internal purge seam must not
+be called merely for rollback and does not mark deletion complete. If
+verification or storage is unavailable, keep returning a retryable 503 rather
+than acknowledging an unverified or partially committed event.
 
 Current contract references: the
 [Marketplace Account Deletion guide](https://developer.ebay.com/develop/guides/sell/marketplace-user-account-deletion),

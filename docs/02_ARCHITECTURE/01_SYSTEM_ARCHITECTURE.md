@@ -16,7 +16,8 @@ eBay POST notification + X-EBAY-SIGNATURE
   -> fixed-environment Notification API public-key lookup (one-hour cache)
   -> ECDSA/SHA1 signature verification over eBay's compact JSON serialization
   -> Application receipt command
-  -> append-only SQLite receipt or exact semantic replay
+  -> atomic non-identifying audit + purgeable pending subject persistence
+  -> exact semantic replay without restoring a purged subject
   -> 202 acknowledgement with PENDING_DELETION_REVIEW
 ```
 
@@ -27,12 +28,17 @@ with 412, while OAuth/public-key dependency failures return 503 so eBay can
 retry. The key URL is selected exclusively from `EBAY_ENV`, and untrusted key
 IDs are URL-encoded rather than treated as URLs.
 
-The receipt owner records minimal normalized identifiers and status. It does
-not store the raw payload, signature, verification token, OAuth token, or eBay
-client secret. It also does not mutate commerce records or assert account-data
-deletion. Existing generic seller/account references require a separate audited
-matching and deletion/anonymization design before processing may advance beyond
-`PENDING_DELETION_REVIEW`.
+The receipt owner separates immutable non-identifying audit facts from the
+temporary plaintext subject identity required by PR2. The append-only audit
+stores notification metadata, a semantic SHA-256 digest, verified/pending
+statuses, and receipt time. A linked pending-subject row alone owns `username`,
+`userId`, and `eiasToken`; it is immutable until a narrow irreversible purge.
+Both rows are created in one SQLite transaction. Purge preserves the audit,
+does not represent completed deletion, and exact replay does not restore the
+purged identity. Neither table stores the raw payload, signature, verification
+token, OAuth token, or eBay client secret. Existing generic seller/account
+references still require a separate audited matching and deletion/anonymization
+design before processing may advance beyond `PENDING_DELETION_REVIEW`.
 
 ## Current target-bound capital path
 

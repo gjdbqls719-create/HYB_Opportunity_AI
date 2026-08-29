@@ -1,15 +1,14 @@
 # HYB Opportunity AI Project Status
 
-**Last Updated:** 2026-08-29
-**Status Basis:** eBay Marketplace Account Deletion Compliance PR1 on the Repaired Baseline
+**Last Updated:** 2026-08-30
+**Status Basis:** eBay Compliance PR1 Privacy-Purgeability Correction
 
 ## Current Snapshot
 
-- Current work: eBay Marketplace Account Deletion Compliance PR1 implementation
-  preserved, reapplied onto the repaired baseline, and ready for review; commit
-  and push remain pending approval
-- Current full regression: **4020 passed, 1 warning**
-  (eBay Compliance PR1 on the repaired baseline, 2026-08-29)
+- Current work: eBay Compliance PR1 privacy-purgeability correction implemented
+  and fully verified for publication
+- Current full regression: **4024 passed, 1 warning**
+  (eBay Compliance PR1 privacy-purgeability correction, 2026-08-30)
 - Restored pre-feature baseline regression: **3983 passed, 1 warning**
   (Baseline Regression Reliability Repair, 2026-08-29)
 - The regression gate is clean on supported Python 3.12 after repairing slotted
@@ -33,6 +32,14 @@ envelope, verifies `X-EBAY-SIGNATURE` against eBay's authenticated public-key
 API, and durably records only verified, normalized, append-only receipt facts.
 Exact semantic retry is idempotent even when publish attempt metadata changes;
 reuse of a notification ID with different semantic data fails closed.
+
+The immutable receipt contains only non-subject audit facts and a SHA-256
+semantic digest. Plaintext `username`, `userId`, and `eiasToken` values live
+only in a separately linked pending-subject row. Receipt and pending subject are
+created atomically; the pending row cannot be updated and can be irreversibly
+purged through a narrow repository seam without rewriting or deleting the audit
+receipt. Purging that row does not mark deletion complete, and an exact later
+retry does not recreate purged plaintext identity.
 
 Each accepted receipt is explicitly `VERIFIED` and
 `PENDING_DELETION_REVIEW`, and the API states `deletionExecuted: false`. This
