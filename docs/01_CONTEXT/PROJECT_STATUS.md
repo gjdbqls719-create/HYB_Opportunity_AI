@@ -1,14 +1,16 @@
 # HYB Opportunity AI Project Status
 
 **Last Updated:** 2026-08-29
-**Status Basis:** Baseline Regression Reliability Repair
+**Status Basis:** eBay Marketplace Account Deletion Compliance PR1 on the Repaired Baseline
 
 ## Current Snapshot
 
-- Current work: Shadow PR4 authoritative exact-O2 + persisted-screening manual
-  registration Application, POST, persistence-only exact GET, and request-first
-  replay complete
-- Last confirmed full regression: **3983 passed, 1 warning**
+- Current work: eBay Marketplace Account Deletion Compliance PR1 implementation
+  preserved, reapplied onto the repaired baseline, and ready for review; commit
+  and push remain pending approval
+- Current full regression: **4020 passed, 1 warning**
+  (eBay Compliance PR1 on the repaired baseline, 2026-08-29)
+- Restored pre-feature baseline regression: **3983 passed, 1 warning**
   (Baseline Regression Reliability Repair, 2026-08-29)
 - The regression gate is clean on supported Python 3.12 after repairing slotted
   dataclass serialization compatibility and two pre-existing test-isolation
@@ -17,6 +19,35 @@
   boundaries and additive authority contracts
 - Shadow PR4 adds no UI, checkpoint, scheduler, evaluator, Portfolio,
   calibration statistics, automatic registration, or ranking-policy change
+
+## eBay Marketplace Account Deletion Compliance
+
+The FastAPI application now exposes one canonical endpoint at
+`/api/v1/integrations/ebay/account-deletion` for eBay's GET challenge and POST
+notification contract. The GET response hashes the exact received challenge,
+the configured verification token, and the configured canonical endpoint URL;
+it never derives the URL from a request Host or proxy header.
+
+POST accepts only the current `MARKETPLACE_ACCOUNT_DELETION` version `1.0`
+envelope, verifies `X-EBAY-SIGNATURE` against eBay's authenticated public-key
+API, and durably records only verified, normalized, append-only receipt facts.
+Exact semantic retry is idempotent even when publish attempt metadata changes;
+reuse of a notification ID with different semantic data fails closed.
+
+Each accepted receipt is explicitly `VERIFIED` and
+`PENDING_DELETION_REVIEW`, and the API states `deletionExecuted: false`. This
+PR does not delete or anonymize Product seller references, price-history seller
+IDs, discovery observations, or actual-sale seller account references. Because
+those generic fields may contain covered eBay account data, a follow-up PR must
+first complete a field-by-field identity-match, retention, deletion, and audit
+inventory. No claim of completed deletion is made.
+
+Software readiness is not production activation. Remaining milestones are an
+externally reachable HTTPS deployment, exact endpoint/token configuration,
+production eBay credentials, successful eBay challenge and test notification,
+operational receipt review, the audited deletion/anonymization follow-up, and
+eBay production key activation. Production Browse API access is a separate
+operational concern.
 
 ADR-0067 accepts an existing-Discovery-owned persisted screening design:
 immutable per-Group evaluation snapshots, a separate immutable ranking

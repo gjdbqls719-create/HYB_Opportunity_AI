@@ -1,5 +1,31 @@
 # HYB Changelog
 
+## eBay Marketplace Account Deletion Compliance PR1
+
+- Add the canonical GET challenge and POST notification methods at
+  `/api/v1/integrations/ebay/account-deletion`, with fail-closed HTTPS/token
+  configuration and a 64 KiB request bound.
+- Validate the current `MARKETPLACE_ACCOUNT_DELETION` version `1.0` envelope and
+  verify `X-EBAY-SIGNATURE` using the authenticated eBay public-key API,
+  environment-fixed URLs, bounded network failures, and a one-hour key cache.
+- Add an append-only SQLite receipt inbox with minimal normalized identifiers,
+  semantic retry idempotency, conflicting-ID rejection, exact reconstruction,
+  and explicit `VERIFIED` / `PENDING_DELETION_REVIEW` state.
+- Return only generic acknowledgements/errors; do not persist or expose raw
+  bodies, signatures, verification/OAuth tokens, or client secrets.
+- State `deletionExecuted: false`: PR1 does not mutate seller/account-bearing
+  commerce records. An audited identity matching, retention, deletion, and
+  anonymization workflow is required in PR2 before completion can be claimed.
+- Document deployment, proxy/database, challenge/test-notification, monitoring,
+  eBay activation, and rollback milestones.
+- Preserve the implementation from its original `9fdfc613` working tree and
+  reapply it onto repaired baseline `c5507f5`. Verification: compliance-focused
+  `37 passed, 1 warning`; selected API, OpenAPI, config, SQLite, eBay, and
+  persistence impact `152 passed, 1 warning`; changed Markdown strict
+  UTF-8/relative-link validation passed for 8 files; full regression `4020
+  passed, 1 warning`. The repaired pre-feature baseline remains recorded as
+  `3983 passed, 1 warning`.
+
 ## Baseline Regression Reliability Repair
 
 - Make `PythonFile`, `MarkdownFile`, and `ConfigFile` serialization compatible

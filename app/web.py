@@ -35,6 +35,18 @@ from app.infrastructure.market_observation.demand_v2_sqlite_repository import (
     DemandV2PersistenceError,
     SQLiteDemandV2Repository,
 )
+from app.application.ebay_account_deletion import (
+    EbayAccountDeletionNotification,
+    EbayAccountDeletionReceiptConflictError,
+    EbayAccountDeletionReceiptPersistenceError,
+    EbayAccountDeletionSignatureError,
+    EbayAccountDeletionValidationError,
+    ReceiveEbayAccountDeletion,
+    generate_ebay_account_deletion_challenge_response,
+)
+from app.infrastructure.ebay_account_deletion import (
+    SQLiteEbayAccountDeletionReceiptRepository,
+)
 
 from contextlib import ExitStack
 from pathlib import Path
@@ -47,7 +59,18 @@ from typing import Annotated, Any, Literal
 
 import requests
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import (
@@ -58,6 +81,16 @@ from pydantic import (
     StrictInt,
     StrictStr,
     model_validator,
+)
+
+from config.settings import (
+    EbayAccountDeletionSettings,
+    get_ebay_account_deletion_settings,
+    get_settings,
+)
+from services.ebay_notification_verification import (
+    EbayNotificationSignatureVerifier,
+    EbayNotificationVerificationUnavailableError,
 )
 
 from engine.orchestrator import find_best_opportunities
@@ -881,6 +914,119 @@ TEMPLATE_DIRECTORY = (
     Path(__file__).resolve().parent.parent
     / "templates"
 )
+EBAY_ACCOUNT_DELETION_PATH = (
+    "/api/v1/integrations/ebay/account-deletion"
+)
+EBAY_ACCOUNT_DELETION_MAX_BODY_BYTES = 64 * 1024
+
+
+class EbayAccountDeletionChallengeResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    challenge_response: str = Field(alias="challengeResponse")
+
+
+class EbayAccountDeletionDataRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    username: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2048,
+    )
+    user_id: StrictStr | None = Field(
+        default=None,
+        alias="userId",
+        min_length=1,
+        max_length=2048,
+    )
+    eias_token: StrictStr | None = Field(
+        default=None,
+        alias="eiasToken",
+        min_length=1,
+        max_length=2048,
+    )
+
+
+class EbayAccountDeletionNotificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    notification_id: StrictStr = Field(
+        alias="notificationId",
+        min_length=1,
+        max_length=512,
+    )
+    event_date: StrictStr = Field(
+        alias="eventDate",
+        min_length=1,
+        max_length=128,
+    )
+    publish_date: StrictStr = Field(
+        alias="publishDate",
+        min_length=1,
+        max_length=128,
+    )
+    publish_attempt_count: StrictInt = Field(
+        alias="publishAttemptCount",
+        ge=1,
+    )
+    data: EbayAccountDeletionDataRequest
+
+
+class EbayAccountDeletionMetadataRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    topic: StrictStr = Field(min_length=1, max_length=128)
+    schema_version: StrictStr = Field(
+        alias="schemaVersion",
+        min_length=1,
+        max_length=32,
+    )
+    deprecated: StrictBool
+
+
+class EbayAccountDeletionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    metadata: EbayAccountDeletionMetadataRequest
+    notification: EbayAccountDeletionNotificationRequest
+
+    def to_notification(self) -> EbayAccountDeletionNotification:
+        return EbayAccountDeletionNotification.create(
+            notification_id=self.notification.notification_id,
+            topic=self.metadata.topic,
+            schema_version=self.metadata.schema_version,
+            deprecated=self.metadata.deprecated,
+            event_date=self.notification.event_date,
+            publish_date=self.notification.publish_date,
+            publish_attempt_count=(
+                self.notification.publish_attempt_count
+            ),
+            username=self.notification.data.username,
+            user_id=self.notification.data.user_id,
+            eias_token=self.notification.data.eias_token,
+        )
+
+
+class EbayAccountDeletionReceiptResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    acknowledgement: Literal["ACCEPTED"] = "ACCEPTED"
+    receipt_status: Literal["RECORDED", "REPLAYED"] = Field(
+        alias="receiptStatus"
+    )
+    authenticity_status: Literal["VERIFIED"] = Field(
+        default="VERIFIED",
+        alias="authenticityStatus",
+    )
+    processing_status: Literal["PENDING_DELETION_REVIEW"] = Field(
+        default="PENDING_DELETION_REVIEW",
+        alias="processingStatus",
+    )
+    deletion_executed: Literal[False] = Field(
+        default=False,
+        alias="deletionExecuted",
+    )
 
 
 class OpportunitySearchRequest(BaseModel):
@@ -4547,6 +4693,104 @@ templates = Jinja2Templates(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def redact_ebay_account_deletion_validation_error(
+    request: Request,
+    error: RequestValidationError,
+):
+    if request.url.path == EBAY_ACCOUNT_DELETION_PATH:
+        missing_signature = request.method == "POST" and any(
+            item.get("type") == "missing"
+            and len(item.get("loc", ())) == 2
+            and item["loc"][0] == "header"
+            and str(item["loc"][1]).lower() == "x-ebay-signature"
+            for item in error.errors()
+        )
+        if missing_signature:
+            return JSONResponse(
+                status_code=412,
+                content={
+                    "detail": (
+                        "eBay notification authenticity could not be verified"
+                    )
+                },
+            )
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "invalid eBay account deletion request"},
+        )
+    return await request_validation_exception_handler(request, error)
+
+
+@app.middleware("http")
+async def limit_ebay_account_deletion_body(
+    request: Request,
+    call_next,
+):
+    if (
+        request.method == "POST"
+        and request.url.path == EBAY_ACCOUNT_DELETION_PATH
+    ):
+        content_length = request.headers.get("content-length")
+        if content_length is not None:
+            try:
+                declared_length = int(content_length)
+            except ValueError:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "invalid content length"},
+                )
+            if declared_length < 0:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "invalid content length"},
+                )
+            if declared_length > EBAY_ACCOUNT_DELETION_MAX_BODY_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "notification body is too large"},
+                )
+
+        body = await request.body()
+        if len(body) > EBAY_ACCOUNT_DELETION_MAX_BODY_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "notification body is too large"},
+            )
+    return await call_next(request)
+
+
+def get_ebay_account_deletion_configuration(
+) -> EbayAccountDeletionSettings:
+    try:
+        return get_ebay_account_deletion_settings()
+    except ValueError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="eBay account deletion compliance is unavailable",
+        ) from error
+
+
+def get_ebay_account_deletion_ingress() -> ReceiveEbayAccountDeletion:
+    try:
+        get_ebay_account_deletion_settings()
+        ebay_settings = get_settings()
+        repository = SQLiteEbayAccountDeletionReceiptRepository(
+            DEFAULT_DATABASE_PATH
+        )
+    except (ValueError, EbayAccountDeletionReceiptPersistenceError) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="eBay account deletion compliance is unavailable",
+        ) from error
+    return ReceiveEbayAccountDeletion(
+        signature_verifier=EbayNotificationSignatureVerifier(
+            settings=ebay_settings
+        ),
+        receipt_repository=repository,
+    )
+
+
 def get_validation_queue_repository():
     repository = SQLiteValidationQueueRepository(DEFAULT_DATABASE_PATH)
     try:
@@ -6067,6 +6311,95 @@ def _execute_validation_action(operation, command: ValidationActionCommand):
         ) from error
     except (LifecycleVersionConflictError, InvalidLifecycleTransitionError) as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.get(
+    EBAY_ACCOUNT_DELETION_PATH,
+    response_model=EbayAccountDeletionChallengeResponse,
+)
+def verify_ebay_account_deletion_endpoint(
+    challenge_code: Annotated[
+        str,
+        Query(min_length=1, max_length=1024),
+    ],
+    configuration: EbayAccountDeletionSettings = Depends(
+        get_ebay_account_deletion_configuration
+    ),
+) -> EbayAccountDeletionChallengeResponse:
+    try:
+        challenge_response = (
+            generate_ebay_account_deletion_challenge_response(
+                challenge_code=challenge_code,
+                verification_token=configuration.verification_token,
+                endpoint_url=configuration.endpoint_url,
+            )
+        )
+    except EbayAccountDeletionValidationError as error:
+        raise HTTPException(
+            status_code=422,
+            detail="invalid eBay endpoint challenge",
+        ) from error
+    return EbayAccountDeletionChallengeResponse(
+        challenge_response=challenge_response
+    )
+
+
+@app.post(
+    EBAY_ACCOUNT_DELETION_PATH,
+    response_model=EbayAccountDeletionReceiptResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def receive_ebay_account_deletion_notification(
+    request: Request,
+    payload: EbayAccountDeletionRequest,
+    x_ebay_signature: Annotated[
+        str,
+        Header(alias="X-EBAY-SIGNATURE"),
+    ],
+    ingress: ReceiveEbayAccountDeletion = Depends(
+        get_ebay_account_deletion_ingress
+    ),
+) -> EbayAccountDeletionReceiptResponse:
+    try:
+        raw_message = await request.json()
+        if not isinstance(raw_message, dict):
+            raise EbayAccountDeletionValidationError(
+                "notification body must be an object"
+            )
+        result = ingress.execute(
+            message=raw_message,
+            notification=payload.to_notification(),
+            signature_header=x_ebay_signature,
+        )
+    except EbayAccountDeletionValidationError as error:
+        raise HTTPException(
+            status_code=422,
+            detail="invalid eBay account deletion notification",
+        ) from error
+    except EbayAccountDeletionSignatureError as error:
+        raise HTTPException(
+            status_code=412,
+            detail="eBay notification authenticity could not be verified",
+        ) from error
+    except EbayNotificationVerificationUnavailableError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="eBay notification verification is unavailable",
+        ) from error
+    except EbayAccountDeletionReceiptConflictError as error:
+        raise HTTPException(
+            status_code=409,
+            detail="conflicting eBay notification receipt",
+        ) from error
+    except EbayAccountDeletionReceiptPersistenceError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="eBay notification receipt is unavailable",
+        ) from error
+
+    return EbayAccountDeletionReceiptResponse(
+        receipt_status="REPLAYED" if result.replayed else "RECORDED"
+    )
 
 
 @app.get("/")

@@ -1,5 +1,52 @@
 # HYB API Specification
 
+## eBay Marketplace Account Deletion Compliance
+
+Canonical path:
+
+```text
+/api/v1/integrations/ebay/account-deletion
+```
+
+`GET` requires the eBay query parameter `challenge_code` and returns `200`:
+
+```json
+{"challengeResponse":"<lowercase SHA-256 hex>"}
+```
+
+The digest input is the exact concatenation of `challenge_code`,
+`EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN`, and the configured
+`EBAY_ACCOUNT_DELETION_ENDPOINT_URL`. Missing/empty/oversized challenge input is
+422; absent or unsafe configuration is 503. Configuration values are never
+returned.
+
+`POST` requires `X-EBAY-SIGNATURE`, a JSON object no larger than 64 KiB, and
+the current eBay envelope: metadata topic
+`MARKETPLACE_ACCOUNT_DELETION`, schema version `1.0`, `deprecated: false`, plus
+notification ID, timezone-aware event/publish times, positive publish attempt,
+and at least one of `username`, `userId`, or `eiasToken`. Extra fields and
+coercive types are rejected.
+
+After successful eBay signature verification and durable receipt commit, POST
+returns `202`:
+
+```json
+{
+  "acknowledgement": "ACCEPTED",
+  "receiptStatus": "RECORDED",
+  "authenticityStatus": "VERIFIED",
+  "processingStatus": "PENDING_DELETION_REVIEW",
+  "deletionExecuted": false
+}
+```
+
+`receiptStatus` is `REPLAYED` for an exact semantic retry. A changed payload for
+an existing notification ID is 409. Invalid/missing authenticity is 412;
+invalid envelopes are 422; oversized bodies are 413; verification dependency
+or storage unavailability is 503. Error bodies are generic and do not echo
+subject identifiers or configuration. PR1 acknowledges durable verified
+receipt only—it does not claim deletion or anonymization.
+
 ## Competition v2 observation identity
 
 `POST /api/v2/opportunities/{opportunity_id}/competition-observations` does not

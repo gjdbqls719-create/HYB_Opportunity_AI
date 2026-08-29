@@ -5,20 +5,22 @@ from typing import Any
 import requests
 from requests.auth import HTTPBasicAuth
 
-from config.settings import get_settings
+from config.settings import Settings, get_settings
 
 
 EBAY_SCOPE = "https://api.ebay.com/oauth/api_scope"
 
 
-def get_application_token() -> dict[str, Any]:
-    settings = get_settings()
+def get_application_token(
+    settings: Settings | None = None,
+) -> dict[str, Any]:
+    resolved_settings = settings or get_settings()
 
     response = requests.post(
-        settings.ebay_token_url,
+        resolved_settings.ebay_token_url,
         auth=HTTPBasicAuth(
-            settings.ebay_client_id,
-            settings.ebay_client_secret,
+            resolved_settings.ebay_client_id,
+            resolved_settings.ebay_client_secret,
         ),
         headers={
             "Content-Type": "application/x-www-form-urlencoded",

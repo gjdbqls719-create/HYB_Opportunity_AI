@@ -42,6 +42,20 @@ Validation Capital과 Scaling Capital은 현재 운영상 구분일 뿐 새 Doma
 변경으로 재해석하지 않는다. 해당 run은 기존 문서의 external blocker와 exact evidence
 규칙을 유지한 채 계속한다.
 
+### eBay Marketplace Account Deletion Compliance
+
+PR1은 eBay challenge, signed notification verification, 최소 append-only receipt,
+retry/conflict, API/OpenAPI, deployment contract를 구현한다. Receipt는
+`PENDING_DELETION_REVIEW`이며 삭제 완료를 뜻하지 않는다.
+
+PR2는 실제 저장 필드별 eBay subject matching, 보존 의무/예외, deletion 또는
+irreversible anonymization, 실패/retry, operator audit, completion evidence를 먼저
+설계하고 구현해야 한다. Product seller, price-history seller ID, Discovery seller,
+Actual Sale seller-account reference를 포함한 generic account-bearing field를 정확히
+분류하기 전에는 자동 삭제나 완료 응답을 추가하지 않는다. HTTPS 배포, eBay challenge와
+test notification 검증, production key activation, real production Browse 검증은 코드
+완료와 분리된 운영 milestone이다.
+
 ---
 
 ## Completed Foundation

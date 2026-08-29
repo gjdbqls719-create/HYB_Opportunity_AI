@@ -10,6 +10,31 @@ Recommendation History
 
 Product 모델 중복 문제는 통합 대상으로 관리한다.
 
+## eBay Account Deletion Receipt Persistence
+
+`ebay_account_deletion_receipts` is the append-only PR1 compliance inbox. Its
+primary key is `notification_id`; an index on `(processing_status, received_at)`
+supports operational review. The row stores only:
+
+- current topic/schema/deprecated metadata;
+- normalized event time and first publish time/attempt;
+- the provided `username`, `user_id`, and/or `eias_token` subject identifiers;
+- a deterministic semantic fingerprint;
+- fixed `VERIFIED` authenticity and `PENDING_DELETION_REVIEW` processing status;
+- the server receipt time.
+
+The fingerprint binds stable notification semantics and intentionally excludes
+retry-varying publish time/attempt metadata. A repeat notification ID with the
+same semantics returns the original row; different semantics conflict. UPDATE
+and DELETE triggers make the table immutable. Reads reconstruct and validate
+the current envelope, fingerprint, and closed statuses and fail closed on
+corruption.
+
+No raw notification JSON, HTTP signature, verification token, OAuth token, or
+client secret is persisted. No deletion queue, completion marker, anonymization
+claim, or mutation of Product, price history, Discovery, or Actual Sale records
+exists in PR1.
+
 ## ADR-0068 Shadow Registration/Baseline Persistence
 
 Shadow PR3 adds three Opportunity-owned, append-only SQLite authorities, and

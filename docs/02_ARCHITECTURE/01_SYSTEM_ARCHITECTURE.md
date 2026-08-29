@@ -1,5 +1,39 @@
 # HYB System Architecture
 
+## eBay Marketplace Account Deletion Compliance Ingress
+
+This is an additive Application/integration capability, not a new bounded
+domain. It preserves the existing Domain/Application/Infrastructure/FastAPI
+boundaries:
+
+```text
+eBay GET challenge
+  -> exact configured challenge/token/endpoint SHA-256 response
+
+eBay POST notification + X-EBAY-SIGNATURE
+  -> strict current-envelope validation and 64 KiB request bound
+  -> eBay OAuth application token
+  -> fixed-environment Notification API public-key lookup (one-hour cache)
+  -> ECDSA/SHA1 signature verification over eBay's compact JSON serialization
+  -> Application receipt command
+  -> append-only SQLite receipt or exact semantic replay
+  -> 202 acknowledgement with PENDING_DELETION_REVIEW
+```
+
+The endpoint URL used in challenge hashing is configuration authority and is
+never inferred from request headers. Verification accepts only an authenticated
+eBay public key selected by the signed `kid`; malformed/invalid signatures fail
+with 412, while OAuth/public-key dependency failures return 503 so eBay can
+retry. The key URL is selected exclusively from `EBAY_ENV`, and untrusted key
+IDs are URL-encoded rather than treated as URLs.
+
+The receipt owner records minimal normalized identifiers and status. It does
+not store the raw payload, signature, verification token, OAuth token, or eBay
+client secret. It also does not mutate commerce records or assert account-data
+deletion. Existing generic seller/account references require a separate audited
+matching and deletion/anonymization design before processing may advance beyond
+`PENDING_DELETION_REVIEW`.
+
 ## Current target-bound capital path
 
 ```text
